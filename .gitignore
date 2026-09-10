@@ -1,1 +1,46 @@
-/Data
+# Secrets (keep only the template)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Python environments and caches
+env/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Build artifacts
+dist/
+build/
+coverage/
+*.log
+
+# Local datasets, generated content and model weights
+/Data/
+/data/
+/outputs/
+/models/
+/checkpoints/
+/chroma_db/
+*.safetensors
+*.gguf
+*.pt
+*.pth
+.cache/
+.ipynb_checkpoints/
+
+# Editor / OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

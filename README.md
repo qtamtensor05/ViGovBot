@@ -4,4 +4,4 @@ ViGovBot là dự án nghiên cứu kết hợp QLoRA (Quantized Low-Rank Adapta
 
 ## Giấy phép
 
-Mã nguồn của dự án được phát hành theo [giấy phép MIT](LICENSE). Dữ liệu, tài liệu và mô hình của bên thứ ba được sử dụng trong dự án tuân theo giấy phép và điều kiện sử dụng riêng của từng nguồn.
+Mã nguồn của dự án được phát hành theo [giấy phép](LICENSE). Dữ liệu, tài liệu và mô hình của bên thứ ba được sử dụng trong dự án tuân theo giấy phép và điều kiện sử dụng riêng của từng nguồn.
