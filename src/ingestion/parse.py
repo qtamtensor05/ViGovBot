@@ -63,6 +63,41 @@ def normalize_markdown(markdown):
     return markdown.strip()
 
 
+def clean_markdown(markdown):
+    """Remove extraction noise without deleting valid table or code syntax."""
+    markdown = re.sub(r"\ufffd+", " ", markdown)
+    lines = []
+    fence = None
+    separator_seen = False
+    for line in markdown.replace("\r\n", "\n").replace("\r", "\n").splitlines():
+        stripped = line.strip()
+        marker = re.match(r"^(`{3,}|~{3,})", stripped)
+        if marker and fence is None:
+            fence = marker.group(1)
+        elif fence is not None:
+            if re.fullmatch(re.escape(fence[0]) + "{" + str(len(fence)) + r",}\s*", stripped):
+                fence = None
+            lines.append(line)
+            continue
+        if fence is not None:
+            lines.append(line)
+            continue
+        # Only isolated empty double-backtick tokens are noise; keep inline code.
+        line = re.sub(r"(?<!\S)``(?!\S)", " ", line)
+        stripped = line.strip()
+        if re.fullmatch(r"\|(?:[ \t]*\|)+", stripped):
+            continue
+        is_separator = bool(re.fullmatch(r"\|(?:[ \t]*:?-{3,}:?[ \t]*\|)+", stripped))
+        if is_separator:
+            if separator_seen:
+                continue
+            separator_seen = True
+        elif stripped:
+            separator_seen = False
+        lines.append(line)
+    return normalize_markdown("\n".join(lines))
+
+
 def extract_metadata(markdown, source_file):
     procedure_codes = sorted(set(PROCEDURE_CODE_PATTERN.findall(markdown)))
     fees = []
@@ -83,7 +118,7 @@ def extract_metadata(markdown, source_file):
 
 
 def build_hybrid_chunks(markdown, source_file, max_chars=6000):
-    markdown = normalize_markdown(markdown)
+    markdown = clean_markdown(markdown)
     if not markdown:
         raise ConfigurationError("Không trích xuất được nội dung tài liệu.")
     base_metadata = extract_metadata(markdown, source_file)
