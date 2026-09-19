@@ -17,7 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if __package__ in (None, ""):
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.chunking.markdown import TTHCStructureAwareChunker
+from src.chunking.markdown import TTHCStructureAwareChunker, TTHCChunkingError, sanitize_text
 
 
 class ConfigurationError(ValueError):
@@ -118,6 +118,10 @@ def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_
     validate_pdf(file_path, max_bytes)
     markdown = (markdown_converter or local_markdown)(str(file_path.resolve()))
     hybrid_chunks = build_hybrid_chunks(markdown, file_path.name)
+    # Final serialization boundary: also protect callers using a custom converter.
+    for chunk in hybrid_chunks:
+        for key in ("procedure_name", "context_prefix", "text_content", "parent_section"):
+            chunk[key] = sanitize_text(chunk[key])
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{file_path.stem}.json"
     temporary = output_dir / f".{file_path.stem}-{uuid4().hex}.tmp"
@@ -161,7 +165,7 @@ def main(argv=None):
                 print(f"Đã lưu {count} đoạn: {path}", flush=True)
             except Exception as error:
                 failures += 1
-                detail = str(error) if isinstance(error, ConfigurationError) else type(error).__name__
+                detail = str(error) if isinstance(error, (ConfigurationError, TTHCChunkingError)) else type(error).__name__
                 print(f"Lỗi {file}: {detail}", file=sys.stderr, flush=True)
         print(f"Hoàn tất: {completed}; bỏ qua: {skipped}; lỗi: {failures}; {time.perf_counter() - started:.2f}s")
         return 1 if failures else 0

@@ -127,7 +127,7 @@ Section được phân loại không phân biệt hoa thường hoặc dấu ti�
 
 | Từ khóa heading | `section_type` |
 |---|---|
-| Thông tin chung, Định danh | `metadata_identity` |
+| Thông tin chung, Định danh, Chi tiết thủ tục hành chính, Cơ quan thực hiện, Kết quả xử lý | `metadata_identity` |
 | Trình tự thực hiện, Các bước | `procedure_step` |
 | Thành phần hồ sơ, Giấy tờ, Chứng từ phải nộp, Hồ sơ hải quan | `required_documents` |
 | Cách thức thực hiện, Thời hạn giải quyết, Phí, Lệ phí | `submission_deadline_fee` |
@@ -173,7 +173,7 @@ Các dòng bắt đầu và kết thúc bằng `|` được xem là hàng của 
 
 - bảng vừa với phần dung lượng còn lại của chunk được giữ nguyên;
 - bảng dài chỉ được tách giữa hai hàng;
-- header và separator được lặp lại ở mỗi phần của bảng dài;
+- header và separator được đặt ở đầu mỗi child từ khi khối bảng bắt đầu, kể cả child chứa phần văn bản tiếp nối do bộ chuyển đổi PDF tách khỏi cú pháp bảng;
 - một hàng đơn lẻ dài hơn hard limit sẽ phát sinh lỗi thay vì bị cắt giữa hàng.
 
 Dung lượng thực tế dành cho nội dung bảng bằng `max_chars` trừ độ dài context prefix.
@@ -189,6 +189,10 @@ Mỗi child chunk nhận prefix:
 ```
 
 Prefix được lưu riêng trong `context_prefix` và đồng thời đặt ở đầu `text_content`. Khi tạo embedding, sử dụng trực tiếp `text_content` để vector chứa cả nội dung lẫn định danh ngữ cảnh.
+
+Trước khi trích xuất metadata và chia section, pipeline giải mã HTML entity, đổi `<br>`, `<br/>`, `<br />` thành khoảng trắng và bỏ các thẻ định dạng HTML thông dụng. Cách xử lý này giữ nguyên dòng Markdown/bảng và loại HTML khỏi tên thủ tục, heading và context prefix.
+
+Với nhiều bảng trong cùng section, mỗi bảng sử dụng header riêng. Phần văn bản tiếp nối kế thừa header bảng gần nhất đến hết section; đây là heuristic cho PDF bị mất cú pháp bảng. Chunk chỉ có header bảng được loại bỏ. Giới hạn 1.500 ký tự được kiểm tra sau khi chèn header và prefix. Các file JSON đã tạo cần chạy lại với `--overwrite` để áp dụng thay đổi.
 
 ### 7. Schema JSON đầu ra
 
