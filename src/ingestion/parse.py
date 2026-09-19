@@ -14,22 +14,14 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-# Preserve direct execution: python src/ingestion/parse.py.
 if __package__ in (None, ""):
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.chunking.markdown import split_markdown_by_structure
+from src.chunking.markdown import TTHCStructureAwareChunker
 
 
 class ConfigurationError(ValueError):
     """An actionable error that contains no secret values."""
-
-
-PROCEDURE_CODE_PATTERN = re.compile(r"\b\d\.\d{6}\b")
-FEE_PATTERN = re.compile(
-    r"(?P<amount>\d{1,3}(?:[.\s]\d{3})+|\d+)\s*(?P<currency>VNĐ|VND|đồng)\b",
-    re.IGNORECASE,
-)
 
 
 def load_settings():
@@ -98,43 +90,12 @@ def clean_markdown(markdown):
     return normalize_markdown("\n".join(lines))
 
 
-def extract_metadata(markdown, source_file):
-    procedure_codes = sorted(set(PROCEDURE_CODE_PATTERN.findall(markdown)))
-    fees = []
-    for match in FEE_PATTERN.finditer(markdown):
-        amount = re.sub(r"\D", "", match.group("amount"))
-        currency = match.group("currency").upper().replace("ĐỒNG", "VNĐ").replace("VND", "VNĐ")
-        fees.append(f"{amount} {currency}")
-    metadata = {
-        "source_file": source_file,
-        "processing_status": "parsed_success",
-    }
-    if procedure_codes:
-        metadata["procedure_codes"] = procedure_codes
-        metadata["procedure_code"] = procedure_codes[0]
-    if fees:
-        metadata["fees"] = sorted(set(fees), key=fees.index)
-    return metadata
-
-
-def build_hybrid_chunks(markdown, source_file, max_chars=6000):
+def build_hybrid_chunks(markdown, source_file, max_chars=1500):
     markdown = clean_markdown(markdown)
     if not markdown:
         raise ConfigurationError("Không trích xuất được nội dung tài liệu.")
-    base_metadata = extract_metadata(markdown, source_file)
-    chunks = split_markdown_by_structure(markdown, max_chars=max_chars)
-    return [
-        {
-            "chunk_id": f"{Path(source_file).stem}-local-chunk-{index + 1}",
-            "metadata": {
-                **base_metadata,
-                "chunk_index": index + 1,
-                "chunk_count": len(chunks),
-            },
-            "page_content": chunk,
-        }
-        for index, chunk in enumerate(chunks)
-    ]
+    chunker = TTHCStructureAwareChunker(target_chars=min(1200, max_chars), max_chars=max_chars)
+    return chunker.process_document(markdown, source_file=source_file)
 
 
 def local_markdown(file_path):
@@ -157,8 +118,6 @@ def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_
     validate_pdf(file_path, max_bytes)
     markdown = (markdown_converter or local_markdown)(str(file_path.resolve()))
     hybrid_chunks = build_hybrid_chunks(markdown, file_path.name)
-    for chunk in hybrid_chunks:
-        chunk["metadata"]["parser"] = "pymupdf4llm"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{file_path.stem}.json"
     temporary = output_dir / f".{file_path.stem}-{uuid4().hex}.tmp"

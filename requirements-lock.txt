@@ -1,4 +1,5 @@
 # Windows / Python 3.14; local PDF parser dependencies
+annotated-types==0.8.0
 flatbuffers==25.12.19
 networkx==3.6.1
 numpy==2.5.3
@@ -10,5 +11,9 @@ pymupdf==1.28.2
 pymupdf-layout==1.28.2
 pymupdf4llm==1.28.2
 python-dotenv==1.2.3
+pydantic==2.13.5
+pydantic_core==2.46.5
 pyyaml==6.0.3
 tabulate==0.10.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0

@@ -1,84 +1,349 @@
-"""Split Markdown by headings while preserving tables and section content."""
+"""Structure-aware chunking for Vietnamese administrative procedures (TTHC)."""
+
+from __future__ import annotations
 
 import re
+import unicodedata
+from pathlib import Path
+from typing import Iterable, Literal
+
+from pydantic import BaseModel, Field
+
+SectionType = Literal["metadata_identity", "procedure_step", "required_documents", "submission_deadline_fee", "legal_basis", "other"]
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+BOLD_HEADING_RE = re.compile(r"^\s*\*\*([^*\n]+?)\*\*\s*:?[ \t]*$")
+SOURCE_CODE_RE = re.compile(r"\b\d\.\d{6}\b")
+GENERIC_PAGE_TITLES = {"chi tiet thu tuc hanh chinh"}
 
 
-HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
-BOLD_SECTION_PATTERN = re.compile(r"^\*\*[^*]+:\s*.*\*\*\s*$")
+class TTHCChunk(BaseModel):
+    """A child chunk ready to be embedded and indexed."""
+    chunk_id: str
+    source_file: str
+    source_code: str
+    procedure_name: str
+    section_type: SectionType
+    context_prefix: str
+    text_content: str
+    parent_section: str
 
 
-def is_markdown_table_line(line):
+class TTHCDocument(BaseModel):
+    """Document-level metadata and its generated child chunks."""
+    source_file: str
+    source_code: str
+    procedure_name: str
+    chunks: list[TTHCChunk] = Field(default_factory=list)
+
+
+class Section(BaseModel):
+    """A complete parent section before child chunking."""
+    section_id: int
+    title: str
+    section_type: SectionType
+    text: str
+
+
+class TTHCChunkingError(ValueError):
+    """Raised when input cannot be converted without violating the schema."""
+
+
+def _model_dump(model: BaseModel) -> dict:
+    if hasattr(model, "model_dump"):
+        return model.model_dump()  # type: ignore[attr-defined,no-any-return]
+    return model.dict()
+
+
+def _fold(value: str) -> str:
+    normalized = unicodedata.normalize("NFD", value.casefold())
+    return "".join(char for char in normalized if unicodedata.category(char) != "Mn").replace("đ", "d")
+
+
+def _is_table_line(line: str) -> bool:
     stripped = line.strip()
     return stripped.startswith("|") and stripped.endswith("|")
 
 
-def is_structural_heading(line):
+def _heading_title(line: str) -> str | None:
     stripped = line.strip()
-    return bool(HEADING_PATTERN.match(stripped) or BOLD_SECTION_PATTERN.match(stripped))
+    markdown_match = HEADING_RE.match(stripped)
+    if markdown_match:
+        return markdown_match.group(2).strip(" *:")
+    bold_match = BOLD_HEADING_RE.match(stripped)
+    return bold_match.group(1).strip(" *:") if bold_match else None
 
 
-def is_heading_only(section):
-    lines = [line.strip() for line in section.splitlines() if line.strip()]
-    return bool(lines) and all(is_structural_heading(line) for line in lines)
+def _slug(value: str, fallback: str = "other") -> str:
+    value = re.sub(r"[^a-z0-9]+", "_", _fold(value)).strip("_")
+    return value[:48] or fallback
 
 
-def split_oversized_section(section, max_chars):
-    if len(section) <= max_chars:
-        return [section]
-    blocks = re.split(r"\n\s*\n", section)
-    chunks = []
-    current = []
-    current_len = 0
-    in_table = False
-    for block in blocks:
-        block = block.strip()
-        if not block:
-            continue
-        block_lines = block.splitlines()
-        block_is_table = any(is_markdown_table_line(line) for line in block_lines)
-        block_len = len(block) + 2
-        if current and current_len + block_len > max_chars and not in_table:
-            chunks.append("\n\n".join(current).strip())
-            current = []
-            current_len = 0
-        current.append(block)
-        current_len += block_len
-        in_table = block_is_table
-    if current:
-        chunks.append("\n\n".join(current).strip())
-    return chunks
+class TTHCStructureAwareChunker:
+    """Create context-enriched parent/child chunks from TTHC Markdown."""
 
+    SECTION_KEYWORDS: tuple[tuple[SectionType, tuple[str, ...]], ...] = (
+        ("metadata_identity", ("thong tin chung", "dinh danh")),
+        ("procedure_step", ("trinh tu thuc hien", "cac buoc")),
+        ("required_documents", ("thanh phan ho so", "giay to", "chung tu phai nop", "ho so hai quan")),
+        ("submission_deadline_fee", ("cach thuc thuc hien", "thoi han giai quyet", "le phi", "phi")),
+        ("legal_basis", ("can cu phap ly",)),
+    )
 
-def split_markdown_by_structure(markdown, max_chars=6000):
-    lines = markdown.splitlines()
-    sections = []
-    current = []
-    for line in lines:
-        if is_structural_heading(line) and current:
-            sections.append("\n".join(current).strip())
-            current = []
-        current.append(line)
-    if current:
-        sections.append("\n".join(current).strip())
+    def __init__(self, target_chars: int = 1200, max_chars: int = 1500, overlap_chars: int = 100):
+        if not 1 <= target_chars <= max_chars:
+            raise ValueError("target_chars must be between 1 and max_chars")
+        if not 0 <= overlap_chars < target_chars:
+            raise ValueError("overlap_chars must be non-negative and smaller than target_chars")
+        self.target_chars = target_chars
+        self.max_chars = max_chars
+        self.overlap_chars = overlap_chars
+        self._metadata: dict[str, str] = {}
 
-    chunks = []
-    for section in sections:
-        if not section:
-            continue
-        chunks.extend(split_oversized_section(section, max_chars))
-    merged_chunks = []
-    pending_heading = ""
-    for chunk in chunks:
-        if is_heading_only(chunk):
-            pending_heading = f"{pending_heading}\n\n{chunk}".strip()
-            continue
-        if pending_heading:
-            chunk = f"{pending_heading}\n\n{chunk}".strip()
-            pending_heading = ""
-        merged_chunks.append(chunk)
-    if pending_heading:
-        if merged_chunks:
-            merged_chunks[-1] = f"{merged_chunks[-1]}\n\n{pending_heading}".strip()
+    def extract_metadata(self, text: str) -> dict[str, str]:
+        """Extract TTHC code and procedure name from document content."""
+        if not text or not text.strip():
+            raise TTHCChunkingError("Markdown input is empty")
+        code_match = SOURCE_CODE_RE.search(text)
+        if not code_match:
+            raise TTHCChunkingError("Missing TTHC code (expected format: 1.000005)")
+        procedure_name = self._extract_procedure_name(text)
+        if not procedure_name:
+            for line in text.splitlines():
+                match = HEADING_RE.match(line.strip())
+                candidate = match.group(2).strip() if match and match.group(1) == "#" else ""
+                if candidate and _fold(candidate) not in GENERIC_PAGE_TITLES and not SOURCE_CODE_RE.fullmatch(candidate):
+                    procedure_name = candidate
+                    break
+        if not procedure_name:
+            raise TTHCChunkingError("Missing procedure name (Tên thủ tục or a level-1 heading)")
+        return {"source_code": code_match.group(0), "procedure_name": procedure_name}
+
+    def _extract_procedure_name(self, text: str) -> str:
+        """Read a same-line or immediately-following value after `Tên thủ tục`."""
+        lines = text.splitlines()
+        label_pattern = re.compile(
+            r"^t[eê]n\s+(?:th[uủ]\s+t[uụ]c(?:\s+h[aà]nh\s+ch[ií]nh)?)\s*[:\-]?\s*(.*)$",
+            re.IGNORECASE,
+        )
+        for index, line in enumerate(lines):
+            plain_line = line.strip().strip("|").replace("**", "").strip(" *")
+            match = label_pattern.match(plain_line)
+            if not match:
+                continue
+            inline_value = match.group(1).strip(" |#*:")
+            if inline_value:
+                return inline_value
+            for following in lines[index + 1:]:
+                candidate = following.strip().strip("|#* ")
+                if not candidate or re.fullmatch(r"[:\-\s|]+", candidate):
+                    continue
+                if _fold(candidate) in GENERIC_PAGE_TITLES:
+                    continue
+                return candidate
+        return ""
+
+    def classify_section(self, title: str) -> SectionType:
+        """Map a Vietnamese heading to the controlled section taxonomy."""
+        folded = _fold(title)
+        for section_type, keywords in self.SECTION_KEYWORDS:
+            if any(keyword in folded for keyword in keywords):
+                return section_type
+        return "other"
+
+    def parse_sections(self, markdown_text: str) -> list[Section]:
+        """Split on structural headings and attach every heading to its body."""
+        if not markdown_text or not markdown_text.strip():
+            raise TTHCChunkingError("Markdown input is empty")
+        sections: list[Section] = []
+        title = "Thông tin tài liệu"
+        lines: list[str] = []
+
+        def append_section() -> None:
+            content = "\n".join(lines).strip()
+            if content:
+                sections.append(Section(section_id=len(sections) + 1, title=title, section_type=self.classify_section(title), text=content))
+
+        for line in markdown_text.replace("\r\n", "\n").replace("\r", "\n").splitlines():
+            heading = _heading_title(line)
+            if heading is not None:
+                append_section()
+                title = heading
+                lines = [line.strip()]
+            else:
+                lines.append(line.rstrip())
+        append_section()
+        return sections
+
+    def _atomic_blocks(self, text: str, body_limit: int) -> list[str]:
+        """Build indivisible paragraphs/rows, preserving small tables."""
+        lines = text.splitlines()
+        blocks: list[str] = []
+        paragraph: list[str] = []
+
+        def flush_paragraph() -> None:
+            nonlocal paragraph
+            value = "\n".join(paragraph).strip()
+            if value:
+                blocks.extend(self._split_plain_block(value, body_limit))
+            paragraph = []
+
+        index = 0
+        while index < len(lines):
+            if _is_table_line(lines[index]):
+                flush_paragraph()
+                rows: list[str] = []
+                while index < len(lines) and _is_table_line(lines[index]):
+                    rows.append(lines[index].strip())
+                    index += 1
+                table = "\n".join(rows)
+                blocks.extend([table] if len(table) <= body_limit else self._split_table(rows, body_limit))
+                continue
+            if not lines[index].strip():
+                flush_paragraph()
+            else:
+                paragraph.append(lines[index])
+            index += 1
+        flush_paragraph()
+        return blocks
+
+    def _split_plain_block(self, block: str, limit: int) -> list[str]:
+        if len(block) <= limit:
+            return [block]
+        result: list[str] = []
+        current = ""
+        for line in block.splitlines():
+            parts = re.split(r"(?<=[.!?;:])\s+|\s+", line) if len(line) > limit else [line]
+            for part in filter(None, parts):
+                candidate = f"{current}\n{part}".strip() if current else part
+                if len(candidate) <= limit:
+                    current = candidate
+                else:
+                    if current:
+                        result.append(current)
+                    if len(part) > limit:
+                        result.extend(part[i:i + limit] for i in range(0, len(part), limit))
+                        current = ""
+                    else:
+                        current = part
+        if current:
+            result.append(current)
+        return result
+
+    def _split_table(self, rows: list[str], limit: int) -> list[str]:
+        """Split a large table only between complete rows, repeating its header."""
+        if any(len(row) > limit for row in rows):
+            raise TTHCChunkingError("A Markdown table row exceeds the chunk hard limit")
+        header_count = 2 if len(rows) > 1 and re.fullmatch(r"\|(?:\s*:?-{3,}:?\s*\|)+", rows[1]) else 0
+        header = rows[:header_count]
+        data = rows[header_count:]
+        chunks: list[str] = []
+        current = list(header)
+        for row in data:
+            candidate = "\n".join([*current, row])
+            if len(candidate) > limit and len(current) > header_count:
+                chunks.append("\n".join(current))
+                current = [*header, row]
+            else:
+                current.append(row)
+            if len("\n".join(current)) > limit:
+                raise TTHCChunkingError("Markdown table header and row exceed the chunk hard limit")
+        if current and (len(current) > header_count or not chunks):
+            chunks.append("\n".join(current))
+        return chunks
+
+    def _pack_blocks(self, blocks: Iterable[str], limit: int) -> list[str]:
+        chunks: list[str] = []
+        current = ""
+        for block in blocks:
+            candidate = f"{current}\n\n{block}" if current else block
+            if current and len(candidate) > self.target_chars:
+                chunks.append(current)
+                overlap = self._safe_overlap(current)
+                candidate = f"{overlap}\n\n{block}" if overlap else block
+                current = candidate if len(candidate) <= limit else block
+            else:
+                current = candidate
+            if len(current) > limit:
+                raise TTHCChunkingError("Unable to satisfy the configured chunk hard limit")
+        if current:
+            chunks.append(current)
+        return chunks
+
+    def _safe_overlap(self, text: str) -> str:
+        if not self.overlap_chars or any(_is_table_line(line) for line in text.splitlines()):
+            return ""
+        tail = text[-self.overlap_chars:]
+        boundary = tail.find(" ")
+        return tail[boundary + 1:].strip() if boundary >= 0 else tail.strip()
+
+    @staticmethod
+    def _meaningful_content(text: str) -> str:
+        """Remove structural headings before deciding whether a child is empty."""
+        content_lines = [line.strip() for line in text.splitlines() if line.strip() and _heading_title(line) is None]
+        return "\n".join(content_lines).strip()
+
+    def split_section_to_chunks(self, section: Section) -> list[TTHCChunk]:
+        """Split one parent section and inject retrieval context into each child."""
+        if not self._metadata:
+            raise TTHCChunkingError("Document metadata must be extracted before splitting sections")
+        source_code = self._metadata["source_code"]
+        procedure_name = self._metadata["procedure_name"]
+        source_file = self._metadata["source_file"]
+        prefix = f"[Thủ tục: {procedure_name} | Mã TTHC: {source_code} | Mục: {section.title}]"
+        body_limit = self.max_chars - len(prefix) - 2
+        if body_limit < 1:
+            raise TTHCChunkingError("Context prefix exceeds the configured chunk hard limit")
+        bodies = self._pack_blocks(self._atomic_blocks(section.text, body_limit), body_limit)
+        code_slug = source_code.replace(".", "_")
+        section_slug = _slug(section.section_type)
+        retained_bodies = [body for body in bodies if len(self._meaningful_content(body)) >= 10]
+        return [TTHCChunk(chunk_id=f"tthc_{code_slug}_sec_{section_slug}_{section.section_id}_p{index}", source_file=source_file, source_code=source_code, procedure_name=procedure_name, section_type=section.section_type, context_prefix=prefix, text_content=f"{prefix}\n\n{body}", parent_section=section.text) for index, body in enumerate(retained_bodies, start=1)]
+
+    def process_document(self, file_path_or_text: str | Path, source_file: str | None = None) -> list[dict]:
+        """Process a Markdown file or raw Markdown into JSON-serializable chunks."""
+        candidate = str(file_path_or_text)
+        path = file_path_or_text if isinstance(file_path_or_text, Path) else (Path(candidate) if "\n" not in candidate and len(candidate) < 260 else None)
+        if path is not None and path.is_file():
+            if path.suffix.lower() != ".md":
+                raise TTHCChunkingError(f"Expected a .md file, got: {path.name}")
+            text = path.read_text(encoding="utf-8")
+            resolved_source = source_file or path.name
         else:
-            merged_chunks.append(pending_heading)
-    return [chunk for chunk in merged_chunks if chunk]
+            text = candidate
+            resolved_source = source_file or "inline.md"
+        metadata = self.extract_metadata(text)
+        self._metadata = {**metadata, "source_file": resolved_source}
+        chunks = [chunk for section in self.parse_sections(text) for chunk in self.split_section_to_chunks(section)]
+        if not chunks:
+            raise TTHCChunkingError("No indexable content was found")
+        document = TTHCDocument(source_file=resolved_source, chunks=chunks, **metadata)
+        return [_model_dump(chunk) for chunk in document.chunks]
+
+
+def split_markdown_by_structure(markdown: str, max_chars: int = 1500) -> list[str]:
+    """Backward-compatible helper returning bodies without metadata injection."""
+    chunker = TTHCStructureAwareChunker(target_chars=min(1200, max_chars), max_chars=max_chars)
+    sections = chunker.parse_sections(markdown)
+    return [body for section in sections for body in chunker._pack_blocks(chunker._atomic_blocks(section.text, max_chars), max_chars)]
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sample = """# Cấp bản sao trích lục hộ tịch
+
+**Mã thủ tục:** 1.000005
+
+## Thành phần hồ sơ
+
+| Giấy tờ | Số lượng |
+|---|---:|
+| Tờ khai theo mẫu | 01 |
+
+## Trình tự thực hiện
+
+Người yêu cầu nộp hồ sơ và nhận kết quả tại cơ quan đăng ký hộ tịch.
+"""
+    print(json.dumps(TTHCStructureAwareChunker().process_document(sample, "1.000005.pdf"), ensure_ascii=False, indent=2))
