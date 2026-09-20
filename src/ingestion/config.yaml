@@ -1,0 +1,11 @@
+max_pdf_size_mb: 20
+reports_dir: reports
+review_dir: review
+recover_metadata: true
+ocr:
+  enabled: true
+  language: vie+eng
+  dpi: 300
+  full: true
+  # null lets PyMuPDF discover installed language data.
+  tessdata: null

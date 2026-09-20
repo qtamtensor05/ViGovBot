@@ -1,11 +1,12 @@
 """Page-level extraction with local Tesseract OCR and explicit failure reports."""
-import os
+from src.configuration import IngestionSettings, load_configuration
 
 
-def extract_pdf(file_path: str) -> tuple[str, dict]:
+def extract_pdf(file_path: str, settings: IngestionSettings | None = None) -> tuple[str, dict]:
     """Keep page order; never classify an unread scan as a blank page."""
     import pymupdf
     import pymupdf4llm
+    settings = settings or load_configuration()[1]
 
     report = {'pages': [], 'warnings': [], 'missing_pages': []}
     parts = []
@@ -32,9 +33,11 @@ def extract_pdf(file_path: str) -> tuple[str, dict]:
                     if not page.get_images() and not page.get_drawings() and not list(page.annots() or []):
                         entry['method'] = 'blank'
                     else:
-                        kwargs = {'language': os.getenv('OCR_LANGUAGE', 'vie+eng'), 'dpi': 300, 'full': True}
-                        if os.getenv('TESSDATA_PREFIX'):
-                            kwargs['tessdata'] = os.environ['TESSDATA_PREFIX']
+                        if not settings.ocr.enabled:
+                            raise ValueError('OCR disabled in ingestion/config.yaml')
+                        kwargs = {'language': settings.ocr.language, 'dpi': settings.ocr.dpi, 'full': settings.ocr.full}
+                        if settings.ocr.tessdata:
+                            kwargs['tessdata'] = settings.ocr.tessdata
                         textpage = page.get_textpage_ocr(**kwargs)
                         text = page.get_text(textpage=textpage).strip()
                         if not text:

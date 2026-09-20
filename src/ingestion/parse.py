@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import math
 import os
 import re
 import sys
@@ -10,7 +9,6 @@ from pathlib import Path
 from uuid import uuid4
 import time
 
-from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -19,24 +17,16 @@ if __package__ in (None, ""):
 
 from src.chunking.markdown import TTHCStructureAwareChunker, TTHCChunkingError, sanitize_text
 from src.ingestion.recovery import extract_pdf
+from src.configuration import load_configuration
 
 
 class ConfigurationError(ValueError):
     """An actionable error that contains no secret values."""
 
 
-def load_settings():
-    load_dotenv(PROJECT_ROOT / ".env", override=False)
-    try:
-        max_mb = float(os.getenv("MAX_PDF_SIZE_MB", "20"))
-    except ValueError:
-        raise ConfigurationError("MAX_PDF_SIZE_MB phải là một số.") from None
-    if not math.isfinite(max_mb) or not 0 < max_mb <= 100:
-        raise ConfigurationError("MAX_PDF_SIZE_MB phải lớn hơn 0 và không vượt quá 100.")
-    output_dir = Path(os.getenv("OUTPUT_DIR", "outputs").strip() or "outputs")
-    if not output_dir.is_absolute():
-        output_dir = PROJECT_ROOT / output_dir
-    return int(max_mb * 1024 * 1024), output_dir
+def load_settings(config_path=None):
+    root, ingestion, _ = load_configuration(config_path)
+    return int(ingestion.max_pdf_size_mb * 1024 * 1024), root.output
 
 
 def validate_pdf(file_path, max_bytes):
@@ -91,11 +81,11 @@ def clean_markdown(markdown):
     return normalize_markdown("\n".join(lines))
 
 
-def build_hybrid_chunks(markdown, source_file, max_chars=1500):
+def build_hybrid_chunks(markdown, source_file, max_chars=None):
     markdown = clean_markdown(markdown)
     if not markdown:
         raise ConfigurationError("Không trích xuất được nội dung tài liệu.")
-    chunker = TTHCStructureAwareChunker(target_chars=min(1200, max_chars), max_chars=max_chars)
+    chunker = TTHCStructureAwareChunker(max_chars=max_chars)
     return chunker.process_document(markdown, source_file=source_file)
 
 
@@ -117,12 +107,13 @@ def write_json_atomic(path, data):
         temporary.unlink(missing_ok=True)
 
 
-def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_dir=None):
-    max_bytes, configured_output = load_settings()
+def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_dir=None, config_path=None):
+    root, ingestion, chunking = load_configuration(config_path)
+    max_bytes, configured_output = int(ingestion.max_pdf_size_mb * 1024 * 1024), root.output
     output_dir = Path(output_dir) if output_dir is not None else configured_output
-    file_path = Path(file_path) if file_path is not None else PROJECT_ROOT / "Data" / "1.000005.pdf"
+    file_path = Path(file_path) if file_path is not None else root.input
     validate_pdf(file_path, max_bytes)
-    report_path = output_dir / 'reports' / f'{file_path.stem}.json'
+    report_path = output_dir / ingestion.reports_dir / f'{file_path.stem}.json'
     report = {'source_file': str(file_path.resolve()), 'status': 'processing'}
     write_json_atomic(report_path, report)
     try:
@@ -130,10 +121,10 @@ def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_
             markdown = markdown_converter(str(file_path.resolve()))
             extraction = {'pages': [], 'missing_pages': [], 'warnings': []}
         else:
-            markdown, extraction = extract_pdf(str(file_path.resolve()))
+            markdown, extraction = extract_pdf(str(file_path.resolve()), settings=ingestion)
         report.update(extraction)
-        chunker = TTHCStructureAwareChunker()
-        hybrid_chunks = chunker.process_document(clean_markdown(markdown), file_path.name, recover_metadata=True)
+        chunker = TTHCStructureAwareChunker(settings=chunking)
+        hybrid_chunks = chunker.process_document(clean_markdown(markdown), file_path.name, recover_metadata=ingestion.recover_metadata)
         report['warnings'] = chunker.warnings
         review = bool(report['missing_pages'] or chunker.warnings and any(
             warning in chunker.warnings for warning in ('missing_source_code', 'missing_procedure_name', 'source_code_from_filename')))
@@ -147,7 +138,7 @@ def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_
         for key in ("procedure_name", "context_prefix", "text_content", "parent_section"):
             chunk[key] = sanitize_text(chunk[key])
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / ('review' if review else '') / f"{file_path.stem}.json"
+    output_path = output_dir / (ingestion.review_dir if review else '') / f"{file_path.stem}.json"
     write_json_atomic(output_path, hybrid_chunks)
     report.update(output=str(output_path), chunks=len(hybrid_chunks))
     write_json_atomic(report_path, report)
@@ -160,13 +151,16 @@ def main(argv=None):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
     cli = argparse.ArgumentParser(description="Parse PDF cục bộ sang Markdown và JSON, không cần API.")
-    cli.add_argument("file", nargs="?", type=Path, default=PROJECT_ROOT / "Data" / "1.000005.pdf")
+    cli.add_argument("file", nargs="?", type=Path)
+    cli.add_argument('--config', type=Path, help='Root YAML configuration path')
     cli.add_argument("--output-dir", type=Path)
-    cli.add_argument("--overwrite", action="store_true", help="Xử lý lại JSON đã có")
+    cli.add_argument("--overwrite", action=argparse.BooleanOptionalAction, default=None, help="Xử lý lại JSON đã có")
     args = cli.parse_args(argv)
     try:
-        _, configured_output = load_settings()
-        output_dir = args.output_dir or configured_output
+        root, ingestion, _ = load_configuration(args.config)
+        args.file = args.file or root.input
+        args.overwrite = root.overwrite if args.overwrite is None else args.overwrite
+        output_dir = args.output_dir or root.output
         is_batch = args.file.is_dir()
         files = sorted(p for p in args.file.rglob("*") if p.is_file() and p.suffix.lower() == ".pdf") if is_batch else [args.file]
         if not files:
@@ -177,7 +171,7 @@ def main(argv=None):
             target_dir = output_dir / file.relative_to(args.file).parent if is_batch else output_dir
             target = target_dir / f"{file.stem}.json"
             if target.exists() and not args.overwrite:
-                previous_report = target_dir / 'reports' / f'{file.stem}.json'
+                previous_report = target_dir / ingestion.reports_dir / f'{file.stem}.json'
                 try:
                     status = json.loads(previous_report.read_text(encoding='utf-8'))['status'] if previous_report.exists() else 'success'
                 except (ValueError, KeyError):
@@ -187,11 +181,11 @@ def main(argv=None):
                     print(f"Bỏ qua: {file}", flush=True)
                     continue
             try:
-                path, count = parse_pdf_to_hybrid_data(file, output_dir=target_dir)
+                path, count = parse_pdf_to_hybrid_data(file, output_dir=target_dir, config_path=args.config)
                 completed += 1
-                if path.parent.name == 'review':
+                if path.parent.name == ingestion.review_dir:
                     review_count += 1
-                    print(f'Cần kiểm tra, xem báo cáo: {target_dir / "reports" / (file.stem + ".json")}', flush=True)
+                    print(f'Cần kiểm tra, xem báo cáo: {target_dir / ingestion.reports_dir / (file.stem + ".json")}', flush=True)
                 print(f"Đã lưu {count} đoạn: {path}", flush=True)
             except Exception as error:
                 failures += 1
@@ -202,7 +196,7 @@ def main(argv=None):
                 return 130
         print(f"Hoàn tất: {completed}; cần kiểm tra: {review_count}; bỏ qua: {skipped}; lỗi: {failures}; {time.perf_counter() - started:.2f}s")
         return 1 if failures or review_count else 0
-    except ConfigurationError as error:
+    except (ConfigurationError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 1
 

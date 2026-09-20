@@ -6,10 +6,14 @@ import re
 from html import unescape
 import unicodedata
 import hashlib
+import sys
 from pathlib import Path
 from typing import Iterable, Literal
 
 from pydantic import BaseModel, Field
+if __package__ in (None, ''):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from src.configuration import ChunkingSettings, load_configuration
 
 SectionType = Literal["metadata_identity", "procedure_step", "required_documents", "submission_deadline_fee", "legal_basis", "other"]
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
@@ -137,15 +141,13 @@ def repair_table_continuations(text: str) -> str:
 class TTHCStructureAwareChunker:
     """Create context-enriched parent/child chunks from TTHC Markdown."""
 
-    SECTION_KEYWORDS: tuple[tuple[SectionType, tuple[str, ...]], ...] = (
-        ("metadata_identity", ("thong tin chung", "dinh danh", "chi tiet thu tuc hanh chinh", "co quan thuc hien", "ket qua xu ly")),
-        ("procedure_step", ("trinh tu thuc hien", "cac buoc")),
-        ("required_documents", ("thanh phan ho so", "giay to", "chung tu phai nop", "ho so hai quan")),
-        ("submission_deadline_fee", ("cach thuc thuc hien", "thoi han giai quyet", "le phi", "phi")),
-        ("legal_basis", ("can cu phap ly",)),
-    )
-
-    def __init__(self, target_chars: int = 1200, max_chars: int = 1500, overlap_chars: int = 100):
+    def __init__(self, target_chars: int | None = None, max_chars: int | None = None, overlap_chars: int | None = None, *, settings: ChunkingSettings | None = None):
+        settings = settings or load_configuration()[2]
+        target_chars = settings.target_chars if target_chars is None else target_chars
+        max_chars = settings.max_chars if max_chars is None else max_chars
+        overlap_chars = settings.overlap_chars if overlap_chars is None else overlap_chars
+        self.min_content_chars = settings.min_content_chars
+        self.section_keywords = settings.section_keywords
         if not 1 <= target_chars <= max_chars:
             raise ValueError("target_chars must be between 1 and max_chars")
         if not 0 <= overlap_chars < target_chars:
@@ -225,7 +227,7 @@ class TTHCStructureAwareChunker:
     def classify_section(self, title: str) -> SectionType:
         """Map a Vietnamese heading to the controlled section taxonomy."""
         folded = _fold(sanitize_text(title))
-        for section_type, keywords in self.SECTION_KEYWORDS:
+        for section_type, keywords in self.section_keywords.items():
             if any(re.search(r"\b" + re.escape(keyword) + r"\b", folded) for keyword in keywords):
                 return section_type
         return "other"
@@ -433,7 +435,7 @@ class TTHCStructureAwareChunker:
             bodies = self._split_plain_block(self._flatten_tables(section.text), body_limit)
         code_slug = source_code.replace(".", "_")
         section_slug = _slug(section.section_type)
-        retained_bodies = [body for body in bodies if len(self._meaningful_content(body)) >= 10]
+        retained_bodies = [body for body in bodies if len(self._meaningful_content(body)) >= self.min_content_chars]
         return [TTHCChunk(chunk_id=f"tthc_{code_slug}_sec_{section_slug}_{section.section_id}_p{index}", source_file=source_file, source_code=source_code, procedure_name=procedure_name, section_type=section.section_type, context_prefix=prefix, text_content=f"{prefix}\n\n{body}", parent_section=section.text) for index, body in enumerate(retained_bodies, start=1)]
 
     def process_document(self, file_path_or_text: str | Path, source_file: str | None = None, *, recover_metadata: bool = False) -> list[dict]:
