@@ -18,6 +18,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.chunking.markdown import TTHCStructureAwareChunker, TTHCChunkingError, sanitize_text
+from src.ingestion.recovery import extract_pdf
 
 
 class ConfigurationError(ValueError):
@@ -99,16 +100,21 @@ def build_hybrid_chunks(markdown, source_file, max_chars=1500):
 
 
 def local_markdown(file_path):
-    import pymupdf
-    import pymupdf4llm
+    markdown, report = extract_pdf(file_path)
+    if report['missing_pages']:
+        raise ConfigurationError(f"Không đọc được các trang: {report['missing_pages']}")
+    return markdown
 
-    with pymupdf.open(file_path) as document:
-        if document.needs_pass:
-            raise ConfigurationError("PDF được mã hóa, cần mật khẩu.")
-        empty_pages = [i + 1 for i, page in enumerate(document) if not page.get_text().strip()]
-        if empty_pages:
-            raise ConfigurationError(f"Cần OCR/kiểm tra trang không có văn bản: {empty_pages}")
-        return pymupdf4llm.to_markdown(document, use_ocr=False)
+
+def write_json_atomic(path, data):
+    """Replace a completed artifact only after serialization succeeds."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.parent / f'.{path.stem}-{uuid4().hex}.tmp'
+    try:
+        temporary.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_dir=None):
@@ -116,20 +122,35 @@ def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_
     output_dir = Path(output_dir) if output_dir is not None else configured_output
     file_path = Path(file_path) if file_path is not None else PROJECT_ROOT / "Data" / "1.000005.pdf"
     validate_pdf(file_path, max_bytes)
-    markdown = (markdown_converter or local_markdown)(str(file_path.resolve()))
-    hybrid_chunks = build_hybrid_chunks(markdown, file_path.name)
+    report_path = output_dir / 'reports' / f'{file_path.stem}.json'
+    report = {'source_file': str(file_path.resolve()), 'status': 'processing'}
+    write_json_atomic(report_path, report)
+    try:
+        if markdown_converter:
+            markdown = markdown_converter(str(file_path.resolve()))
+            extraction = {'pages': [], 'missing_pages': [], 'warnings': []}
+        else:
+            markdown, extraction = extract_pdf(str(file_path.resolve()))
+        report.update(extraction)
+        chunker = TTHCStructureAwareChunker()
+        hybrid_chunks = chunker.process_document(clean_markdown(markdown), file_path.name, recover_metadata=True)
+        report['warnings'] = chunker.warnings
+        review = bool(report['missing_pages'] or chunker.warnings and any(
+            warning in chunker.warnings for warning in ('missing_source_code', 'missing_procedure_name', 'source_code_from_filename')))
+        report['status'] = 'partial_success' if report['missing_pages'] else 'needs_review' if review else 'success'
+    except BaseException as error:
+        report.update(status='interrupted' if isinstance(error, KeyboardInterrupt) else 'failed', error=str(error))
+        write_json_atomic(report_path, report)
+        raise
     # Final serialization boundary: also protect callers using a custom converter.
     for chunk in hybrid_chunks:
         for key in ("procedure_name", "context_prefix", "text_content", "parent_section"):
             chunk[key] = sanitize_text(chunk[key])
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{file_path.stem}.json"
-    temporary = output_dir / f".{file_path.stem}-{uuid4().hex}.tmp"
-    try:
-        temporary.write_text(json.dumps(hybrid_chunks, indent=2, ensure_ascii=False), encoding="utf-8")
-        temporary.replace(output_path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    output_path = output_dir / ('review' if review else '') / f"{file_path.stem}.json"
+    write_json_atomic(output_path, hybrid_chunks)
+    report.update(output=str(output_path), chunks=len(hybrid_chunks))
+    write_json_atomic(report_path, report)
     return output_path, len(hybrid_chunks)
 
 
@@ -150,25 +171,37 @@ def main(argv=None):
         files = sorted(p for p in args.file.rglob("*") if p.is_file() and p.suffix.lower() == ".pdf") if is_batch else [args.file]
         if not files:
             raise ConfigurationError("Không tìm thấy PDF.")
-        failures = skipped = completed = 0
+        failures = skipped = completed = review_count = 0
         started = time.perf_counter()
         for file in files:
             target_dir = output_dir / file.relative_to(args.file).parent if is_batch else output_dir
             target = target_dir / f"{file.stem}.json"
             if target.exists() and not args.overwrite:
-                skipped += 1
-                print(f"Bỏ qua: {file}", flush=True)
-                continue
+                previous_report = target_dir / 'reports' / f'{file.stem}.json'
+                try:
+                    status = json.loads(previous_report.read_text(encoding='utf-8'))['status'] if previous_report.exists() else 'success'
+                except (ValueError, KeyError):
+                    status = 'failed'
+                if status == 'success':
+                    skipped += 1
+                    print(f"Bỏ qua: {file}", flush=True)
+                    continue
             try:
                 path, count = parse_pdf_to_hybrid_data(file, output_dir=target_dir)
                 completed += 1
+                if path.parent.name == 'review':
+                    review_count += 1
+                    print(f'Cần kiểm tra, xem báo cáo: {target_dir / "reports" / (file.stem + ".json")}', flush=True)
                 print(f"Đã lưu {count} đoạn: {path}", flush=True)
             except Exception as error:
                 failures += 1
                 detail = str(error) if isinstance(error, (ConfigurationError, TTHCChunkingError)) else type(error).__name__
                 print(f"Lỗi {file}: {detail}", file=sys.stderr, flush=True)
-        print(f"Hoàn tất: {completed}; bỏ qua: {skipped}; lỗi: {failures}; {time.perf_counter() - started:.2f}s")
-        return 1 if failures else 0
+            except KeyboardInterrupt:
+                print('Đã dừng. File hoàn tất được giữ lại; chạy lại để tiếp tục.', file=sys.stderr)
+                return 130
+        print(f"Hoàn tất: {completed}; cần kiểm tra: {review_count}; bỏ qua: {skipped}; lỗi: {failures}; {time.perf_counter() - started:.2f}s")
+        return 1 if failures or review_count else 0
     except ConfigurationError as error:
         print(str(error), file=sys.stderr)
         return 1

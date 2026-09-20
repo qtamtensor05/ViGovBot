@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from html import unescape
 import unicodedata
+import hashlib
 from pathlib import Path
 from typing import Iterable, Literal
 
@@ -153,6 +154,29 @@ class TTHCStructureAwareChunker:
         self.max_chars = max_chars
         self.overlap_chars = overlap_chars
         self._metadata: dict[str, str] = {}
+        self.warnings: list[str] = []
+
+    def _flatten_tables(self, text: str) -> str:
+        """Represent table cells as labelled prose; retain original in parent_section."""
+        lines = text.splitlines()
+        result = []
+        labels = []
+        for index, line in enumerate(lines):
+            if not _is_table_line(line):
+                result.append(line)
+                continue
+            cells = re.split(r'(?<!\\)\|', line.strip().strip('|'))
+            if all(re.fullmatch(r'\s*:?-{3,}:?\s*', cell) for cell in cells):
+                continue
+            if index + 1 < len(lines) and self._first_table_header('\n'.join(lines[index:index + 2])):
+                labels = [cell.strip().strip('*') for cell in cells]
+                result.append('Các cột của bảng: ' + '; '.join(labels))
+                continue
+            for column, cell in enumerate(cells):
+                if cell.strip():
+                    label = labels[column] if column < len(labels) else f'Cột {column + 1}'
+                    result.append(f'{label}: {cell.strip()}')
+        return '\n\n'.join(result)
 
     def extract_metadata(self, text: str) -> dict[str, str]:
         """Extract TTHC code and procedure name from document content."""
@@ -385,6 +409,11 @@ class TTHCStructureAwareChunker:
         procedure_name = sanitize_text(self._metadata["procedure_name"])
         source_file = self._metadata["source_file"]
         prefix = f"[Thủ tục: {procedure_name} | Mã TTHC: {source_code} | Mục: {sanitize_text(section.title)}]"
+        if len(prefix) > self.max_chars // 3:
+            prefix = f'[Mã TTHC: {source_code} | Mục: {sanitize_text(section.title)[:80]}]'
+            if len(prefix) > self.max_chars // 2:
+                prefix = f'[{source_code}]'
+            self.warnings.append('context_prefix_shortened')
         body_limit = self.max_chars - len(prefix) - 2
         if body_limit < 1:
             raise TTHCChunkingError("Context prefix exceeds the configured chunk hard limit")
@@ -392,18 +421,22 @@ class TTHCStructureAwareChunker:
         headers = [self._first_table_header("\n".join(pair)) for pair in zip(section.text.splitlines(), section.text.splitlines()[1:])]
         header_size = max((len(header) for header in headers), default=0)
         content_limit = body_limit - header_size - 1 if table_header else body_limit
-        if content_limit < 1:
-            raise TTHCChunkingError("Table header exceeds the configured chunk hard limit")
-        bodies = self._pack_blocks(self._atomic_blocks(section.text, content_limit, body_limit), body_limit, content_limit)
-        bodies = self._repeat_table_header(bodies, table_header)
-        if any(len(body) > body_limit for body in bodies):
-            raise TTHCChunkingError("Table context exceeds the configured chunk hard limit")
+        try:
+            if content_limit < 1:
+                raise TTHCChunkingError('Table header exceeds the chunk budget')
+            bodies = self._pack_blocks(self._atomic_blocks(section.text, content_limit, body_limit), body_limit, content_limit)
+            bodies = self._repeat_table_header(bodies, table_header)
+            if any(len(body) > body_limit for body in bodies):
+                raise TTHCChunkingError('Table context exceeds the chunk budget')
+        except TTHCChunkingError:
+            self.warnings.append(f'section_{section.section_id}_flattened')
+            bodies = self._split_plain_block(self._flatten_tables(section.text), body_limit)
         code_slug = source_code.replace(".", "_")
         section_slug = _slug(section.section_type)
         retained_bodies = [body for body in bodies if len(self._meaningful_content(body)) >= 10]
         return [TTHCChunk(chunk_id=f"tthc_{code_slug}_sec_{section_slug}_{section.section_id}_p{index}", source_file=source_file, source_code=source_code, procedure_name=procedure_name, section_type=section.section_type, context_prefix=prefix, text_content=f"{prefix}\n\n{body}", parent_section=section.text) for index, body in enumerate(retained_bodies, start=1)]
 
-    def process_document(self, file_path_or_text: str | Path, source_file: str | None = None) -> list[dict]:
+    def process_document(self, file_path_or_text: str | Path, source_file: str | None = None, *, recover_metadata: bool = False) -> list[dict]:
         """Process a Markdown file or raw Markdown into JSON-serializable chunks."""
         candidate = str(file_path_or_text)
         path = file_path_or_text if isinstance(file_path_or_text, Path) else (Path(candidate) if "\n" not in candidate and len(candidate) < 260 else None)
@@ -416,7 +449,25 @@ class TTHCStructureAwareChunker:
             text = candidate
             resolved_source = source_file or "inline.md"
         text = sanitize_text(text)
-        metadata = self.extract_metadata(text)
+        self.warnings = []
+        try:
+            metadata = self.extract_metadata(text)
+        except TTHCChunkingError:
+            if not recover_metadata or not text.strip():
+                raise
+            match = SOURCE_CODE_RE.search(text)
+            filename_code = re.fullmatch(r'(\d\.\d{6})(?:[-_].*)?', Path(resolved_source).stem)
+            code = match.group(0) if match else filename_code.group(1) if filename_code else ''
+            if not code:
+                code = 'unverified_' + hashlib.sha256((resolved_source + text).encode()).hexdigest()[:12]
+                self.warnings.append('missing_source_code')
+            elif not match:
+                self.warnings.append('source_code_from_filename')
+            name = self._extract_procedure_name(text)
+            if not name:
+                name = Path(resolved_source).stem
+                self.warnings.append('missing_procedure_name')
+            metadata = {'source_code': code, 'procedure_name': name}
         self._metadata = {**metadata, "source_file": resolved_source}
         chunks = [chunk for section in self.parse_sections(text) for chunk in self.split_section_to_chunks(section)]
         if not chunks:

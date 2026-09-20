@@ -33,8 +33,10 @@ class TTHCStructureAwareChunkerTests(unittest.TestCase):
     def test_incomplete_long_table_row_is_rejected_not_word_split(self):
         row = '| ' + 'gửi các chứng từ ' * 150
         markdown = '# Thủ tục mẫu\nMã: 1.000005\n## Giấy tờ\n| Tên giấy tờ |\n|---|\n' + row
-        with self.assertRaisesRegex(TTHCChunkingError, 'table row'):
-            self.chunker.process_document(markdown)
+        chunks = self.chunker.process_document(markdown)
+        self.assertTrue(any('flattened' in warning for warning in self.chunker.warnings))
+        self.assertTrue(all(len(chunk['text_content']) <= 1500 for chunk in chunks))
+        self.assertTrue(any(row.rstrip() in chunk['parent_section'] for chunk in chunks))
 
     def setUp(self):
         self.chunker = TTHCStructureAwareChunker()

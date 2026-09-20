@@ -235,6 +235,37 @@ Kết quả là `list[dict]`, có thể ghi thành JSON hoặc chuyển tiếp s
 
 ## Kiểm thử
 
+### Phục hồi dữ liệu khi gặp lỗi
+
+Pipeline đọc từng trang theo thứ tự. Nếu chuyển Markdown thất bại, nó dùng lớp
+text gốc của trang. Trang không có text nhưng có ảnh/nét vẽ được OCR bằng PyMuPDF
+với Tesseract (`vie+eng`, 300 DPI). Trang không có text, ảnh, nét vẽ hay annotation
+được bỏ qua như trang trắng. Ảnh scan trắng không được tự động coi là trang trắng.
+
+OCR cần các file `vie.traineddata` và `eng.traineddata`. Đặt `TESSDATA_PREFIX` trỏ
+đến thư mục chứa chúng; có thể đổi `OCR_LANGUAGE` (mặc định `vie+eng`). Cài Python
+dependencies không tự cài dữ liệu ngôn ngữ OCR. Nếu thiếu chúng, nội dung các trang
+đọc được vẫn được lưu, còn số trang OCR thất bại được ghi trong báo cáo.
+
+Hàng/header bảng quá dài kích hoạt fallback chuyển **section** sang khóa–giá trị
+và chia theo ranh giới văn bản; `parent_section` giữ nội dung gốc sau làm sạch.
+Prefix dài được rút gọn, metadata giữ đầy đủ. Mã thiếu được thử lấy từ tên file
+đúng chuẩn; mã bất thường nhận ID `unverified_…`, không tự sửa chữ số.
+
+Mỗi PDF có báo cáo `reports/<tên>.json`, gồm trạng thái, phương pháp đọc từng trang,
+trang thiếu và các fallback. JSON thiếu trang hoặc cần xác minh định danh nằm trong
+`review/`, không nên đưa vào index như tài liệu hoàn chỉnh. Chỉ index file có báo cáo
+`success`; báo cáo mới là nguồn xác định trạng thái, kể cả khi có JSON cũ từ lần chạy trước.
+
+Chạy lại các file lỗi bằng lệnh thông thường. File thành công được bỏ qua, file cần
+kiểm tra được thử lại. Dùng `--overwrite` để thay cả kết quả cũ. Khi Ctrl+C, báo cáo
+file đang chạy mang trạng thái `interrupted`; lần sau xử lý lại file đó, không tiếp
+từ giữa trang. Nếu tiến trình bị kill, trạng thái có thể còn `processing` và sẽ được thử lại.
+
+```powershell
+python main.py Data\pdf --output-dir outputs\metadata --overwrite
+```
+
 Chạy bộ kiểm thử chunking:
 
 ```powershell
