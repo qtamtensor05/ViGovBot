@@ -1,0 +1,34 @@
+{
+  "pages": [
+    {
+      "page": 1,
+      "method": "markdown"
+    },
+    {
+      "page": 2,
+      "method": "markdown"
+    },
+    {
+      "page": 3,
+      "method": "markdown"
+    },
+    {
+      "page": 4,
+      "method": "markdown"
+    },
+    {
+      "page": 5,
+      "method": "markdown"
+    },
+    {
+      "page": 6,
+      "method": "markdown"
+    },
+    {
+      "page": 7,
+      "method": "markdown"
+    }
+  ],
+  "warnings": [],
+  "missing_pages": []
+}

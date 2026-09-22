@@ -1,0 +1,41 @@
+{
+  "source_file": "Data\\pdf\\1.116140.pdf",
+  "status": "success",
+  "stages_dir": "pipeline_observe_steps\\stages\\1.116140",
+  "pages": [
+    {
+      "page": 1,
+      "method": "markdown"
+    },
+    {
+      "page": 2,
+      "method": "markdown"
+    },
+    {
+      "page": 3,
+      "method": "markdown"
+    },
+    {
+      "page": 4,
+      "method": "markdown"
+    },
+    {
+      "page": 5,
+      "method": "markdown"
+    },
+    {
+      "page": 6,
+      "method": "markdown"
+    },
+    {
+      "page": 7,
+      "method": "markdown"
+    }
+  ],
+  "warnings": [
+    "context_prefix_shortened"
+  ],
+  "missing_pages": [],
+  "output": "pipeline_observe_steps\\1.116140.json",
+  "chunks": 20
+}
