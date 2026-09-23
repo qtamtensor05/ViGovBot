@@ -6,7 +6,9 @@ Luồng: làm sạch HTML → metadata → section theo heading → phân loại
 → lặp header bảng → chèn context prefix → lọc chunk rỗng.
 `parent_section` giữ section đầy đủ, `text_content` dùng cho embedding.
 
-Xem [hướng dẫn xử lý dữ liệu](../README.md) để chạy toàn bộ pipeline.
+Đầu vào là Markdown/text của một tài liệu; đầu ra là danh sách `TTHCChunk`
+được [ingestion](../ingestion/README.md) ghi thành JSON. Module chưa tạo vector.
+Xem [hướng dẫn ingestion](../ingestion/README.md#chạy-và-kết-quả) để chạy toàn bộ bước PDF.
 
 ## Metadata và section
 
@@ -72,8 +74,9 @@ Prefix được đặt ở đầu `text_content` để tạo embedding có ngữ
 }
 ```
 
-ID gồm mã thủ tục, loại section, số section và số child. Dùng `text_content` để
-embedding, dùng `parent_section` để bổ sung ngữ cảnh khi sinh câu trả lời.
+ID gồm mã thủ tục, loại section, số section và số child. [Embeddings](../embeddings/README.md)
+dùng `text_content` để tạo vector. `parent_section` lưu nội dung cha để có thể mở rộng
+ngữ cảnh sau này; pipeline RAG hiện tại chưa dùng trường này và không chép nó vào SQLite.
 
 ## Sử dụng trực tiếp
 
@@ -90,3 +93,5 @@ Constructor không truyền settings tự đọc config mặc định của dự
 Các tham số `max_chars`, `target_chars`, `overlap_chars` truyền trực tiếp có ưu tiên
 hơn YAML. `warnings` ghi các fallback. Metadata recovery do ingestion quyết định;
 gọi chunker trực tiếp mặc định vẫn báo lỗi nếu thiếu định danh.
+
+[Quay lại tổng quan](../README.md)

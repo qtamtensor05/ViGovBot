@@ -4,7 +4,19 @@
 `recovery.py` đọc từng trang, thử Markdown, dùng text gốc khi chuyển đổi thất bại,
 và OCR trang ảnh. Trang OCR thất bại được liệt kê, không âm thầm bỏ qua.
 
-Xem [hướng dẫn xử lý dữ liệu](../README.md) để cài đặt, chạy pipeline hoặc dùng Colab.
+`unified.py` phục vụ nhánh RAG: mở luồng từ thư mục/ZIP chứa chỉ mục và metadata đã tạo.
+Hai luồng dùng chung thư mục module nhưng không đọc lại PDF khi truy vấn RAG.
+
+## Đầu vào và đầu ra
+
+| Nhánh | Đầu vào | Đầu ra |
+| --- | --- | --- |
+| PDF (`parse.py`, `recovery.py`) | File/thư mục PDF | JSON chunks và báo cáo đọc từng trang |
+| Unified (`unified.py`) | Thư mục hoặc ZIP có hai file unified | Luồng nhị phân và định danh nguồn cho vector store |
+
+Từ thư mục gốc, cài môi trường PDF bằng `pip install -r requirements.txt`.
+Trên Colab dùng [parse_metadata.ipynb](../../ipynb/parse_metadata.ipynb).
+Xem [bản đồ src](../README.md) để đi tới các bước sau.
 
 ## Các bước xử lý
 
@@ -78,3 +90,21 @@ Báo cáo chứa phương pháp đọc từng trang, trang thiếu, cảnh báo 
 Ưu tiên trạng thái báo cáo mới khi có JSON cũ từ lần chạy trước. `success` không
 bảo đảm OCR đúng tuyệt đối. File lỗi/cần kiểm tra được thử lại khi chạy tiếp;
 JSON cũ không có báo cáo có thể bị bỏ qua, cần `--overwrite` để xử lý lại.
+
+## Đọc unified cho RAG
+
+[unified.py](unified.py) được [vector store](../vectordb/README.md) gọi, không phải CLI riêng.
+
+- `zip_member(archive, basename)`: tìm đúng một file theo tên cuối đường dẫn,
+  chấp nhận thư mục con trong ZIP; báo lỗi nếu thiếu hoặc có nhiều bản trùng tên.
+- `corpus_stream(source, basename)`: context manager mở file nhị phân từ thư mục
+  hoặc ZIP; không giải nén theo đường dẫn của thành viên ZIP.
+- `corpus_identity(source)`: lấy đường dẫn, kích thước, thời gian sửa; ZIP có thêm
+  tên thành viên, CRC và dung lượng giải nén để phân biệt cache.
+
+Hai tên file được dùng là `tthc_unified.index` và `tthc_unified_metadata.json`.
+Nguồn được chọn bằng `data.unified_source` trong [rag_config.yaml](../../rag_config.yaml).
+Module chỉ mở dữ liệu; kiểm tra số chiều/số dòng và chuyển JSON sang SQLite thuộc vector store.
+Các ZIP chứa chunks cho worker embedding được xử lý riêng ở [embeddings](../embeddings/README.md).
+
+[Quay lại tổng quan](../README.md)

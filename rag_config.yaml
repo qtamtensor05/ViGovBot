@@ -1,0 +1,37 @@
+# Đường dẫn tương đối được tính từ thư mục chứa file YAML này.
+# Notebook Colab tạo bản cấu hình riêng tại /content/rag_colab.yaml.
+data:
+  unified_source: Data/vector/unified  # Thư mục hoặc unified.zip
+  dataset_path: Data/qa_test/dataset.jsonl
+  dataset_zip: null
+  cache_dir: outputs/rag_cache
+  output_dir: outputs/qwen2_5_7b_rag_results
+
+embedding:
+  model: BAAI/bge-m3
+  revision: null  # Cùng revision đã dùng khi tạo vector tài liệu.
+  device: cpu    # Dành VRAM cho Qwen; đổi cuda nếu đủ tài nguyên.
+
+llm:
+  model: qwen2.5:7b
+  ollama_url: http://localhost:11434
+  tokenizer: Qwen/Qwen2.5-7B-Instruct
+  tokenizer_revision: null
+  temperature: 0.0
+  num_ctx: 8192
+  num_predict: 512
+  seed: 42
+  timeout: 300
+  keep_alive: 10m
+
+retrieval:
+  top_k: 5
+  max_chunk_tokens: 1200
+
+evaluation:
+  smoke_test_n: 5
+  max_cases: null  # null = toàn bộ 570 câu; thử 10 câu với thư mục đầu ra riêng.
+  bertscore_model: xlm-roberta-large
+  bertscore_device: cpu
+  bertscore_batch_size: 1
+  baseline_summary_path: null

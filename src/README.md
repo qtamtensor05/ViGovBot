@@ -1,70 +1,61 @@
-# Xử lý dữ liệu
+﻿# Tổng quan các module trong src
 
-Pipeline hiện tại chuyển PDF thủ tục hành chính thành chunks JSON để dùng ở bước
-embedding và truy xuất RAG. Pipeline này chưa tạo embedding hay lập vector index.
-
-```text
-PDF → ingestion (Markdown/text/OCR) → làm sạch → chunking → JSON + báo cáo
-```
-
-- [Ingestion](ingestion/README.md): kiểm tra PDF, đọc từng trang, OCR và lưu kết quả.
-- [Chunking](chunking/README.md): nhận diện section, chia đoạn và gắn metadata.
-
-## Cấu hình
+Code xử lý nằm trong các module Python; notebook Colab clone dự án và gọi code
+để tận dụng tài nguyên. Mỗi thư mục có README riêng mô tả kiến trúc và quy trình.
 
 ```text
-config.yaml                  # input/output, overwrite, Colab, đường dẫn config module
-src/ingestion/config.yaml    # giới hạn PDF, OCR, review/reports
-src/chunking/config.yaml     # kích thước chunk, overlap, từ khóa phân loại
+Chuẩn bị dữ liệu:
+PDF → ingestion → chunking → embeddings → vectordb (unified)
+
+Trả lời và đánh giá:
+unified → ingestion + vectordb (FAISS/SQLite)
+câu hỏi → embeddings → retrieval → prompts → llm → evaluation
+                         rag điều phối; utils hỗ trợ
 ```
 
-[Config gốc](../config.yaml) được đọc và kiểm tra bởi `configuration.py`.
-Đường dẫn tương đối trong config gốc được tính từ thư mục chứa file đó.
-Tham số CLI/API truyền trực tiếp có ưu tiên hơn YAML. Cấu hình pipeline cũ trong
-`.env` không còn được đọc. Chi tiết từng trường nằm trong README của module tương ứng.
+## Đọc tài liệu theo module
 
-## Chạy trên máy
+| Module | Nội dung README |
+| --- | --- |
+| [ingestion](ingestion/README.md) | Đọc PDF/OCR và mở nguồn unified ZIP/thư mục |
+| [chunking](chunking/README.md) | Chia section/chunk, metadata và schema |
+| [embeddings](embeddings/README.md) | Worker embedding pack và encoder câu hỏi BGE-M3 |
+| [vectordb](vectordb/README.md) | Gộp FAISS, chuyển metadata sang SQLite, ánh xạ ID |
+| [retrieval](retrieval/README.md) | Encode câu hỏi, tìm top-k và lấy nội dung |
+| [prompts](prompts/README.md) | Prompt Qwen và giới hạn ngữ cảnh |
+| [llm](llm/README.md) | Ollama, tham số sinh và xử lý lỗi |
+| [evaluation](evaluation/README.md) | Bộ qa_test, metric, checkpoint và báo cáo |
+| [rag](rag/README.md) | Điều phối, YAML và CLI toàn pipeline |
+| [utils](utils/README.md) | JSONL, manifest, môi trường Colab và tạo notebook |
 
-Chạy các lệnh sau từ thư mục gốc dự án:
+## Điểm bắt đầu
 
-```powershell
-python -m pip install -r requirements.txt
-python main.py
-```
+Chạy lệnh từ thư mục gốc repository:
 
-Chạy một PDF hoặc một thư mục và ghi đè các kết quả đã có:
+| Công việc | Lệnh | Cấu hình |
+| --- | --- | --- |
+| PDF → chunks | `python main.py` | [config.yaml](../config.yaml) |
+| Embedding pack | `python -m src.embeddings.pack_worker --help` | Tham số CLI, xem README embeddings |
+| Gộp pack | `python -m src.vectordb.merge --help` | Tham số CLI, xem README vectordb |
+| Qwen + RAG | `python -m src.rag --config rag_config.yaml run` | [rag_config.yaml](../rag_config.yaml) |
 
-```powershell
-python main.py Data\pdf\1.000005.pdf --overwrite
-python main.py Data\pdf --output-dir outputs\metadata --overwrite
-```
+Cài requirements tương ứng trước khi chạy: [PDF](../requirements.txt),
+[embedding](../requirements-embedding.txt), [gộp vector](../requirements-vector-db.txt),
+[RAG](../requirements-rag.txt). Chi tiết môi trường và lệnh riêng nằm trong README module.
 
-Chọn cấu hình riêng: `python main.py --config config.yaml`.
-PDF được xử lý tuần tự trên CPU. OCR cần dữ liệu ngôn ngữ Tesseract;
-xem hướng dẫn trong [ingestion](ingestion/README.md).
+[configuration.py](configuration.py) kiểm tra YAML cho pipeline PDF;
+[rag/config.py](rag/config.py) kiểm tra YAML cho RAG. Hai cấu hình độc lập,
+đường dẫn tương đối tính từ thư mục chứa YAML.
 
-## Kết quả
+## Notebook Colab
 
-Mỗi PDF có JSON chunks và báo cáo xử lý. Chỉ sử dụng kết quả có báo cáo `success`
-để đưa vào index; các file trong `review/` cần được đối chiếu trước.
-Ý nghĩa trạng thái và cách tiếp tục sau lỗi nằm trong [ingestion](ingestion/README.md#chạy-và-kết-quả).
-Schema chunks và cách dùng `parent_section` nằm trong [chunking](chunking/README.md#schema-json).
+- [Parse metadata](../ipynb/parse_metadata.ipynb).
+- [Worker embedding](../ipynb/colab_worker_embed.ipynb).
+- [Gộp FAISS](../ipynb/merge_vector_packs.ipynb).
+- [Qwen + RAG](../ipynb/base_rag/lqwen2_5_7B_rag.ipynb), kèm [hướng dẫn Colab](../ipynb/base_rag/README.md).
 
-## Google Colab
+Các notebook trên dùng mã từ repository; thay đổi local cần được push trước khi
+Colab clone. [Notebook baseline](../ipynb/base/lqwen2_5_7B.ipynb) hiện vẫn chứa mã trực tiếp.
 
-Mở [ipynb/main.ipynb](../ipynb/main.ipynb) bằng Colab. Notebook cài dependencies,
-clone/cập nhật repository, nhận PDF qua upload hoặc Google Drive, chạy pipeline,
-hiển thị kết quả mẫu và đóng gói JSON thành ZIP để tải về.
-
-Thiết lập nguồn Drive và output ở nhóm `colab` trong config gốc. Notebook tải mã
-từ GitHub nên bản sửa local cần được đồng bộ lên repository trước khi sử dụng.
-Parse/chunk dùng CPU; GPU phục vụ các bước mô hình như embedding nếu được bổ sung.
-
-## Kiểm thử
-
-```powershell
-python -m unittest discover -s tests -v
-```
-
-Bộ kiểm thử bao gồm cấu hình YAML, schema, làm sạch HTML, phân loại section,
-bảng, giới hạn kích thước, phục hồi metadata và báo cáo trang OCR thất bại.
+Kiểm thử từ thư mục gốc: `python -m unittest discover -s tests -v`.
+Khi thay đổi một module, cập nhật README của module đó; README này chỉ giữ bản đồ hệ thống.

@@ -11,6 +11,8 @@ Nghiên cứu tập trung đánh giá độ chính xác, mức độ bám sát t
 - [Xử lý dữ liệu](src/README.md): pipeline, cấu hình, cách chạy và Colab.
 - [Ingestion](src/ingestion/README.md): đọc PDF, OCR, lưu trữ và báo cáo.
 - [Chunking](src/chunking/README.md): chia đoạn, metadata và cấu trúc dữ liệu RAG.
+- [Qwen + RAG](src/rag/README.md): kiến trúc module trong `src`, CLI và cấu hình đánh giá.
+- [Colab RAG](ipynb/base_rag/README.md): clone dự án, dùng GPU Colab và đọc dữ liệu trên Drive.
 
 ## Giấy phép
 
