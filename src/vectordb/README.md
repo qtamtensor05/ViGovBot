@@ -20,15 +20,10 @@ unified để truy vấn với metadata lớn. FAISS giữ vector; SQLite giữ 
 4. Nối bằng `np.vstack`, chuẩn hóa L2 rồi thêm vào `faiss.IndexFlatIP`.
 5. Lưu `tthc_unified.index` và `tthc_unified_metadata.json`, không ghi đè kết quả có sẵn.
 
-```sh
-pip install -r requirements-vector-db.txt
-python -m src.vectordb.merge completed --output-dir unified
-```
-
 CLI chỉ biết các cặp hiện có; không phát hiện pack thiếu cả hai file.
 [Notebook merger](../../ipynb/merge_vector_packs.ipynb) kiểm tra thêm danh sách
-`EXPECTED_PACK_IDS`. Hai file không được công bố nguyên tử cùng lúc: chờ worker
-hoàn tất trước khi gộp, và chuyển kết quả chưa hoàn chỉnh sang nơi khác khi cần chạy lại.
+`EXPECTED_PACK_IDS`. Việc công bố hai file không phải một thao tác nguyên tử;
+gián đoạn giữa hai lần ghi có thể để lại cặp kết quả chưa hoàn chỉnh.
 
 ## Chuẩn bị dữ liệu để truy vấn
 
@@ -43,11 +38,7 @@ hoàn tất trước khi gộp, và chuyển kết quả chưa hoàn chỉnh san
 
 Kết quả trả về: `(index_path, db_path, info)`; `info` chứa số vector và định danh nguồn.
 Nhóm cấu hình: `data.unified_source`, `data.cache_dir` trong [rag_config.yaml](../../rag_config.yaml).
-Có thể gọi qua CLI mà chưa tải BGE-M3/Qwen:
-
-```sh
-python -m src.rag --config rag_config.yaml prepare
-```
+Chế độ `prepare` của bộ điều phối gọi bước này mà không tải BGE-M3 hoặc Qwen.
 
 ## Ánh xạ và bộ nhớ
 
@@ -61,6 +52,7 @@ Bước gộp cần RAM cho cả ma trận và index, tối thiểu `N * 1024 * 
 và bộ nhớ tạm. Bước chuẩn bị truy vấn đọc JSON theo luồng, nhưng vẫn phải nạp chỉ mục
 để kiểm tra. SQLite nằm trên ổ đĩa; [retriever](../retrieval/README.md) lấy nội dung theo ID.
 Cache trên `/content` mất khi Colab reset. Kiểm tra count/shape không phát hiện được
-metadata đã bị người dùng đảo thứ tự; luôn giữ đúng cặp unified.
+metadata bị đảo thứ tự. Tính đúng đắn của ánh xạ phụ thuộc vào hai file unified
+được tạo từ cùng một lượt gộp và giữ nguyên thứ tự bản ghi.
 
-[Quay lại tổng quan](../README.md)
+[Kiến trúc tổng thể](../README.md)

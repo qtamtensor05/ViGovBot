@@ -1,7 +1,8 @@
-﻿# Tổng quan các module trong src
+# Kiến trúc xử lý dữ liệu và RAG
 
-Code xử lý nằm trong các module Python; notebook Colab clone dự án và gọi code
-để tận dụng tài nguyên. Mỗi thư mục có README riêng mô tả kiến trúc và quy trình.
+Thư mục `src` chứa các module xử lý dữ liệu, truy hồi và đánh giá câu trả lời.
+Hệ thống gồm hai luồng: chuẩn bị chỉ mục từ tài liệu và trả lời câu hỏi dựa trên chỉ mục.
+Module `rag` điều phối luồng trả lời và đánh giá; `utils` cung cấp cơ chế dùng chung.
 
 ```text
 Chuẩn bị dữ liệu:
@@ -10,52 +11,44 @@ PDF → ingestion → chunking → embeddings → vectordb (unified)
 Trả lời và đánh giá:
 unified → ingestion + vectordb (FAISS/SQLite)
 câu hỏi → embeddings → retrieval → prompts → llm → evaluation
-                         rag điều phối; utils hỗ trợ
 ```
 
-## Đọc tài liệu theo module
+## Phân chia trách nhiệm
 
-| Module | Nội dung README |
+| Module | Trách nhiệm |
 | --- | --- |
 | [ingestion](ingestion/README.md) | Đọc PDF/OCR và mở nguồn unified ZIP/thư mục |
-| [chunking](chunking/README.md) | Chia section/chunk, metadata và schema |
-| [embeddings](embeddings/README.md) | Worker embedding pack và encoder câu hỏi BGE-M3 |
-| [vectordb](vectordb/README.md) | Gộp FAISS, chuyển metadata sang SQLite, ánh xạ ID |
-| [retrieval](retrieval/README.md) | Encode câu hỏi, tìm top-k và lấy nội dung |
-| [prompts](prompts/README.md) | Prompt Qwen và giới hạn ngữ cảnh |
-| [llm](llm/README.md) | Ollama, tham số sinh và xử lý lỗi |
-| [evaluation](evaluation/README.md) | Bộ qa_test, metric, checkpoint và báo cáo |
-| [rag](rag/README.md) | Điều phối, YAML và CLI toàn pipeline |
-| [utils](utils/README.md) | JSONL, manifest, môi trường Colab và tạo notebook |
+| [chunking](chunking/README.md) | Chia đoạn theo cấu trúc tài liệu và tạo metadata |
+| [embeddings](embeddings/README.md) | Tạo vector tài liệu và nạp encoder câu hỏi BGE-M3 |
+| [vectordb](vectordb/README.md) | Gộp FAISS, chuyển metadata sang SQLite, giữ ánh xạ ID |
+| [retrieval](retrieval/README.md) | Tạo vector câu hỏi, tìm top-k và lấy nội dung |
+| [prompts](prompts/README.md) | Xây dựng thông điệp Qwen và giới hạn ngữ cảnh |
+| [llm](llm/README.md) | Giao tiếp với Ollama và tiếp nhận câu trả lời |
+| [evaluation](evaluation/README.md) | Quản lý bộ test, kết quả từng câu và chỉ số đánh giá |
+| [rag](rag/README.md) | Điều phối, quản lý cấu hình và vòng đời mô hình |
+| [utils](utils/README.md) | JSONL, manifest, chuẩn bị môi trường và sinh notebook |
 
-## Điểm bắt đầu
+## Ranh giới dữ liệu
 
-Chạy lệnh từ thư mục gốc repository:
+Ingestion và chunking tạo các bản ghi văn bản có metadata. Embeddings chuyển
+`text_content` thành vector; vectordb gộp vector và duy trì ánh xạ với metadata.
+Khi truy vấn, retrieval trả các đoạn liên quan cho prompts; llm nhận thông điệp
+đã ghép ngữ cảnh và sinh câu trả lời. Evaluation đối chiếu kết quả với đáp án chuẩn.
 
-| Công việc | Lệnh | Cấu hình |
-| --- | --- | --- |
-| PDF → chunks | `python main.py` | [config.yaml](../config.yaml) |
-| Embedding pack | `python -m src.embeddings.pack_worker --help` | Tham số CLI, xem README embeddings |
-| Gộp pack | `python -m src.vectordb.merge --help` | Tham số CLI, xem README vectordb |
-| Qwen + RAG | `python -m src.rag --config rag_config.yaml run` | [rag_config.yaml](../rag_config.yaml) |
+Đáp án chuẩn và ngữ cảnh mẫu của bộ test chỉ thuộc luồng đánh giá, không được
+đưa vào truy hồi hoặc prompt. Thứ tự metadata được giữ xuyên suốt để ID FAISS
+ánh xạ đúng tới nội dung trong SQLite.
 
-Cài requirements tương ứng trước khi chạy: [PDF](../requirements.txt),
-[embedding](../requirements-embedding.txt), [gộp vector](../requirements-vector-db.txt),
-[RAG](../requirements-rag.txt). Chi tiết môi trường và lệnh riêng nằm trong README module.
+## Cấu hình và điểm tích hợp
 
-[configuration.py](configuration.py) kiểm tra YAML cho pipeline PDF;
-[rag/config.py](rag/config.py) kiểm tra YAML cho RAG. Hai cấu hình độc lập,
-đường dẫn tương đối tính từ thư mục chứa YAML.
+[configuration.py](configuration.py) kiểm tra [cấu hình PDF](../config.yaml);
+[rag/config.py](rag/config.py) kiểm tra [cấu hình RAG](../rag_config.yaml).
+Hai cấu hình độc lập; đường dẫn tương đối được tính từ thư mục chứa YAML.
 
-## Notebook Colab
+`main.py` định tuyến sang pipeline PDF hoặc RAG. Các module embedding, gộp vector
+và RAG có điểm vào CLI riêng. Notebook Colab chuẩn bị môi trường và gọi các điểm
+vào này; logic xử lý nằm trong `src`.
 
-- [Parse metadata](../ipynb/parse_metadata.ipynb).
-- [Worker embedding](../ipynb/colab_worker_embed.ipynb).
-- [Gộp FAISS](../ipynb/merge_vector_packs.ipynb).
-- [Qwen + RAG](../ipynb/base_rag/lqwen2_5_7B_rag.ipynb), kèm [hướng dẫn Colab](../ipynb/base_rag/README.md).
-
-Các notebook trên dùng mã từ repository; thay đổi local cần được push trước khi
-Colab clone. [Notebook baseline](../ipynb/base/lqwen2_5_7B.ipynb) hiện vẫn chứa mã trực tiếp.
-
-Kiểm thử từ thư mục gốc: `python -m unittest discover -s tests -v`.
-Khi thay đổi một module, cập nhật README của module đó; README này chỉ giữ bản đồ hệ thống.
+Kiến trúc truy hồi hiện tại sử dụng dense vector BGE-M3, FAISS inner product,
+metadata SQLite và Qwen qua Ollama. Hệ thống chưa có tầng API web hoặc quản lý
+lịch sử hội thoại. Quy trình và phạm vi của từng module được mô tả tại README tương ứng.

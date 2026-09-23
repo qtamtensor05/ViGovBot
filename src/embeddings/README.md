@@ -1,8 +1,8 @@
 # Embeddings — tạo vector bằng BGE-M3
 
 Module tạo vector cho tài liệu và nạp encoder cho câu hỏi. Mô hình hiện dùng
-`BAAI/bge-m3`, đầu ra dense vector 1024 chiều. Dùng cùng mô hình và revision
-ở bước tạo dữ liệu và bước truy vấn.
+`BAAI/bge-m3`, đầu ra dense vector 1024 chiều. Tính tương thích giữa vector tài liệu
+và câu hỏi phụ thuộc vào cùng mô hình và phiên bản trọng số.
 
 ## Thành phần và đầu vào/đầu ra
 
@@ -26,17 +26,9 @@ Worker nhận JSON object, JSON array hoặc JSON Lines trong file `.json`/`.txt
 Dòng vector `i` luôn đi với phần tử metadata `i`. Worker không sửa metadata gốc.
 Vector tài liệu được chuẩn hóa L2 ở [bước gộp](../vectordb/README.md), không phải worker.
 
-## Cách chạy
+## Cấu hình worker
 
-Từ thư mục gốc repository:
-
-```sh
-pip install -r requirements-embedding.txt
-python -m src.embeddings.pack_worker --pack-id pack_01 --zip-path pack_01.zip --output-dir completed --no-mount
-```
-
-Trên Colab dùng [notebook worker](../../ipynb/colab_worker_embed.ipynb), notebook
-clone mã và mount Drive trước khi gọi module. Hướng dẫn 5 pack: [EMBEDDING.md](../../EMBEDDING.md).
+Worker nhận tham số qua CLI; `load_encoder()` nhận cấu hình từ bộ điều phối RAG.
 
 | Tham số worker | Ý nghĩa |
 | --- | --- |
@@ -47,7 +39,7 @@ clone mã và mount Drive trước khi gọi module. Hướng dẫn 5 pack: [EMB
 | `--max-extract-gib` | Giới hạn dung lượng giải nén, mặc định 10 GiB |
 
 `pack_01` sinh `vectors_pack_01.npy`; nhập `pack1` sẽ được chuẩn hóa thành
-`pack_pack1`, sinh `vectors_pack_pack1.npy`. Dùng tên tương ứng khi gộp.
+`pack_pack1`, sinh `vectors_pack_pack1.npy`. Mã pack là định danh ghép cặp vector và metadata.
 
 ## Encoder câu hỏi và giới hạn
 
@@ -55,8 +47,9 @@ clone mã và mount Drive trước khi gọi module. Hướng dẫn 5 pack: [EMB
 mặc định encoder câu hỏi chạy CPU. [Retrieval](../retrieval/README.md) gọi encode
 cho từng câu hỏi rồi chuẩn hóa L2. Không tạo lại vector tài liệu khi truy vấn.
 
-Worker vẫn giữ metadata và ma trận của một pack trong RAM, nên cần chia pack vừa bộ nhớ.
-Giảm batch chỉ giảm bộ nhớ inference. Nếu một đoạn vẫn OOM, dùng GPU lớn hơn hoặc CPU.
+Worker giữ metadata và ma trận của một pack trong RAM. Kích thước pack quyết định
+bộ nhớ dữ liệu; batch ảnh hưởng bộ nhớ suy luận. Nếu CUDA OOM vẫn xảy ra với batch
+bằng 1, worker báo lỗi.
 Đầu vào vượt giới hạn mô hình bị thư viện cắt bớt; giới hạn BGE-M3 là 8192 token.
 
-[Quay lại tổng quan](../README.md)
+[Kiến trúc tổng thể](../README.md)

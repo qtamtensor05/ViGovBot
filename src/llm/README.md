@@ -36,17 +36,10 @@ llm:
 `timeout` là thời gian chờ HTTP. Các khóa tokenizer do pipeline/prompts sử dụng,
 không gửi tới Ollama.
 
-## Chuẩn bị dịch vụ
+## Quan hệ với môi trường thực thi
 
-Trên máy cá nhân, cài Ollama rồi chạy dịch vụ và tải mô hình:
-
-```sh
-ollama serve
-ollama pull qwen2.5:7b
-```
-
-Nếu dịch vụ đã chạy, không cần mở thêm `ollama serve`. Trên Colab,
-[utils/colab_runtime.py](../utils/README.md) chuẩn bị dịch vụ trước khi chạy pipeline.
+LLM client phụ thuộc vào dịch vụ Ollama đang hoạt động và mô hình có trong dịch vụ.
+Trên Colab, [utils/colab_runtime.py](../utils/README.md) đảm nhiệm bước chuẩn bị dịch vụ.
 Ollama quản lý việc dùng GPU/CPU; LLM client không ấn định lượng VRAM hay số lớp GPU.
 
 ## Lỗi và phạm vi
@@ -56,4 +49,4 @@ Không tự retry trong một request. [Evaluation runner](../evaluation/README.
 ghi lỗi từng câu và thử lại câu chưa thành công khi chạy lại.
 Hiện chưa có provider khác, streaming output hoặc kiểm chứng factuality sau sinh.
 
-[Quay lại tổng quan](../README.md)
+[Kiến trúc tổng thể](../README.md)

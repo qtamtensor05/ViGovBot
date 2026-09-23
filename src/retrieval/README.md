@@ -21,23 +21,12 @@ Mỗi kết quả gồm `row_id`, `score` và các trường metadata như `chun
 4. Với từng ID, đọc payload từ SQLite và gắn điểm cosine.
 5. Trả kết quả cho [prompts](../prompts/README.md); không đưa đáp án bộ test vào truy hồi.
 
-## Cách sử dụng
+## Cấu hình và vòng đời
 
-```python
-from src.embeddings.embedder import load_encoder
-from src.retrieval.retriever import Retriever
-
-encoder = load_encoder(device="cpu")
-retriever = Retriever(index_path, db_path, encoder)
-try:
-    hits = retriever.search("Hồ sơ cần những giấy tờ gì?", top_k=5)
-finally:
-    retriever.close()
-```
-
-Ví dụ giả định `index_path`, `db_path` đã có từ `prepare_corpus()`.
-Trong pipeline, `retrieval.top_k` ở [rag_config.yaml](../../rag_config.yaml)
-điều khiển số đoạn. `close()` đóng SQLite; đối tượng FAISS được giải phóng khi không còn tham chiếu.
+`index_path` và `db_path` là kết quả chuẩn bị của `prepare_corpus()`.
+Nhóm `retrieval.top_k` trong [rag_config.yaml](../../rag_config.yaml) điều khiển
+số đoạn truy hồi. Bộ điều phối tạo retriever khi bắt đầu phiên suy luận và gọi
+`close()` để đóng SQLite khi kết thúc. FAISS được giải phóng khi không còn tham chiếu.
 
 ## Phạm vi hiện tại
 
@@ -46,4 +35,4 @@ Không có BM25/hybrid search, reranker, bộ lọc metadata, query rewriting ho
 có thể trả đoạn không liên quan; yêu cầu từ chối khi thiếu thông tin nằm trong prompt.
 `IndexFlatIP` tìm kiếm chính xác trên toàn bộ vector, thời gian tăng theo kích thước corpus.
 
-[Quay lại tổng quan](../README.md)
+[Kiến trúc tổng thể](../README.md)

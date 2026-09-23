@@ -38,7 +38,7 @@ System prompt yêu cầu không bịa số liệu, không thêm lời chào/danh
 được lưu riêng. Đây là hướng dẫn mô hình, chưa có bước kiểm chứng câu trả lời tự động.
 Không có lịch sử hội thoại, nén ngữ cảnh bằng mô hình khác hay truy hồi section cha.
 
-Khi sửa prompt, chạy ở thư mục kết quả mới vì manifest phát hiện thay đổi mã/prompt.
-Xem [điều phối RAG](../rag/README.md) để chạy toàn bộ luồng.
+Prompt là một phần định danh lượt chạy do [bộ điều phối RAG](../rag/README.md)
+ghi trong manifest. Thay đổi prompt khiến cấu hình không còn khớp lượt đánh giá trước.
 
-[Quay lại tổng quan](../README.md)
+[Kiến trúc tổng thể](../README.md)

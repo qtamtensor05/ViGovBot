@@ -27,22 +27,17 @@ và `ground_truth.answer` dạng chuỗi. Câu hỏi không được rỗng.
 5. Report đọc prediction của các câu đã chọn, tính metric nhẹ và lưu trước khi chạy BERTScore.
 6. Tính BERTScore, tổng hợp và xuất báo cáo. Qwen/BGE-M3 được pipeline giải phóng trước bước này.
 
-## Chạy và cấu hình
-
-```sh
-python -m src.rag --config rag_config.yaml evaluate
-python -m src.rag --config rag_config.yaml report
-```
+## Cấu hình đánh giá
 
 Nhóm `evaluation` trong [rag_config.yaml](../../rag_config.yaml):
 
 | Khóa | Ý nghĩa |
 | --- | --- |
 | `smoke_test_n` | Số câu thử của lệnh `smoke`/`run`, mặc định 5; không ghi prediction chính |
-| `max_cases` | `null` chạy toàn bộ; bộ qa_test hiện có 570 câu |
+| `max_cases` | `null` sử dụng toàn bộ bộ test |
 | `bertscore_model` | `xlm-roberta-large`, giữ giống baseline |
 | `bertscore_device`, `bertscore_batch_size` | Mặc định CPU và 1 để giảm bộ nhớ |
-| `baseline_summary_path` | Summary baseline để xuất bảng đối chiếu, đặt trước khi chạy |
+| `baseline_summary_path` | Đường dẫn báo cáo baseline dùng để tạo bảng đối chiếu |
 
 ## Metric và giới hạn diễn giải
 
@@ -63,7 +58,8 @@ không phải điểm câu trả lời hoặc recall theo chunk.
 
 Metric chỉ tính trên câu thành công. Summary ghi `n_requested`, `n_cases`,
 `n_missing`, `coverage`; không coi câu lỗi là câu trả lời sai trong trung bình.
-So sánh baseline/RAG cần cùng tập test, phiên bản model và thiết lập metric/sinh.
+Tính tương đương của phép so sánh baseline/RAG phụ thuộc vào tập test, phiên bản
+mô hình và thiết lập chấm điểm/sinh câu trả lời. Bảng đối chiếu không tự xác minh các điều kiện này.
 
 ## File kết quả
 
@@ -76,7 +72,7 @@ Trong `data.output_dir`:
 - `by_question_type.csv`, `by_difficulty.csv`, `by_answerability.csv`, `metrics.png`: phân tích.
 - `baseline_vs_rag.csv`: chỉ có khi cấu hình baseline summary.
 
-Giữ cùng dữ liệu, code và cấu hình để tiếp tục. Khi thay đổi, chọn output mới;
-không chạy hai phiên cùng thư mục. Cơ chế phục hồi JSONL nằm trong [utils](../utils/README.md).
+Việc tiếp tục lượt chạy phụ thuộc vào manifest khớp dữ liệu, mã nguồn và cấu hình.
+Kết quả không có cơ chế khóa khi nhiều tiến trình cùng ghi. Cơ chế phục hồi JSONL nằm trong [utils](../utils/README.md).
 
-[Quay lại tổng quan](../README.md)
+[Kiến trúc tổng thể](../README.md)

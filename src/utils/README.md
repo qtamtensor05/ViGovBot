@@ -22,8 +22,8 @@ các module tương ứng; notebook chỉ gọi chúng qua CLI.
   Có prediction mà thiếu manifest cũng bị từ chối.
 
 [RAG orchestrator](../rag/README.md) xây nội dung manifest, gồm cấu hình, hash bộ test,
-định danh corpus, dấu vân tay mã nguồn và digest model Ollama. Không có khóa liên tiến trình;
-không chạy đồng thời nhiều phiên ghi cùng output.
+định danh corpus, dấu vân tay mã nguồn và digest model Ollama. Cơ chế ghi kết quả
+không có khóa liên tiến trình để điều phối nhiều bên cùng ghi vào một thư mục.
 
 ## Chuẩn bị Ollama trên Colab
 
@@ -32,18 +32,13 @@ Colab, cài `zstd`, tải script cài Ollama, cài dịch vụ. Nếu chưa ch�
 `ollama serve`, ghi log `/tmp/ollama.log`, chờ sẵn sàng rồi `ollama pull` model.
 
 Với URL không phải localhost/127.0.0.1, hàm chỉ kiểm tra model ở dịch vụ từ xa.
-Máy cá nhân cần cài Ollama trước. Hàm không tự cấu hình API key hoặc xác thực Git.
+Ngoài Colab, hàm phụ thuộc vào Ollama đã có trong môi trường. Hàm không tự cấu hình API key hoặc xác thực Git.
 [LLM client](../llm/README.md) quản lý các request inference sau khi dịch vụ sẵn sàng.
 
 ## Sinh notebook
 
-Từ thư mục gốc repository:
-
-```sh
-python -m src.utils.build_colab_notebooks
-```
-
-Lệnh ghi lại ba notebook, xóa output cell cũ:
+`build_colab_notebooks.py` tạo lại ba notebook từ các mẫu cell trong mã nguồn.
+Các notebook được tạo với trạng thái chưa thực thi và không có output cell:
 
 - [Worker embedding](../../ipynb/colab_worker_embed.ipynb).
 - [Gộp FAISS](../../ipynb/merge_vector_packs.ipynb).
@@ -51,11 +46,7 @@ Lệnh ghi lại ba notebook, xóa output cell cũ:
 
 Luồng notebook: clone/fetch đúng ref → cài requirements → mount Drive → cấu hình
 → gọi module bằng subprocess. Không chứa bản sao mã pipeline.
-Muốn sửa lâu dài cấu trúc notebook, sửa generator rồi sinh lại; đổi tham số cho
-một phiên có thể làm ngay trong các cell cấu hình. Notebook baseline trong `ipynb/base`
-và notebook parse không được generator này cập nhật.
+Generator là nguồn định nghĩa cấu trúc ba notebook này. Notebook baseline trong
+`ipynb/base` và notebook parse nằm ngoài phạm vi cập nhật của generator.
 
-Mã sửa trên máy cá nhân cần được push lên GitHub trước khi Colab clone.
-Xem [hướng dẫn Colab](../../ipynb/base_rag/README.md) để chọn `REPO_URL`, `GIT_REF`.
-
-[Quay lại tổng quan](../README.md)
+[Kiến trúc tổng thể](../README.md)
