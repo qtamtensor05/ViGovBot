@@ -6,7 +6,8 @@ Luồng: làm sạch HTML → metadata → section theo heading → phân loại
 → lặp header bảng → chèn context prefix → lọc chunk rỗng.
 `parent_section` giữ section đầy đủ, `text_content` dùng cho embedding.
 
-Xem [hướng dẫn xử lý dữ liệu](../README.md) để chạy toàn bộ pipeline.
+Đầu vào là Markdown/text của một tài liệu; đầu ra là danh sách `TTHCChunk`
+được [ingestion](../ingestion/README.md) ghi thành JSON. Module chưa tạo vector.
 
 ## Metadata và section
 
@@ -42,7 +43,7 @@ khi tạo metadata và prefix. Chunk ít nội dung bị lọc, không tính hea
 | `section_keywords` | Từ khóa cho từng nhãn; so khớp không phân biệt hoa/thường và dấu |
 
 Điều kiện: `0 <= overlap_chars < target_chars <= max_chars`.
-Kích thước target/max tối thiểu 100 ký tự. Từ khóa nên dùng dạng không dấu như mẫu.
+Kích thước target/max tối thiểu 100 ký tự. Cơ chế so khớp từ khóa chuẩn hóa dấu và chữ hoa/thường.
 
 Bảng vừa ngân sách giữ hàng nguyên vẹn và lặp header. Khi hàng/header quá dài,
 section được chuyển sang khóa–giá trị rồi chia văn bản; parent vẫn giữ bảng gốc.
@@ -72,21 +73,16 @@ Prefix được đặt ở đầu `text_content` để tạo embedding có ngữ
 }
 ```
 
-ID gồm mã thủ tục, loại section, số section và số child. Dùng `text_content` để
-embedding, dùng `parent_section` để bổ sung ngữ cảnh khi sinh câu trả lời.
+ID gồm mã thủ tục, loại section, số section và số child. [Embeddings](../embeddings/README.md)
+dùng `text_content` để tạo vector. `parent_section` lưu toàn bộ nội dung section cha; pipeline RAG hiện tại chưa dùng trường này và không chép nó vào SQLite.
 
-## Sử dụng trực tiếp
+## Giao diện và quan hệ với ingestion
 
-```python
-from src.configuration import load_configuration
-from src.chunking.markdown import TTHCStructureAwareChunker
+`TTHCStructureAwareChunker` nhận cấu hình chia đoạn; `process_document()` đọc
+tài liệu Markdown và trả danh sách chunks. Ingestion sử dụng kết quả này để ghi JSON.
 
-_, _, settings = load_configuration('config.yaml')
-chunker = TTHCStructureAwareChunker(settings=settings)
-chunks = chunker.process_document('Data/example.md')
-```
+Constructor không nhận settings sẽ đọc cấu hình mặc định. Các tham số kích thước
+truyền trực tiếp có ưu tiên hơn YAML. `warnings` ghi nhận các trường hợp xử lý dự phòng.
+Ingestion quyết định chính sách phục hồi định danh; chunker mặc định báo lỗi khi thiếu định danh.
 
-Constructor không truyền settings tự đọc config mặc định của dự án.
-Các tham số `max_chars`, `target_chars`, `overlap_chars` truyền trực tiếp có ưu tiên
-hơn YAML. `warnings` ghi các fallback. Metadata recovery do ingestion quyết định;
-gọi chunker trực tiếp mặc định vẫn báo lỗi nếu thiếu định danh.
+[Kiến trúc tổng thể](../README.md)

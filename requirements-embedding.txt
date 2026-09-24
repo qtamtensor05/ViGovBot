@@ -1,0 +1,6 @@
+# Separate from the PDF processing environment. Python 3.10+.
+numpy>=1.24,<3
+sentence-transformers>=3,<6
+torch>=2.2,<3
+tqdm>=4.66,<5
+faiss-cpu>=1.8,<2
