@@ -26,9 +26,16 @@ coverage/
 *.log
 
 # Local datasets, generated content and model weights
-/Data/
-/data/
-/outputs/
+# Preserve directory structure without tracking local data or generated files.
+/Data/**
+!/Data/**/
+!/Data/**/.gitkeep
+/data/**
+!/data/**/
+!/data/**/.gitkeep
+/outputs/**
+!/outputs/**/
+!/outputs/**/.gitkeep
 /models/
 /checkpoints/
 /chroma_db/
