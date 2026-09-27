@@ -1,1 +1,1 @@
-"""Document chunking."""
+"""Legacy namespace; use vigovbot instead."""

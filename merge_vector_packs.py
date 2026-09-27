@@ -1,4 +1,5 @@
 """Compatibility entry point; implementation lives in src.vectordb.merge."""
+
 import sys
 from src.vectordb import merge as implementation
 

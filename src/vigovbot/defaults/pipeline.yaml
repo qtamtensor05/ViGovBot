@@ -1,0 +1,11 @@
+# Relative paths are resolved against this file's directory.
+input: Data/pdf
+output: outputs/metadata
+overwrite: false
+modules:
+  ingestion: ingestion.yaml
+  chunking: chunking.yaml
+colab:
+  use_google_drive: false
+  drive_input: /content/drive/MyDrive/ViGovBot/Data
+  output: /content/ViGovBot_outputs

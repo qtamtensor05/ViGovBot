@@ -1,0 +1,20 @@
+name: Công việc
+description: Thay đổi có đầu ra và tiêu chí hoàn thành rõ ràng
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Vấn đề và phạm vi
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Tiêu chí hoàn thành
+      description: Nêu đầu ra, dữ liệu kiểm chứng và kết quả mong đợi.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Cách kiểm thử và chuyển đổi dữ liệu

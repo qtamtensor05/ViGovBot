@@ -1,0 +1,11 @@
+data:
+  unified_source: ../Data/vector/unified
+  cache_dir: ../outputs/rag_cache
+  allow_legacy_corpus: false
+embedding:
+  model: BAAI/bge-m3
+  revision: null  # Resolved from the verified corpus manifest.
+  device: cpu
+llm:
+  model: qwen2.5:7b
+  ollama_url: http://localhost:11434
