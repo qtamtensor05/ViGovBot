@@ -1,101 +1,46 @@
-﻿# Tạo embedding và gộp FAISS cho 5 pack ZIP
+# Embedding BGE-M3 và corpus
 
-Mã xử lý nằm trong `src/embeddings/pack_worker.py` và `src/vectordb/merge.py`.
-Notebook Colab chỉ clone repository, cài thư viện, kết nối Drive và gọi các module.
-Trước khi chạy, đưa mã mới lên GitHub và đặt `GIT_REF` đúng nhánh hoặc commit.
-Mặc định notebook dùng nhánh `codex/feat-multi-embedding-colab`.
+Cài `python -m pip install -e ".[embedding,vector]"` từ repository.
+ZIP đầu vào chứa JSON array/object hoặc JSON Lines trong file `.json`/`.txt`.
+Mỗi chunk có: `chunk_id`, `source_file`, `source_code`, `procedure_name`,
+`section_type`, `context_prefix`, `text_content`, `parent_section`.
 
-## 1. Chuẩn bị dữ liệu
-
-Đặt 5 ZIP trong `MyDrive/RAG_Data`: `pack_01.zip` đến `pack_05.zip`.
-Mỗi ZIP chứa file JSON/TXT UTF-8: đối tượng JSON, mảng đối tượng hoặc JSON Lines.
-Mỗi đoạn có các trường chuỗi `chunk_id`, `source_file`, `source_code`,
-`procedure_name`, `section_type`, `context_prefix`, `text_content`, `parent_section`.
-ID phải duy nhất và nội dung không rỗng.
-
-## 2. Tạo embedding trên Colab
-
-1. Tải [colab_worker_embed.ipynb](ipynb/colab_worker_embed.ipynb) lên Colab.
-2. Bật GPU. Kiểm tra `REPO_URL`, `GIT_REF` rồi chạy ô clone.
-3. Chạy ô cài thư viện và mount Drive.
-4. Đặt `PACK_ID = "pack_01"` và chạy ô worker.
-5. Khi xong, đổi lần lượt sang `pack_02`, `pack_03`, `pack_04`, `pack_05` và chạy lại ô worker.
-
-Mỗi gói sinh hai file trong `MyDrive/RAG_Data/completed`:
-`vectors_pack_01.npy` và `metadata_pack_01.json`, tương tự cho các pack còn lại.
-Có thể chia mỗi phiên Colab một pack; không để hai phiên cùng ghi một cặp kết quả.
-
-Batch mặc định 32; worker tự giảm batch khi CUDA OOM. Nếu một đoạn vẫn quá lớn,
-dùng GPU nhiều bộ nhớ hơn hoặc đổi tham số thiết bị thành CPU.
-BGE-M3 tạo vector 1024 chiều; `text_content` có tiền tố rồi sẽ không bị thêm lặp.
-Giữ đoạn trong giới hạn 8192 token; thư viện cắt bớt đầu vào vượt giới hạn.
-Dùng cùng revision mô hình trên mọi worker và khi embedding câu hỏi.
-
-Nếu ZIP thực tế là `pack1.zip` và bạn đặt `PACK_ID = "pack1"`, worker tự chuẩn hóa
-mã thành `pack_pack1`: kết quả là `vectors_pack_pack1.npy` và `metadata_pack_pack1.json`.
-Đường dẫn ZIP truyền rõ ràng nên vẫn đọc đúng `pack1.zip`.
-
-## 3. Gộp các pack
-
-1. Chờ đủ 5 cặp file kết quả (10 file).
-2. Mở [merge_vector_packs.ipynb](ipynb/merge_vector_packs.ipynb), chạy clone, cài thư viện và mount Drive.
-3. Kiểm tra `INPUT_DIR`, `OUTPUT_DIR` và danh sách `EXPECTED_PACK_IDS`.
-4. Chạy ô kiểm tra và gộp.
-
-Với tên file hiện tại của bạn là `vectors_pack_pack1.npy` đến `vectors_pack_pack5.npy`:
-
-```python
-EXPECTED_PACK_IDS = ["pack_pack1", "pack_pack2", "pack_pack3", "pack_pack4", "pack_pack5"]
+```powershell
+python -m vigovbot embed --pack-id pack_01 --zip-path Data/packs/pack_01.zip --output-dir Data/vector/completed --no-mount
+python -m vigovbot merge Data/vector/completed --output-dir Data/vector/unified
 ```
 
-Nếu tên file là `vectors_pack_01.npy` đến `vectors_pack_05.npy`, dùng:
+Worker phân giải model revision thành commit SHA trước khi encode. Với nhiều
+worker, lấy SHA từ `manifest_pack_01.json` và dùng `--revision SHA` cho mọi pack
+còn lại; tốt nhất chọn SHA chung trước khi chạy song song. Vector chưa chuẩn hóa
+được lưu float32; merge chuẩn hóa L2 và tạo `IndexFlatIP`.
 
-```python
-EXPECTED_PACK_IDS = ["pack_01", "pack_02", "pack_03", "pack_04", "pack_05"]
-```
+Đầu ra mỗi pack gồm ba file:
 
-Kết quả nằm trong `MyDrive/RAG_Data/unified`:
+- `vectors_pack_01.npy`
+- `metadata_pack_01.json`
+- `manifest_pack_01.json`
 
-- `tthc_unified.index`
-- `tthc_unified_metadata.json`
+Manifest ghi revision, số dòng, checksum vector/metadata và checksum ZIP đầu vào.
+Merge từ chối file bị sửa, ID trùng, vector không hữu hạn/rỗng, thiếu metadata hoặc
+các pack khác revision. Không ghi đè đầu ra đã có. Mỗi worker dùng pack riêng,
+không để hai phiên cùng xử lý một pack vào một thư mục trên Drive.
 
-Dòng FAISS `i` tương ứng với phần tử metadata `i`, bắt đầu từ 0. Không đổi thứ tự
-metadata. Merger kiểm tra cặp file, số dòng, số chiều, ID trùng và vector không hợp lệ.
-Vector được chuẩn hóa L2, chỉ mục dùng `IndexFlatIP(1024)` để tìm kiếm cosine.
-Bước gộp chạy CPU/RAM; riêng ma trận và chỉ mục cần ít nhất `N * 1024 * 8` byte,
-chưa tính metadata và bộ nhớ tạm. Không cần GPU.
+Corpus gồm `tthc_unified.index`, `tthc_unified_metadata.json`, `corpus_manifest.json`.
+Copy/nén đủ cả ba file. RAG kiểm tra manifest và tự dùng đúng revision khi
+`embedding.revision: null`. Chỉ nhận index từ nguồn đáng tin cậy; checksum không
+chứng minh tác giả hay bảo vệ trước nguồn cố ý tạo index độc hại.
 
-## 4. Kết quả cũ hoặc chạy bị ngắt
+Dữ liệu cũ dùng `--allow-legacy` khi merge và `data.allow_legacy_corpus: true` khi
+truy vấn. Cờ này đánh dấu không xác minh được model; không bỏ qua kiểm tra checksum
+của artifact đã có manifest. Chi tiết: [migration](docs/migration.md).
 
-Chương trình không ghi đè kết quả đã có. Nếu gói đã chạy thành công, chuyển sang
-gói tiếp theo. Nếu chỉ có một file hoặc lần chạy bị ngắt, chuyển cặp chưa hoàn chỉnh
-sang nơi khác rồi chạy lại. Không gộp trong lúc worker đang lưu kết quả.
+Worker đọc metadata của một pack vào RAM. Merge hiện giữ metadata và ma trận
+vector trong RAM; cần chia pack/đánh giá tài nguyên phù hợp. Với N vector 1024 chiều,
+riêng ma trận float32 và FAISS cần khoảng `N * 1024 * 8` byte, chưa tính metadata.
+RAG chuyển metadata unified sang SQLite theo luồng; kiểm tra SHA-256 vẫn phải đọc
+file và có thể mất thời gian với corpus lớn.
 
-## 5. Chạy trên máy cá nhân
-
-Từ thư mục gốc repository, với Python 3.10 trở lên:
-
-```sh
-pip install -r requirements-embedding.txt
-python -m src.embeddings.pack_worker --pack-id pack_01 --zip-path ./pack_01.zip --output-dir ./completed --no-mount
-python -m src.vectordb.merge ./completed --output-dir ./unified
-```
-
-Máy chỉ gộp cần `pip install -r requirements-vector-db.txt`.
-Các lệnh cũ `python colab_worker_embed.py` và `python merge_vector_packs.py` vẫn
-chạy bằng cách chuyển tiếp tới module trong `src`.
-
-Worker hỗ trợ `--scratch-dir`, `--max-extract-gib`, `--batch-size`, `--device`,
-`--revision`, `--output-dir`; dùng `--help` để xem. Scratch được dọn sau khi dùng.
-Notebook mount Drive trước khi gọi worker bằng subprocess, nên truyền `--no-mount`.
-
-## 6. Chạy chatbot RAG và đánh giá
-
-Mở [notebook Qwen + RAG](ipynb/base_rag/lqwen2_5_7B_rag.ipynb).
-Có thể trỏ trực tiếp tới thư mục unified trên Drive hoặc ZIP chứa hai file unified.
-Không cần tạo lại embedding tài liệu. Metadata lớn được chuyển dạng luồng sang SQLite.
-Chi tiết: [hướng dẫn Colab](ipynb/base_rag/README.md) và [kiến trúc src](src/rag/README.md).
-
-Kiểm thử offline: `python -m unittest discover -s tests -v`.
-Tài liệu tham khảo: [BGE-M3](https://huggingface.co/BAAI/bge-m3),
-[cosine trong FAISS](https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances).
+Colab: `ipynb/colab_worker_embed.ipynb` và `ipynb/merge_vector_packs.ipynb`.
+Generator: `python scripts/build_colab_notebooks.py`. Chọn `GIT_REF` đã có trên
+GitHub; thay đổi local chưa push không xuất hiện trên Colab.

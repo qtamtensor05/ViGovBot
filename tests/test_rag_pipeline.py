@@ -1,4 +1,5 @@
 """Kiểm thử offline RAG: FAISS/SQLite thực, encoder và HTTP được mô phỏng."""
+
 import json
 import sqlite3
 import tempfile
@@ -20,19 +21,34 @@ from src.utils.helpers import read_results, append_result, ensure_run
 
 
 def chunk(i):
-    return {"chunk_id": f"chunk_{i}", "source_file": f"{i}.pdf", "source_code": f"1.{i:06d}",
-            "procedure_name": "Thủ tục đất đai", "section_type": "fees", "context_prefix": "[Thủ tục]",
-            "text_content": f"[Thủ tục] Nội dung {i}", "parent_section": "không lưu trường lặp này"}
+    return {
+        "chunk_id": f"chunk_{i}",
+        "source_file": f"{i}.pdf",
+        "source_code": f"1.{i:06d}",
+        "procedure_name": "Thủ tục đất đai",
+        "section_type": "fees",
+        "context_prefix": "[Thủ tục]",
+        "text_content": f"[Thủ tục] Nội dung {i}",
+        "parent_section": "không lưu trường lặp này",
+    }
 
 
 def qa(i):
-    return {"id": str(i), "question": {"text": f"Câu hỏi {i}", "type": "fees", "difficulty": "easy"},
-            "ground_truth": {"answer": "ĐÁP ÁN BÍ MẬT"}, "rag_context": [{"text": "ORACLE_CONTEXT"}]}
+    return {
+        "id": str(i),
+        "question": {"text": f"Câu hỏi {i}", "type": "fees", "difficulty": "easy"},
+        "ground_truth": {"answer": "ĐÁP ÁN BÍ MẬT"},
+        "rag_context": [{"text": "ORACLE_CONTEXT"}],
+    }
 
 
 class CharacterTokenizer:
-    def encode(self, text, **kwargs): return list(map(ord, text))
-    def decode(self, ids): return "".join(map(chr, ids))
+    def encode(self, text, **kwargs):
+        return list(map(ord, text))
+
+    def decode(self, ids):
+        return "".join(map(chr, ids))
+
     def apply_chat_template(self, messages, **kwargs):
         return self.encode("".join(m["content"] for m in messages)) + [0] * 10
 
@@ -53,13 +69,16 @@ class PipelineTests(unittest.TestCase):
         faiss.write_index(index, str(self.source / "tthc_unified.index"))
 
     def write_metadata(self, records):
-        (self.source / "tthc_unified_metadata.json").write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
+        (self.source / "tthc_unified_metadata.json").write_text(
+            json.dumps(records, ensure_ascii=False), encoding="utf-8"
+        )
 
     def test_stream_zip_and_id_alignment(self):
         archive = self.root / "unified.zip"
         with zipfile.ZipFile(archive, "w") as zf:
-            for path in self.source.iterdir(): zf.write(path, "nested/unified/" + path.name)
-        index_path, database, info = prepare_corpus(archive, self.root / "cache")
+            for path in self.source.iterdir():
+                zf.write(path, "nested/unified/" + path.name)
+        index_path, database, info = prepare_corpus(archive, self.root / "cache", allow_legacy=True)
         with sqlite3.connect(database) as connection:
             rows = connection.execute("SELECT row_id, payload FROM chunks ORDER BY row_id").fetchall()
         connection.close()
@@ -68,19 +87,21 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("parent_section", json.loads(rows[0][1]))
         self.assertEqual(json.loads(rows[0][1])["procedure_name"], "Thủ tục đất đai")
         before = database.stat().st_mtime_ns
-        prepare_corpus(archive, self.root / "cache")
+        prepare_corpus(archive, self.root / "cache", allow_legacy=True)
         self.assertEqual(database.stat().st_mtime_ns, before)
         self.assertTrue(index_path.is_file())
 
     def test_retrieval_normalizes_and_resolves_ids(self):
-        index, database, _ = prepare_corpus(self.source, self.root / "cache")
+        index, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
         encoded = []
+
         class Encoder:
             def encode(self, texts, **kwargs):
                 encoded.extend(texts)
                 result = np.zeros((1, 1024), dtype=np.float32)
                 result[0, 1] = 7
                 return result
+
         retriever = Retriever(index, database, Encoder())
         self.addCleanup(retriever.close)
         hits = retriever.search("Câu hỏi", top_k=20)
@@ -94,19 +115,21 @@ class PipelineTests(unittest.TestCase):
             with self.subTest(records=records):
                 self.write_metadata(records)
                 with self.assertRaises((ValueError, sqlite3.IntegrityError)):
-                    prepare_corpus(self.source, self.root / "cache")
+                    prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
         self.assertFalse(list((self.root / "cache").rglob("ready.json")))
 
     def test_json_object_instead_of_array_rejected(self):
         self.write_metadata(chunk(0))
-        with self.assertRaises(ValueError): prepare_corpus(self.source, self.root / "cache")
+        with self.assertRaises(ValueError):
+            prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
 
     def test_ambiguous_zip_rejected(self):
         archive = self.root / "bad.zip"
         with zipfile.ZipFile(archive, "w") as zf:
             zf.writestr("a/dataset.jsonl", json.dumps(qa(1)))
             zf.writestr("b/dataset.jsonl", json.dumps(qa(2)))
-        with self.assertRaises(ValueError): load_cases(None, archive)
+        with self.assertRaises(ValueError):
+            load_cases(None, archive)
 
     def test_nested_qa_zip_and_actual_dataset(self):
         archive = self.root / "qa_test.zip"
@@ -131,9 +154,11 @@ class PipelineTests(unittest.TestCase):
         output = self.root / "results"
         config = {"settings": {"model": "qwen2.5:7b"}}
         received = []
+
         def answer(question):
             received.append(question)
             return {"prediction": "Trả lời"}
+
         cases = [qa(0), qa(1)]
         rows = evaluate_cases(cases, output, config, answer)
         self.assertEqual(received, ["Câu hỏi 0", "Câu hỏi 1"])
@@ -146,7 +171,10 @@ class PipelineTests(unittest.TestCase):
     def test_failures_retried_and_recorded(self):
         output = self.root / "results"
         config = {"settings": {"model": "qwen"}}
-        def fail(question): raise RuntimeError("test failure")
+
+        def fail(question):
+            raise RuntimeError("test failure")
+
         self.assertEqual(evaluate_cases([qa(0)], output, config, fail), [])
         self.assertEqual(len(read_results(output / "errors.jsonl")), 1)
         rows = evaluate_cases([qa(0)], output, config, lambda q: {"prediction": "OK"})
@@ -162,16 +190,30 @@ class PipelineTests(unittest.TestCase):
         append_result(path, {"id": "1"})
         self.assertEqual(len(read_results(path)), 2)
         path.write_bytes(b'invalid\n{"id": "1"}\n')
-        with self.assertRaises(ValueError): read_results(path, repair_tail=True)
+        with self.assertRaises(ValueError):
+            read_results(path, repair_tail=True)
 
     def test_http_request_contains_context_and_no_reference(self):
         class Response:
-            def raise_for_status(self): pass
-            def json(self): return {"message": {"content": "Trả lời"}}
-        settings = {"ollama_url": "http://localhost:11434", "model": "qwen2.5:7b",
-                    "temperature": 0, "num_ctx": 2048, "num_predict": 100, "seed": 42,
-                    "keep_alive": "10m", "timeout": 20}
-        messages, _, _ = build_messages("Câu hỏi", [{**chunk(0), "row_id": 0, "score": 1.0}], CharacterTokenizer(), 2048, 100)
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"message": {"content": "Trả lời"}}
+
+        settings = {
+            "ollama_url": "http://localhost:11434",
+            "model": "qwen2.5:7b",
+            "temperature": 0,
+            "num_ctx": 2048,
+            "num_predict": 100,
+            "seed": 42,
+            "keep_alive": "10m",
+            "timeout": 20,
+        }
+        messages, _, _ = build_messages(
+            "Câu hỏi", [{**chunk(0), "row_id": 0, "score": 1.0}], CharacterTokenizer(), 2048, 100
+        )
         with patch("requests.post", return_value=Response()) as post:
             answer, _, _ = ollama_answer(messages, settings)
         self.assertEqual(answer, "Trả lời")
@@ -182,7 +224,12 @@ class PipelineTests(unittest.TestCase):
 
     def test_colab_notebooks_clone_and_delegate(self):
         root = Path(__file__).resolve().parents[1]
-        for relative in ("ipynb/base_rag/lqwen2_5_7B_rag.ipynb", "ipynb/colab_worker_embed.ipynb", "ipynb/merge_vector_packs.ipynb"):
+        for relative in (
+            "ipynb/base_rag/lqwen2_5_7B_rag.ipynb",
+            "ipynb/parse_metadata.ipynb",
+            "ipynb/colab_worker_embed.ipynb",
+            "ipynb/merge_vector_packs.ipynb",
+        ):
             notebook = json.loads((root / relative).read_text(encoding="utf-8"))
             code = []
             for i, cell in enumerate(notebook["cells"]):
@@ -193,7 +240,7 @@ class PipelineTests(unittest.TestCase):
                     self.assertEqual(cell["outputs"], [])
             combined = "\n".join(code)
             self.assertIn('"git", "clone"', combined)
-            self.assertIn('"src.', combined)
+            self.assertIn('"vigovbot', combined)
             self.assertNotIn("def prepare_corpus(", combined)
             self.assertNotIn("def evaluate_cases(", combined)
 

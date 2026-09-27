@@ -1,1 +1,1 @@
-"""RAG orchestration and command-line entry point."""
+"""Legacy namespace; use vigovbot instead."""

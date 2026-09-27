@@ -1,0 +1,10 @@
+target_chars: 1200
+max_chars: 1500
+overlap_chars: 100
+min_content_chars: 10
+section_keywords:
+  metadata_identity: [thong tin chung, dinh danh, chi tiet thu tuc hanh chinh, co quan thuc hien, ket qua xu ly]
+  procedure_step: [trinh tu thuc hien, cac buoc]
+  required_documents: [thanh phan ho so, giay to, chung tu phai nop, ho so hai quan]
+  submission_deadline_fee: [cach thuc thuc hien, thoi han giai quyet, le phi, phi]
+  legal_basis: [can cu phap ly]

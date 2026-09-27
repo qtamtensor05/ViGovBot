@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=77,<85"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vigovbot"
+version = "0.2.0"
+description = "Vietnamese administrative-document processing and RAG research pipelines"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
+dependencies = ["pydantic>=2.10,<3", "PyYAML>=6,<7", "filelock>=3.16,<5"]
+
+[project.optional-dependencies]
+pdf = ["pymupdf4llm==1.28.2", "python-dotenv==1.2.3"]
+embedding = ["numpy>=1.24,<3", "sentence-transformers>=3,<6", "torch>=2.2,<3", "tqdm>=4.66,<5"]
+vector = ["numpy>=1.24,<3", "faiss-cpu>=1.8,<2", "ijson>=3.2,<4", "tqdm>=4.66,<5"]
+rag = ["numpy>=1.24,<3", "faiss-cpu>=1.8,<2", "ijson>=3.2,<4", "tqdm>=4.66,<5",
+       "sentence-transformers>=3,<6", "torch>=2.2,<3", "requests>=2.31,<3", "transformers>=4.41,<6"]
+evaluation = ["pandas>=2,<4", "matplotlib>=3.8,<4", "nltk>=3.8,<4", "rouge-score>=0.1.2,<0.2", "bert-score>=0.3.13,<0.4"]
+test = ["numpy>=1.24,<3", "faiss-cpu>=1.8,<2", "ijson>=3.2,<4", "tqdm>=4.66,<5", "requests>=2.31,<3",
+        "pandas>=2,<4", "matplotlib>=3.8,<4", "nltk>=3.8,<4", "rouge-score>=0.1.2,<0.2"]
+dev = ["ruff==0.15.6"]
+
+[project.scripts]
+vigovbot = "vigovbot.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["vigovbot*"]
+
+[tool.setuptools.package-data]
+vigovbot = ["defaults/*.yaml"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+exclude = ["env", "ipynb", "src/ingestion", "src/chunking", "src/embeddings", "src/vectordb", "src/rag",
+           "src/llm", "src/prompts", "src/retrieval", "src/utils", "src/evaluation"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E701", "E702", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/vigovbot/utils/helpers.py" = ["F401"]
+"src/vigovbot/embeddings/pack_worker.py" = ["F401"]

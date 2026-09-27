@@ -3,8 +3,8 @@ input: Data/pdf
 output: outputs/metadata
 overwrite: false
 modules:
-  ingestion: src/ingestion/config.yaml
-  chunking: src/chunking/config.yaml
+  ingestion: configs/ingestion.yaml
+  chunking: configs/chunking.yaml
 colab:
   use_google_drive: false
   drive_input: /content/drive/MyDrive/ViGovBot/Data

@@ -1,6 +1,7 @@
 # Đường dẫn tương đối được tính từ thư mục chứa file YAML này.
 # Notebook Colab tạo bản cấu hình riêng tại /content/rag_colab.yaml.
 data:
+  allow_legacy_corpus: false  # Set true only for older corpora without model provenance.
   unified_source: Data/vector/unified  # Thư mục hoặc unified.zip
   dataset_path: Data/qa_test/dataset.jsonl
   dataset_zip: null
