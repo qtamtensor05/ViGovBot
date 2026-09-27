@@ -122,7 +122,8 @@ class IngestionTests(unittest.TestCase):
     def test_packaged_defaults_work_outside_checkout(self):
         with patch("pathlib.Path.cwd", return_value=self.root), patch("pathlib.Path.is_file", return_value=False):
             config, _, _ = load_configuration()
-        self.assertEqual(config.output, self.root / "outputs/metadata")
+        # Windows TEMP may use an 8.3 alias (e.g. RUNNER~1); config paths are resolved.
+        self.assertEqual(config.output, (self.root / "outputs/metadata").resolve())
 
     def test_unread_scan_is_missing_not_blank(self):
         class Page:

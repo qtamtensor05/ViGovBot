@@ -24,7 +24,7 @@ def main():
             "assert Path(vigovbot.__file__).resolve().is_relative_to(Path('installed').resolve()); "
             "from vigovbot.configuration import load_configuration; "
             "config, ingestion, chunking = load_configuration(); "
-            "assert config.output == Path.cwd() / 'outputs/metadata'; "
+            "assert config.output == (Path.cwd() / 'outputs/metadata').resolve(); "
             "assert chunking.max_chars == 1500; print('Wheel defaults OK')"
         )
         subprocess.run([sys.executable, "-c", code], cwd=work, env=env, check=True)
