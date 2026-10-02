@@ -6,8 +6,8 @@ pipeline ViGovBot. Nội dung phản ánh package `vigovbot` phiên bản 0.2.0.
 ## Mô hình thành phần
 
 Mã chính nằm trong `src/vigovbot`. Package cài bằng pip và CLI `vigovbot`
-không phụ thuộc thư mục làm việc của repository. Namespace `src.*` và ba
-script gốc được giữ làm lớp tương thích cho checkout/notebook cũ.
+không phụ thuộc thư mục làm việc của repository. Notebook cài package từ
+checkout và sử dụng namespace `vigovbot.*`; lớp tương thích `src.*` đã được bỏ.
 
 ```mermaid
 flowchart LR

@@ -7,11 +7,13 @@ cũ sang package `vigovbot` và hợp đồng artifact hiện hành.
 
 1. Cài package từ repository: `python -m pip install -e ".[test,dev]"`
    cho kiểm thử; chọn thêm nhóm runtime theo README.
-2. Import mới dùng `vigovbot.*`; các import `src.*` cũ vẫn chạy trong checkout.
-3. `main.py` và `python -m src.rag` vẫn được giữ. CLI chính là
-   `python -m vigovbot`.
+2. Lớp tương thích `src.*` đã được bỏ. Đổi import sang `vigovbot.*`, kể cả
+   đường dẫn module trong mock/patch của kiểm thử.
+3. Đổi `python -m src.rag` thành `python -m vigovbot rag`. `main.py` gọi
+   trực tiếp package mới; cần cài package trước khi chạy.
 4. Template chính nằm trong `configs/`. `config.yaml`, `rag_config.yaml` và
-   YAML trong module cũ còn để tương thích. Đường dẫn tương đối tính từ YAML.
+   các cấu hình gốc vẫn sử dụng được. YAML trong module cũ đã được bỏ.
+   Đường dẫn tương đối tính từ YAML.
 5. Dữ liệu mẫu trước đây ở `pipeline_observe_steps/` chuyển tới
    `examples/pipeline_observe_steps/`. Notebook giữ đường dẫn `ipynb/` để không
    làm mất liên kết cũ. Generator chuyển sang `scripts/build_colab_notebooks.py`.
@@ -50,6 +52,11 @@ cũ khi cần tạo lại báo cáo của lần chạy cũ. Cache mới tự ch�
 định danh nội dung/manifest; không cần xóa cache cũ.
 
 ## Notebook Colab
+
+Notebook cài editable package với nhóm dependency phù hợp, thêm `REPO_DIR / "src"`
+vào đường dẫn import của kernel hiện tại và chỉ sử dụng `vigovbot.*`.
+Sinh lại cả ba notebook bằng `python scripts/build_colab_notebooks.py`.
+Notebook RAG lấy template từ `configs/rag.yaml`.
 
 Chỉ chạy notebook sau khi thay đổi đã được đưa lên GitHub. Đặt `GIT_REF` thành
 commit đã phát hành/merge; mặc định `main` tiện dùng nhưng không cố định thí nghiệm.

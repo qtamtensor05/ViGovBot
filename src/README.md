@@ -1,6 +1,7 @@
 # Bố cục mã nguồn
 
-Package chính được triển khai tại [vigovbot](vigovbot/). Các package ngang cấp
-là lớp tương thích với namespace `src.*` và không tiếp nhận chức năng mới.
+Mã nguồn được triển khai trong package duy nhất [vigovbot](vigovbot/).
+Cài package bằng `python -m pip install -e ".[rag,evaluation]"`, sau đó dùng
+namespace `vigovbot.*` và CLI `python -m vigovbot`.
 
 [Kiến trúc hệ thống](../docs/architecture.md) · [Giao diện CLI](../README.md) · [Migration](../docs/migration.md)

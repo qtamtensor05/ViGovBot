@@ -20,7 +20,7 @@ thể kiểm chứng của repository tại thời điểm hiện tại.
 
 | Thành phần | Trạng thái hiện tại |
 |---|---|
-| Mã nguồn | Package chính là `vigovbot`; các package `src/<module>` giữ khả năng tương thích với điểm chạy cũ |
+| Mã nguồn | Package duy nhất là `vigovbot`; notebook và điểm chạy dùng namespace `vigovbot.*` |
 | Giao diện | CLI cục bộ và notebook Colab |
 | Ingestion | Đọc PDF, hỗ trợ OCR và xuất dữ liệu đã chia đoạn |
 | Embedding và corpus | BGE-M3, FAISS, SQLite, manifest và kiểm tra checksum/revision |

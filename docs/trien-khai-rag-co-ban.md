@@ -9,7 +9,7 @@ thực thi từ thư mục gốc repository. Kết quả kiểm chứng được
 
 ViGovBot là pipeline tra cứu thủ tục hành chính tiếng Việt theo mô hình **Retrieval-Augmented Generation (RAG)**: tìm các đoạn tài liệu liên quan trước, sau đó đưa chúng cùng câu hỏi vào mô hình sinh câu trả lời.
 
-Hệ thống hiện chạy bằng CLI Python hoặc notebook Colab, hỗ trợ hỏi đáp từng câu và đánh giá theo bộ câu hỏi. Mã xử lý chính nằm trong `src/vigovbot/`; các module `src/*` cũ được giữ để tương thích.
+Hệ thống hiện chạy bằng CLI Python hoặc notebook Colab, hỗ trợ hỏi đáp từng câu và đánh giá theo bộ câu hỏi. Mã xử lý chính nằm trong `src/vigovbot/`. Notebook cài package và dùng namespace `vigovbot.*`.
 
 | Thành phần | Cách sử dụng hiện tại |
 |---|---|

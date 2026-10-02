@@ -36,8 +36,7 @@ vigovbot = ["defaults/*.yaml"]
 [tool.ruff]
 target-version = "py310"
 line-length = 120
-exclude = ["env", "ipynb", "src/ingestion", "src/chunking", "src/embeddings", "src/vectordb", "src/rag",
-           "src/llm", "src/prompts", "src/retrieval", "src/utils", "src/evaluation"]
+exclude = ["env", "ipynb"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]

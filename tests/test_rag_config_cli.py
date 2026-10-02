@@ -10,8 +10,8 @@ from unittest.mock import patch
 import faiss
 import numpy as np
 
-from src.rag.config import load_config, RAGConfig
-from src.rag.pipeline import execute, source_fingerprint
+from vigovbot.rag.config import load_config, RAGConfig
+from vigovbot.rag.pipeline import execute, source_fingerprint
 
 
 class ConfigTests(unittest.TestCase):
@@ -39,11 +39,11 @@ class ConfigTests(unittest.TestCase):
                 RAGConfig.model_validate({"data": data, **overrides})
 
     def test_cli_routes_without_pdf_dependencies(self):
-        from src.rag.__main__ import main
+        from vigovbot.rag.__main__ import main
 
         with (
-            patch("src.rag.__main__.load_config", return_value="test"),
-            patch("src.rag.pipeline.execute", return_value={"ok": True}) as execute_mock,
+            patch("vigovbot.rag.__main__.load_config", return_value="test"),
+            patch("vigovbot.rag.pipeline.execute", return_value={"ok": True}) as execute_mock,
         ):
             self.assertEqual(main(["--config", "test.yaml", "prepare"]), 0)
         execute_mock.assert_called_once_with("test", "prepare")
@@ -110,10 +110,10 @@ class ConfigTests(unittest.TestCase):
             torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False))
             with (
                 patch.dict("sys.modules", {"transformers": transformers, "torch": torch}),
-                patch("src.rag.pipeline.load_encoder", return_value=Encoder()),
-                patch("src.rag.pipeline.check_model", return_value={"digest": "abc"}),
-                patch("src.rag.pipeline.unload_model"),
-                patch("src.rag.pipeline.ollama_answer", side_effect=lambda messages, settings: (
+                patch("vigovbot.rag.pipeline.load_encoder", return_value=Encoder()),
+                patch("vigovbot.rag.pipeline.check_model", return_value={"digest": "abc"}),
+                patch("vigovbot.rag.pipeline.unload_model"),
+                patch("vigovbot.rag.pipeline.ollama_answer", side_effect=lambda messages, settings: (
                     json.dumps({"scope": "in_scope", "relation": "new_question", "query": "Phí?", "clarification": ""})
                     if "scope:" in messages[0]["content"] else
                     json.dumps({"answer": "0 đồng", "action": "answer", "evidence_status": "sufficient"}),
@@ -128,7 +128,7 @@ class ConfigTests(unittest.TestCase):
                 self.assertEqual(chat.call_count, n)
                 prompts = chat.call_args.args[0]
                 self.assertNotIn("secret", str(prompts))
-            with patch("src.evaluation.report.compute_bertscore", return_value=([1.0], [1.0], [1.0])):
+            with patch("vigovbot.evaluation.report.compute_bertscore", return_value=([1.0], [1.0], [1.0])):
                 summary = execute(config, "report")
             self.assertEqual(summary["n_cases"], 1)
             self.assertTrue((root / "out/metrics.png").exists())

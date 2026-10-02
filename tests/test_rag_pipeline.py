@@ -11,13 +11,13 @@ from unittest.mock import patch
 import faiss
 import numpy as np
 
-from src.vectordb.vector_store import prepare_corpus
-from src.evaluation.dataset import load_cases
-from src.evaluation.runner import evaluate_cases
-from src.retrieval.retriever import Retriever
-from src.prompts.prompt_templates import build_messages
-from src.llm.llm_client import ollama_answer
-from src.utils.helpers import read_results, append_result, ensure_run
+from vigovbot.vectordb.vector_store import prepare_corpus
+from vigovbot.evaluation.dataset import load_cases
+from vigovbot.evaluation.runner import evaluate_cases
+from vigovbot.retrieval.retriever import Retriever
+from vigovbot.prompts.prompt_templates import build_messages
+from vigovbot.llm.llm_client import ollama_answer
+from vigovbot.utils.helpers import read_results, append_result, ensure_run
 
 
 def chunk(i):
@@ -240,6 +240,11 @@ class PipelineTests(unittest.TestCase):
             combined = "\n".join(code)
             self.assertIn('"git", "clone"', combined)
             self.assertIn('"vigovbot', combined)
+            self.assertIn('REPO_DIR / "src"', combined)
+            self.assertIn('import vigovbot', combined)
+            self.assertIn('"pip", "install"', combined)
+            self.assertNotIn("from src.", combined)
+            self.assertNotIn('"src.rag"', combined)
             self.assertNotIn("def prepare_corpus(", combined)
             self.assertNotIn("def evaluate_cases(", combined)
 

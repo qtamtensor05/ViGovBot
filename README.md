@@ -16,8 +16,8 @@ Phạm vi đã triển khai gồm CLI cục bộ, notebook Colab, xử lý dữ 
 hỏi đáp một lượt và đánh giá. API web, quản lý người dùng, lịch sử hội thoại và
 fine-tuning QLoRA chưa thuộc phiên bản hiện tại.
 
-Mã nguồn chính nằm trong `src/vigovbot`. Các package ngang cấp tại `src/<module>`
-chỉ duy trì khả năng tương thích với notebook và điểm chạy cũ.
+Mã nguồn nằm trong package duy nhất `src/vigovbot`. Notebook cài package từ
+checkout và sử dụng namespace `vigovbot.*`.
 
 ## Yêu cầu hệ thống
 
@@ -102,7 +102,6 @@ Quy trình tạo corpus từ PDF và chạy đánh giá được trình bày tro
 | Đường dẫn | Nội dung |
 |---|---|
 | `src/vigovbot/` | Package và CLI chính |
-| `src/<module>/` | Lớp tương thích với namespace cũ |
 | `configs/` | Cấu hình chuẩn cho ingestion, chunking và RAG |
 | `tests/` | Kiểm thử tự động không phụ thuộc model thật |
 | `scripts/` | Công cụ sinh notebook, xuất lock và kiểm tra package |

@@ -1,4 +1,4 @@
-"""python -m src.rag --config rag_config.yaml run"""
+"""python -m vigovbot rag --config configs/rag.yaml run"""
 
 import argparse
 import json

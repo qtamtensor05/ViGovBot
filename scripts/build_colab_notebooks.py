@@ -36,8 +36,6 @@ else:
 subprocess.run(["git", "-C", str(REPO_DIR), "fetch", "origin", GIT_REF], check=True)
 subprocess.run(["git", "-C", str(REPO_DIR), "checkout", "--detach", "FETCH_HEAD"], check=True)
 os.chdir(REPO_DIR)
-if str(REPO_DIR) not in sys.path:
-    sys.path.insert(0, str(REPO_DIR))
 print("Commit:", subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip())
 """
 
@@ -49,10 +47,18 @@ def bootstrap(title, extras, settings):
         cell("code", settings),
         cell("markdown", "## 2. Tải mã nguồn\nClone hoặc cập nhật mã nguồn theo cấu hình ở Mục 1."),
         cell("code", CLONE),
-        cell("markdown", f"## 3. Cài thư viện\nCài nhóm thư viện `{extras}`."),
+        cell("markdown", f"## 3. Cài thư viện\nCài package `vigovbot` với nhóm `{extras}` và kích hoạt mã nguồn cho kernel hiện tại."),
         cell(
             "code",
-            f'subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-e", ".[{extras}]"], cwd=REPO_DIR, check=True)',
+            f'''subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-e", ".[{extras}]"], cwd=REPO_DIR, check=True)
+# Kernel notebook đã chạy trước pip install nên cần kích hoạt src-layout ngay.
+source_dir = str((REPO_DIR / "src").resolve())
+if source_dir not in sys.path:
+    sys.path.insert(0, source_dir)
+import importlib
+importlib.invalidate_caches()
+import vigovbot
+print("Package:", vigovbot.__file__)''',
         ),
     ]
 
@@ -190,7 +196,7 @@ BERTSCORE_BATCH_SIZE = 1  # @param {type:"integer"}
                 """
 import yaml
 
-config = yaml.safe_load((REPO_DIR / "rag_config.yaml").read_text(encoding="utf-8"))
+config = yaml.safe_load((REPO_DIR / "configs/rag.yaml").read_text(encoding="utf-8"))
 config["data"].update({
     "unified_source": CORPUS_PATH,
     "dataset_path": DATASET_PATH or None,
@@ -224,7 +230,7 @@ print("Config:", CONFIG_PATH)
                 "code",
                 """
 subprocess.run(
-    [sys.executable, "-m", "vigovbot.rag", "--config", str(CONFIG_PATH), COMMAND],
+    [sys.executable, "-m", "vigovbot", "rag", "--config", str(CONFIG_PATH), COMMAND],
     cwd=REPO_DIR,
     check=True,
 )
