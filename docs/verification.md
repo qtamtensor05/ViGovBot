@@ -1,13 +1,13 @@
 # Báo cáo kiểm chứng dự án ngày 27/09/2026
 
-Đây là báo cáo tại một thời điểm, không phải trạng thái CI hiện thời hoặc chứng
-nhận an toàn. Môi trường thực hiện: Windows x64, Python 3.14. Phạm vi kiểm chứng
+Đây là báo cáo tại một thời điểm, không phải chứng nhận an toàn. Môi trường thực
+hiện: Windows x64, Python 3.14. Phạm vi kiểm chứng
 gồm mã nguồn và khả năng chạy pipeline trong điều kiện kiểm thử.
 
 ## Phạm vi thay đổi
 
 - Package `vigovbot`, CLI thống nhất, lớp tương thích `src.*` và script cũ.
-- Cấu hình mẫu, dependency extras, lock theo nhóm, CI và tài liệu quản lý công việc.
+- Cấu hình mẫu, dependency extras, lock theo nhóm và tài liệu quản lý công việc.
 - Hợp đồng pack/corpus độc lập, checksum nội dung và revision BGE-M3 bất biến.
 - Tách `ask`/`prepare` khỏi yêu cầu bộ test; giữ luồng đánh giá/resume/report.
 - Khóa ghi artifact/cache/prediction, manifest ghi cuối và kiểm tra cache hỏng.
@@ -47,7 +47,7 @@ metadata recovery, bảo toàn bảng/nội dung và giữ file cũ khi ghi JSON
 
 - Chưa chạy suy luận Qwen/BGE-M3 thật hoặc benchmark đầy đủ trên corpus của dự án.
   Encoder/HTTP được mô phỏng trong test; không suy ra chất lượng câu trả lời từ số test đạt.
-- Chưa chạy GPU/Colab, OCR Tesseract thật trên bản scan hoặc các job CI Linux/GitHub.
+- Chưa chạy GPU/Colab hoặc OCR Tesseract thật trên bản scan.
 - Chưa thực hiện kiểm toán dependency theo cơ sở dữ liệu CVE hoặc kiểm thử xâm nhập.
   Ruff security là kiểm tra mã tĩnh, không thay thế các bước đó.
 - Checksum không xác thực tác giả; FAISS phải đến từ nguồn tin cậy. File lock

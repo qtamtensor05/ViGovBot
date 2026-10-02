@@ -15,12 +15,12 @@ loại theo mục đích để tránh lặp lại hướng dẫn vận hành tro
 | Tương thích | [Hướng dẫn migration](migration.md) | Namespace cũ, cấu hình cũ và corpus không có manifest |
 | Quản trị | [Trạng thái và lộ trình](roadmap.md) | Năng lực hiện tại, mốc phát triển và tiêu chí nghiệm thu |
 | Kiểm chứng | [Báo cáo kiểm chứng](verification.md) | Phạm vi, môi trường và kết quả kiểm tra đã ghi nhận |
-| Phát triển | [Quy trình đóng góp](../CONTRIBUTING.md) | Yêu cầu đối với issue, commit, pull request và CI |
+| Phát triển | [Quy trình đóng góp](../CONTRIBUTING.md) | Yêu cầu đối với issue, commit và pull request |
 
 ## Quy ước duy trì
 
 - `README.md` ở thư mục gốc là điểm vào duy nhất cho cài đặt và vận hành cơ bản.
 - Tài liệu kiến trúc mô tả ranh giới và hợp đồng, không sao chép hướng dẫn cài đặt.
 - Tài liệu vận hành cung cấp lệnh thực thi hoàn chỉnh và điều kiện tiên quyết.
-- Báo cáo kiểm chứng ghi nhận kết quả tại một thời điểm, không đại diện cho trạng thái CI hiện thời.
+- Báo cáo kiểm chứng ghi nhận kết quả tại một thời điểm, không đại diện cho trạng thái hiện thời.
 - README trong module chỉ mô tả trách nhiệm của module và dẫn chiếu về tài liệu trung tâm.

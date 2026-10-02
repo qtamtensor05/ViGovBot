@@ -33,9 +33,9 @@ python -m pip install -e ".[pdf,embedding,vector,rag,evaluation,test,dev]"
 
 ## Nền tảng hỗ trợ
 
-Phiên bản Python được khai báo hỗ trợ: 3.10–3.14. Môi trường kiểm chứng cục bộ:
-Windows x64, Python 3.14. CI cấu hình thêm Windows/Linux, Python 3.11/3.14;
-chưa coi những tổ hợp này là đã chạy thành công cho tới khi có kết quả CI.
+Phiên bản Python được khai báo hỗ trợ: 3.10–3.14. Môi trường đã kiểm chứng cục bộ:
+Windows x64, Python 3.14. Các tổ hợp hệ điều hành và phiên bản Python khác chưa
+được xác nhận bằng quy trình kiểm chứng của dự án.
 
 ## Cài đặt tái lập bằng lock file
 

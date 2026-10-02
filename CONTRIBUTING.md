@@ -18,11 +18,6 @@ khác cấu hình vào cùng một PR. Dùng tiền tố commit `feat:`, `fix:`,
 4. Nếu sửa retrieval/prompt/model, lưu benchmark cùng corpus/model revision và cấu hình.
 5. Mô tả kết quả kiểm chứng, phạm vi chưa kiểm chứng và cách quay lại phiên bản cũ trong PR.
 
-## Tích hợp liên tục
-
-CI chạy test trên push/PR. Maintainer cần bật required checks/branch protection
-trên GitHub khi áp dụng quy trình; repository không tự thay đổi cài đặt tài khoản.
-
 ## Dữ liệu, bí mật và giấy phép
 
 Không commit dữ liệu riêng, trọng số, `.env` hoặc kết quả lớn. Fixture nhỏ có
