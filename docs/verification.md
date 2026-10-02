@@ -1,9 +1,10 @@
-# Kiểm chứng đợt chuẩn hóa dự án — 2026-09-27
+# Báo cáo kiểm chứng dự án ngày 27/09/2026
 
-Môi trường thực hiện: Windows x64, Python 3.14. Phạm vi là mã nguồn và khả năng
-chạy pipeline trong điều kiện kiểm thử; không phải chứng nhận an toàn tuyệt đối.
+Đây là báo cáo tại một thời điểm, không phải trạng thái CI hiện thời hoặc chứng
+nhận an toàn. Môi trường thực hiện: Windows x64, Python 3.14. Phạm vi kiểm chứng
+gồm mã nguồn và khả năng chạy pipeline trong điều kiện kiểm thử.
 
-## Thay đổi đã triển khai
+## Phạm vi thay đổi
 
 - Package `vigovbot`, CLI thống nhất, lớp tương thích `src.*` và script cũ.
 - Cấu hình mẫu, dependency extras, lock theo nhóm, CI và tài liệu quản lý công việc.
@@ -17,7 +18,7 @@ chạy pipeline trong điều kiện kiểm thử; không phải chứng nhận 
   được sinh từ generator, không chứa output và sinh lại cho cùng nội dung.
 - LICENSE ghi rõ chưa cấp quyền sử dụng lại, theo lựa chọn của chủ dự án.
 
-## Kết quả
+## Kết quả kiểm chứng
 
 | Kiểm tra | Kết quả |
 |---|---|
@@ -27,7 +28,7 @@ chạy pipeline trong điều kiện kiểm thử; không phải chứng nhận 
 | Ruff lint và format | Đạt |
 | Ruff security (`--select S src/vigovbot`) | Đạt; hai vị trí subprocess có giải thích ngoại lệ S603 ngay trong mã |
 | Wheel build/install ngoài checkout | Đạt; cấu hình mặc định đóng gói và help của cả bốn nhóm CLI hoạt động |
-| Điểm chạy tương thích | `main.py`, `main.py rag`, `colab_worker_embed.py`, `merge_vector_packs.py` đều chạy được; import cũ được kiểm tra trong bộ test |
+| Điểm chạy tương thích | `main.py`, `main.py rag` và import `src.*` được kiểm tra trong bộ test |
 | Import runtime thật | SentenceTransformers, Torch, Transformers, FAISS và PyMuPDF4LLM nạp được |
 | PDF thật dạng text | Tạo PDF trong thư mục tạm, chạy extraction/chunking thật: thành công, 1 chunk |
 | Demo offline | Thành công: 2 chunk, truy hồi nguồn `1.000005` bằng vector tổng hợp |
@@ -42,7 +43,7 @@ nguyên khi inference lỗi, prompt budget, không rò rỉ đáp án, resume v�
 Ingestion được kiểm tra chữ ký/kích thước PDF, OCR không đọc được, review routing,
 metadata recovery, bảo toàn bảng/nội dung và giữ file cũ khi ghi JSON thất bại.
 
-## Phạm vi chưa kiểm chứng
+## Giới hạn kiểm chứng
 
 - Chưa chạy suy luận Qwen/BGE-M3 thật hoặc benchmark đầy đủ trên corpus của dự án.
   Encoder/HTTP được mô phỏng trong test; không suy ra chất lượng câu trả lời từ số test đạt.
@@ -56,7 +57,7 @@ metadata recovery, bảo toàn bảng/nội dung và giữ file cũ khi ghi JSON
 - Notebook baseline lịch sử trong `ipynb/base/` được giữ nguyên, không thuộc bốn
   notebook do generator mới quản lý.
 
-## Cách chạy lại
+## Quy trình tái kiểm chứng
 
 Theo [environments.md](environments.md). Corpus cũ cần làm theo
 [migration.md](migration.md). Kết quả thí nghiệm cũ được giữ nguyên; phiên bản

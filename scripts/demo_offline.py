@@ -11,7 +11,6 @@ import numpy as np
 
 from vigovbot.chunking.markdown import TTHCStructureAwareChunker
 from vigovbot.retrieval.retriever import Retriever
-from vigovbot.vectordb.merge import merge_packs
 from vigovbot.vectordb.vector_store import prepare_corpus
 from vigovbot.console import configure_console
 
@@ -29,9 +28,17 @@ def main():
 
     with tempfile.TemporaryDirectory() as work:
         root = Path(work)
-        np.save(root / "vectors_pack_demo.npy", vectors)
-        (root / "metadata_pack_demo.json").write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
-        merge_packs(root, root / "corpus", allow_legacy=True)
+        import faiss
+
+        corpus = root / "corpus"
+        corpus.mkdir()
+        index_object = faiss.IndexFlatIP(1024)
+        index_object.add(vectors)
+        with (corpus / "tthc_unified.index").open("wb") as handle:
+            faiss.write_index(index_object, faiss.PyCallbackIOWriter(handle.write))
+        (corpus / "tthc_unified_metadata.json").write_text(
+            json.dumps(records, ensure_ascii=False), encoding="utf-8"
+        )
         index, database, _ = prepare_corpus(root / "corpus", root / "cache", allow_legacy=True)
         retriever = Retriever(index, database, SyntheticEncoder())
         try:

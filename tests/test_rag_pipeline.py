@@ -227,8 +227,7 @@ class PipelineTests(unittest.TestCase):
         for relative in (
             "ipynb/base_rag/lqwen2_5_7B_rag.ipynb",
             "ipynb/parse_metadata.ipynb",
-            "ipynb/colab_worker_embed.ipynb",
-            "ipynb/merge_vector_packs.ipynb",
+            "ipynb/build_corpus.ipynb",
         ):
             notebook = json.loads((root / relative).read_text(encoding="utf-8"))
             code = []

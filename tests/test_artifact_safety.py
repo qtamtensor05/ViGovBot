@@ -24,7 +24,6 @@ from vigovbot.artifacts import (
 from vigovbot.ingestion.unified import corpus_identity, verify_corpus
 from vigovbot.rag.config import RAGConfig
 from vigovbot.rag.pipeline import execute, inference_session
-from vigovbot.vectordb.merge import merge_packs
 from vigovbot.vectordb.vector_store import prepare_corpus
 
 
@@ -34,14 +33,21 @@ class ArtifactSafetyTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
-    def pack(self, identifier="01", revision="a" * 40):
-        vector = self.root / f"vectors_pack_{identifier}.npy"
-        metadata = self.root / f"metadata_pack_{identifier}.json"
+    def corpus(self):
+        import faiss
+
+        directory = self.root / "unified"
+        directory.mkdir()
+        index_path = directory / "tthc_unified.index"
+        metadata = directory / "tthc_unified_metadata.json"
         matrix = np.zeros((1, 1024), dtype=np.float32)
         matrix[0, 0] = 1
-        np.save(vector, matrix)
+        index = faiss.IndexFlatIP(1024)
+        index.add(matrix)
+        with index_path.open("wb") as handle:
+            faiss.write_index(index, faiss.PyCallbackIOWriter(handle.write))
         record = dict(
-            chunk_id=identifier,
+            chunk_id="01",
             source_file="1.pdf",
             source_code="1.123456",
             procedure_name="Thủ tục",
@@ -51,15 +57,9 @@ class ArtifactSafetyTests(unittest.TestCase):
             parent_section="",
         )
         metadata.write_text(json.dumps([record]), encoding="utf-8")
-        manifest = make_manifest("pack", embedding_identity(revision), 1, [vector, metadata])
-        path = self.root / f"manifest_pack_{identifier}.json"
+        manifest = make_manifest("corpus", embedding_identity("a" * 40), 1, [index_path, metadata])
+        path = directory / CORPUS_MANIFEST
         path.write_text(json.dumps(manifest), encoding="utf-8")
-        return vector, metadata, path
-
-    def corpus(self):
-        self.pack()
-        directory = self.root / "unified"
-        merge_packs(self.root, directory)
         return directory
 
     def test_verified_round_trip_directory_and_nested_zip(self):
@@ -74,31 +74,6 @@ class ArtifactSafetyTests(unittest.TestCase):
         first = prepare_corpus(source, self.root / "cache")
         second = prepare_corpus(archive, self.root / "cache")
         self.assertEqual(first, second)
-
-    def test_changed_vector_rejected_before_merge(self):
-        vector, _, _ = self.pack()
-        with vector.open("ab") as handle:
-            handle.write(b"modified")
-        with self.assertRaisesRegex(ValueError, "checksum"):
-            merge_packs(self.root, self.root / "out")
-
-    def test_different_revisions_rejected_even_in_legacy_mode(self):
-        self.pack("01", "a" * 40)
-        self.pack("02", "b" * 40)
-        for legacy in (False, True):
-            with self.assertRaisesRegex(ValueError, "different embedding"):
-                merge_packs(self.root, self.root / "out", allow_legacy=legacy)
-
-    def test_manifest_required_and_legacy_is_never_marked_verified(self):
-        _, _, manifest = self.pack()
-        manifest.unlink()
-        with self.assertRaisesRegex(ValueError, "Missing pack manifest"):
-            merge_packs(self.root, self.root / "out")
-        merge_packs(self.root, self.root / "out", allow_legacy=True)
-        with self.assertRaisesRegex(ValueError, "provenance"):
-            verify_corpus(self.root / "out")
-        _, result = verify_corpus(self.root / "out", allow_legacy=True)
-        self.assertIsNone(result["embedding"])
 
     def test_changed_corpus_rejected_before_faiss_deserialization(self):
         source = self.corpus()

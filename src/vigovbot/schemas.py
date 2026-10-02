@@ -1,4 +1,4 @@
-"""Shared data contracts, independent of workers and orchestration."""
+"""Shared data contracts, independent of pipeline orchestration."""
 
 DIMENSION = 1024
 MODEL_NAME = "BAAI/bge-m3"

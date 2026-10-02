@@ -1,4 +1,9 @@
-# Môi trường và tái lập
+# Môi trường thực thi và khả năng tái lập
+
+Tài liệu quy định các nhóm dependency, nền tảng hỗ trợ, lock file và quy trình
+kiểm chứng môi trường.
+
+## Nhóm dependency
 
 Nguồn khai báo dependency duy nhất là `pyproject.toml`. Cài trực tiếp các nhóm
 thư viện từ thư mục gốc repository; không cần file cài đặt trung gian.
@@ -6,8 +11,8 @@ thư viện từ thư mục gốc repository; không cần file cài đặt trun
 | Extra | Mục đích |
 |---|---|
 | `pdf` | Trích xuất PDF; OCR thật cần Tesseract/tessdata riêng |
-| `embedding` | Tạo vector BGE-M3, cần trọng số mô hình |
-| `vector` | Merge, FAISS/SQLite, không cần tải mô hình |
+| `embedding` | Mã hóa chunk bằng BGE-M3, cần trọng số mô hình |
+| `vector` | Tạo và đọc FAISS/SQLite |
 | `rag` | Encoder, retrieval và Ollama client |
 | `evaluation` | Metric và biểu đồ, BERTScore cần trọng số riêng |
 | `test` | Test offline với FAISS/SQLite thật, encoder/HTTP được mô phỏng |
@@ -20,17 +25,19 @@ python -m pip install -e ".[rag,evaluation]"
 python -m pip install -e ".[test,dev]"
 ```
 
-Chọn lệnh phù hợp với công việc. Nếu cần cài toàn bộ:
+Cài đặt toàn bộ nhóm dependency:
 
 ```powershell
 python -m pip install -e ".[pdf,embedding,vector,rag,evaluation,test,dev]"
 ```
 
-Khai báo Python hỗ trợ: 3.10–3.14. Môi trường kiểm chứng cục bộ hiện tại:
+## Nền tảng hỗ trợ
+
+Phiên bản Python được khai báo hỗ trợ: 3.10–3.14. Môi trường kiểm chứng cục bộ:
 Windows x64, Python 3.14. CI cấu hình thêm Windows/Linux, Python 3.11/3.14;
 chưa coi những tổ hợp này là đã chạy thành công cho tới khi có kết quả CI.
 
-## Lock theo nền tảng
+## Cài đặt tái lập bằng lock file
 
 `locks/*-windows-py314.txt` chứa phiên bản của cả dependency trực tiếp và
 bắc cầu theo nhóm, xuất từ môi trường đã cài. Không sao chép toàn bộ `pip freeze`
@@ -43,7 +50,7 @@ python -m venv .venv
 .venv\Scripts\python -m unittest discover -s tests -v
 ```
 
-RAG: thay lock trên bằng `locks/rag-windows-py314.txt`. Embedding/merge dùng
+RAG: thay lock trên bằng `locks/rag-windows-py314.txt`. Tạo corpus dùng
 `locks/embedding-windows-py314.txt`. PDF dùng `locks/pdf-windows-py314.txt`.
 Các file trong `locks/` giữ phiên bản đã kiểm chứng; `pyproject.toml` khai báo
 nhóm thư viện và khoảng phiên bản được phép.
@@ -60,13 +67,13 @@ Script chỉ xuất dependency hợp lệ đang cài, không tự giải quyết
 phiên bản. Chạy `python -m pip check` trước khi chốt. Commit lock kèm tên OS,
 Python, thiết bị, phiên bản Ollama và lệnh benchmark trong báo cáo thí nghiệm.
 
-## Lệnh kiểm chứng
+## Quy trình kiểm chứng
 
 ```powershell
 python -m pip check
-python -m ruff check src/vigovbot scripts tests main.py colab_worker_embed.py merge_vector_packs.py
+python -m ruff check src/vigovbot scripts tests main.py
 python -m ruff check --select S src/vigovbot
-python -m ruff format --check src/vigovbot scripts tests main.py colab_worker_embed.py merge_vector_packs.py
+python -m ruff format --check src/vigovbot scripts tests main.py
 python -m unittest discover -s tests -v
 python scripts/demo_offline.py
 python -m pip wheel --no-deps --wheel-dir dist .

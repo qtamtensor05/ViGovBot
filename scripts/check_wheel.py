@@ -28,7 +28,7 @@ def main():
             "assert chunking.max_chars == 1500; print('Wheel defaults OK')"
         )
         subprocess.run([sys.executable, "-c", code], cwd=work, env=env, check=True)
-        for args in (["--help"], ["ingest", "--help"], ["embed", "--help"], ["merge", "--help"], ["rag", "--help"]):
+        for args in (["--help"], ["ingest", "--help"], ["embed", "--help"], ["rag", "--help"]):
             subprocess.run([sys.executable, "-m", "vigovbot", *args], cwd=work, env=env, check=True)
 
 

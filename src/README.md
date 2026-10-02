@@ -1,5 +1,6 @@
-# Mã nguồn
+# Bố cục mã nguồn
 
-Package chính: [vigovbot](vigovbot/). Các module cũ là lớp tương thích.
+Package chính được triển khai tại [vigovbot](vigovbot/). Các package ngang cấp
+là lớp tương thích với namespace `src.*` và không tiếp nhận chức năng mới.
 
-[Kiến trúc](../docs/architecture.md) · [Cách chạy](../README.md) · [Migration](../docs/migration.md)
+[Kiến trúc hệ thống](../docs/architecture.md) · [Giao diện CLI](../README.md) · [Migration](../docs/migration.md)

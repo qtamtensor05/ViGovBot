@@ -1,75 +1,122 @@
 # ViGovBot
 
-Pipeline nghiên cứu tra cứu thủ tục hành chính tiếng Việt: PDF/OCR → chunking →
-BGE-M3 → FAISS/SQLite → Qwen qua Ollama. Hỗ trợ hỏi đáp một câu, lưu nguồn truy hồi
-và đánh giá trên bộ câu hỏi. QLoRA, API web và hội thoại nhiều lượt thuộc roadmap,
-chưa phải tính năng hiện có.
+ViGovBot là hệ thống nghiên cứu Retrieval-Augmented Generation (RAG) cho dữ liệu
+thủ tục hành chính tiếng Việt. Pipeline hiện tại xử lý tài liệu PDF, tạo chỉ mục
+vector và sinh câu trả lời kèm thông tin nguồn bằng Qwen qua Ollama.
 
-## Chạy kiểm thử và ví dụ không cần GPU/model
+```text
+PDF/OCR → chuẩn hóa và chia đoạn → BGE-M3 → FAISS/SQLite
+                                              ↓
+Câu hỏi → BGE-M3 → truy hồi → tạo prompt → Qwen/Ollama → câu trả lời và nguồn
+```
 
-Từ thư mục repository, dùng Python 3.10–3.14; đã kiểm chứng cục bộ Windows/Python 3.14.
+## Trạng thái dự án
+
+Phạm vi đã triển khai gồm CLI cục bộ, notebook Colab, xử lý dữ liệu, truy hồi,
+hỏi đáp một lượt và đánh giá. API web, quản lý người dùng, lịch sử hội thoại và
+fine-tuning QLoRA chưa thuộc phiên bản hiện tại.
+
+Mã nguồn chính nằm trong `src/vigovbot`. Các package ngang cấp tại `src/<module>`
+chỉ duy trì khả năng tương thích với notebook và điểm chạy cũ.
+
+## Yêu cầu hệ thống
+
+- Python 3.10–3.14.
+- Ollama và model `qwen2.5:7b` cho chức năng hỏi đáp.
+- Tesseract cùng tessdata tiếng Việt khi xử lý PDF scan bằng OCR.
+- Dung lượng lưu trữ và bộ nhớ phù hợp với corpus; BGE-M3 được tải ở lần sử dụng đầu tiên.
+
+Các lệnh trong tài liệu được thực thi từ thư mục gốc của repository.
+
+## Cài đặt
+
+### Môi trường kiểm thử
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\python -m pip install -e ".[test,dev]"
 .venv\Scripts\python -m unittest discover -s tests -v
 .venv\Scripts\python scripts/demo_offline.py
-.venv\Scripts\python -m vigovbot --help
 ```
 
-Linux/macOS dùng `.venv/bin/python`. Demo in `status: ok` và `source_code: 1.000005`;
-vector tổng hợp chỉ kiểm chứng luồng dữ liệu, không đo chất lượng mô hình.
-Muốn cài đúng phiên bản đã khóa, xem [môi trường](docs/environments.md).
+Demo offline không tải model và không yêu cầu GPU. Trường `status` trong kết quả
+phải có giá trị `ok`.
 
-## Chạy dữ liệu và mô hình thật
-
-Cài nhóm thư viện cần dùng trong môi trường đang chọn:
+### Môi trường RAG
 
 ```powershell
-python -m pip install -e ".[pdf,embedding,vector,rag,evaluation]"
-python -m vigovbot ingest --config configs/pipeline.yaml
-python -m vigovbot embed --pack-id pack_01 --zip-path Data/packs/pack_01.zip --output-dir Data/vector/completed --no-mount
-python -m vigovbot merge Data/vector/completed --output-dir Data/vector/unified
-python -m vigovbot rag --config configs/inference.yaml prepare
-python -m vigovbot rag --config configs/inference.yaml ask --question "Cần những giấy tờ gì để cấp bản sao hộ tịch?"
-python -m vigovbot rag --config configs/rag.yaml run
+python -m venv .venv
+.venv\Scripts\python -m pip install -e ".[rag]"
+ollama pull qwen2.5:7b
 ```
 
-Chuẩn bị PDF trong `Data/pdf`, ZIP chứa JSON chunk và bộ test theo cấu hình trước
-khi chạy. Cài/chạy Ollama, tải `qwen2.5:7b` trước khi `ask`/`run`; BGE-M3, tokenizer
-và BERTScore cần tải trọng số ở lần đầu. OCR cần Tesseract/tessdata nếu có bản scan.
-Trong nhiều worker, chốt cùng `--revision` bằng commit SHA của model.
+Trên Linux và macOS, sử dụng `.venv/bin/python` thay cho
+`.venv\Scripts\python`. Các nhóm dependency khác và quy trình cài đặt tái lập
+được mô tả trong [tài liệu môi trường](docs/environments.md).
 
-Mỗi pack/corpus mới có manifest kiểm tra checksum và revision. Corpus cũ thiếu
-manifest cần chế độ tương thích rõ ràng; đọc [migration](docs/migration.md).
-Không dùng lại thư mục kết quả benchmark cũ sau khi đổi code/config/dữ liệu.
+## Vận hành RAG với corpus hiện có
 
-## Cấu trúc
+Cấu hình `configs/inference.yaml` sử dụng corpus tại `Data/vector/unified`.
+Corpus hợp lệ phải có đủ ba artifact:
 
-```text
-src/vigovbot/    Mã xử lý, hợp đồng dữ liệu và CLI
-src/*/          Lớp tương thích cho import/điểm chạy cũ
-configs/        Template ingestion, chunking, RAG và inference
-scripts/        Sinh notebook, demo, xuất lock và kiểm tra đóng gói
-ipynb/          Notebook nghiên cứu/Colab; giữ đường dẫn cũ
-examples/       Dữ liệu mẫu nhỏ có chủ đích
-locks/          Phiên bản dependency theo môi trường
-tests/          Kiểm thử offline
-docs/           Kiến trúc, migration, môi trường, roadmap và kiểm chứng
+- `tthc_unified.index`;
+- `tthc_unified_metadata.json`;
+- `corpus_manifest.json`.
+
+Khởi tạo cache truy vấn:
+
+```powershell
+.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml prepare
 ```
+
+Thực hiện truy vấn:
+
+```powershell
+.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml ask `
+  --question "Hồ sơ cấp bản sao hộ tịch gồm những gì?"
+```
+
+Corpus cũ không có manifest không được chấp nhận theo cấu hình mặc định. Quy trình
+chuyển đổi được quy định tại [tài liệu migration](docs/migration.md).
+
+## Giao diện dòng lệnh
+
+| Nhóm lệnh | Chức năng | Đầu vào chính | Đầu ra chính |
+|---|---|---|---|
+| `vigovbot ingest` | Trích xuất và chia đoạn tài liệu | PDF, cấu hình ingestion/chunking | Metadata và báo cáo xử lý |
+| `vigovbot embed` | Tạo corpus BGE-M3/FAISS | Thư mục hoặc ZIP chứa chunk JSON | Index, metadata và corpus manifest |
+| `vigovbot rag` | Chuẩn bị cache, truy vấn và đánh giá | Corpus, cấu hình RAG, bộ test tùy lệnh | Câu trả lời hoặc báo cáo đánh giá |
+
+Trợ giúp của từng nhóm lệnh:
+
+```powershell
+.venv\Scripts\python -m vigovbot --help
+.venv\Scripts\python -m vigovbot rag --help
+```
+
+Quy trình tạo corpus từ PDF và chạy đánh giá được trình bày trong
+[hướng dẫn vận hành RAG](docs/trien-khai-rag-co-ban.md).
+
+## Cấu trúc repository
+
+| Đường dẫn | Nội dung |
+|---|---|
+| `src/vigovbot/` | Package và CLI chính |
+| `src/<module>/` | Lớp tương thích với namespace cũ |
+| `configs/` | Cấu hình chuẩn cho ingestion, chunking và RAG |
+| `tests/` | Kiểm thử tự động không phụ thuộc model thật |
+| `scripts/` | Công cụ sinh notebook, xuất lock và kiểm tra package |
+| `ipynb/` | Notebook nghiên cứu và thực thi trên Colab |
+| `examples/` | Fixture và dữ liệu minh họa có kích thước nhỏ |
+| `docs/` | Kiến trúc, vận hành, migration và báo cáo kiểm chứng |
 
 ## Tài liệu
 
-- [Kiến trúc và ranh giới module](docs/architecture.md)
-- [Embedding và corpus](EMBEDDING.md)
-- [Môi trường và lock](docs/environments.md)
-- [Chuyển đổi từ phiên bản cũ](docs/migration.md)
-- [Quy trình phát triển](CONTRIBUTING.md)
-- [Trạng thái và roadmap](docs/roadmap.md)
-- [Kết quả kiểm chứng](docs/verification.md)
+Mục lục và phạm vi của từng tài liệu được quản lý tại
+[docs/README.md](docs/README.md). Quy định đóng góp mã nguồn nằm trong
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Giấy phép
 
-Chưa cấp quyền sử dụng lại mã nguồn; chủ dự án sẽ chốt giấy phép sau.
-Xem [LICENSE](LICENSE). Dependency, dữ liệu, tài liệu và model của bên thứ ba
-vẫn tuân theo giấy phép và điều kiện riêng.
+Repository chưa cấp quyền sử dụng lại mã nguồn. Điều khoản hiện hành được ghi tại
+[LICENSE](LICENSE).

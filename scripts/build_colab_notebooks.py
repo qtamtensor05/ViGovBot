@@ -116,7 +116,7 @@ OUTPUT = Path("/content/ViGovBot_outputs")
             ),
             cell(
                 "markdown",
-                "## 4. Chạy pipeline\nCLI quản lý bỏ qua file thành công, xử lý lại file lỗi và đưa dữ liệu chưa chắc chắn vào review. Nếu CLI báo lỗi, kiểm tra reports/review trước khi tạo pack embedding.",
+                "## 4. Chạy pipeline\nCLI quản lý bỏ qua file thành công, xử lý lại file lỗi và đưa dữ liệu chưa chắc chắn vào review. Nếu CLI báo lỗi, kiểm tra reports/review trước khi tạo corpus.",
             ),
             cell(
                 "code",
@@ -128,7 +128,7 @@ subprocess.run([sys.executable, "-m", "vigovbot", "ingest", str(INPUT),
             ),
             cell(
                 "markdown",
-                "## 5. Tải kết quả\nZIP này là bản sao toàn bộ output (kể cả reports/review), không đưa trực tiếp vào embedding. Chỉ tạo pack từ JSON chunk đã kiểm tra.",
+                "## 5. Tải kết quả\nZIP này là bản sao toàn bộ output, kể cả reports/review. Chỉ đưa các JSON chunk đã kiểm tra vào bước tạo corpus.",
             ),
             cell(
                 "code",
@@ -236,24 +236,23 @@ print("Các file:", [p.name for p in output.iterdir()] if output.exists() else [
     )
     save(ROOT / "ipynb/base_rag/lqwen2_5_7B_rag.ipynb", cells, True)
 
-    cells = bootstrap("Tạo embedding BGE-M3 cho một pack ZIP", "embedding")
+    cells = bootstrap("Tạo corpus BGE-M3 và FAISS", "embedding,vector")
     cells.extend(
         [
             cell(
                 "markdown",
-                "## 4. Chọn pack và chạy\nĐặt các pack ZIP trong `MyDrive/RAG_Data`. Mỗi phiên xử lý một pack khác nhau. Đổi `PACK_ID` và chạy lại ô này cho pack tiếp theo. Prefix đã có sẽ không bị lặp; khi thiếu VRAM, mã worker tự giảm batch và thử lại.",
+                "## 4. Tạo corpus\n`SOURCE` là thư mục hoặc ZIP chứa toàn bộ JSON chunk đã kiểm tra. Pipeline mã hóa dữ liệu và công bố trực tiếp FAISS index, metadata cùng manifest vào một thư mục corpus mới.",
             ),
             cell(
                 "code",
                 """
-PACK_ID = "pack_01"
 DATA_DIR = Path("/content/drive/MyDrive/RAG_Data")
-OUTPUT_DIR = DATA_DIR / "completed"
+SOURCE = DATA_DIR / "chunks.zip"
+OUTPUT_DIR = DATA_DIR / "unified"
 BATCH_SIZE = 32
 MODEL_REVISION = None
-command = [sys.executable, "-m", "vigovbot.embeddings.pack_worker", "--pack-id", PACK_ID,
-           "--zip-path", str(DATA_DIR / f"{PACK_ID}.zip"), "--output-dir", str(OUTPUT_DIR),
-           "--batch-size", str(BATCH_SIZE), "--device", "cuda", "--no-mount"]
+command = [sys.executable, "-m", "vigovbot", "embed", str(SOURCE),
+           "--output-dir", str(OUTPUT_DIR), "--batch-size", str(BATCH_SIZE), "--device", "cuda"]
 if MODEL_REVISION:
     command += ["--revision", MODEL_REVISION]
 subprocess.run(command, cwd=REPO_DIR, check=True)
@@ -261,41 +260,11 @@ subprocess.run(command, cwd=REPO_DIR, check=True)
             ),
             cell(
                 "markdown",
-                "Sau khi đủ các cặp vector/metadata, chạy notebook `merge_vector_packs.ipynb`. File đã có sẽ không bị ghi đè; chuyển kết quả chưa hoàn chỉnh sang nơi khác trước khi chạy lại.",
+                "Đầu ra gồm `tthc_unified.index`, `tthc_unified_metadata.json` và `corpus_manifest.json`. Pipeline không ghi đè corpus đã tồn tại.",
             ),
         ]
     )
-    save(ROOT / "ipynb/colab_worker_embed.ipynb", cells, True)
-
-    cells = bootstrap("Gộp các pack vector thành FAISS unified", "vector")
-    cells.extend(
-        [
-            cell(
-                "markdown",
-                "## 4. Kiểm tra danh sách pack và gộp\nKhông cần GPU, nhưng cần đủ RAM cho ma trận và chỉ mục cuối. Chờ mọi worker hoàn tất trước khi gộp. Với tên `vectors_pack_pack1.npy`, mã tương ứng là `pack_pack1`; sửa danh sách dưới đây theo file thực tế.",
-            ),
-            cell(
-                "code",
-                """
-from vigovbot.vectordb.merge import discover_pairs
-INPUT_DIR = Path("/content/drive/MyDrive/RAG_Data/completed")
-OUTPUT_DIR = Path("/content/drive/MyDrive/RAG_Data/unified")
-EXPECTED_PACK_IDS = ["pack_pack1", "pack_pack2", "pack_pack3", "pack_pack4", "pack_pack5"]
-pairs = discover_pairs(INPUT_DIR)
-found = {p.stem.removeprefix("vectors_") for p, _ in pairs}
-if found != set(EXPECTED_PACK_IDS):
-    raise ValueError(f"Danh sách pack không khớp: đã có {sorted(found)}, cần {EXPECTED_PACK_IDS}")
-subprocess.run([sys.executable, "-m", "vigovbot.vectordb.merge", str(INPUT_DIR), "--output-dir", str(OUTPUT_DIR)],
-               cwd=REPO_DIR, check=True)
-""",
-            ),
-            cell(
-                "markdown",
-                "Kết quả: `tthc_unified.index` và `tthc_unified_metadata.json`. Notebook RAG nhận trực tiếp thư mục `unified` hoặc ZIP chứa hai file này.",
-            ),
-        ]
-    )
-    save(ROOT / "ipynb/merge_vector_packs.ipynb", cells)
+    save(ROOT / "ipynb/build_corpus.ipynb", cells, True)
 
 
 if __name__ == "__main__":

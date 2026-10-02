@@ -45,4 +45,3 @@ ignore = ["E701", "E702", "E741"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/vigovbot/utils/helpers.py" = ["F401"]
-"src/vigovbot/embeddings/pack_worker.py" = ["F401"]

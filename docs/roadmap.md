@@ -1,14 +1,17 @@
-# Trạng thái và roadmap
+# Trạng thái triển khai và lộ trình phát triển
 
-## Đã triển khai trong mã nguồn
+Tài liệu phân biệt năng lực đã có trong mã nguồn với các hạng mục dự kiến. Một
+hạng mục chỉ được xem là hoàn thành khi đáp ứng tiêu chí nghiệm thu tương ứng.
 
-- PDF/OCR, chunking theo cấu trúc, pack embedding, FAISS/SQLite, RAG Ollama.
+## Năng lực hiện tại
+
+- PDF/OCR, chunking theo cấu trúc, tạo corpus BGE-M3/FAISS, cache SQLite và RAG Ollama.
 - Benchmark có lưu/resume prediction, chống rò rỉ đáp án chuẩn, metric và biểu đồ.
 - Package `vigovbot`, CLI thống nhất, lớp tương thích, cấu hình theo nhóm.
 - Manifest/checksum/revision cho pack/corpus; khóa ghi và kiểm thử dữ liệu lỗi.
 - Hỏi đáp một câu độc lập với bộ test; CI và lock theo môi trường Windows hiện tại.
 
-## Mốc tiếp theo và tiêu chí nghiệm thu
+## Mốc phát triển và tiêu chí nghiệm thu
 
 | Mốc | Tiêu chí hoàn thành |
 |---|---|

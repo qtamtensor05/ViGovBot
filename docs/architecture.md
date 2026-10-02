@@ -1,4 +1,9 @@
-# Kiến trúc ViGovBot
+# Kiến trúc hệ thống ViGovBot
+
+Tài liệu mô tả cấu trúc thành phần, ranh giới phụ thuộc và hợp đồng artifact của
+pipeline ViGovBot. Nội dung phản ánh package `vigovbot` phiên bản 0.2.0.
+
+## Mô hình thành phần
 
 Mã chính nằm trong `src/vigovbot`. Package cài bằng pip và CLI `vigovbot`
 không phụ thuộc thư mục làm việc của repository. Namespace `src.*` và ba
@@ -31,15 +36,15 @@ flowchart LR
 | `experiments.py` | Manifest lượt chạy và JSONL có thể tiếp tục |
 | `scripts/` | Sinh notebook, xuất lock, kiểm chứng package/môi trường |
 
-## Ranh giới và phụ thuộc
+## Ranh giới phụ thuộc
 
-`vectordb` không import worker embedding hay version của `rag`. Hợp đồng
-pack dùng `schemas.py`; version cache độc lập với version pipeline đánh giá.
+`vectordb` không phụ thuộc vào pipeline tạo embedding hoặc version của `rag`.
+Hợp đồng corpus dùng `schemas.py`; version cache độc lập với version pipeline đánh giá.
 `utils` chỉ giữ helper nhỏ và re-export tương thích. Notebook không chứa
 bản sao logic embedding/RAG; sinh lại bằng `python scripts/build_colab_notebooks.py`.
 
-`prepare` chỉ cần corpus; `ask` chỉ cần corpus và mô hình. Các lệnh
-`smoke`, `evaluate`, `run`, `report` mới yêu cầu bộ test. API Python
+`prepare` phụ thuộc corpus; `ask` phụ thuộc corpus và mô hình. Các lệnh
+`smoke`, `evaluate`, `run`, `report` phụ thuộc thêm bộ test. API Python
 `answer_question()` nhận retriever/tokenizer/settings, không nhận đáp án chuẩn.
 
 Manifest thí nghiệm lưu cấu hình, fingerprint mã xử lý, checksum bộ test/corpus,
@@ -47,14 +52,13 @@ revision embedding, digest Ollama và phiên bản runtime Python/thư viện ch
 Giữ model/tokenizer revision cố định trong cấu hình khi chốt benchmark; ghi
 commit repository trong báo cáo để liên kết kết quả với lần phát hành.
 
-## Hợp đồng artifact
+## Hợp đồng artifact và tính toàn vẹn
 
-- Pack: `vectors_pack_*.npy`, `metadata_pack_*.json`, `manifest_pack_*.json`.
 - Corpus: `tthc_unified.index`, `tthc_unified_metadata.json`, `corpus_manifest.json`.
 - Manifest: phiên bản định dạng, số dòng, SHA-256 từng file, model BGE-M3,
   commit SHA của model, kích thước 1024 và phiên bản cách ghép prefix.
-- Worker phân giải revision thành commit bất biến trước khi nạp mô hình.
-- Merge kiểm tra checksum, số dòng, ID, kiểu vector và revision các pack.
+- Pipeline embedding phân giải revision thành commit bất biến trước khi nạp mô hình.
+- Pipeline kiểm tra metadata và vector trước khi công bố corpus hoàn chỉnh.
 - RAG kiểm tra checksum trước khi FAISS đọc index, rồi kiểm tra encoder.
   `embedding.revision: null` chọn revision từ manifest; giá trị khác bị từ chối.
 - FAISS dùng inner product sau chuẩn hóa L2; thứ tự metadata là ID SQLite.
@@ -65,14 +69,15 @@ từ chối ở chế độ mặc định. Không ghi đè artifact đã có; ch
 
 Khóa file bảo vệ việc công bố artifact, tạo cache và ghi kết quả trong một
 filesystem hỗ trợ khóa hệ điều hành. Khóa này không phải cơ chế khóa phân tán
-giữa nhiều phiên Colab qua Drive: mỗi worker phải dùng pack/output riêng,
-đợi hoàn tất rồi mới merge; mỗi lần benchmark dùng output riêng.
+giữa nhiều phiên Colab qua Drive. Mỗi lần tạo corpus và benchmark phải sử dụng
+thư mục đầu ra riêng.
 
 Checksum xác minh tính nhất quán, không xác minh tác giả. Chỉ nạp index FAISS
 từ nguồn đáng tin cậy. Chế độ legacy không thể chứng minh model tạo vector.
 
-## Phạm vi triển khai
+## Phạm vi hệ thống
 
 Hiện phục vụ nghiên cứu qua CLI/local/Colab; chưa có API web, quản lý người dùng,
 lịch sử hội thoại hoặc pipeline fine-tuning QLoRA. Các phần này thuộc roadmap.
-Đọc [migration](migration.md), [môi trường](environments.md) và [quy trình](../CONTRIBUTING.md).
+Các nội dung liên quan được quy định tại [migration](migration.md),
+[môi trường](environments.md) và [quy trình phát triển](../CONTRIBUTING.md).
