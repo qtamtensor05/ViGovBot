@@ -4,6 +4,18 @@ import json
 from urllib.request import Request, urlopen
 
 
+BASELINE_SYSTEM_PROMPT = """Bạn là trợ lý trả lời câu hỏi về thủ tục hành chính Việt Nam.
+Đây là baseline không truy hồi tài liệu: chỉ dùng kiến thức sẵn có của mô hình và lịch sử hội thoại.
+Không được giả vờ đã tra cứu tài liệu, không tạo nguồn hoặc trích dẫn. Nếu không biết, hãy nói rõ.
+Trả về đúng một JSON gồm answer và action. action phải là một trong:
+- answer: trả lời được câu hỏi;
+- partial: chỉ trả lời được một phần;
+- abstain: không đủ kiến thức để trả lời;
+- clarify: câu hỏi cần được làm rõ;
+- correct_premise: cần sửa tiền đề sai trong câu hỏi.
+answer phải là câu trả lời tiếng Việt, ngắn gọn và đúng trọng tâm."""
+
+
 def normalize_result(result, unit_mapping=None):
     if not isinstance(result, dict):
         raise ValueError("RAG response must be an object")
@@ -51,6 +63,48 @@ def existing_rag(config_path, unit_mapping=None):
                                      history=history, structured=True)
             return normalize_result(result, unit_mapping)
         yield answer
+
+
+@contextmanager
+def ollama_baseline(config_path):
+    """Run the configured Ollama model without loading a corpus or query encoder."""
+    from vigovbot.llm.llm_client import check_model, ollama_answer, unload_model
+    from vigovbot.prompts.prompt_templates import validate_history
+    from vigovbot.rag.config import load_config
+    from vigovbot.rag.routing import parse_answer
+
+    config = load_config(config_path)
+    check_model(config.llm.ollama_url, config.llm.model)
+    settings = config.inference_settings()
+    try:
+        def answer(question, history=None):
+            if not isinstance(question, str) or not question.strip():
+                raise ValueError("Question must be nonempty")
+            messages = [
+                {"role": "system", "content": BASELINE_SYSTEM_PROMPT},
+                *validate_history(history),
+                {"role": "user", "content": question.strip()},
+            ]
+            text, raw, generation_s = ollama_answer(
+                messages, {**settings, "response_format": "json"}
+            )
+            prediction, action, _ = parse_answer(text)
+            return normalize_result({
+                "prediction": prediction,
+                "action": action,
+                "retrieved": [],
+                "citations": [],
+                "context_used": [],
+                "retrieval_s": 0.0,
+                "generation_s": generation_s,
+                "raw_ollama": raw,
+            })
+        yield answer
+    finally:
+        try:
+            unload_model(config.llm.ollama_url, config.llm.model)
+        except Exception:
+            pass
 
 
 @contextmanager

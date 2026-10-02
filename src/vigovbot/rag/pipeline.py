@@ -178,17 +178,18 @@ def _execute(config, command="run", *, question=None, history=None):
     return generate_report(config, selected)
 
 
-def answer_question(question, retriever, tokenizer, settings, history=None, *, structured=False):
+def answer_question(question, retriever, tokenizer, settings, history=None, *, structured=False, answer_fn=None):
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Question must be nonempty")
     history = validate_history(history)
+    answer_fn = answer_fn or ollama_answer
     started = time.perf_counter()
     routing_enabled = settings.get("routing_enabled", True)
     route, routing_raw, routing_s, routing_tokens = None, None, 0.0, 0
     if routing_enabled:
         routing_started = time.perf_counter()
         route_messages, routing_tokens = routing_messages(question, history, tokenizer, settings)
-        route_text, routing_raw, _ = ollama_answer(route_messages, {**settings, "response_format": "json"})
+        route_text, routing_raw, _ = answer_fn(route_messages, {**settings, "response_format": "json"})
         route = parse_route(route_text, history)
         routing_s = time.perf_counter() - routing_started
 
@@ -228,7 +229,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         if len(tokenizer.apply_chat_template(rewrite_messages, tokenize=True, add_generation_prompt=True)) > (
                 settings["num_ctx"] - settings["num_predict"] - 256):
             raise ValueError("Lịch sử quá dài so với NUM_CTX")
-        retrieval_query, _, _ = ollama_answer(rewrite_messages, settings)
+        retrieval_query, _, _ = answer_fn(rewrite_messages, settings)
     retrieval_started = time.perf_counter()
     hits = retriever.search(retrieval_query, settings["top_k"])
     retrieval_s = time.perf_counter() - retrieval_started
@@ -243,7 +244,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         result["retrieval_query"] = retrieval_query
         return result
     generation_settings = {**settings, "response_format": "json"} if structured else settings
-    answer, raw, generation_s = ollama_answer(messages, generation_settings)
+    answer, raw, generation_s = answer_fn(messages, generation_settings)
     action = evidence = None
     if structured:
         answer, action, evidence = parse_answer(answer, require_evidence=routing_enabled)

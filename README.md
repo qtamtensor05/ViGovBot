@@ -79,6 +79,25 @@ Thực hiện truy vấn:
 Corpus cũ không có manifest không được chấp nhận theo cấu hình mặc định. Quy trình
 chuyển đổi được quy định tại [tài liệu migration](docs/migration.md).
 
+### Giao diện web hỏi đáp
+
+Sau khi embedding hoàn tất, khởi động server bằng cấu hình inference:
+
+```powershell
+.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml web
+```
+
+Mở `http://127.0.0.1:8000` trong trình duyệt và nhấn `Ctrl+C` tại terminal để dừng.
+Encoder, tokenizer và kho truy hồi chỉ được nạp một lần lúc khởi động. Có thể đổi địa
+chỉ hoặc cổng bằng `--host` và `--port`. Chỉ nên dùng `--host 0.0.0.0` trong mạng tin
+cậy vì server cơ bản này chưa có xác thực người dùng.
+
+Các model hiển thị trong UI được khai báo tại `web.models` trong file YAML. Giao diện
+cho phép chọn đồng thời nhiều model để so sánh câu trả lời. Hai provider được hỗ trợ là
+`ollama` và `openai_compatible`. Với API bên ngoài, đặt tên biến chứa khóa tại
+`api_key_env` và đặt giá trị biến đó trong môi trường chạy server; không ghi API key
+trực tiếp vào YAML hoặc trình duyệt. Xem ví dụ trong `configs/inference.yaml`.
+
 ## Giao diện dòng lệnh
 
 | Nhóm lệnh | Chức năng | Đầu vào chính | Đầu ra chính |

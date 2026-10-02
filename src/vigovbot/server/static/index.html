@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ViGovBot Model Lab</title>
+  <style>
+    :root{color-scheme:light;--ink:#17342d;--muted:#60736d;--brand:#087f5b;--paper:#fff;--bg:#edf5f1;--line:#d7e5df}
+    *{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#e4f1eb,#f7f4ea);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+    main{width:min(1100px,calc(100% - 24px));height:100dvh;margin:auto;padding:24px 0;display:grid;grid-template-rows:auto auto 1fr auto;gap:14px}
+    header,section,form{background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 35px #245b4520}
+    header{padding:18px 22px}h1{font-size:1.35rem;margin:0}header p{margin:3px 0 0;color:var(--muted)}
+    #models{padding:12px 18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}#models label{display:flex;gap:6px;align-items:center}.provider{color:var(--muted);font-size:.78rem}
+    #chat{overflow:auto;padding:20px;display:flex;flex-direction:column;gap:14px}.msg{max-width:84%;padding:11px 14px;border-radius:14px;white-space:pre-wrap}
+    .user{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}.bot{align-self:flex-start;background:#f0f5f2;border:1px solid var(--line);border-bottom-left-radius:4px}
+    .answers{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.answer{background:#f0f5f2;border:1px solid var(--line);border-radius:14px;padding:14px;white-space:pre-wrap}.answer h2{font-size:.95rem;margin:0 0 8px;color:var(--brand)}
+    .meta{font-size:.8rem;color:var(--muted);margin-top:7px}.empty{margin:auto;color:var(--muted);text-align:center}
+    form{padding:12px;display:grid;grid-template-columns:1fr auto;gap:10px}textarea{resize:none;border:1px solid #b9cec5;border-radius:11px;padding:11px;font:inherit;min-height:50px;max-height:150px}
+    button{border:0;border-radius:11px;padding:0 22px;background:var(--brand);color:#fff;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}
+    @media(max-width:600px){main{padding:10px 0}.msg{max-width:94%}form{grid-template-columns:1fr}button{height:44px}}
+  </style>
+</head>
+<body><main>
+  <header><h1>ViGovBot Model Lab</h1><p>So sánh nhiều model trên cùng hệ thống RAG</p></header>
+  <section id="models"><strong>Model:</strong><span>Đang tải…</span></section>
+  <section id="chat"><div class="empty">Nhập câu hỏi để bắt đầu.</div></section>
+  <form id="form"><textarea id="question" rows="1" placeholder="Ví dụ: Hồ sơ cấp bản sao hộ tịch gồm những gì?" required></textarea><button id="send">Gửi</button></form>
+</main><script>
+const chat=document.querySelector('#chat'),modelsEl=document.querySelector('#models'),form=document.querySelector('#form'),input=document.querySelector('#question'),button=document.querySelector('#send');
+const histories={};let modelInfo={};
+function add(text,kind,meta=''){chat.querySelector('.empty')?.remove();const el=document.createElement('div');el.className='msg '+kind;el.textContent=text;if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;el.appendChild(m)}chat.appendChild(el);chat.scrollTop=chat.scrollHeight}
+async function loadModels(){try{const res=await fetch('/api/models'),data=await res.json();if(!res.ok)throw new Error(data.error);modelsEl.innerHTML='<strong>Model:</strong>';for(const m of data.models){modelInfo[m.id]=m;histories[m.id]=[];const label=document.createElement('label');const box=document.createElement('input');box.type='checkbox';box.value=m.id;box.checked=true;label.append(box,document.createTextNode(m.label+' '));const p=document.createElement('span');p.className='provider';p.textContent=`(${m.provider})`;label.append(p);modelsEl.append(label)}}catch(err){modelsEl.textContent='Không tải được model: '+err.message}}
+function addAnswers(results,question){chat.querySelector('.empty')?.remove();const wrap=document.createElement('div');wrap.className='answers';for(const data of results){const el=document.createElement('article');el.className='answer';const title=document.createElement('h2');title.textContent=modelInfo[data.model_id]?.label||data.model_id;el.append(title);const text=document.createElement('div');text.textContent=data.error?'Lỗi: '+data.error:data.answer;el.append(text);if(!data.error){const sources=(data.sources||[]).map(s=>s.source_code||s.source_file).filter(Boolean);const meta=document.createElement('div');meta.className='meta';meta.textContent=[data.latency_s!=null?`${data.latency_s.toFixed(1)} giây`:'',sources.length?`Nguồn: ${[...new Set(sources)].join(', ')}`:''].filter(Boolean).join(' · ');el.append(meta);histories[data.model_id].push({role:'user',content:question},{role:'assistant',content:data.answer})}wrap.append(el)}chat.append(wrap);chat.scrollTop=chat.scrollHeight}
+form.addEventListener('submit',async e=>{e.preventDefault();const question=input.value.trim(),models=[...modelsEl.querySelectorAll('input:checked')].map(x=>x.value);if(!question)return;if(!models.length){add('Hãy chọn ít nhất một model.','bot');return}add(question,'user');input.value='';button.disabled=true;button.textContent='Đang so sánh…';try{const selectedHistories=Object.fromEntries(models.map(id=>[id,histories[id]]));const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,models,histories:selectedHistories})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Yêu cầu thất bại');addAnswers(data.results,question)}catch(err){add('Lỗi: '+err.message,'bot')}finally{button.disabled=false;button.textContent='Gửi';input.focus()}});
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});
+loadModels();
+</script></body></html>

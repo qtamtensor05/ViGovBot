@@ -149,6 +149,16 @@ Ollama cần phục vụ tại địa chỉ cấu hình. Nếu dịch vụ chưa
 .venv\Scripts\python -m vigovbot ingest --config configs/pipeline.yaml
 ```
 
+Có thể xử lý nhiều PDF song song bằng `--workers`. Ví dụ với máy 18 luồng CPU và
+28 GB RAM, có thể bắt đầu với 6 worker khi OCR được bật:
+
+```powershell
+.venv\Scripts\python -m vigovbot ingest --config configs/pipeline.yaml --workers 6
+```
+
+Giá trị mặc định là 1. File đã hoàn tất vẫn được giữ lại và được bỏ qua khi chạy
+lại nếu không dùng `--overwrite`.
+
 Kiểm tra JSON và báo cáo trong `outputs/metadata`. Pipeline embedding có thể nhận
 trực tiếp thư mục này hoặc một ZIP chỉ chứa các JSON chunk đã rà soát. Không đưa
 `reports/` và `review/` vào nguồn embedding.

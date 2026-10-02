@@ -31,7 +31,7 @@ where = ["src"]
 include = ["vigovbot*"]
 
 [tool.setuptools.package-data]
-vigovbot = ["defaults/*.yaml"]
+vigovbot = ["defaults/*.yaml", "server/static/*.html"]
 
 [tool.ruff]
 target-version = "py310"

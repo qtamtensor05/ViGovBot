@@ -9,3 +9,17 @@ embedding:
 llm:
   model: qwen2.5:7b
   ollama_url: http://localhost:11434
+web:
+  models:
+    - id: qwen-local
+      label: Qwen 2.5 7B (Ollama)
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: http://localhost:11434
+    # Ví dụ API chuẩn OpenAI-compatible:
+    # - id: model-api
+    #   label: Model qua API
+    #   provider: openai_compatible
+    #   model: ten-model-tren-api
+    #   base_url: https://example.com/v1
+    #   api_key_env: MODEL_API_KEY

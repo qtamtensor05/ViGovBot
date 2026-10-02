@@ -6,7 +6,12 @@ from vigovbot.experiments import read_results, append_result, ensure_run
 
 
 def json_hash(value):
-    return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    """Hash canonical JSON without materializing the entire document in memory."""
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(sort_keys=True, ensure_ascii=False)
+    for chunk in encoder.iterencode(value):
+        digest.update(chunk.encode())
+    return digest.hexdigest()
 
 
 def file_hash(path):

@@ -47,3 +47,4 @@ def ollama_answer(messages, settings):
     if raw.get("error") or not answer:
         raise RuntimeError(f"Ollama không trả lời: {raw}")
     return answer, raw, time.perf_counter() - started
+

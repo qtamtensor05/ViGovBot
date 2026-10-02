@@ -1,6 +1,7 @@
 """Parse PDFs locally with PyMuPDF4LLM and save structure-aware Markdown chunks."""
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 import re
@@ -158,8 +159,11 @@ def main(argv=None):
     cli.add_argument("--config", type=Path, help="Root YAML configuration path")
     cli.add_argument("--output-dir", type=Path)
     cli.add_argument("--overwrite", action=argparse.BooleanOptionalAction, default=None, help="Xử lý lại JSON đã có")
+    cli.add_argument("--workers", type=int, default=1, help="Số PDF xử lý song song (mặc định: 1)")
     args = cli.parse_args(argv)
     try:
+        if args.workers < 1:
+            raise ConfigurationError("--workers phải là số nguyên dương.")
         root, ingestion, _ = load_configuration(args.config)
         args.file = args.file or root.input
         args.overwrite = root.overwrite if args.overwrite is None else args.overwrite
@@ -174,6 +178,7 @@ def main(argv=None):
             raise ConfigurationError("Không tìm thấy PDF.")
         failures = skipped = completed = review_count = 0
         started = time.perf_counter()
+        pending = []
         for file in files:
             target_dir = output_dir / file.relative_to(args.file).parent if is_batch else output_dir
             target = target_dir / f"{file.stem}.json"
@@ -191,25 +196,43 @@ def main(argv=None):
                     skipped += 1
                     print(f"Bỏ qua: {file}", flush=True)
                     continue
-            try:
-                path, count = parse_pdf_to_hybrid_data(file, output_dir=target_dir, config_path=args.config)
-                completed += 1
-                if path.parent.name == ingestion.review_dir:
-                    review_count += 1
-                    print(
-                        f"Cần kiểm tra, xem báo cáo: {target_dir / ingestion.reports_dir / (file.stem + '.json')}",
-                        flush=True,
+            pending.append((file, target_dir))
+
+        def process(file, target_dir):
+            path, count = parse_pdf_to_hybrid_data(file, output_dir=target_dir, config_path=args.config)
+            return target_dir, path, count
+
+        executor = ThreadPoolExecutor(max_workers=args.workers, thread_name_prefix="vigovbot-ingest")
+        try:
+            futures = {executor.submit(process, file, target_dir): file for file, target_dir in pending}
+            for future in as_completed(futures):
+                file = futures[future]
+                try:
+                    target_dir, path, count = future.result()
+                    completed += 1
+                    if path.parent.name == ingestion.review_dir:
+                        review_count += 1
+                        print(
+                            f"Cần kiểm tra, xem báo cáo: {target_dir / ingestion.reports_dir / (file.stem + '.json')}",
+                            flush=True,
+                        )
+                    print(f"Đã lưu {count} đoạn: {path}", flush=True)
+                except Exception as error:
+                    failures += 1
+                    detail = (
+                        str(error)
+                        if isinstance(error, (ConfigurationError, TTHCChunkingError))
+                        else type(error).__name__
                     )
-                print(f"Đã lưu {count} đoạn: {path}", flush=True)
-            except Exception as error:
-                failures += 1
-                detail = (
-                    str(error) if isinstance(error, (ConfigurationError, TTHCChunkingError)) else type(error).__name__
-                )
-                print(f"Lỗi {file}: {detail}", file=sys.stderr, flush=True)
-            except KeyboardInterrupt:
-                print("Đã dừng. File hoàn tất được giữ lại; chạy lại để tiếp tục.", file=sys.stderr)
-                return 130
+                    print(f"Lỗi {file}: {detail}", file=sys.stderr, flush=True)
+        except KeyboardInterrupt:
+            for future in futures:
+                future.cancel()
+            executor.shutdown(wait=False, cancel_futures=True)
+            print("Đã dừng. File hoàn tất được giữ lại; chạy lại để tiếp tục.", file=sys.stderr)
+            return 130
+        else:
+            executor.shutdown()
         print(
             f"Hoàn tất: {completed}; cần kiểm tra: {review_count}; bỏ qua: {skipped}; lỗi: {failures}; {time.perf_counter() - started:.2f}s"
         )

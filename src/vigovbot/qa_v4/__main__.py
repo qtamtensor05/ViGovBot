@@ -23,6 +23,8 @@ def main(argv=None):
     connection = parser.add_mutually_exclusive_group()
     connection.add_argument("--config", default="rag_config.yaml")
     connection.add_argument("--endpoint", help="Existing RAG HTTP endpoint")
+    parser.add_argument("--no-retrieval", action="store_true",
+                        help="Run the configured Ollama model directly without corpus/FAISS")
     parser.add_argument("--unit-map", type=Path, help="JSON chunk ID to v4 unit ID lists")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=180)
@@ -35,6 +37,8 @@ def main(argv=None):
     parser.add_argument("--judgments", type=Path)
     parser.add_argument("--lexical", action="store_true", help="Enable BLEU/ROUGE (requires evaluation extras)")
     args = parser.parse_args(argv)
+    if args.no_retrieval and args.endpoint:
+        parser.error("--no-retrieval cannot be combined with --endpoint")
     if args.top_k < 1 or args.timeout <= 0 or (args.limit is not None and args.limit < 1):
         parser.error("top-k, timeout and limit must be positive")
     if args.command == "ask" and not args.question:
@@ -74,8 +78,13 @@ def main(argv=None):
     if mapping is not None and (not isinstance(mapping, dict) or any(
             not isinstance(v, list) or any(not isinstance(uid, str) for uid in v) for v in mapping.values())):
         raise ValueError("unit-map must map chunk IDs to lists of unit IDs")
-    from .adapter import existing_rag, http_rag
-    session = http_rag(args.endpoint, args.timeout, mapping) if args.endpoint else existing_rag(args.config, mapping)
+    from .adapter import existing_rag, http_rag, ollama_baseline
+    if args.no_retrieval:
+        session = ollama_baseline(args.config)
+    elif args.endpoint:
+        session = http_rag(args.endpoint, args.timeout, mapping)
+    else:
+        session = existing_rag(args.config, mapping)
     with session as answer:
         if args.command == "ask":
             print(json.dumps(answer(args.question), ensure_ascii=False, indent=2))

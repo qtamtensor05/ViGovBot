@@ -1,6 +1,7 @@
 """Offline tests for the single-process corpus builder."""
 
 import json
+import hashlib
 import tempfile
 import types
 import unittest
@@ -13,6 +14,7 @@ import numpy as np
 
 from vigovbot.embeddings.corpus_builder import build_corpus, embedding_text, encode_chunks, load_chunks, safe_extract
 from vigovbot.ingestion.unified import verify_corpus
+from vigovbot.utils.helpers import json_hash
 
 
 def record(identifier):
@@ -33,6 +35,13 @@ class CorpusBuilderTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+
+    def test_streaming_json_hash_matches_canonical_encoding(self):
+        value = [{"unicode": "thu tuc", "number": 1}, {"nested": [True, None]}]
+        expected = hashlib.sha256(
+            json.dumps(value, sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()
+        self.assertEqual(json_hash(value), expected)
 
     def test_json_formats_and_prefix(self):
         (self.root / "a.json").write_text(json.dumps([record("a")]), encoding="utf-8-sig")

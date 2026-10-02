@@ -2,9 +2,12 @@
 
 import json
 import tempfile
+import threading
+import time
 import types
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from vigovbot.chunking.markdown import TTHCStructureAwareChunker, TTHCChunkingError, sanitize_text
@@ -13,6 +16,7 @@ from vigovbot.ingestion.recovery import extract_pdf
 from vigovbot.pipelines.indexing import (
     ConfigurationError,
     clean_markdown,
+    main as ingestion_main,
     parse_pdf_to_hybrid_data,
     validate_pdf,
     write_json_atomic,
@@ -159,6 +163,39 @@ class IngestionTests(unittest.TestCase):
         self.assertEqual(text, "")
         self.assertEqual(report["missing_pages"], [1])
         self.assertEqual(report["pages"][0]["method"], "failed")
+
+    def test_batch_workers_process_files_concurrently(self):
+        input_dir = self.root / "pdfs"
+        output_dir = self.root / "out"
+        input_dir.mkdir()
+        for index in range(3):
+            (input_dir / f"{index}.pdf").write_bytes(b"%PDF-1.7\nsynthetic")
+
+        root = SimpleNamespace(input=input_dir, output=output_dir, overwrite=False)
+        ingestion = IngestionSettings()
+        state = {"active": 0, "maximum": 0}
+        lock = threading.Lock()
+
+        def fake_parse(file, *, output_dir, config_path):
+            with lock:
+                state["active"] += 1
+                state["maximum"] = max(state["maximum"], state["active"])
+            time.sleep(0.05)
+            with lock:
+                state["active"] -= 1
+            return output_dir / f"{file.stem}.json", 1
+
+        with (
+            patch("vigovbot.pipelines.indexing.load_configuration", return_value=(root, ingestion, object())),
+            patch("vigovbot.pipelines.indexing.parse_pdf_to_hybrid_data", side_effect=fake_parse),
+        ):
+            result = ingestion_main(["--workers", "3"])
+
+        self.assertEqual(result, 0)
+        self.assertGreater(state["maximum"], 1)
+
+    def test_workers_must_be_positive(self):
+        self.assertEqual(ingestion_main(["--workers", "0"]), 1)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 """Cấu hình riêng cho RAG, không thay đổi cấu hình parse/chunk PDF."""
 
+import re
 from pathlib import Path
 
 import yaml
@@ -53,6 +54,32 @@ class ConversationConfig(StrictModel):
     routing_enabled: bool = True
 
 
+class WebModelConfig(StrictModel):
+    id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")
+    label: str = Field(min_length=1, max_length=100)
+    provider: str = Field(pattern=r"^(ollama|openai_compatible)$")
+    model: str = Field(min_length=1)
+    base_url: str = Field(min_length=1)
+    api_key_env: str | None = None
+
+    @model_validator(mode="after")
+    def check_credentials(self):
+        if self.api_key_env is not None and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.api_key_env):
+            raise ValueError("api_key_env phải là tên biến môi trường hợp lệ")
+        return self
+
+
+class WebConfig(StrictModel):
+    models: list[WebModelConfig] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def unique_model_ids(self):
+        ids = [item.id for item in self.models]
+        if len(ids) != len(set(ids)):
+            raise ValueError("web.models không được trùng id")
+        return self
+
+
 class EvaluationConfig(StrictModel):
     smoke_test_n: int = Field(default=5, ge=0)
     max_cases: int | None = Field(default=None, gt=0)
@@ -68,6 +95,7 @@ class RAGConfig(StrictModel):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     conversation: ConversationConfig = Field(default_factory=ConversationConfig)
+    web: WebConfig = Field(default_factory=WebConfig)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
 
     def inference_settings(self):

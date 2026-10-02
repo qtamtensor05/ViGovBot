@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vigovbot.qa_v4.adapter import normalize_result, existing_rag
+from vigovbot.qa_v4.adapter import normalize_result, existing_rag, ollama_baseline
 from vigovbot.qa_v4.io import read_jsonl
 from vigovbot.qa_v4.report import finalize_report
 from unittest.mock import patch, MagicMock
@@ -41,6 +41,26 @@ class QAV4Tests(unittest.TestCase):
             generate.assert_any_call("question", "retriever", "tokenizer", {"model": "existing-model"},
                                      history=[], structured=True)
             self.assertEqual(generate.call_count, 2)
+
+    def test_ollama_baseline_does_not_prepare_or_load_corpus(self):
+        config = MagicMock()
+        config.llm.ollama_url = "http://ollama"
+        config.llm.model = "qwen2.5:7b"
+        config.inference_settings.return_value = {"model": "qwen2.5:7b"}
+        raw = {"eval_count": 12}
+        with patch("vigovbot.rag.config.load_config", return_value=config), \
+                patch("vigovbot.llm.llm_client.check_model"), \
+                patch("vigovbot.llm.llm_client.ollama_answer",
+                      return_value=('{"answer":"baseline","action":"answer"}', raw, 0.5)) as generate, \
+                patch("vigovbot.llm.llm_client.unload_model"):
+            with ollama_baseline("config.yaml") as answer:
+                result = answer("question", history=[])
+        self.assertEqual(result["answer"], "baseline")
+        self.assertEqual(result["retrieved_chunk_ids"], [])
+        self.assertEqual(result["unit_mapping_status"], "unavailable")
+        self.assertEqual(result["telemetry"]["generation_seconds"], 0.5)
+        self.assertEqual(result["telemetry"]["output_tokens"], 12)
+        self.assertEqual(generate.call_count, 1)
 
     def test_report_does_not_claim_zero_recall_without_mapping(self):
         report = {"overall_available": {"mrr_at_k": {"mean": 0}, "action_accuracy": {"mean": 1}},

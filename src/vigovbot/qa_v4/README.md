@@ -18,6 +18,20 @@ python -m vigovbot qa-v4 run --config rag_config.yaml --split test --limit 10 --
 python -m vigovbot qa-v4 score --split test --limit 10 --predictions outputs/qa_v4/smoke.jsonl --out outputs/qa_v4/smoke_scores.json
 ```
 
+## Baseline Qwen không retrieval
+
+`--no-retrieval` gọi trực tiếp model Ollama trong cấu hình, không đọc corpus, không
+nạp encoder và không dùng FAISS. Có thể chạy chế độ này trong lúc corpus đang được
+embedding (nếu tài nguyên CPU/GPU đủ). Không truyền đáp án tham chiếu vào model.
+
+```powershell
+python -m vigovbot qa-v4 run --config configs/inference.yaml --no-retrieval --split test --limit 10 --out outputs/qa_v4/qwen7b_baseline_smoke.jsonl
+python -m vigovbot qa-v4 score --split test --limit 10 --predictions outputs/qa_v4/qwen7b_baseline_smoke.jsonl --out outputs/qa_v4/qwen7b_baseline_smoke_scores.json
+```
+
+Prediction baseline dùng cùng schema chấm điểm, nhưng không có evidence truy hồi;
+report vì vậy không công bố recall/MRR.
+
 Adapter tái sử dụng `prepare`, `inference_session` và `answer_question` của
 `vigovbot.rag.pipeline`; dùng cùng corpus, embedding, FAISS, tokenizer, routing,
 prompt và model theo `rag_config.yaml`. Phiên suy luận được tải một lần cho

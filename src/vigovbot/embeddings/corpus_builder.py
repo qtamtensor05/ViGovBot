@@ -137,6 +137,9 @@ def build_corpus(source: Path, output: Path, *, batch_size=32, device=None, revi
             root.mkdir()
             safe_extract(source, root, int(max_extract_gib * 1024**3))
         records = load_chunks(root)
+        # Hash before the expensive embedding pass. The encoder streams its
+        # output so a large corpus does not require a second multi-GB string.
+        input_sha256 = json_hash(records)
         resolved_revision = resolve_revision(revision)
         model = SentenceTransformer(MODEL_NAME, device=device, revision=resolved_revision)
         if model.get_sentence_embedding_dimension() != DIMENSION:
@@ -154,13 +157,14 @@ def build_corpus(source: Path, output: Path, *, batch_size=32, device=None, revi
             index_path, metadata_path = staging / names[0], staging / names[1]
             with index_path.open("wb") as handle:
                 faiss.write_index(index, faiss.PyCallbackIOWriter(handle.write))
-            metadata_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+            with metadata_path.open("w", encoding="utf-8") as handle:
+                json.dump(records, handle, ensure_ascii=False, indent=2)
             manifest = make_manifest(
                 "corpus",
                 embedding_identity(resolved_revision),
                 len(records),
                 [index_path, metadata_path],
-                input_sha256=json_hash(records),
+                input_sha256=input_sha256,
             )
             publish(staging, output, names, CORPUS_MANIFEST, manifest)
     return output / names[0], output / names[1], output / CORPUS_MANIFEST
