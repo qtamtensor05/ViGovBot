@@ -77,7 +77,7 @@ từ nguồn đáng tin cậy. Chế độ legacy không thể chứng minh mode
 
 ## Phạm vi hệ thống
 
-Hiện phục vụ nghiên cứu qua CLI/local/Colab; chưa có API web, quản lý người dùng,
-lịch sử hội thoại hoặc pipeline fine-tuning QLoRA. Các phần này thuộc roadmap.
+Hiện phục vụ nghiên cứu qua CLI/local/Colab; không có API web, quản lý người dùng,
+lịch sử hội thoại hoặc pipeline fine-tuning QLoRA.
 Các nội dung liên quan được quy định tại [migration](migration.md),
 [môi trường](environments.md) và [quy trình phát triển](../CONTRIBUTING.md).

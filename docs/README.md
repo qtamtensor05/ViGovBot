@@ -13,7 +13,7 @@ loại theo mục đích để tránh lặp lại hướng dẫn vận hành tro
 | Dữ liệu | [Embedding và corpus](../EMBEDDING.md) | Định dạng pack, revision mô hình, hợp nhất và giới hạn tài nguyên |
 | Môi trường | [Môi trường và khả năng tái lập](environments.md) | Dependency, lock file, nền tảng hỗ trợ và kiểm chứng |
 | Tương thích | [Hướng dẫn migration](migration.md) | Namespace cũ, cấu hình cũ và corpus không có manifest |
-| Quản trị | [Trạng thái và lộ trình](roadmap.md) | Năng lực hiện tại, mốc phát triển và tiêu chí nghiệm thu |
+| Quản trị | [Công việc và trạng thái hiện tại](roadmap.md) | Phạm vi đang duy trì, trạng thái thành phần và giới hạn đã ghi nhận |
 | Kiểm chứng | [Báo cáo kiểm chứng](verification.md) | Phạm vi, môi trường và kết quả kiểm tra đã ghi nhận |
 | Phát triển | [Quy trình đóng góp](../CONTRIBUTING.md) | Yêu cầu đối với issue, commit và pull request |
 

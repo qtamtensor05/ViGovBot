@@ -22,7 +22,7 @@ Hệ thống hiện chạy bằng CLI Python hoặc notebook Colab, hỗ trợ h
 | Tokenizer tính ngân sách prompt | `Qwen/Qwen2.5-7B-Instruct` |
 | Cách giao tiếp với LLM | HTTP `POST /api/chat`, `stream: false` |
 
-Đây là RAG một lượt với truy hồi dense. Luồng hiện tại chưa dùng BM25/hybrid search, reranker, viết lại câu hỏi, agent hay bộ nhớ hội thoại. Không có bước huấn luyện hoặc fine-tune trong pipeline này; QLoRA và API web vẫn thuộc roadmap.
+Đây là RAG một lượt với truy hồi dense. Luồng hiện tại không dùng BM25/hybrid search, reranker, viết lại câu hỏi, agent hay bộ nhớ hội thoại. Pipeline không có bước huấn luyện, fine-tune, QLoRA hoặc API web.
 
 ## 2. Kiến trúc và luồng dữ liệu
 

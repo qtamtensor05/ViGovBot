@@ -1,26 +1,53 @@
-# Trạng thái triển khai và lộ trình phát triển
+# Công việc hiện tại và trạng thái dự án
 
-Tài liệu phân biệt năng lực đã có trong mã nguồn với các hạng mục dự kiến. Một
-hạng mục chỉ được xem là hoàn thành khi đáp ứng tiêu chí nghiệm thu tương ứng.
+Tài liệu này ghi nhận phạm vi đang được duy trì trong mã nguồn và trạng thái có
+thể kiểm chứng của repository tại thời điểm hiện tại.
 
-## Năng lực hiện tại
+## Công việc hiện tại
 
-- PDF/OCR, chunking theo cấu trúc, tạo corpus BGE-M3/FAISS, cache SQLite và RAG Ollama.
-- Benchmark có lưu/resume prediction, chống rò rỉ đáp án chuẩn, metric và biểu đồ.
-- Package `vigovbot`, CLI thống nhất, lớp tương thích, cấu hình theo nhóm.
-- Manifest/checksum/revision cho pack/corpus; khóa ghi và kiểm thử dữ liệu lỗi.
-- Hỏi đáp một câu độc lập với bộ test; lock theo môi trường Windows hiện tại.
+- Duy trì pipeline RAG cho dữ liệu thủ tục hành chính tiếng Việt trên CLI và
+  notebook Colab.
+- Xử lý PDF/OCR, chia đoạn theo cấu trúc, tạo embedding BGE-M3 và lưu chỉ mục
+  FAISS cùng metadata SQLite.
+- Truy hồi ngữ cảnh, tạo prompt và sinh câu trả lời một lượt bằng Qwen qua
+  Ollama, kèm thông tin nguồn.
+- Chạy benchmark từ bộ câu hỏi độc lập, lưu và tiếp tục prediction, tính metric
+  và tạo báo cáo đánh giá.
+- Duy trì tính toàn vẹn của pack/corpus bằng manifest, checksum, revision và
+  khóa ghi.
 
-## Mốc phát triển và tiêu chí nghiệm thu
+## Trạng thái thành phần
 
-| Mốc | Tiêu chí hoàn thành |
+| Thành phần | Trạng thái hiện tại |
 |---|---|
-| Baseline chất lượng | Lưu cùng bộ test/corpus, model revision, config và báo cáo baseline/RAG; công bố coverage và ca lỗi |
-| Rà soát dữ liệu | Kiểm tra mẫu OCR/metadata/chunking; tập lỗi có nhãn và test hồi quy |
-| Đánh giá câu trả lời | Đo truy hồi, nguồn thực sự dùng, khả năng từ chối khi thiếu thông tin và kiểm tra thủ công |
-| QLoRA | Có pipeline train/eval riêng, tách train/test và so sánh cùng điều kiện với baseline |
-| Dịch vụ hỏi đáp nếu cần | API có vòng đời model, giới hạn tài nguyên, health check và kiểm thử tải phù hợp |
+| Mã nguồn | Package chính là `vigovbot`; các package `src/<module>` giữ khả năng tương thích với điểm chạy cũ |
+| Giao diện | CLI cục bộ và notebook Colab |
+| Ingestion | Đọc PDF, hỗ trợ OCR và xuất dữ liệu đã chia đoạn |
+| Embedding và corpus | BGE-M3, FAISS, SQLite, manifest và kiểm tra checksum/revision |
+| Hỏi đáp | Truy hồi dense và sinh câu trả lời một lượt qua Ollama |
+| Đánh giá | Bộ test độc lập, prediction có thể tiếp tục, metric và biểu đồ |
+| Kiểm thử | Bộ kiểm thử tự động không phụ thuộc model thật; lock dependency được xuất cho môi trường Windows x64 |
 
-QLoRA, API web và hội thoại nhiều lượt là công việc dự kiến, chưa được trình bày
-như tính năng hiện có. Không dùng kết quả test mô phỏng để khẳng định chất lượng
-ngữ nghĩa hay độ đúng của thông tin thủ tục.
+## Dữ liệu và vận hành hiện tại
+
+- Cấu hình `configs/inference.yaml` yêu cầu corpus có đủ
+  `tthc_unified.index`, `tthc_unified_metadata.json` và `corpus_manifest.json`.
+- Thư mục `Data/vector/unified/` đang có index và metadata nhưng không có
+  `corpus_manifest.json`; cấu hình mặc định không nạp corpus này.
+- Chế độ tương thích corpus cũ được điều khiển bằng
+  `data.allow_legacy_corpus`; cấu hình mặc định đặt giá trị này là `false`.
+- Luồng truy hồi dùng dense top-k, không có BM25, hybrid search, reranker hoặc
+  ngưỡng điểm tối thiểu.
+- Hệ thống không có API web, quản lý người dùng, lịch sử hội thoại hay pipeline
+  fine-tuning QLoRA.
+
+## Giới hạn đã ghi nhận
+
+- Chất lượng câu trả lời phụ thuộc dữ liệu nguồn, kết quả OCR, cách chia đoạn,
+  chất lượng truy hồi và model Ollama.
+- Prompt điều khiển việc từ chối khi thiếu thông tin; pipeline không có bộ phân
+  loại riêng để xác nhận câu hỏi nằm ngoài kho tri thức.
+- FAISS được nạp vào RAM; bước tạo corpus giữ metadata và ma trận vector trong
+  bộ nhớ.
+- Kết quả kiểm thử mô phỏng chỉ xác nhận luồng kỹ thuật, không chứng minh độ
+  đúng ngữ nghĩa của câu trả lời hoặc hiệu lực của thông tin thủ tục.
