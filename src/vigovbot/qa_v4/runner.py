@@ -1,7 +1,10 @@
 """Safe input runner with isolated, ordered conversation histories."""
 import json
+import sys
 import time
 from pathlib import Path
+
+from tqdm.auto import tqdm
 
 
 def run_queries(queries, answer_fn, output, mode="reference_history"):
@@ -14,7 +17,15 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
     started = time.perf_counter()
     # Refuse accidental overwrite of existing experiments.
     with output.open("x", encoding="utf-8") as handle:
-        for q in queries:
+        progress = tqdm(
+            queries,
+            total=len(queries),
+            desc="QA evaluation",
+            unit="question",
+            dynamic_ncols=True,
+            disable=not sys.stderr.isatty(),
+        )
+        for q in progress:
             cv = q.get("conversation_id")
             tick = time.perf_counter()
             try:
@@ -42,6 +53,7 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
             handle.write(json.dumps(prediction, ensure_ascii=False) + "\n")
             handle.flush()
             attempted += 1
+            progress.set_postfix(success=successful, failed=attempted - successful, refresh=False)
     elapsed = time.perf_counter() - started
     report = {"attempted": attempted, "successful": successful, "failed": attempted - successful,
               "wall_seconds": elapsed, "history_mode": mode,
