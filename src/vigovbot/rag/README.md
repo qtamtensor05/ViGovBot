@@ -39,7 +39,7 @@ RAGConfig
 
 ### Cấu hình
 
-`load_config(path)` đọc YAML và trả về `RAGConfig` gồm năm nhóm:
+`load_config(path)` đọc YAML và trả về `RAGConfig` gồm sáu nhóm:
 
 | Nhóm | Nội dung |
 |---|---|
@@ -47,6 +47,7 @@ RAGConfig
 | `embedding` | Tên model, revision và thiết bị của encoder truy vấn |
 | `llm` | Model Ollama, tokenizer, ngân sách context và tham số sinh |
 | `retrieval` | `top_k` và giới hạn token của từng chunk |
+| `conversation` | Bật/tắt phân loại phạm vi, quan hệ hội thoại và xét bằng chứng |
 | `evaluation` | Số ca smoke test, giới hạn bộ test và cấu hình BERTScore |
 
 Các đường dẫn trong cấu hình được phân giải tương đối từ thư mục chứa file YAML.
@@ -64,7 +65,7 @@ revision trước khi nạp encoder. Corpus legacy chỉ được chấp nhận 
 - `ask` nhận một chuỗi câu hỏi không rỗng qua tham số `question`.
 - `smoke`, `evaluate`, `report` và `run` nhận bộ test từ `dataset_path` hoặc
   `dataset_zip`.
-- Chỉ `question.text` được chuyển vào inference. Ground truth được sử dụng sau
+- Bộ test cũ chuyển `question.text` vào inference; runner v4 chuyển câu hỏi và lịch sử theo chế độ đã chọn. Ground truth được sử dụng sau
   khi sinh câu trả lời, trong bước đánh giá.
 
 ## Lệnh điều phối và đầu ra
@@ -113,6 +114,7 @@ Kết quả cũ không được tiếp tục nếu các thông tin này không c
 
 ## Tài liệu liên quan
 
+- [RAG nhiều lượt và đánh giá qa_test_v4](../../../docs/rag-multi-turn.md)
 - [Kiến trúc hệ thống](../../../docs/architecture.md)
 - [Hướng dẫn vận hành pipeline RAG](../../../docs/trien-khai-rag-co-ban.md)
 - [Đặc tả embedding và corpus](../../../EMBEDDING.md)

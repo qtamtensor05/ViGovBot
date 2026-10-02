@@ -49,6 +49,10 @@ class RetrievalConfig(StrictModel):
     max_chunk_tokens: int = Field(default=1200, gt=0)
 
 
+class ConversationConfig(StrictModel):
+    routing_enabled: bool = True
+
+
 class EvaluationConfig(StrictModel):
     smoke_test_n: int = Field(default=5, ge=0)
     max_cases: int | None = Field(default=None, gt=0)
@@ -63,11 +67,13 @@ class RAGConfig(StrictModel):
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    conversation: ConversationConfig = Field(default_factory=ConversationConfig)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
 
     def inference_settings(self):
         settings = self.llm.model_dump(exclude={"tokenizer", "tokenizer_revision"})
         settings.update(self.retrieval.model_dump())
+        settings.update(self.conversation.model_dump())
         return settings
 
 

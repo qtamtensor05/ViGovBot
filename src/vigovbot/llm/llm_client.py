@@ -30,6 +30,7 @@ def ollama_answer(messages, settings):
             "model": settings["model"],
             "messages": messages,
             "stream": False,
+            **({"format": settings["response_format"]} if settings.get("response_format") else {}),
             "options": {
                 "temperature": settings["temperature"],
                 "num_ctx": settings["num_ctx"],

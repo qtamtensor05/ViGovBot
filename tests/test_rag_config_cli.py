@@ -25,6 +25,7 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.data.unified_source, Path(work).resolve() / "unified.zip")
             self.assertEqual(config.data.dataset_path, Path(work).resolve() / "qa_test/dataset.jsonl")
             self.assertEqual(config.inference_settings()["top_k"], 5)
+            self.assertTrue(config.inference_settings()["routing_enabled"])
 
     def test_config_rejects_typos_and_invalid_budget(self):
         data = {"unified_source": "unified.zip", "dataset_path": "qa.jsonl"}
@@ -112,7 +113,11 @@ class ConfigTests(unittest.TestCase):
                 patch("src.rag.pipeline.load_encoder", return_value=Encoder()),
                 patch("src.rag.pipeline.check_model", return_value={"digest": "abc"}),
                 patch("src.rag.pipeline.unload_model"),
-                patch("src.rag.pipeline.ollama_answer", return_value=("0 đồng", {}, 0.1)) as chat,
+                patch("src.rag.pipeline.ollama_answer", side_effect=lambda messages, settings: (
+                    json.dumps({"scope": "in_scope", "relation": "new_question", "query": "Phí?", "clarification": ""})
+                    if "scope:" in messages[0]["content"] else
+                    json.dumps({"answer": "0 đồng", "action": "answer", "evidence_status": "sufficient"}),
+                    {}, 0.1)) as chat,
             ):
                 self.assertEqual(execute(config, "prepare")["count"], 1)
                 self.assertEqual(execute(config, "smoke")["smoke_cases"], 1)

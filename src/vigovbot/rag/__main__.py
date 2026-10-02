@@ -3,6 +3,7 @@
 import argparse
 import json
 import logging
+from pathlib import Path
 
 from vigovbot.rag.config import load_config
 from vigovbot.console import configure_console
@@ -16,16 +17,23 @@ def main(argv=None):
         "command", choices=["prepare", "ask", "smoke", "evaluate", "report", "run"], nargs="?", default="run"
     )
     parser.add_argument("--question", help="Question for the ask command; no evaluation dataset required")
+    parser.add_argument("--history", help="JSON file containing prior user/assistant message pairs (ask only)")
     args = parser.parse_args(argv)
     if args.command == "ask" and not (args.question and args.question.strip()):
         parser.error("ask requires a nonempty --question")
     if args.command != "ask" and args.question is not None:
         parser.error("--question is only valid with ask")
+    if args.command != "ask" and args.history is not None:
+        parser.error("--history is only valid with ask")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     from vigovbot.rag.pipeline import execute
 
     if args.command == "ask":
-        result = execute(load_config(args.config), args.command, question=args.question)
+        kwargs = {"question": args.question}
+        if args.history:
+            from vigovbot.prompts.prompt_templates import validate_history
+            kwargs["history"] = validate_history(json.loads(Path(args.history).read_text(encoding="utf-8-sig")))
+        result = execute(load_config(args.config), args.command, **kwargs)
     else:
         result = execute(load_config(args.config), args.command)
     print(json.dumps(result, ensure_ascii=False, indent=2))

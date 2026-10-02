@@ -13,11 +13,12 @@ from vigovbot.ingestion.unified import verify_corpus
 from vigovbot.llm.llm_client import check_model, unload_model
 from vigovbot.prompts.prompt_templates import SYSTEM_PROMPT
 from vigovbot.rag.version import PIPELINE_VERSION
+from vigovbot.rag.routing import routing_messages, parse_route, parse_answer
 from vigovbot.retrieval.retriever import Retriever
 from vigovbot.utils.helpers import json_hash
 from vigovbot.experiments import ensure_run, runtime_identity
 from vigovbot.vectordb.vector_store import prepare_corpus
-from vigovbot.prompts.prompt_templates import build_messages
+from vigovbot.prompts.prompt_templates import build_messages, validate_history
 from vigovbot.llm.llm_client import ollama_answer
 from vigovbot.artifacts import output_lock
 from vigovbot.console import configure_console
@@ -110,17 +111,17 @@ def inference_session(config, paths):
             LOG.warning("Không dỡ được Qwen khỏi Ollama: %s", exc)
 
 
-def execute(config, command="run", *, question=None):
+def execute(config, command="run", *, question=None, history=None):
     configure_console()
     if command not in {"prepare", "ask", "smoke", "evaluate", "report", "run"}:
         raise ValueError(f"Unknown command: {command}")
     if command in {"evaluate", "report", "run"}:
         with output_lock(config.data.output_dir, ".pipeline.lock"):
-            return _execute(config, command, question=question)
-    return _execute(config, command, question=question)
+            return _execute(config, command, question=question, history=history)
+    return _execute(config, command, question=question, history=history)
 
 
-def _execute(config, command="run", *, question=None):
+def _execute(config, command="run", *, question=None, history=None):
     """prepare / smoke / evaluate / report / run; run thực hiện toàn bộ quy trình."""
     if command == "report":
         cases, selected = select_cases(config)
@@ -138,7 +139,7 @@ def _execute(config, command="run", *, question=None):
     model = check_model(config.llm.ollama_url, config.llm.model)
     if command == "ask":
         with inference_session(config, paths) as (retriever, tokenizer):
-            return answer_question(question, retriever, tokenizer, config.inference_settings())
+            return answer_question(question, retriever, tokenizer, config.inference_settings(), history=history)
     manifest = {**manifest_base(config, cases, selected), "ollama_digest": model.get("digest")}
     # Kiểm tra trước khi tải BGE-M3, tránh phí tài nguyên nếu cấu hình không khớp.
     if command != "smoke":
@@ -177,16 +178,85 @@ def _execute(config, command="run", *, question=None):
     return generate_report(config, selected)
 
 
-def answer_question(question, retriever, tokenizer, settings):
+def answer_question(question, retriever, tokenizer, settings, history=None, *, structured=False):
+    if not isinstance(question, str) or not question.strip():
+        raise ValueError("Question must be nonempty")
+    history = validate_history(history)
     started = time.perf_counter()
-    hits = retriever.search(question, settings["top_k"])
-    retrieval_s = time.perf_counter() - started
+    routing_enabled = settings.get("routing_enabled", True)
+    route, routing_raw, routing_s, routing_tokens = None, None, 0.0, 0
+    if routing_enabled:
+        routing_started = time.perf_counter()
+        route_messages, routing_tokens = routing_messages(question, history, tokenizer, settings)
+        route_text, routing_raw, _ = ollama_answer(route_messages, {**settings, "response_format": "json"})
+        route = parse_route(route_text, history)
+        routing_s = time.perf_counter() - routing_started
+
+    def early_answer(text, action, reason, *, hits=(), used=(), tokens=0, retrieval_s=0.0):
+        return {
+            "prediction": text, "action": action, "decision_reason": reason,
+            "routing": route, "routing_s": routing_s, "routing_prompt_tokens_estimated": routing_tokens,
+            "raw_routing": routing_raw, "retrieval_query": None if not hits else retrieval_query,
+            "evidence_status": "missing" if reason == "no_context" else None,
+            "retrieved": [{key: h[key] for key in ("row_id", "score", "chunk_id", "source_file", "source_code")}
+                          for h in hits],
+            "context_used": list(used), "prompt_tokens_estimated": tokens,
+            "retrieval_s": retrieval_s, "generation_s": 0.0,
+            "latency_s": time.perf_counter() - started, "raw_ollama": None,
+        }
+
+    if route and route["scope"] == "out_of_scope":
+        return early_answer("Mình hỗ trợ tra cứu thủ tục hành chính Việt Nam. Bạn cần tìm hiểu thủ tục nào?",
+                            "abstain", "out_of_scope")
+    if route and route["relation"] == "ambiguous":
+        return early_answer(route["clarification"], "clarify", "ambiguous_question")
+    # Rewrite follow-ups using only the supplied conversation, never evaluation labels.
+    retrieval_query = question
+    if route:
+        # A new question must not inherit any previous subject, even via a rewritten query.
+        retrieval_query = question if route["relation"] == "new_question" else route["query"]
+        # The resolved query is sufficient for generation; old topics/assistant claims stay out.
+        question = retrieval_query
+        history = []
+    elif history:
+        rewrite_messages = [
+            {"role": "system", "content": "Viết lại câu hỏi cuối thành một truy vấn tra cứu độc lập bằng tiếng Việt. "
+             "Dùng lịch sử để xác định thủ tục và các chi tiết người dùng đã sửa. "
+             "Không trả lời câu hỏi, không thêm thông tin. Chỉ xuất truy vấn."},
+            *history, {"role": "user", "content": question},
+        ]
+        if len(tokenizer.apply_chat_template(rewrite_messages, tokenize=True, add_generation_prompt=True)) > (
+                settings["num_ctx"] - settings["num_predict"] - 256):
+            raise ValueError("Lịch sử quá dài so với NUM_CTX")
+        retrieval_query, _, _ = ollama_answer(rewrite_messages, settings)
+    retrieval_started = time.perf_counter()
+    hits = retriever.search(retrieval_query, settings["top_k"])
+    retrieval_s = time.perf_counter() - retrieval_started
+    structured = structured or routing_enabled
     messages, used, tokens = build_messages(
-        question, hits, tokenizer, settings["num_ctx"], settings["num_predict"], settings["max_chunk_tokens"]
+        question, hits, tokenizer, settings["num_ctx"], settings["num_predict"], settings["max_chunk_tokens"],
+        history=history, structured=structured, evidence_check=routing_enabled,
     )
-    answer, raw, generation_s = ollama_answer(messages, settings)
+    if routing_enabled and not used:
+        result = early_answer("Chưa tìm thấy thông tin trong tài liệu để trả lời câu hỏi này.",
+                              "abstain", "no_context", hits=hits, used=used, tokens=tokens, retrieval_s=retrieval_s)
+        result["retrieval_query"] = retrieval_query
+        return result
+    generation_settings = {**settings, "response_format": "json"} if structured else settings
+    answer, raw, generation_s = ollama_answer(messages, generation_settings)
+    action = evidence = None
+    if structured:
+        answer, action, evidence = parse_answer(answer, require_evidence=routing_enabled)
     return {
         "prediction": answer,
+        "action": action,
+        "routing": route,
+        "routing_s": routing_s,
+        "routing_prompt_tokens_estimated": routing_tokens,
+        "raw_routing": routing_raw,
+        "evidence_status": evidence,
+        "decision_reason": "evidence_assessment" if routing_enabled else "routing_disabled",
+        "retrieval_query": retrieval_query,
         "retrieved": [
             {key: h[key] for key in ("row_id", "score", "chunk_id", "source_file", "source_code")} for h in hits
         ],

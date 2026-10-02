@@ -29,6 +29,9 @@ retrieval:
   top_k: 5
   max_chunk_tokens: 1200
 
+conversation:
+  routing_enabled: true  # Phân loại câu hỏi và xét bằng chứng trước khi trả lời.
+
 evaluation:
   smoke_test_n: 5
   max_cases: null  # null = toàn bộ 570 câu; thử 10 câu với thư mục đầu ra riêng.
