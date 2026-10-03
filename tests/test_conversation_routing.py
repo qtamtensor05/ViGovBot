@@ -95,8 +95,11 @@ class RoutingTests(unittest.TestCase):
     def test_invalid_router_never_silently_retrieves(self):
         for response in ["not json", "[]", route("ambiguous", query=""),
                          route(scope="invalid"), route(query="")]:
-            with self.subTest(response=response), self.assertRaises(ValueError):
-                self.run_answer([response])
+            with self.subTest(response=response):
+                result, llm = self.run_answer([response, response])
+                self.assertEqual(result["action"], "clarify")
+                self.assertEqual(llm.call_count, 2)
+                self.assertEqual(result["raw_routing"]["fallback_reason"], "invalid_routing_after_retry")
         self.retriever.search.assert_not_called()
 
     def test_follow_up_without_history_retries_as_standalone(self):
@@ -114,6 +117,17 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(llm.call_count, 2)
         self.assertIn("fallback_reason", result["raw_routing"])
         self.retriever.search.assert_not_called()
+
+    def test_inconsistent_ambiguous_fields_retry_with_history(self):
+        invalid = route("ambiguous", query="Có truy vấn", clarification="Bạn hỏi gì?")
+        result, llm = self.run_answer([
+            invalid, route("follow_up"),
+            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))],
+            history=self.history)
+        self.assertEqual(result["action"], "answer")
+        self.assertEqual(llm.call_count, 3)
+        self.assertNotIn("KHÔNG có lịch sử", llm.call_args_list[1].args[0][0]["content"])
+        self.assertIn("initial_error", result["raw_routing"])
 
     def test_inconsistent_evidence_action_rejected(self):
         with self.assertRaises(ValueError):

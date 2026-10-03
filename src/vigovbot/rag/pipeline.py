@@ -193,30 +193,33 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         try:
             route = parse_route(route_text, history)
         except ValueError as exc:
-            if str(exc) != "follow_up requires history":
-                raise
-            # Retry an impossible model label without inventing conversation history.
+            # Retry invalid model routing without inventing history or source facts.
             retry_messages = [dict(m) for m in route_messages]
             retry_messages[0]["content"] += (
-                "\nLượt hiện tại KHÔNG có lịch sử. relation chỉ được là new_question hoặc ambiguous. "
-                "Nếu câu hỏi nêu rõ thủ tục/đối tượng thì chọn new_question; "
-                "nếu thiếu đối tượng thì chọn ambiguous, query rỗng và hỏi làm rõ."
+                "\nKiểm tra JSON trước khi trả: đúng bốn trường scope, relation, query, clarification. "
+                "Với in_scope và ambiguous: query phải rỗng, clarification phải có câu hỏi làm rõ. "
+                "Với in_scope và new_question/follow_up: query phải có nội dung, clarification phải rỗng. "
+                "Với out_of_scope: query phải rỗng. Nếu câu hỏi đủ rõ, không chọn ambiguous."
             )
+            if not history:
+                retry_messages[0]["content"] += (
+                    " Lượt hiện tại KHÔNG có lịch sử; không được chọn follow_up."
+                )
             retry_tokens = len(tokenizer.apply_chat_template(retry_messages, tokenize=True, add_generation_prompt=True))
             if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
                 raise ValueError("Routing retry exceeds context budget") from exc
             retry_text, retry_raw, _ = answer_fn(retry_messages, {**settings, "response_format": "json"})
             routing_raw = {"initial": routing_raw, "retry": retry_raw,
-                           "initial_text": route_text, "retry_text": retry_text}
+                           "initial_text": route_text, "retry_text": retry_text,
+                           "initial_error": str(exc)}
             routing_tokens += retry_tokens
             try:
                 route = parse_route(retry_text, history)
             except ValueError as retry_exc:
-                if str(retry_exc) != "follow_up requires history":
-                    raise
                 route = {"scope": "in_scope", "relation": "ambiguous", "query": "",
                          "clarification": "Bạn vui lòng nêu rõ thủ tục và nội dung cần tra cứu?"}
-                routing_raw["fallback_reason"] = "follow_up_without_history_after_retry"
+                routing_raw["fallback_reason"] = "invalid_routing_after_retry"
+                routing_raw["retry_error"] = str(retry_exc)
         routing_s = time.perf_counter() - routing_started
 
     def early_answer(text, action, reason, *, hits=(), used=(), tokens=0, retrieval_s=0.0):
