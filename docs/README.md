@@ -14,7 +14,7 @@ loại theo mục đích để tránh lặp lại hướng dẫn vận hành tro
 | Môi trường | [Môi trường và khả năng tái lập](environments.md) | Dependency, lock file, nền tảng hỗ trợ và kiểm chứng |
 | Tương thích | [Hướng dẫn migration](migration.md) | Namespace cũ, cấu hình cũ và corpus không có manifest |
 | Quản trị | [Công việc và trạng thái hiện tại](roadmap.md) | Phạm vi đang duy trì, trạng thái thành phần và giới hạn đã ghi nhận |
-| Kiểm chứng | [Báo cáo kiểm chứng](verification.md) | Phạm vi, môi trường và kết quả kiểm tra đã ghi nhận |
+| Kiểm chứng | [Lịch sử triển khai](project/implementation-history.md) | Thay đổi, lệnh kiểm tra, kết quả và giới hạn đã ghi nhận theo task |
 | Phát triển | [Quy trình đóng góp](../CONTRIBUTING.md) | Yêu cầu đối với issue, commit và pull request |
 
 ## Quy ước duy trì

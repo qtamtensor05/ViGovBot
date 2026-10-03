@@ -1,5 +1,19 @@
 # Yêu cầu dự án
 
+## TASK-20261003-08
+
+- Ngày: 2026-10-03 (Asia/Saigon).
+- Yêu cầu: cập nhật tài liệu theo nội dung triển khai RAG hiện tại.
+- Phạm vi: đồng bộ hướng dẫn vận hành, README dự án, kiến trúc, roadmap và README
+  module RAG với web UI/API, Qwen base so với Qwen + RAG, hội thoại nhiều lượt,
+  routing schema/fallback/diagnostics và truy hồi an toàn qua thread HTTP.
+- Tiêu chí: không còn mô tả sai rằng chưa có web hoặc chỉ hỏi đáp một lượt; tài
+  liệu module liệt kê đủ cấu hình/đầu ra hiện tại; liên kết hợp lệ và diff sạch.
+- Giả định: cập nhật tài liệu theo mã nguồn và bằng chứng hoàn tất TASK-20261003-07,
+  không thay đổi hành vi ứng dụng hoặc chạy lại model/corpus.
+- Trạng thái: completed; sáu tài liệu kỹ thuật đã đồng bộ, 45 liên kết tương đối
+  hợp lệ và `git diff --check` thành công.
+
 ## TASK-20261003-07
 
 - Ngày: 2026-10-03 (Asia/Saigon).

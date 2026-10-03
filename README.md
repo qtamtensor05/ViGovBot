@@ -7,14 +7,17 @@ vector và sinh câu trả lời kèm thông tin nguồn bằng Qwen qua Ollama.
 ```text
 PDF/OCR → chuẩn hóa và chia đoạn → BGE-M3 → FAISS/SQLite
                                               ↓
-Câu hỏi → BGE-M3 → truy hồi → tạo prompt → Qwen/Ollama → câu trả lời và nguồn
+Câu hỏi + lịch sử → Qwen định tuyến → BGE-M3/FAISS truy hồi
+                                      ↓
+                         xét bằng chứng → câu trả lời và nguồn
 ```
 
 ## Trạng thái dự án
 
-Phạm vi đã triển khai gồm CLI cục bộ, notebook Colab, xử lý dữ liệu, truy hồi,
-hỏi đáp một lượt và đánh giá. API web, quản lý người dùng, lịch sử hội thoại và
-fine-tuning QLoRA chưa thuộc phiên bản hiện tại.
+Phạm vi đã triển khai gồm CLI, notebook Colab, web UI/API cục bộ, xử lý dữ liệu,
+truy hồi dense, hỏi đáp nhiều lượt và đánh giá. Web giữ lịch sử riêng cho từng
+lựa chọn trong trình duyệt; chưa có lưu phiên phía server, quản lý người dùng,
+xác thực/TLS hoặc fine-tuning QLoRA.
 
 Mã nguồn nằm trong package duy nhất `src/vigovbot`. Notebook cài package từ
 checkout và sử dụng namespace `vigovbot.*`.

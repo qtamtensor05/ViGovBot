@@ -77,7 +77,10 @@ từ nguồn đáng tin cậy. Chế độ legacy không thể chứng minh mode
 
 ## Phạm vi hệ thống
 
-Hiện phục vụ nghiên cứu qua CLI/local/Colab; không có API web, quản lý người dùng,
-lịch sử hội thoại hoặc pipeline fine-tuning QLoRA.
+Hiện phục vụ nghiên cứu qua CLI, notebook Colab và web UI/API cục bộ. Web dùng
+`ThreadingHTTPServer`, nạp một encoder/FAISS/SQLite dùng chung và tuần tự hóa các
+lượt chat; SQLite mở read-only để truy hồi từ thread request. Lịch sử nằm trong
+trình duyệt và được gửi lại theo từng model/chế độ. Chưa có lưu phiên phía server,
+quản lý người dùng, xác thực/TLS hoặc pipeline fine-tuning QLoRA.
 Các nội dung liên quan được quy định tại [migration](migration.md),
 [môi trường](environments.md) và [quy trình phát triển](../CONTRIBUTING.md).

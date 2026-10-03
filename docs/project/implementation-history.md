@@ -1,5 +1,24 @@
 # Lịch sử triển khai
 
+## TASK-20261003-08 - 2026-10-03
+
+- Đồng bộ README dự án, kiến trúc và roadmap: hệ thống hiện có CLI, Colab và web
+  UI/API; hỗ trợ RAG nhiều lượt, Qwen base so với Qwen + RAG, routing schema,
+  retry/fallback và diagnostics. Nêu đúng giới hạn persistence, auth/TLS và judge.
+- Cập nhật trạng thái corpus thực tế: `Data/vector/unified/` có đủ index, metadata
+  và manifest; cấu hình mặc định có thể xác minh corpus. Giữ hướng dẫn legacy cho
+  corpus cũ khác không có manifest.
+- Cập nhật hướng dẫn triển khai về Retriever read-only/khóa nội bộ khi phục vụ
+  thread HTTP; sửa ID trùng trong sơ đồ Mermaid.
+- Cập nhật README module RAG: kiến trúc router/retrieval/evidence, đủ bảy nhóm cấu
+  hình, lệnh `web`, trường output routing và vòng đời tài nguyên đa luồng.
+- Sửa mục lục docs trỏ tới `verification.md` không tồn tại, thay bằng lịch sử
+  triển khai có kết quả kiểm chứng thực tế.
+- Kiểm chứng: quét 45 liên kết tương đối trong sáu tài liệu, tất cả đích tồn tại;
+  tìm mô tả cũ về web/một lượt/manifest; `git diff --check` thành công. Không chạy
+  test ứng dụng hoặc model vì task chỉ sửa Markdown.
+- Commit đề xuất: `docs: synchronize RAG deployment and architecture`.
+
 ## TASK-20261003-07 - 2026-10-03
 
 - `rag/routing.py`: thêm schema anyOf theo nhánh, bỏ follow_up nếu không có

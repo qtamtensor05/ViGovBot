@@ -36,7 +36,7 @@ phía server.
 
 ```mermaid
 flowchart TD
-    subgraph A[Chuẩn bị kho tri thức]
+    subgraph PREP[Chuẩn bị kho tri thức]
         P[PDF] --> X[Trích xuất / OCR và làm sạch Markdown]
         X --> C[Chia mục và tạo JSON chunk]
         C --> E[BGE-M3: embedding tài liệu]
@@ -46,7 +46,7 @@ flowchart TD
     F --> S[Prepare: cache FAISS và metadata SQLite]
     subgraph B[Hỏi đáp nhiều lượt]
         Q[Câu hỏi + lịch sử] --> G[LLM định tuyến]
-        G -->|ngoài phạm vi| A[Abstain]
+        G -->|ngoài phạm vi| AB[Abstain]
         G -->|mơ hồ| H[Hỏi làm rõ]
         G -->|câu mới / hỏi tiếp| QE[BGE-M3 và chuẩn hóa L2]
         QE --> R[FAISS: lấy top 5 chunk]
@@ -211,9 +211,12 @@ một nguồn dữ liệu và công bố trực tiếp corpus hoàn chỉnh.
 
 ### 4.3. Dùng corpus có sẵn trong workspace
 
-Tại thời điểm kiểm tra, `Data/vector/unified/` có `tthc_unified.index` và `tthc_unified_metadata.json`, nhưng chưa có `corpus_manifest.json`. Vì vậy, cấu hình mặc định `allow_legacy_corpus: false` sẽ không chấp nhận bộ dữ liệu này.
+Tại thời điểm kiểm tra, `Data/vector/unified/` có đủ `tthc_unified.index`,
+`tthc_unified_metadata.json` và `corpus_manifest.json`. Vì vậy cấu hình mặc định
+`allow_legacy_corpus: false` có thể xác minh corpus trước khi chuẩn bị cache.
 
-Có thể tạo lại corpus theo bước 4.2 để có manifest và revision xác minh được. Nếu cần chạy bộ hiện có, tạo file riêng `configs/inference-local.yaml`:
+Nếu dùng một corpus cũ khác chưa có manifest, nên tạo lại theo bước 4.2. Chỉ khi
+cần tương thích tạm thời mới tạo file riêng `configs/inference-local.yaml`:
 
 ```yaml
 data:
@@ -284,7 +287,8 @@ Mở `http://127.0.0.1:8000`. Server nạp encoder, tokenizer, FAISS và SQLite 
 lần, cung cấp `GET /api/health`, `GET /api/models` và `POST /api/chat`. UI giữ
 lịch sử riêng cho từng model trong trình duyệt và gửi lại qua mỗi request; server
 không lưu phiên hội thoại. Các request chat được khóa và xử lý model đã chọn theo
-thứ tự để dùng chung tài nguyên an toàn.
+thứ tự để dùng chung tài nguyên an toàn. Retriever mở SQLite ở chế độ read-only
+cho thread HTTP và có khóa nội bộ quanh encoder, FAISS, SQLite và thao tác đóng.
 
 `configs/inference.yaml` khai báo sẵn hai lựa chọn cùng dùng `qwen2.5:7b`:
 
