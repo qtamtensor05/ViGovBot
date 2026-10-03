@@ -10,6 +10,7 @@ llm:
   model: qwen2.5:7b
   ollama_url: http://localhost:11434
 web:
+  debug_routing: false  # Bật để xem raw JSON router trong API/UI khi chẩn đoán.
   models:
     - id: qwen-base
       label: Qwen 2.5 7B — Base (không RAG)

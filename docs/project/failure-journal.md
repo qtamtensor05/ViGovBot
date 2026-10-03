@@ -2,6 +2,33 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261003-09
+
+- Task: TASK-20261003-07.
+- Triệu chứng: lượt đầu `scripts/smoke_routing_live.py oil` nhận HTTP 500 từ
+  Ollama ở lần gọi router; chưa có response JSON model để validate.
+- Nguyên nhân: chưa xác định; không có body lỗi/log runner trong traceback nên
+  không khẳng định do schema, bộ nhớ hay tải model.
+- Kiểm tra: gọi riêng /api/chat cùng schema với prompt ngắn, nhận HTTP 200 và
+  JSON hợp lệ. Chạy lại nhóm oil thành công 2/2, nhóm basic thành công 4/4.
+- Kết quả: lỗi API không còn tái hiện trong các lượt sau; không thêm retry HTTP
+  tự động và không coi lỗi API là JSON sai dẫn đến fallback.
+- Phòng tránh: khi lỗi tái hiện cần lấy body lỗi và log Ollama đúng thời điểm,
+  phân biệt lỗi dịch vụ với lỗi schema/validator.
+
+## ERR-20261003-08
+
+- Task: TASK-20261003-06.
+- Bối cảnh: probe Qwen thật với câu hỏi tràn dầu và history giả về hộ chiếu.
+- Triệu chứng: cả initial/retry trả follow_up, query và clarification không rỗng;
+  validator báo Retrieval route requires query and no clarification; fallback.
+- Tái hiện: `env\Scripts\python scripts\probe_oil_spill_routing.py --with-history`.
+- Thử giải pháp: cùng prompt/history dùng schema anyOf ép các trường theo nhánh.
+- Kết quả: JSON hợp lệ ngay lần đầu, clarification rỗng; nhãn follow_up vẫn
+  chưa đúng ý nghĩa câu hỏi chuyển chủ đề. Chưa sửa production, chưa chứng minh
+  schema giải quyết mọi trường hợp. Artifact oil_spill_routing_probe_history.json.
+- Phòng tránh đề xuất: schema + ví dụ phân loại + retry cụ thể + telemetry web.
+
 ## ERR-20261003-07
 
 - Task: TASK-20261003-05.

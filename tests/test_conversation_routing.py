@@ -100,6 +100,9 @@ class RoutingTests(unittest.TestCase):
                 self.assertEqual(result["action"], "clarify")
                 self.assertEqual(llm.call_count, 2)
                 self.assertEqual(result["raw_routing"]["fallback_reason"], "invalid_routing_after_retry")
+                self.assertEqual(result["decision_reason"], "routing_fallback")
+                self.assertEqual(result["fallback_reason"], "invalid_routing_after_retry")
+                self.assertEqual(result["routing_attempts"], 2)
         self.retriever.search.assert_not_called()
 
     def test_follow_up_without_history_retries_as_standalone(self):
@@ -132,6 +135,34 @@ class RoutingTests(unittest.TestCase):
     def test_inconsistent_evidence_action_rejected(self):
         with self.assertRaises(ValueError):
             self.run_answer([route(), json.dumps(dict(answer="Invented", action="answer", evidence_status="missing"))])
+
+    def test_retry_explains_rejected_follow_up_and_preserves_schema(self):
+        invalid = route("follow_up", clarification="Vous voulez confirmer?")
+        result, llm = self.run_answer([
+            invalid, route("new_question"),
+            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))],
+            history=self.history)
+        retry_messages, retry_settings = llm.call_args_list[1].args
+        self.assertIn("Retrieval route requires query and no clarification", retry_messages[-1]["content"])
+        self.assertIn("rejected_json", retry_messages[-1]["content"])
+        self.assertEqual(retry_messages[1:-1], self.history)
+        self.assertEqual(retry_settings["response_format"], llm.call_args_list[0].args[1]["response_format"])
+        self.assertIsNone(result["fallback_reason"])
+        self.assertEqual(result["routing_attempts"], 2)
+
+    def test_schema_disallows_follow_up_without_history(self):
+        self.retriever.search.return_value = []
+        result, llm = self.run_answer([route()])
+        schema = llm.call_args.args[1]["response_format"]
+        for branch in schema["anyOf"]:
+            self.assertNotIn("follow_up", branch["properties"]["relation"]["enum"])
+        self.assertEqual(result["routing_attempts"], 1)
+
+    def test_true_ambiguity_is_not_marked_as_technical_fallback(self):
+        result, _ = self.run_answer([route("ambiguous", query="", clarification="Bạn hỏi thủ tục nào?")])
+        self.assertIsNone(result["fallback_reason"])
+        self.assertEqual(result["decision_reason"], "ambiguous_question")
+        self.assertEqual(result["routing_attempts"], 1)
 
     def test_router_budget_checked_before_model_call(self):
         with patch("vigovbot.rag.pipeline.ollama_answer") as llm:

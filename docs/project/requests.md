@@ -1,5 +1,29 @@
 # Yêu cầu dự án
 
+## TASK-20261003-07
+
+- Ngày: 2026-10-03 (Asia/Saigon).
+- Yêu cầu: triển khai phương án sửa routing đã đề xuất ở TASK-20261003-06.
+- Phạm vi: schema routing theo nhánh, prompt phân loại, retry có lỗi/JSON cụ thể,
+  adapter provider, chẩn đoán web và kiểm thử; giữ Qwen quyết định nhãn.
+- Tiêu chí: JSON bị ràng buộc khi gọi model, retry không âm thầm sửa nhãn,
+  hai JSON sai vẫn trả câu mặc định; web phân biệt fallback/mơ hồ thật;
+  test offline và smoke Qwen thật có bằng chứng.
+- Trạng thái: completed; 42 test offline đạt, 6 ca smoke Qwen thật hợp lệ và
+  đúng nhãn ngay lần đầu; Ruff/pip check đạt. Chưa đo đáp án trên corpus thật
+  hoặc gọi API OpenAI-compatible thật; cần restart web để nạp bản sửa.
+
+## TASK-20261003-06
+
+- Ngày: 2026-10-03 (Asia/Saigon).
+- Yêu cầu: kiểm tra câu hỏi thủ tục ứng phó tràn dầu trên web và đề xuất giải pháp
+  cho nghi vấn mất ngữ cảnh hoặc fallback.
+- Phạm vi: kiểm tra đường truyền history; thử router Qwen thật với đúng câu hỏi,
+  so sánh JSON mode với schema ràng buộc; không triển khai sửa hành vi production.
+- Tiêu chí: có bằng chứng routing và phương án sửa ưu tiên, nêu giới hạn tái hiện.
+- Trạng thái: completed; tái hiện fallback với đúng câu hỏi và history giả;
+  schema trial hợp lệ ở hai kịch bản, đã ghi đề xuất và giới hạn kiểm chứng.
+
 ## TASK-20261003-05
 
 - Ngày: 2026-10-03 (Asia/Saigon).

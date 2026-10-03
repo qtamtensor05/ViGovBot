@@ -45,6 +45,12 @@ xạ số dòng. Log luôn báo hạn chế này.
 
 ## Kết quả đánh giá và cache cũ
 
+Pipeline version 4 chuyển router sang JSON Schema theo nhánh, thêm
+`routing_attempts`/`fallback_reason` và dùng `decision_reason: routing_fallback`
+cho fallback kỹ thuật. API web bổ sung `routing_diagnostics`; raw response chỉ
+trả khi bật `web.debug_routing`. Provider OpenAI-compatible ở nhánh RAG cần hỗ
+trợ strict JSON Schema. Các trường câu trả lời/nguồn hiện có tiếp tục được giữ.
+
 Pipeline version đã tăng, định danh corpus chuyển sang checksum nội dung.
 Chọn `output_dir` mới khi chạy phiên bản này; không trộn prediction cũ với
 manifest mới. Giữ nguyên kết quả cũ để đối chiếu và dùng checkout phiên bản

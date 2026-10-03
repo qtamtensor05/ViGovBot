@@ -1,5 +1,57 @@
 # Lịch sử triển khai
 
+## TASK-20261003-07 - 2026-10-03
+
+- `rag/routing.py`: thêm schema anyOf theo nhánh, bỏ follow_up nếu không có
+  history; prompt có ví dụ câu hỏi độc lập/chuyển chủ đề/hỏi tiếp/mơ hồ;
+  validator vẫn kiểm tra JSON, không tự sửa nhãn. Out-of-scope không có query
+  hoặc clarification. `rag/pipeline.py` dùng schema ở cả initial/retry,
+  retry có lỗi cụ thể và rejected_json (tối đa 2.000 ký tự) trong dữ liệu user.
+- Hai JSON sai giữ nguyên câu mặc định, thêm decision_reason routing_fallback,
+  fallback_reason và routing_attempts, không truy hồi. Budget vẫn kiểm tra và
+  lỗi HTTP vẫn báo riêng. Pipeline version tăng 3 → 4, cập nhật migration.
+- `server/providers.py`: Ollama truyền schema qua adapter có sẵn; provider
+  OpenAI-compatible gửi strict json_schema root object bọc route, tháo wrapper
+  cho validator và giữ raw gốc; không downgrade nếu API không hỗ trợ.
+- `server/app.py` trả routing_diagnostics; raw_routing chỉ khi web.debug_routing
+  bật (mặc định false). UI phân biệt fallback và mơ hồ thật, hiển thị debug JSON.
+  History giữ câu hỏi user và thay câu fallback bằng thông báo trung tính rằng
+  lượt chưa được giải đáp, vẫn đúng hợp đồng cặp user/assistant.
+- Kiểm chứng: `env\Scripts\python -m unittest tests.test_conversation_routing
+  tests.test_routing_providers tests.test_server tests.test_web_ui
+  tests.test_rag_config_cli tests.test_rag_pipeline -v`: 42 test đạt, gồm
+  truyền schema HTTP, retry/fallback, chẩn đoán API và helper/syntax JavaScript.
+  Sau tăng version, test smoke/evaluate/resume/report được chạy lại và đạt.
+- Ruff check trên các file Python đổi/thêm và security check trên các module
+  routing/server đổi đều đạt; `env\Scripts\python -m pip check` không có lỗi.
+  `git diff --check` thành công (chỉ cảnh báo chuyển LF/CRLF của Git).
+- Smoke: `env\Scripts\python scripts\smoke_routing_live.py oil` (2 ca) và
+  `... basic` (4 ca), Qwen qwen2.5:7b thật, tất cả đúng nhãn/hợp lệ ngay lần đầu,
+  fallback null. Artifact outputs/qa_v4/routing_implemented_{oil,basic}.json
+  lưu cấu hình, model digest, tokenizer revision, pipeline version và source hash.
+- Một lượt smoke đầu gặp Ollama HTTP 500, kiểm tra schema riêng và chạy lại
+  thành công; nguyên nhân chưa xác định, ghi ERR-20261003-09.
+- Giới hạn: smoke chỉ router với retriever rỗng, không suy ra đáp án corpus;
+  provider ngoài chỉ kiểm chứng mock; chưa restart server của người dùng.
+- Tài liệu: README, rag-multi-turn, hướng dẫn triển khai, migration và báo cáo
+  điều tra trước sửa được cập nhật; không đổi corpus/embedding.
+
+## TASK-20261003-06 - 2026-10-03
+
+- Kiểm tra UI/backend/provider: history riêng theo model được truyền vào router;
+  API bỏ chẩn đoán routing, UI đưa cả fallback vào history và reset khi reload.
+- Thêm script probe routing, chạy Qwen thật hai kịch bản với đúng câu hỏi trong
+  ảnh. Không history: retry sửa thành công; history giả chủ đề hộ chiếu: JSON
+  cả hai lần có follow_up và clarification không rỗng, tái hiện fallback.
+- Thử schema anyOf ràng buộc theo nhánh: hai kịch bản hợp lệ ngay lần đầu;
+  kịch bản có history vẫn chọn follow_up nên chưa giải quyết phân loại ngữ nghĩa.
+- Lệnh: `env\Scripts\python scripts\probe_oil_spill_routing.py` và thêm
+  `--with-history`, cả hai exit 0. Artifact ở outputs/qa_v4/oil_spill_routing_probe*.json.
+- Chỉ thử router với retriever rỗng, không tải encoder hoặc xác minh đáp án corpus;
+  không có history gốc của ảnh. Chưa thay đổi code production.
+- Đề xuất và giới hạn: docs/project/routing-fallback-investigation.md.
+- Lỗi Qwen thực tế cập nhật ERR-20261003-08.
+
 ## TASK-20261003-05 - 2026-10-03
 
 - Kiểm tra `outputs/qa_v4/local_smoke.jsonl`: 10 dòng, 9 có raw routing,

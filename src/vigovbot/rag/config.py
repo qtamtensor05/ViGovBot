@@ -72,6 +72,7 @@ class WebModelConfig(StrictModel):
 
 class WebConfig(StrictModel):
     models: list[WebModelConfig] = Field(default_factory=list)
+    debug_routing: bool = False
 
     @model_validator(mode="after")
     def unique_model_ids(self):

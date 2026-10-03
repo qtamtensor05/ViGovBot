@@ -110,14 +110,25 @@ class ChatApplication:
                             history=clean_histories[model_id],
                             answer_fn=answer_fn,
                         )
-                    results.append({
+                    public_result = {
                         "model_id": model_id,
                         "mode": mode,
                         "answer": result["prediction"],
                         "action": result.get("action"),
                         "sources": result.get("retrieved", []),
                         "latency_s": result.get("latency_s"),
-                    })
+                    }
+                    if mode == "rag":
+                        route = result.get("routing") or {}
+                        public_result["routing_diagnostics"] = {
+                            "fallback_reason": result.get("fallback_reason"),
+                            "routing_attempts": result.get("routing_attempts", 0),
+                            "decision_reason": result.get("decision_reason"),
+                            "relation": route.get("relation"), "scope": route.get("scope"),
+                        }
+                        if getattr(self.config.web, "debug_routing", False):
+                            public_result["raw_routing"] = result.get("raw_routing")
+                    results.append(public_result)
                 except Exception as exc:
                     LOG.exception("Model %s không trả lời được", model_id)
                     results.append({"model_id": model_id, "error": str(exc)})

@@ -101,7 +101,10 @@ Lệnh `rag prepare` xác minh corpus, sao chép index vào cache và chuyển m
 1. Nạp BGE-M3 cùng model/revision với corpus. Nếu `embedding.revision: null` và
    corpus có manifest hợp lệ, hệ thống lấy revision từ manifest.
 2. Kiểm tra lịch sử `user`/`assistant`, rồi gọi LLM định tuyến để trả JSON gồm
-   `scope`, `relation`, `query` và `clarification`.
+   `scope`, `relation`, `query` và `clarification`, ràng buộc bằng JSON Schema
+   theo nhánh; không có lịch sử thì không cho chọn `follow_up`. Nếu JSON sai,
+   thử lại một lần với lỗi validator và JSON bị từ chối. Hai lần sai trả câu
+   mặc định, ghi `routing_fallback`, không truy hồi.
 3. Nếu ngoài phạm vi, trả thông báo phạm vi hỗ trợ; nếu mơ hồ, trả câu hỏi làm rõ.
    Hai nhánh này không truy hồi và không gọi lần sinh câu trả lời.
 4. Câu hỏi mới dùng nguyên văn câu hiện tại. Câu hỏi nối tiếp dùng `query` độc lập
@@ -141,6 +144,7 @@ trong tài liệu. Chi tiết về luồng nhiều lượt và cách đánh giá
 | `retrieval.top_k` | `5` | Số chunk truy hồi tối đa |
 | `retrieval.max_chunk_tokens` | `1200` | Giới hạn token của mỗi chunk đưa vào prompt |
 | `conversation.routing_enabled` | `true` | Bật định tuyến nhiều lượt và xét bằng chứng có cấu trúc |
+| `web.debug_routing` | `false` | Trả raw JSON router trong API và hiển thị mục debug trên UI |
 | `data.allow_legacy_corpus` | `false` | Mặc định yêu cầu corpus có provenance/manifest |
 
 Ngân sách prompt trả lời là `8192 - 512 - 256 = 7424` token, trong đó 256 token
@@ -258,6 +262,7 @@ Kết quả `ask` được in dưới dạng JSON:
 | `prediction` | Câu trả lời của Qwen |
 | `action`, `evidence_status` | Hành động và mức bằng chứng do model trả về |
 | `routing`, `retrieval_query` | Quyết định định tuyến và truy vấn độc lập thực tế |
+| `routing_attempts`, `fallback_reason`, `decision_reason` | Số lần phân loại và phân biệt fallback kỹ thuật với hỏi làm rõ hợp lệ |
 | `retrieved` | Các chunk đã tìm được, kèm ID, điểm, file và mã thủ tục |
 | `context_used` | Nguồn và phần văn bản thực sự đưa vào prompt sau khi cắt token |
 | `prompt_tokens_estimated` | Số token prompt ước tính bằng tokenizer Qwen |
@@ -292,10 +297,19 @@ Chọn cả hai trên UI để xem hai câu trả lời cạnh nhau. Đây là s
 luận trên cùng model instruction `qwen2.5:7b`; chữ "base" không chỉ một base
 checkpoint riêng chưa instruction-tune.
 
+API trả thêm `routing_diagnostics` cho nhánh RAG. UI hiển thị rõ lỗi định dạng
+phân loại sau hai lần thay vì chỉ hiện câu mặc định như một câu hỏi làm rõ.
+Để xem JSON gốc, đặt `web.debug_routing: true` trong cấu hình và khởi động lại
+server; mặc định không trả raw response. Câu fallback được thay bằng thông báo
+trung tính trong history, giữ nguyên câu hỏi người dùng. History mất khi reload.
+
 Nếu `web.models` trống, server dùng model Ollama trong nhóm `llm` với ID
 `default` và `mode: rag`. Có thể khai báo tối đa tám lựa chọn trong một request,
 với provider `ollama` hoặc `openai_compatible`. Provider bên ngoài chỉ đọc khóa
 từ biến môi trường có tên trong `api_key_env`; không ghi khóa trực tiếp vào YAML.
+Nhánh RAG của provider OpenAI-compatible yêu cầu hỗ trợ `json_schema` strict,
+gồm nhánh `anyOf` và ràng buộc `minLength`; lỗi không hỗ trợ được báo trực tiếp,
+không âm thầm bỏ schema. Ollama cục bộ đã được kiểm chứng với schema này.
 Đây là server nghiên cứu không có xác thực, TLS, lưu phiên hay kiểm soát truy cập;
 giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
 

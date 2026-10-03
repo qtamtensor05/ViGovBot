@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+import json
 
 from vigovbot.llm.llm_client import ollama_answer
 
@@ -29,6 +30,18 @@ def openai_compatible_answer(messages, settings):
     }
     if settings.get("response_format") == "json":
         payload["response_format"] = {"type": "json_object"}
+    elif isinstance(settings.get("response_format"), dict):
+        # Unsupported servers must report their API error; never silently drop constraints.
+        # OpenAI requires an object at the root; put the branch union under route.
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": "routing", "strict": True, "schema": {
+                "type": "object", "additionalProperties": False, "required": ["route"],
+                "properties": {"route": settings["response_format"]},
+            }},
+        }
+        payload["messages"] = [dict(message) for message in messages]
+        payload["messages"][0]["content"] += '\nĐóng gói JSON phân loại trong trường "route" theo schema API.'
     started = time.perf_counter()
     response = requests.post(
         settings["base_url"].rstrip("/") + "/chat/completions",
@@ -42,6 +55,13 @@ def openai_compatible_answer(messages, settings):
     answer = choices[0].get("message", {}).get("content", "").strip() if choices else ""
     if not answer:
         raise RuntimeError(f"API model không trả lời hợp lệ: {raw}")
+    if isinstance(settings.get("response_format"), dict):
+        try:
+            envelope = json.loads(answer)
+        except ValueError:
+            envelope = None
+        if isinstance(envelope, dict) and set(envelope) == {"route"}:
+            answer = json.dumps(envelope["route"], ensure_ascii=False)
     return answer, raw, time.perf_counter() - started
 
 

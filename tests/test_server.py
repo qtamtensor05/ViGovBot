@@ -46,6 +46,23 @@ class WebChatTests(unittest.TestCase):
             with self.subTest(payload=payload), self.assertRaises(ValueError):
                 self.app.chat(payload)
 
+    def test_fallback_diagnostics_and_opt_in_raw_routing(self):
+        result = {
+            "prediction": "Bạn vui lòng nêu rõ thủ tục và nội dung cần tra cứu?",
+            "action": "clarify", "retrieved": [], "routing_attempts": 2,
+            "fallback_reason": "invalid_routing_after_retry", "decision_reason": "routing_fallback",
+            "routing": {"scope": "in_scope", "relation": "ambiguous"},
+            "raw_routing": {"initial_text": "invalid JSON", "retry_text": "also invalid"},
+        }
+        with patch("vigovbot.server.app.answer_question", return_value=result):
+            response = self.app.chat({"question": "Phí hộ chiếu?"})["results"][0]
+            self.assertNotIn("raw_routing", response)
+            self.assertEqual(response["routing_diagnostics"]["fallback_reason"], "invalid_routing_after_retry")
+            self.assertEqual(response["routing_diagnostics"]["routing_attempts"], 2)
+            self.config.web.debug_routing = True
+            debug_response = self.app.chat({"question": "Phí hộ chiếu?"})["results"][0]
+            self.assertEqual(debug_response["raw_routing"], result["raw_routing"])
+
     def test_base_mode_calls_model_without_retrieval(self):
         self.app.models["local"].mode = "base"
         history = [{"role": "user", "content": "Câu trước"}, {"role": "assistant", "content": "Trả lời"}]

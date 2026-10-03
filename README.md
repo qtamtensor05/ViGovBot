@@ -100,6 +100,12 @@ trả lời cạnh nhau. Giao diện cũng cho phép cấu hình nhiều model. 
 `api_key_env` và đặt giá trị biến đó trong môi trường chạy server; không ghi API key
 trực tiếp vào YAML hoặc trình duyệt. Xem ví dụ trong `configs/inference.yaml`.
 
+Router RAG dùng JSON Schema theo nhánh và thử lại một lần nếu JSON sai; hai lần
+sai vẫn trả câu mặc định. UI hiển thị riêng fallback kỹ thuật và hỏi làm rõ thật.
+Đặt `web.debug_routing: true` rồi khởi động lại server để xem raw JSON router.
+Provider OpenAI-compatible ở nhánh RAG cần hỗ trợ strict `json_schema`;
+chi tiết trong [tài liệu RAG nhiều lượt](docs/rag-multi-turn.md).
+
 ## Giao diện dòng lệnh
 
 | Nhóm lệnh | Chức năng | Đầu vào chính | Đầu ra chính |

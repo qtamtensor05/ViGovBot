@@ -25,6 +25,21 @@ dùng để tránh router vô tình đưa chủ đề cũ vào truy vấn. Câu 
 Prompt trả lời chỉ nhận truy vấn đã giải quyết và tài liệu; không đưa lại các câu
 trả lời cũ hoặc chủ đề cũ. Lịch sử đầy đủ vẫn được giữ cho router ở lượt kế tiếp.
 
+Router dùng JSON Schema ràng buộc theo nhánh: `new_question`/`follow_up` phải có
+`query` và `clarification` rỗng; `ambiguous` có quy tắc ngược lại; `out_of_scope`
+có cả hai trường rỗng và dùng `relation: new_question`. Không có lịch sử thì schema
+không cho phép `follow_up`. Qwen quyết định nhãn, code không tự sửa nhãn hoặc xóa
+trường để làm JSON hợp lệ. Prompt có ví dụ phân biệt câu hỏi độc lập/chuyển chủ đề
+với hỏi tiếp, kể cả câu bắt đầu bằng "Tôi đang tìm hiểu…".
+
+Code vẫn kiểm tra kết quả. JSON đầu sai thì retry một lần với lỗi validator và
+JSON bị từ chối (tối đa 2.000 ký tự), giữ câu hỏi/lịch sử gốc và kiểm tra ngân sách
+token. Hai lần sai trả "Bạn vui lòng nêu rõ thủ tục và nội dung cần tra cứu?",
+`decision_reason: routing_fallback`, `fallback_reason: invalid_routing_after_retry`
+và `routing_attempts: 2`; không truy hồi. Hỏi làm rõ hợp lệ có
+`decision_reason: ambiguous_question`, không có fallback_reason. Lỗi HTTP/model
+không phải lỗi JSON và vẫn được báo riêng.
+
 Nhánh mơ hồ/ngoài phạm vi không truy hồi và không gọi LLM sinh câu trả lời lần hai.
 Nếu không có trích đoạn nào thực sự vào prompt, hệ thống trả `abstain` trực tiếp.
 Nếu có tài liệu, bước sinh trả JSON với `answer`, `action`, `evidence_status`:
@@ -45,6 +60,19 @@ không thể chứng minh nội dung là đúng. Chất lượng phân loại v�
 Prompt tính lịch sử trong ngân sách token của router; vượt giới hạn sẽ báo lỗi,
 không âm thầm cắt mất thông tin. Lượt trả lời thông thường cần hai lần gọi LLM
 (phân loại kiêm viết lại, rồi xét bằng chứng kiêm trả lời).
+
+Trên web, API trả `routing_diagnostics` gồm nguyên nhân quyết định/fallback,
+số lần phân loại, scope và relation. UI phân biệt hỏi làm rõ thật với fallback;
+giữ câu hỏi người dùng nhưng thay câu fallback trong history bằng thông báo trung
+tính rằng lượt đó chưa được giải đáp, để vẫn giữ hợp đồng cặp user/assistant.
+`web.debug_routing: true` trả thêm raw JSON router và cho xem trong mục debug;
+mặc định false. History vẫn chỉ nằm trong RAM trình duyệt, tải lại trang sẽ mất.
+
+Ollama nhận schema qua `format`. Adapter OpenAI-compatible gửi `json_schema`
+với root object chứa `route` và tháo wrapper trước validator, giữ raw response
+gốc. API ngoài phải hỗ trợ strict JSON Schema (gồm anyOf/minLength); lỗi không hỗ
+trợ được báo trực tiếp, không âm thầm chuyển về JSON mode. Phần xét bằng chứng
+sau truy hồi tiếp tục dùng JSON mode và validator riêng.
 
 ```yaml
 conversation:
