@@ -8,9 +8,27 @@ from vigovbot.qa_v4.report import finalize_report
 from unittest.mock import patch, MagicMock
 from vigovbot.qa_v4.runner import run_queries
 from vigovbot.qa_v4.scoring import evaluate
+from vigovbot.qa_v4.__main__ import resolve_dataset, select_rows
+from vigovbot.evaluation.multiturn import load_queries
 
 
 class QAV4Tests(unittest.TestCase):
+    def test_small_dataset_alias_and_custom_view(self):
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory)
+            (dataset / "views_main_test.json").write_text('["test"]', encoding="utf-8-sig")
+            (dataset / "runner_queries.jsonl").write_text(
+                '{"id":"test","question":"Câu hỏi?","split":"test","history":[]}\n'
+                '{"id":"dev","question":"Dev?","split":"dev","history":[]}\n', encoding="utf-8")
+            resolved, view = resolve_dataset(dataset)
+            queries = load_queries(resolved / "runner_queries.jsonl", resolved / view, "test")
+            cases = select_rows([{"id": "test", "split": "test"}, {"id": "dev", "split": "dev"}],
+                                resolved, view, "test")
+            self.assertEqual([q["id"] for q in queries], [c["id"] for c in cases])
+            self.assertEqual(resolve_dataset(dataset, "views_dev.json")[1], "views_dev.json")
+        self.assertEqual(resolve_dataset("rag_v4_small")[0], Path("Data/qa_test_v4/rag_tthc_balanced_small"))
+        self.assertEqual(resolve_dataset("rag_tthc_v4_1", "views_balanced.json")[1], "views_balanced.json")
+
     def test_adapter_preserves_chunk_ids_without_inventing_units(self):
         result = normalize_result({"prediction": "answer", "action": "answer",
                                    "retrieved": [{"chunk_id": "chunk-1"}], "retrieval_s": .2})
@@ -87,7 +105,12 @@ class QAV4Tests(unittest.TestCase):
             self.assertEqual(report["failed"], 1)
             self.assertEqual(calls[1][1][-1]["content"], "generated")
             self.assertNotIn("secret", str(calls))
-            self.assertIn("error", list(read_jsonl(path))[-1])
+            saved = list(read_jsonl(path))
+            self.assertEqual(saved[0]["question"], "first")
+            self.assertEqual(saved[0]["answer"], "generated")
+            self.assertNotIn("reference_answer", saved[0])
+            self.assertEqual(saved[-1]["question"], "other")
+            self.assertIn("error", saved[-1])
             with self.assertRaises(FileExistsError):
                 run_queries(queries, answer, path)
 

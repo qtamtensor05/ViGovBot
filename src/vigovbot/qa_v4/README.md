@@ -52,8 +52,25 @@ POST chỉ gửi `{question, history}`. API trả object có `answer` hoặc `pr
 
 ## Chọn QA và lịch sử
 
-`--dataset` mặc định là `Data/qa_test_v4/rag_tthc_v4_1`; `--view` mặc định là
-`views_balanced.json`, có thể đổi sang `views_coverage.json` hoặc các view core/sparse.
+`--dataset` mặc định là `Data/qa_test_v4/rag_tthc_v4_1`, dùng view `views_balanced.json`.
+Có thể truyền đường dẫn thư mục bộ test hoặc tên ngắn `rag_v4_small` để chọn
+`Data/qa_test_v4/rag_tthc_balanced_small`. Bộ nhỏ mặc định dùng `views_main_test.json`
+(6.384 lượt test chính); challenge và dev chạy riêng qua `--view` và `--split`.
+Nếu thư mục bộ test có `views_main_test.json`, view này được chọn mặc định;
+nếu không, dùng `views_balanced.json`. `--view` luôn ưu tiên lựa chọn tường minh.
+
+Chạy từ thư mục gốc bằng môi trường `env` trên Windows:
+
+```powershell
+env\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_v4_small --config configs/inference.yaml --split test --mode free_running --out outputs/qa_v4/small_main.jsonl
+env\Scripts\python.exe -m vigovbot qa-v4 score --dataset rag_v4_small --split test --lexical --predictions outputs/qa_v4/small_main.jsonl --out outputs/qa_v4/small_main_scores.json
+```
+
+Để chạy baseline Ollama trên cùng bộ nhỏ, thêm `--no-retrieval` vào lệnh `run`
+và chọn đường dẫn output mới. Để chạy challenge, thêm
+`--view views_challenge_test.json` vào cả `run` và `score`.
+Prediction lưu cùng `question`, `answer` (hoặc `error`), `id`, `conversation_id`
+và `turn_index`; đáp án tham chiếu chỉ được đọc ở bước chấm.
 
 `--mode reference_history` dùng lịch sử chuẩn trong `runner_queries.jsonl`.
 `--mode free_running` dùng câu trả lời RAG vừa sinh, tách lịch sử theo hội thoại

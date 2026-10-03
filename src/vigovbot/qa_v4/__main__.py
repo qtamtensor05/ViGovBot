@@ -6,8 +6,21 @@ from vigovbot.console import configure_console
 from .io import read_jsonl
 
 
+def resolve_dataset(dataset, view=None):
+    """Resolve built-in aliases while retaining support for custom dataset paths."""
+    aliases = {
+        "rag_v4_small": Path("Data/qa_test_v4/rag_tthc_balanced_small"),
+        "rag_tthc_balanced_small": Path("Data/qa_test_v4/rag_tthc_balanced_small"),
+        "rag_tthc_v4_1": Path("Data/qa_test_v4/rag_tthc_v4_1"),
+    }
+    dataset = aliases.get(str(dataset), Path(dataset))
+    if view is None:
+        view = "views_main_test.json" if (dataset / "views_main_test.json").is_file() else "views_balanced.json"
+    return dataset, view
+
+
 def select_rows(rows, dataset, view, split, limit=None):
-    ids = set(json.loads((dataset / view).read_text(encoding="utf-8"))) if view else None
+    ids = set(json.loads((dataset / view).read_text(encoding="utf-8-sig"))) if view else None
     selected = [r for r in rows if (ids is None or r["id"] in ids) and (not split or r["split"] == split)]
     if not selected:
         raise ValueError("No cases selected")
@@ -18,7 +31,8 @@ def main(argv=None):
     configure_console()
     parser = argparse.ArgumentParser(description="Send QA v4 to the existing RAG and evaluate responses")
     parser.add_argument("command", choices=["ask", "chat", "run", "score"])
-    parser.add_argument("--dataset", type=Path, default=Path("Data/qa_test_v4/rag_tthc_v4_1"))
+    parser.add_argument("--dataset", type=Path, default=Path("Data/qa_test_v4/rag_tthc_v4_1"),
+                        help="Dataset directory or alias: rag_v4_small, rag_tthc_v4_1")
     parser.add_argument("--question")
     connection = parser.add_mutually_exclusive_group()
     connection.add_argument("--config", default="rag_config.yaml")
@@ -28,7 +42,7 @@ def main(argv=None):
     parser.add_argument("--unit-map", type=Path, help="JSON chunk ID to v4 unit ID lists")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=180)
-    parser.add_argument("--view", default="views_balanced.json")
+    parser.add_argument("--view", help="ID view file; defaults to main test for the small dataset, balanced otherwise")
     parser.add_argument("--split", choices=["dev", "test"])
     parser.add_argument("--limit", type=int)
     parser.add_argument("--mode", choices=["reference_history", "free_running"], default="reference_history")
@@ -37,6 +51,7 @@ def main(argv=None):
     parser.add_argument("--judgments", type=Path)
     parser.add_argument("--lexical", action="store_true", help="Enable BLEU/ROUGE (requires evaluation extras)")
     args = parser.parse_args(argv)
+    args.dataset, args.view = resolve_dataset(args.dataset, args.view)
     if args.no_retrieval and args.endpoint:
         parser.error("--no-retrieval cannot be combined with --endpoint")
     if args.top_k < 1 or args.timeout <= 0 or (args.limit is not None and args.limit < 1):

@@ -49,7 +49,9 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
                 prediction = {"error": f"{type(exc).__name__}: {exc}"}
                 if cv:
                     broken.add(cv)
-            prediction.update(id=q["id"], history_mode=mode, latency_seconds=time.perf_counter() - tick)
+            prediction.update(id=q["id"], question=q["question"], conversation_id=cv,
+                              turn_index=q.get("turn_index"), history_mode=mode,
+                              latency_seconds=time.perf_counter() - tick)
             handle.write(json.dumps(prediction, ensure_ascii=False) + "\n")
             handle.flush()
             attempted += 1
