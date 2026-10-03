@@ -81,6 +81,14 @@ khi `run` và `score` để chấm cùng tập; bỏ limit khi chạy toàn bộ
 File đầu ra đã tồn tại sẽ bị từ chối ghi đè. Lỗi từng lượt được lưu trong
 predictions; `run` trả exit code 1 nếu có lỗi.
 
+RAG dùng schema ràng buộc `evidence_status`/`action` và thử lại tối đa một lần
+khi JSON sinh đáp án không hợp lệ (nếu còn ngân sách context). Validator vẫn
+từ chối kết quả sai; lỗi không được đổi thành câu trả lời thành công.
+`generation_diagnostics` lưu số lần thử và lỗi validator; `routing_attempts`
+và `fallback_reason` được giữ trong prediction. Lượt bị chặn trong free-running
+có `error_kind: blocked_by_prior_turn` và `blocked_by_id` trỏ tới lỗi gốc;
+không chèn đáp án chuẩn để tiếp tục một hội thoại đã hỏng.
+
 Trong khi chạy, tiến độ hiển thị thời gian còn lại và giờ hoàn thành dự kiến cho
 toàn bộ tập đã chọn (sau view/split/limit). ETA dùng thời gian chạy trung bình của
 các câu đã hoàn tất nên sẽ ổn định dần; những câu đầu có thể dao động do thời gian

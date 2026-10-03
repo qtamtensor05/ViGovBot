@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from vigovbot.llm.llm_client import ollama_answer
-from vigovbot.rag.routing import parse_route, routing_schema
+from vigovbot.rag.routing import parse_route, routing_schema, answer_schema, parse_answer
 from vigovbot.server.providers import openai_compatible_answer
 
 
@@ -59,6 +59,18 @@ class RoutingProviderTests(unittest.TestCase):
             text, _, _ = openai_compatible_answer(self.messages, {**self.settings, "response_format": "json"})
         self.assertEqual(post.call_args.kwargs["json"]["response_format"], {"type": "json_object"})
         self.assertEqual(text, '{"answer":"ok"}')
+
+    def test_answer_schema_is_wrapped_separately_from_route(self):
+        answer = dict(answer="Chưa có thông tin", action="abstain", evidence_status="missing")
+        response = Mock()
+        response.json.return_value = {"choices": [{"message": {"content": json.dumps({"result": answer})}}]}
+        settings = {**self.settings, "response_format": answer_schema(True), "response_schema_name": "answer"}
+        with patch("requests.post", return_value=response) as post:
+            text, _, _ = openai_compatible_answer(self.messages, settings)
+        self.assertEqual(parse_answer(text, require_evidence=True)[1], "abstain")
+        schema = post.call_args.kwargs["json"]["response_format"]["json_schema"]
+        self.assertEqual(schema["name"], "answer")
+        self.assertEqual(schema["schema"]["properties"]["result"], answer_schema(True))
 
 
 if __name__ == "__main__":

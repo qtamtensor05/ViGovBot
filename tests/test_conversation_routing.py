@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 from vigovbot.evaluation.multiturn import evaluate_multiturn
 from vigovbot.experiments import read_results
 from vigovbot.rag.pipeline import answer_question
-from vigovbot.rag.routing import parse_route
+from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
 
 
 class Tokenizer:
@@ -133,8 +133,54 @@ class RoutingTests(unittest.TestCase):
         self.assertIn("initial_error", result["raw_routing"])
 
     def test_inconsistent_evidence_action_rejected(self):
-        with self.assertRaises(ValueError):
-            self.run_answer([route(), json.dumps(dict(answer="Invented", action="answer", evidence_status="missing"))])
+        invalid = json.dumps(dict(answer="Invented", action="answer", evidence_status="missing"))
+        with self.assertRaises(StructuredAnswerError) as caught:
+            self.run_answer([route(), invalid, invalid])
+        self.assertEqual(caught.exception.diagnostics["attempts"], 2)
+        self.assertEqual(len(caught.exception.diagnostics["validation_errors"]), 2)
+
+    def test_answer_schema_only_allows_consistent_pairs(self):
+        for branch in answer_schema(True)["anyOf"]:
+            properties = branch["properties"]
+            payload = {key: value["enum"][0] for key, value in properties.items() if "enum" in value}
+            payload["answer"] = "Nội dung"
+            parse_answer(json.dumps(payload), require_evidence=True)
+            self.assertIn("evidence_status", branch["required"])
+        self.assertEqual(len(answer_schema(True)["anyOf"]), 5)
+
+    def test_generation_retry_recovers_invalid_json_and_keeps_evidence(self):
+        for invalid in ['{"answer":"unfinished', '{"answer":"x","action":"answer"}',
+                        '{"answer":"x","action":"answer","evidence_status":"missing"}']:
+            with self.subTest(invalid=invalid):
+                result, llm = self.run_answer([
+                    route(), invalid,
+                    json.dumps(dict(answer="Chưa có thông tin", action="abstain", evidence_status="missing"))])
+                self.assertEqual(result["action"], "abstain")
+                self.assertEqual(result["generation_diagnostics"]["attempts"], 2)
+                self.assertAlmostEqual(result["generation_s"], .2)
+                initial, retry = llm.call_args_list[1:]
+                self.assertEqual(initial.args[1]["response_format"], answer_schema(True))
+                self.assertEqual(initial.args[1], retry.args[1])
+                self.assertEqual(initial.args[0][-1], retry.args[0][-1])
+
+    def test_follow_up_preserves_personal_status_even_if_rewrite_omits_it(self):
+        question = "Cho biết cơ quan thực hiện và hồ sơ tôi đã được duyệt chưa?"
+        _, llm = self.run_answer([
+            route("follow_up", query="Cơ quan cấp hộ chiếu?"),
+            json.dumps(dict(answer="Chỉ biết cơ quan", action="partial", evidence_status="partial"))],
+            question=question, history=self.history)
+        self.assertIn(question, llm.call_args_list[1].args[0][-1]["content"])
+        self.assertNotIn("OLD_CLAIM", str(llm.call_args_list[1].args[0]))
+
+    def test_generation_retry_respects_context_budget(self):
+        invalid = '{"answer":"x","action":"answer","evidence_status":"missing"}'
+        with patch("vigovbot.rag.pipeline.build_messages", return_value=(
+                [{"role": "system", "content": "x" * 7420}, {"role": "user", "content": "q"}],
+                [{"chunk_id": "c1"}], 7421)):
+            with self.assertRaises(StructuredAnswerError) as caught:
+                self.run_answer([route(), invalid])
+        self.assertEqual(caught.exception.diagnostics["retry_skipped"], "context_budget")
+        self.assertEqual(caught.exception.diagnostics["attempts"], 1)
 
     def test_retry_explains_rejected_follow_up_and_preserves_schema(self):
         invalid = route("follow_up", clarification="Vous voulez confirmer?")

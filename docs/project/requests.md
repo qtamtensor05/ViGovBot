@@ -1,5 +1,17 @@
 # Yêu cầu dự án
 
+## TASK-20261004-01
+
+- Ngày: 2026-10-04 (Asia/Saigon).
+- Yêu cầu: đánh giá mẫu Colab và giải quyết lỗi; người dùng điều chỉnh chỉ xét
+  `2000_main_smoke_rag_2-20261003T171220Z-1-001.zip`, bỏ ZIP đầu vì là RAG cũ.
+- Phạm vi: phân tích 23 lượt trong ZIP thứ hai, sửa lỗi đầu ra có bằng chứng,
+  kiểm thử hồi quy và báo cáo giới hạn của mẫu chưa hoàn tất.
+- Tiêu chí: xác định lỗi gốc/lỗi dây chuyền; sửa hợp đồng generation và lưu
+  chẩn đoán; kiểm chứng offline, không suy ra chất lượng toàn bộ 2.000 câu.
+- Trạng thái: partial; đã đánh giá 23 lượt, sửa schema/retry/diagnostics và
+  kiểm thử offline đạt; chưa chạy lại Qwen/Colab để xác nhận chất lượng ngữ nghĩa.
+
 ## TASK-20261003-09
 
 - Ngày: 2026-10-03 (Asia/Saigon).

@@ -133,3 +133,24 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Kết quả: cả hai skill đều trả `Skill is valid!`, exit code 0.
 - Phòng tránh: kiểm tra dependency của công cụ validator; dùng môi trường riêng,
   không thêm dependency tooling vào ứng dụng chỉ để kiểm tra Markdown.
+
+## ERR-20261004-01 — TASK-20261004-01: generation sai hợp đồng
+
+- Bằng chứng: ZIP thứ hai có 4 lỗi `Evidence status and action do not match`
+  (000033, 000084, 000211, 000271), gây 7 lượt free-running bị chặn.
+- Nguyên nhân xác nhận ở code: generation chỉ dùng JSON mode, không ràng buộc
+  cặp evidence/action, không retry; runner không lưu raw generation lỗi.
+  Artifact không đủ để biết chính xác trường thiếu/sai của từng lượt.
+- Sửa: schema theo cặp, giữ validator, retry một lần có budget; lưu diagnostics
+  và blocked_by_id. Kiểm thử tái hiện JSON thiếu/sai/cắt dở, sửa thành công hoặc
+  vẫn lỗi đều đạt. Giữ việc chặn chuỗi đã lỗi để không làm sai free_running.
+
+## ERR-20261004-02 — TASK-20261004-01: lỗi ngữ nghĩa trong mẫu mới
+
+- 000142 suy diễn trạng thái cá nhân từ quy trình; 000141 bỏ một phần câu hỏi;
+  các ca 000059/000263 out_of_scope sai, 000072/000180 chọn thủ tục khi mơ hồ.
+- Biện pháp: điều chỉnh prompt và giữ câu hỏi gốc cùng query đã viết lại.
+- Chưa xác nhận hiệu quả bằng model thật: localhost:11434 từ chối kết nối;
+  không có log Colab để xác định nguyên nhân artifact chỉ chứa 23 lượt.
+- Báo cáo chi tiết: colab-rag-2-assessment.md; cần smoke lại, không tuyên bố
+  các lỗi nội dung đã hết từ kiểm thử mock hoặc action accuracy.

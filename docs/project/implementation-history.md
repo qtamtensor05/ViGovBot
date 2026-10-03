@@ -1,5 +1,30 @@
 # Lịch sử triển khai
 
+## TASK-20261004-01 — Đánh giá ZIP thứ hai và sửa generation
+
+- Theo điều chỉnh của người dùng, chỉ xét ZIP `_rag_2`: 23 lượt, 12 thành công,
+  4 lỗi hợp đồng evidence/action và 7 lượt bị chặn sau lỗi gốc. Đối chiếu 23 câu
+  với dataset cục bộ khớp; action đúng 4/23, không đồng nghĩa đúng nội dung.
+- Phân tích chi tiết và giới hạn: `docs/project/colab-rag-2-assessment.md`.
+- Thay đổi: routing.py thêm answer_schema và StructuredAnswerError; pipeline.py
+  dùng schema generation, retry một lần trong ngân sách context, giữ lỗi thực
+  và diagnostics; giữ câu hỏi gốc khi follow-up. Provider bọc schema answer
+  riêng; adapter giữ diagnostics; runner ghi error_kind/blocked_by_id.
+- Prompt bổ sung giới hạn trạng thái cá nhân, câu hỏi nhiều ý, tiền đề sai và
+  nhiều thủ tục mơ hồ. Không đổi dataset hoặc ánh xạ nhãn theo đáp án chuẩn.
+- Pipeline version 5, cập nhật migration và README QA v4. Không sửa artifact gốc.
+- Kiểm chứng: `env/Scripts/python.exe -m unittest tests.test_conversation_routing
+  tests.test_qa_v4 tests.test_routing_providers tests.test_rag_pipeline
+  tests.test_server tests.test_rag_config_cli`: 54 test đạt. Sau bổ sung test
+  retry context: chạy lại ba module đầu, 34 test đạt. Ruff đạt.
+- Kiểm tra cuối: giữ lỗi các lượt reference_history độc lập; thêm hồi quy và
+  chạy lại 10 test QA v4 đạt. Ruff và git diff --check đều đạt.
+- Giới hạn: model Qwen thật/Colab chưa chạy lại; Ollama local từ chối kết nối.
+  Prompt chỉ là thay đổi cần xác nhận thực nghiệm; retrieval thiếu mục căn cứ
+  pháp lý chưa được điều chỉnh do chưa kiểm chứng lại corpus/index của Colab.
+- Trạng thái partial: hoàn tất đánh giá và sửa kỹ thuật, còn kiểm chứng chất
+  lượng model thật. Tiếp theo dùng RUN_NAME mới và LIMIT=23 hoặc 30 trên Colab.
+
 ## TASK-20261003-09 — ETA cho toàn bộ lượt chạy QA RAG
 
 - Hành vi: sau mỗi câu, runner tuần tự ước lượng thời gian còn lại bằng thời gian

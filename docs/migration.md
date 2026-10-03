@@ -45,6 +45,12 @@ xạ số dòng. Log luôn báo hạn chế này.
 
 ## Kết quả đánh giá và cache cũ
 
+Pipeline version 5 bổ sung schema generation ràng buộc evidence/action, retry
+JSON lỗi tối đa một lần và chẩn đoán generation. Câu hỏi nối tiếp giữ cả câu
+gốc cùng truy vấn đã giải quyết ngữ cảnh; prompt làm rõ giới hạn trạng thái hồ
+sơ cá nhân, câu hỏi nhiều ý và tiền đề sai. Chạy output mới để tránh trộn phiên
+bản; chưa suy ra cải thiện chất lượng nếu chưa chạy model thật.
+
 Pipeline version 4 chuyển router sang JSON Schema theo nhánh, thêm
 `routing_attempts`/`fallback_reason` và dùng `decision_reason: routing_fallback`
 cho fallback kỹ thuật. API web bổ sung `routing_diagnostics`; raw response chỉ

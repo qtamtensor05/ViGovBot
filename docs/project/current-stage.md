@@ -1,5 +1,21 @@
 # Current stage — giai đoạn hiện tại
 
+- Task hiện tại: TASK-20261004-01 (2026-10-04), partial.
+- Phạm vi đã chốt: chỉ ZIP thứ hai, 23 lượt; 4 lỗi generation, 7 lỗi dây chuyền.
+- Đã sửa: schema generation, retry giới hạn, diagnostics, giữ câu hỏi gốc khi viết lại.
+- Kiểm chứng: 54 test routing/QA/provider/pipeline/server/config đạt; bổ sung
+  test giới hạn retry context, chạy lại 34 test routing/QA/provider đều đạt.
+  Sau kiểm tra tính độc lập reference_history, 10 test QA v4 đạt; Ruff và
+  git diff --check đạt.
+  Session 15822 đã hoàn tất exit 0. ZIP gốc không bị ghi đè.
+- Báo cáo: docs/project/colab-rag-2-assessment.md; 4/23 action đúng nhãn cục bộ.
+- Còn lại: chạy smoke Qwen thật trên Colab với commit mới; xác nhận chất lượng
+  ngữ nghĩa/retrieval, chưa thể suy ra các lỗi nội dung đã hết từ test mock.
+- Trở ngại kiểm chứng model thật: localhost:11434 từ chối kết nối; không có
+  runtime Colab kết nối trong phiên này. Không cần sửa notebook để nhận code mới.
+
+## Mốc trước
+
 - Cập nhật: 2026-10-03 (Asia/Saigon).
 - Task: TASK-20261003-09.
 - Giai đoạn: hoàn tất TASK-20261003-09, gồm yêu cầu bổ sung notebook Colab.

@@ -31,17 +31,19 @@ def openai_compatible_answer(messages, settings):
     if settings.get("response_format") == "json":
         payload["response_format"] = {"type": "json_object"}
     elif isinstance(settings.get("response_format"), dict):
+        schema_name = settings.get("response_schema_name", "routing")
+        envelope_key = "result" if schema_name == "answer" else "route"
         # Unsupported servers must report their API error; never silently drop constraints.
         # OpenAI requires an object at the root; put the branch union under route.
         payload["response_format"] = {
             "type": "json_schema",
-            "json_schema": {"name": "routing", "strict": True, "schema": {
-                "type": "object", "additionalProperties": False, "required": ["route"],
-                "properties": {"route": settings["response_format"]},
+            "json_schema": {"name": schema_name, "strict": True, "schema": {
+                "type": "object", "additionalProperties": False, "required": [envelope_key],
+                "properties": {envelope_key: settings["response_format"]},
             }},
         }
         payload["messages"] = [dict(message) for message in messages]
-        payload["messages"][0]["content"] += '\nĐóng gói JSON phân loại trong trường "route" theo schema API.'
+        payload["messages"][0]["content"] += f'\nĐóng gói JSON trong trường "{envelope_key}" theo schema API.'
     started = time.perf_counter()
     response = requests.post(
         settings["base_url"].rstrip("/") + "/chat/completions",
@@ -60,8 +62,8 @@ def openai_compatible_answer(messages, settings):
             envelope = json.loads(answer)
         except ValueError:
             envelope = None
-        if isinstance(envelope, dict) and set(envelope) == {"route"}:
-            answer = json.dumps(envelope["route"], ensure_ascii=False)
+        if isinstance(envelope, dict) and set(envelope) == {envelope_key}:
+            answer = json.dumps(envelope[envelope_key], ensure_ascii=False)
     return answer, raw, time.perf_counter() - started
 
 

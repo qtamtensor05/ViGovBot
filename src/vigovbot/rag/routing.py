@@ -22,6 +22,10 @@ Trả JSON với đúng các trường:
 - clarification: câu hỏi ngắn để người dùng làm rõ nếu ambiguous; rỗng ở nhánh khác.
   Không dùng clarification để xác nhận lại một câu hỏi đã rõ hoặc tóm tắt query.
 Không dùng câu trả lời cũ làm bằng chứng pháp lý. Không tự chọn một trong nhiều thủ tục khi chưa rõ.
+Giữ đầy đủ mọi ý hỏi khi viết query, kể cả yêu cầu tra trạng thái hồ sơ cá nhân.
+Câu hỏi có tiền đề sai về cơ quan/phí vẫn thuộc phạm vi thủ tục, cần truy hồi để kiểm chứng.
+Nếu lịch sử nêu nhiều thủ tục và 'thủ tục đó' không xác định duy nhất, phải hỏi làm rõ;
+không tự lấy thủ tục cuối cùng. Không yêu cầu tên cơ sở/cá nhân khi câu hỏi về quy định chung đã rõ.
 Ví dụ:
 - Lịch sử về hộ chiếu; câu mới 'Tôi đang tìm hiểu cấp bản sao hộ tịch. Phí trực tuyến là gì?':
   {"scope":"in_scope","relation":"new_question","query":"Phí cấp bản sao hộ tịch trực tuyến là gì?","clarification":""}
@@ -90,6 +94,27 @@ def parse_route(text, history):
 
 EVIDENCE_ACTIONS = {"sufficient": "answer", "partial": "partial", "missing": "abstain",
                     "contradictory_premise": "correct_premise", "ambiguous": "clarify"}
+
+
+def answer_schema(require_evidence=False):
+    """Make inconsistent evidence/action pairs unrepresentable during decoding."""
+    branches = []
+    for evidence, action in EVIDENCE_ACTIONS.items():
+        properties = {"answer": {"type": "string", "minLength": 1},
+                      "action": {"type": "string", "enum": [action]}}
+        if require_evidence:
+            properties["evidence_status"] = {"type": "string", "enum": [evidence]}
+        branches.append({"type": "object", "additionalProperties": False,
+                         "required": list(properties), "properties": properties})
+    return {"anyOf": branches}
+
+
+class StructuredAnswerError(ValueError):
+    """Invalid generation stays a failure, with bounded diagnostic data."""
+
+    def __init__(self, diagnostics):
+        super().__init__("Invalid structured answer after validation/retry")
+        self.diagnostics = diagnostics
 
 
 def parse_answer(text, *, require_evidence=False):

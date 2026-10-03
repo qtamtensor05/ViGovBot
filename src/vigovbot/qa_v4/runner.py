@@ -32,7 +32,7 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
     configure_console()
     if mode not in {"reference_history", "free_running"}:
         raise ValueError("Unknown history mode")
-    histories, turns, broken = {}, {}, set()
+    histories, turns, broken = {}, {}, {}
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     successful = attempted = 0
@@ -73,8 +73,15 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
                 successful += 1
             except Exception as exc:
                 prediction = {"error": f"{type(exc).__name__}: {exc}"}
-                if cv:
-                    broken.add(cv)
+                if hasattr(exc, "diagnostics"):
+                    prediction["generation_diagnostics"] = exc.diagnostics
+                if mode == "free_running" and cv in broken:
+                    prediction["error_kind"] = "blocked_by_prior_turn"
+                    prediction["blocked_by_id"] = broken[cv]
+                else:
+                    prediction["error_kind"] = "request_failed"
+                if cv and mode == "free_running":
+                    broken.setdefault(cv, q["id"])
             prediction.update(id=q["id"], question=q["question"], conversation_id=cv,
                               turn_index=q.get("turn_index"), history_mode=mode,
                               latency_seconds=time.perf_counter() - tick)

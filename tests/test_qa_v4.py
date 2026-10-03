@@ -11,9 +11,30 @@ from vigovbot.qa_v4.runner import estimate_completion, run_queries
 from vigovbot.qa_v4.scoring import evaluate
 from vigovbot.qa_v4.__main__ import resolve_dataset, select_rows
 from vigovbot.evaluation.multiturn import load_queries
+from vigovbot.rag.routing import StructuredAnswerError
 
 
 class QAV4Tests(unittest.TestCase):
+    def test_generation_diagnostics_survive_adapter_and_failed_conversation(self):
+        diagnostics = {"attempts": 2, "validation_errors": ["invalid", "invalid"]}
+        normalized = normalize_result({"prediction": "ok", "generation_diagnostics": diagnostics,
+                                       "routing_attempts": 1, "fallback_reason": None})
+        self.assertEqual(normalized["generation_diagnostics"], diagnostics)
+        self.assertEqual(normalized["routing_attempts"], 1)
+        queries = [dict(id=str(i), question="q", conversation_id="cv", turn_index=i)
+                   for i in range(1, 4)]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "predictions.jsonl"
+            with patch("builtins.print"), patch("sys.stderr.isatty", return_value=False):
+                answer = MagicMock(side_effect=StructuredAnswerError(diagnostics))
+                run_queries(queries, answer, path, "free_running")
+            rows = list(read_jsonl(path))
+        answer.assert_called_once()
+        self.assertEqual(rows[0]["generation_diagnostics"], diagnostics)
+        self.assertEqual(rows[0]["error_kind"], "request_failed")
+        self.assertEqual([r["blocked_by_id"] for r in rows[1:]], ["1", "1"])
+        self.assertTrue(all(r["error_kind"] == "blocked_by_prior_turn" for r in rows[1:]))
+
     def test_estimated_completion_uses_observed_average_for_full_selection(self):
         now = datetime(2026, 10, 3, 12, 0, tzinfo=timezone.utc)
         eta = estimate_completion(30, completed=3, total=9, now=now)
@@ -21,6 +42,18 @@ class QAV4Tests(unittest.TestCase):
         self.assertEqual(eta["estimated_completion_at"], "2026-10-03T12:01:00+00:00")
         with self.assertRaises(ValueError):
             estimate_completion(1, completed=0, total=9, now=now)
+
+    def test_reference_history_failures_are_independent(self):
+        queries = [dict(id=str(i), question="q", conversation_id="cv", turn_index=i, history=[])
+                   for i in range(1, 3)]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "predictions.jsonl"
+            answer = MagicMock(side_effect=ValueError("invalid"))
+            with patch("builtins.print"):
+                run_queries(queries, answer, path, "reference_history")
+            rows = list(read_jsonl(path))
+        self.assertEqual(answer.call_count, 2)
+        self.assertTrue(all(r["error_kind"] == "request_failed" and "blocked_by_id" not in r for r in rows))
 
     def test_small_dataset_alias_and_custom_view(self):
         with tempfile.TemporaryDirectory() as directory:

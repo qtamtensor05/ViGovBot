@@ -13,7 +13,9 @@ from vigovbot.ingestion.unified import verify_corpus
 from vigovbot.llm.llm_client import check_model, unload_model
 from vigovbot.prompts.prompt_templates import SYSTEM_PROMPT
 from vigovbot.rag.version import PIPELINE_VERSION
-from vigovbot.rag.routing import routing_messages, routing_schema, parse_route, parse_answer
+from vigovbot.rag.routing import (
+    routing_messages, routing_schema, parse_route, parse_answer, answer_schema, StructuredAnswerError,
+)
 from vigovbot.retrieval.retriever import Retriever
 from vigovbot.utils.helpers import json_hash
 from vigovbot.experiments import ensure_run, runtime_identity
@@ -182,6 +184,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Question must be nonempty")
     history = validate_history(history)
+    original_question = question
     answer_fn = answer_fn or ollama_answer
     started = time.perf_counter()
     routing_enabled = settings.get("routing_enabled", True)
@@ -260,7 +263,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         # A new question must not inherit any previous subject, even via a rewritten query.
         retrieval_query = question if route["relation"] == "new_question" else route["query"]
         # The resolved query is sufficient for generation; old topics/assistant claims stay out.
-        question = retrieval_query
+        question = (retrieval_query if route["relation"] == "new_question" else
+                    f"Câu hỏi gốc: {original_question}\nNgữ cảnh được giải quyết từ lịch sử: {retrieval_query}")
         history = []
     elif history:
         rewrite_messages = [
@@ -286,13 +290,40 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
                               "abstain", "no_context", hits=hits, used=used, tokens=tokens, retrieval_s=retrieval_s)
         result["retrieval_query"] = retrieval_query
         return result
-    generation_settings = {**settings, "response_format": "json"} if structured else settings
+    generation_settings = ({**settings, "response_format": answer_schema(routing_enabled),
+                            "response_schema_name": "answer"} if structured else settings)
     answer, raw, generation_s = answer_fn(messages, generation_settings)
     action = evidence = None
+    generation_diagnostics = {"attempts": 1, "validation_errors": []}
     if structured:
-        answer, action, evidence = parse_answer(answer, require_evidence=routing_enabled)
+        try:
+            answer, action, evidence = parse_answer(answer, require_evidence=routing_enabled)
+        except ValueError as exc:
+            generation_diagnostics["validation_errors"].append(str(exc))
+            generation_diagnostics["initial_text"] = answer[:2000]
+            retry_messages = [dict(m) for m in messages]
+            retry_messages[0]["content"] += (
+                "\nĐầu ra trước không hợp lệ: " + str(exc) +
+                ". Sinh lại JSON ngắn gọn theo schema, answer không rỗng. "
+                "evidence_status/action phải khớp; không đổi nhãn để che thiếu bằng chứng."
+            )
+            retry_tokens = len(tokenizer.apply_chat_template(
+                retry_messages, tokenize=True, add_generation_prompt=True))
+            if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
+                generation_diagnostics["retry_skipped"] = "context_budget"
+                raise StructuredAnswerError(generation_diagnostics) from exc
+            generation_diagnostics["attempts"] = 2
+            answer, raw, retry_s = answer_fn(retry_messages, generation_settings)
+            generation_s += retry_s
+            try:
+                answer, action, evidence = parse_answer(answer, require_evidence=routing_enabled)
+            except ValueError as retry_exc:
+                generation_diagnostics["validation_errors"].append(str(retry_exc))
+                generation_diagnostics["retry_text"] = answer[:2000]
+                raise StructuredAnswerError(generation_diagnostics) from retry_exc
     return {
         "prediction": answer,
+        "generation_diagnostics": generation_diagnostics,
         "action": action,
         "routing": route,
         "routing_attempts": routing_attempts,
