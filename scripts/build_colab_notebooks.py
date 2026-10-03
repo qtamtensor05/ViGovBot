@@ -258,7 +258,8 @@ command = [sys.executable, "-m", "vigovbot", "qa-v4", "run", *selection,
            "--config", str(CONFIG_PATH), "--mode", MODE, "--out", str(PREDICTIONS)]
 if NO_RETRIEVAL:
     command.append("--no-retrieval")
-result = subprocess.run(command, cwd=REPO_DIR)
+print("Bắt đầu sinh câu trả lời; tiến trình từng câu hiển thị bên dưới.", flush=True)
+result = subprocess.run(command, cwd=REPO_DIR, env=dict(os.environ, PYTHONUNBUFFERED="1"))
 if result.returncode:
     print("Runner có lỗi. Nếu prediction tồn tại, vẫn chấm để báo coverage và lỗi.")
 if not PREDICTIONS.exists():
@@ -270,7 +271,9 @@ command = [sys.executable, "-m", "vigovbot", "qa-v4", "score", *selection,
            "--top-k", str(TOP_K), "--predictions", str(PREDICTIONS), "--out", str(SCORES)]
 if LEXICAL:
     command.append("--lexical")
-subprocess.run(command, cwd=REPO_DIR, check=True)
+print("Đang chấm điểm offline...", flush=True)
+subprocess.run(command, cwd=REPO_DIR, check=True, env=dict(os.environ, PYTHONUNBUFFERED="1"))
+print("Đã chấm xong:", SCORES, flush=True)
 '''),
         cell("markdown", "## 9. Xem câu hỏi, câu trả lời, đáp án tham chiếu và điểm\nRecall/MRR cần mapping chunk sang unit ID; correctness/faithfulness cần judgments ngữ nghĩa."),
         cell("code", '''

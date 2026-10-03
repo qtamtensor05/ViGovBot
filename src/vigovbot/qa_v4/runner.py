@@ -5,15 +5,18 @@ import time
 from pathlib import Path
 
 from tqdm.auto import tqdm
+from vigovbot.console import configure_console
 
 
 def run_queries(queries, answer_fn, output, mode="reference_history"):
+    configure_console()
     if mode not in {"reference_history", "free_running"}:
         raise ValueError("Unknown history mode")
     histories, turns, broken = {}, {}, set()
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     successful = attempted = 0
+    plain_progress = not sys.stderr.isatty()
     started = time.perf_counter()
     # Refuse accidental overwrite of existing experiments.
     with output.open("x", encoding="utf-8") as handle:
@@ -26,6 +29,8 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
             disable=not sys.stderr.isatty(),
         )
         for q in progress:
+            if plain_progress:
+                print(f"[QA {attempted + 1}/{len(queries)}] Đang xử lý {q['id']}...", flush=True)
             cv = q.get("conversation_id")
             tick = time.perf_counter()
             try:
@@ -56,6 +61,11 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
             handle.flush()
             attempted += 1
             progress.set_postfix(success=successful, failed=attempted - successful, refresh=False)
+            if plain_progress:
+                status = prediction.get("error") or "OK"
+                print(f"[QA {attempted}/{len(queries)}] {status} | "
+                      f"{prediction['latency_seconds']:.1f}s | "
+                      f"thành công={successful}, lỗi={attempted - successful}", flush=True)
     elapsed = time.perf_counter() - started
     report = {"attempted": attempted, "successful": successful, "failed": attempted - successful,
               "wall_seconds": elapsed, "history_mode": mode,

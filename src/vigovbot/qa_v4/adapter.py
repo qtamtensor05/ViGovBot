@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 import json
 from urllib.request import Request, urlopen
+from vigovbot.console import configure_console
 
 
 BASELINE_SYSTEM_PROMPT = """Bạn là trợ lý trả lời câu hỏi về thủ tục hành chính Việt Nam.
@@ -49,15 +50,20 @@ def normalize_result(result, unit_mapping=None):
 
 @contextmanager
 def existing_rag(config_path, unit_mapping=None):
+    configure_console()
     # Reuse the existing config, corpus, query encoder, tokenizer and inference logic.
     from vigovbot.rag.config import load_config
     from vigovbot.rag.pipeline import prepare, inference_session, answer_question
     from vigovbot.llm.llm_client import check_model
 
     config = load_config(config_path)
+    print("[RAG] Chuẩn bị corpus và cache truy hồi...", flush=True)
     paths = prepare(config)
+    print("[RAG] Kiểm tra model Ollama...", flush=True)
     check_model(config.llm.ollama_url, config.llm.model)
+    print("[RAG] Nạp encoder embedding, tokenizer và kho truy hồi...", flush=True)
     with inference_session(config, paths) as (retriever, tokenizer):
+        print("[RAG] Sẵn sàng sinh câu trả lời.", flush=True)
         def answer(question, history=None):
             result = answer_question(question, retriever, tokenizer, config.inference_settings(),
                                      history=history, structured=True)
@@ -68,13 +74,16 @@ def existing_rag(config_path, unit_mapping=None):
 @contextmanager
 def ollama_baseline(config_path):
     """Run the configured Ollama model without loading a corpus or query encoder."""
+    configure_console()
     from vigovbot.llm.llm_client import check_model, ollama_answer, unload_model
     from vigovbot.prompts.prompt_templates import validate_history
     from vigovbot.rag.config import load_config
     from vigovbot.rag.routing import parse_answer
 
     config = load_config(config_path)
+    print("[Baseline] Kiểm tra model Ollama...", flush=True)
     check_model(config.llm.ollama_url, config.llm.model)
+    print("[Baseline] Sẵn sàng sinh câu trả lời không retrieval.", flush=True)
     settings = config.inference_settings()
     try:
         def answer(question, history=None):
