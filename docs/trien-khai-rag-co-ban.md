@@ -2,14 +2,15 @@
 
 Tài liệu quy định quy trình tạo corpus, khởi tạo hệ thống truy hồi, thực hiện truy
 vấn và chạy đánh giá đối với package `vigovbot` phiên bản 0.2.0. Các lệnh được
-thực thi từ thư mục gốc repository. Kết quả kiểm chứng được quản lý riêng tại
-[báo cáo kiểm chứng](verification.md).
+thực thi từ thư mục gốc repository.
 
 ## 1. Tổng quan
 
 ViGovBot là pipeline tra cứu thủ tục hành chính tiếng Việt theo mô hình **Retrieval-Augmented Generation (RAG)**: tìm các đoạn tài liệu liên quan trước, sau đó đưa chúng cùng câu hỏi vào mô hình sinh câu trả lời.
 
-Hệ thống hiện chạy bằng CLI Python hoặc notebook Colab, hỗ trợ hỏi đáp từng câu và đánh giá theo bộ câu hỏi. Mã xử lý chính nằm trong `src/vigovbot/`. Notebook cài package và dùng namespace `vigovbot.*`.
+Hệ thống chạy bằng CLI Python, giao diện web cục bộ hoặc notebook Colab; hỗ trợ
+hỏi đáp một lượt, hội thoại nhiều lượt và đánh giá theo bộ câu hỏi. Mã xử lý chính
+nằm trong `src/vigovbot/`. Notebook cài package và dùng namespace `vigovbot.*`.
 
 | Thành phần | Cách sử dụng hiện tại |
 |---|---|
@@ -21,8 +22,15 @@ Hệ thống hiện chạy bằng CLI Python hoặc notebook Colab, hỗ trợ h
 | Mô hình sinh | `qwen2.5:7b` chạy qua Ollama |
 | Tokenizer tính ngân sách prompt | `Qwen/Qwen2.5-7B-Instruct` |
 | Cách giao tiếp với LLM | HTTP `POST /api/chat`, `stream: false` |
+| Điều hướng hội thoại | LLM phân loại phạm vi và quan hệ câu hỏi, đồng thời viết lại câu hỏi nối tiếp |
+| Đầu ra câu trả lời | JSON có câu trả lời, hành động và trạng thái bằng chứng |
 
-Đây là RAG một lượt với truy hồi dense. Luồng hiện tại không dùng BM25/hybrid search, reranker, viết lại câu hỏi, agent hay bộ nhớ hội thoại. Pipeline không có bước huấn luyện, fine-tune, QLoRA hoặc API web.
+Đây là RAG truy hồi dense có lớp điều hướng nhiều lượt. Mặc định mỗi câu hỏi được
+phân loại trước khi truy hồi; câu hỏi nối tiếp được viết lại thành truy vấn độc lập,
+còn câu hỏi mới không kế thừa chủ đề cũ. Hệ thống không dùng BM25/hybrid search,
+reranker hay agent, và không có bước huấn luyện, fine-tune hoặc QLoRA. Lịch sử do
+client cung cấp cho từng lượt, chưa có kho hội thoại hoặc tài khoản người dùng ở
+phía server.
 
 ## 2. Kiến trúc và luồng dữ liệu
 
@@ -36,13 +44,16 @@ flowchart TD
         N --> F[FAISS + metadata JSON + corpus manifest]
     end
     F --> S[Prepare: cache FAISS và metadata SQLite]
-    subgraph B[Hỏi đáp]
-        Q[Câu hỏi tiếng Việt] --> QE[BGE-M3 và chuẩn hóa L2]
+    subgraph B[Hỏi đáp nhiều lượt]
+        Q[Câu hỏi + lịch sử] --> G[LLM định tuyến]
+        G -->|ngoài phạm vi| A[Abstain]
+        G -->|mơ hồ| H[Hỏi làm rõ]
+        G -->|câu mới / hỏi tiếp| QE[BGE-M3 và chuẩn hóa L2]
         QE --> R[FAISS: lấy top 5 chunk]
         R --> D[SQLite: lấy nội dung và nguồn]
-        D --> T[Ghép prompt trong ngân sách token]
-        T --> L[Qwen2.5-7B qua Ollama]
-        L --> O[Câu trả lời + nguồn + thời gian xử lý]
+        D --> T[Ghép prompt và xét bằng chứng]
+        T --> L[LLM sinh JSON có cấu trúc]
+        L --> O[Trả lời / trả lời một phần / sửa tiền đề / abstain]
     end
     S --> R
     S --> D
@@ -85,16 +96,31 @@ Lệnh `rag prepare` xác minh corpus, sao chép index vào cache và chuyển m
 
 `row_id` trong SQLite chính là vị trí vector, bắt đầu từ 0. Hệ thống kiểm tra số dòng, chiều vector, loại metric và checksum để tránh dùng nhầm index với metadata. SQLite chỉ giữ các trường cần truy hồi; `parent_section` không được đưa vào cache, nên luồng hỏi đáp không tự mở rộng chunk thành toàn bộ mục cha.
 
-### 2.4. Xử lý một câu hỏi
+### 2.4. Xử lý câu hỏi và lịch sử hội thoại
 
-1. Nạp BGE-M3 cùng model/revision với corpus. Nếu `embedding.revision: null` và corpus có manifest hợp lệ, hệ thống lấy revision từ manifest.
-2. Encode câu hỏi thành vector 1024 chiều, chuẩn hóa L2 rồi tìm tối đa `top_k = 5` kết quả.
-3. Tra SQLite để lấy nội dung chunk và thông tin nguồn của từng kết quả.
-4. Ghép system prompt, câu hỏi và các trích đoạn theo thứ tự truy hồi; dùng tokenizer Qwen để giới hạn độ dài.
-5. Gọi Ollama để sinh câu trả lời tiếng Việt.
-6. Trả về JSON gồm câu trả lời, kết quả truy hồi, phần ngữ cảnh thực sự đã dùng và thời gian xử lý.
+1. Nạp BGE-M3 cùng model/revision với corpus. Nếu `embedding.revision: null` và
+   corpus có manifest hợp lệ, hệ thống lấy revision từ manifest.
+2. Kiểm tra lịch sử `user`/`assistant`, rồi gọi LLM định tuyến để trả JSON gồm
+   `scope`, `relation`, `query` và `clarification`.
+3. Nếu ngoài phạm vi, trả thông báo phạm vi hỗ trợ; nếu mơ hồ, trả câu hỏi làm rõ.
+   Hai nhánh này không truy hồi và không gọi lần sinh câu trả lời.
+4. Câu hỏi mới dùng nguyên văn câu hiện tại. Câu hỏi nối tiếp dùng `query` độc lập
+   do router tạo từ lịch sử; lịch sử và câu trả lời cũ không được đưa vào prompt
+   sinh cuối để tránh mang theo khẳng định chưa được kiểm chứng.
+5. Encode truy vấn thành vector 1024 chiều, chuẩn hóa L2, lấy tối đa
+   `top_k = 5` kết quả từ FAISS rồi tra nội dung trong SQLite.
+6. Ghép prompt trong ngân sách token. Nếu không có chunk nào thực sự vừa vào
+   prompt, trả `abstain` mà không gọi sinh.
+7. LLM xét bằng chứng và sinh JSON gồm `answer`, `action`, `evidence_status`.
+   Pipeline kiểm tra schema và ánh xạ kết quả vào response cùng nguồn/thời gian.
 
-System prompt yêu cầu chỉ dựa trên trích đoạn, không tự suy đoán phí/thời hạn/cơ quan/quy định, nói rõ khi thiếu thông tin và bỏ qua chỉ dẫn nằm trong tài liệu. Nguồn được lưu riêng, không bắt buộc LLM liệt kê trong câu trả lời. Đây là hướng dẫn cho mô hình, không phải cơ chế bảo đảm tuyệt đối rằng câu trả lời luôn đúng.
+Các cặp kết quả hợp lệ gồm: `answer/sufficient`, `partial/partial`,
+`abstain/missing`, `correct_premise/contradictory_premise` và
+`clarify/ambiguous`. Đây vẫn là tự đánh giá của cùng model sinh, không phải judge
+độc lập và không bảo đảm nội dung luôn đúng. System prompt yêu cầu chỉ dựa trên
+trích đoạn, không suy đoán phí/thời hạn/cơ quan/quy định và bỏ qua chỉ dẫn nằm
+trong tài liệu. Chi tiết về luồng nhiều lượt và cách đánh giá nằm tại
+[RAG nhiều lượt](rag-multi-turn.md).
 
 ## 3. Tham số RAG đang dùng
 
@@ -114,9 +140,15 @@ System prompt yêu cầu chỉ dựa trên trích đoạn, không tự suy đoá
 | `llm.keep_alive` | `10m` | Tham số giữ model gửi trong request; pipeline yêu cầu dỡ model khi đóng phiên |
 | `retrieval.top_k` | `5` | Số chunk truy hồi tối đa |
 | `retrieval.max_chunk_tokens` | `1200` | Giới hạn token của mỗi chunk đưa vào prompt |
+| `conversation.routing_enabled` | `true` | Bật định tuyến nhiều lượt và xét bằng chứng có cấu trúc |
 | `data.allow_legacy_corpus` | `false` | Mặc định yêu cầu corpus có provenance/manifest |
 
-Ngân sách prompt là `8192 - 512 - 256 = 7424` token, trong đó 256 token được dự phòng cho template Ollama. Ngân sách này bao gồm system prompt, câu hỏi và trích đoạn. Chunk có thể bị cắt ngắn hoặc không được đưa vào khi hết chỗ. `max_chunk_tokens` tính bằng **token**, khác với tham số chunking tính bằng **ký tự**.
+Ngân sách prompt trả lời là `8192 - 512 - 256 = 7424` token, trong đó 256 token
+được dự phòng cho template. Ngân sách này bao gồm system prompt, câu hỏi và trích
+đoạn. Router cũng kiểm tra prompt riêng theo cùng giới hạn; lịch sử quá dài gây lỗi
+thay vì bị cắt âm thầm. Chunk có thể bị cắt ngắn hoặc không được đưa vào khi hết
+chỗ. `max_chunk_tokens` tính bằng **token**, khác với tham số chunking tính bằng
+**ký tự**.
 
 ## 4. Triển khai trên máy cục bộ
 
@@ -206,18 +238,55 @@ Với corpus mới đã cập nhật trong `configs/inference.yaml`:
 
 Nếu dùng corpus cũ theo bước 4.3, thay đường dẫn cấu hình trong cả hai lệnh bằng `configs/inference-local.yaml`. `prepare` chỉ chuẩn bị corpus/cache, chưa tải encoder hoặc gọi LLM; `ask` cũng tự chuẩn bị/kiểm tra cache trước khi truy vấn. Hỏi đáp không cần bộ câu hỏi đánh giá.
 
+Để hỏi nối tiếp, lưu các lượt trước vào một mảng JSON gồm message `user` và
+`assistant`, rồi truyền file bằng `--history`:
+
+```powershell
+.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml ask `
+  --question "Còn lệ phí thì sao?" --history history.json
+```
+
+CLI không tự lưu lịch sử giữa hai lần chạy; ứng dụng gọi phải giữ và gửi lại đúng
+lịch sử. Khi `conversation.routing_enabled: false`, pipeline chạy chế độ đối chứng
+cũ: chỉ viết lại khi có history, không phân loại phạm vi và không bắt buộc đầu ra
+xét bằng chứng có cấu trúc.
+
 Kết quả `ask` được in dưới dạng JSON:
 
 | Trường | Nội dung |
 |---|---|
 | `prediction` | Câu trả lời của Qwen |
+| `action`, `evidence_status` | Hành động và mức bằng chứng do model trả về |
+| `routing`, `retrieval_query` | Quyết định định tuyến và truy vấn độc lập thực tế |
 | `retrieved` | Các chunk đã tìm được, kèm ID, điểm, file và mã thủ tục |
 | `context_used` | Nguồn và phần văn bản thực sự đưa vào prompt sau khi cắt token |
 | `prompt_tokens_estimated` | Số token prompt ước tính bằng tokenizer Qwen |
-| `retrieval_s`, `generation_s`, `latency_s` | Thời gian truy hồi, sinh và xử lý câu hỏi; không gồm toàn bộ thời gian khởi tạo CLI/model |
-| `raw_ollama` | Phản hồi gốc từ Ollama |
+| `routing_s`, `retrieval_s`, `generation_s`, `latency_s` | Thời gian từng bước và toàn lượt; không gồm toàn bộ thời gian khởi tạo CLI/model |
+| `raw_routing`, `raw_ollama` | Phản hồi gốc của lần định tuyến và sinh |
 
 `retrieved` có thể nhiều nội dung hơn `context_used`; khi kiểm tra căn cứ câu trả lời, cần xem phần thực sự được đưa vào prompt.
+
+### 4.5. Chạy giao diện web
+
+Sau khi corpus đã sẵn sàng, khởi động server HTTP cục bộ:
+
+```powershell
+.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml web `
+  --host 127.0.0.1 --port 8000
+```
+
+Mở `http://127.0.0.1:8000`. Server nạp encoder, tokenizer, FAISS và SQLite một
+lần, cung cấp `GET /api/health`, `GET /api/models` và `POST /api/chat`. UI giữ
+lịch sử riêng cho từng model trong trình duyệt và gửi lại qua mỗi request; server
+không lưu phiên hội thoại. Các request chat được khóa và xử lý model đã chọn theo
+thứ tự để dùng chung tài nguyên an toàn.
+
+Nếu `web.models` trống, server dùng model Ollama trong nhóm `llm` với ID
+`default`. Có thể khai báo tối đa tám model được chọn trong một request để so
+sánh, với provider `ollama` hoặc `openai_compatible`. Provider bên ngoài chỉ đọc
+khóa từ biến môi trường có tên trong `api_key_env`; không ghi khóa trực tiếp vào
+YAML. Đây là server nghiên cứu không có xác thực, TLS, lưu phiên hay kiểm soát
+truy cập; giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
 
 ## 5. Chạy đánh giá
 
@@ -243,10 +312,14 @@ corpus giữa các môi trường.
 
 Các điểm cần tính đến khi sử dụng:
 
-- Truy hồi hiện lấy top-k mà chưa có ngưỡng điểm tối thiểu hoặc reranker. Câu hỏi ngoài kho tri thức vẫn có thể nhận các chunk ít liên quan; việc từ chối trả lời chủ yếu dựa vào prompt và hành vi LLM.
+- Truy hồi hiện lấy top-k mà chưa có ngưỡng điểm tối thiểu hoặc reranker. Router
+  chặn câu ngoài phạm vi và bước sinh tự xét bằng chứng, nhưng cả hai vẫn phụ thuộc
+  hành vi LLM; chunk ít liên quan có thể dẫn đến quyết định sai.
 - Lỗi OCR, thiếu trang, chunk bị cắt hoặc dữ liệu thủ tục chưa cập nhật đều có thể làm câu trả lời thiếu/sai. Pipeline không tự kiểm chứng hiệu lực của nội dung nguồn.
 - SQLite giúp đọc metadata theo nhu cầu, nhưng FAISS vẫn nạp chỉ mục vào RAM; bước tạo corpus giữ metadata và ma trận vector trong RAM. Cần tính tài nguyên theo corpus và model thực tế, chưa có cấu hình RAM/VRAM tối thiểu được đảm bảo trong mã nguồn.
-- Chưa có dịch vụ web, xác thực người dùng, lịch sử hội thoại hoặc triển khai production đi kèm. Cách triển khai hiện có là CLI/notebook cùng tiến trình Ollama.
+- Có web server/UI cục bộ cơ bản nhưng chưa có xác thực, TLS, persistence hội
+  thoại, quản lý người dùng hoặc triển khai production. Lịch sử nằm ở client;
+  nhiều worker/process sẽ không tự chia sẻ phiên hay tài nguyên đã nạp.
 
 ## 7. Đối chiếu với mã nguồn
 
@@ -260,5 +333,8 @@ Các điểm cần tính đến khi sử dụng:
 | Truy hồi | [retriever.py](../src/vigovbot/retrieval/retriever.py) |
 | Prompt và ngân sách token | [prompt_templates.py](../src/vigovbot/prompts/prompt_templates.py) |
 | Gọi Ollama | [llm_client.py](../src/vigovbot/llm/llm_client.py) |
+| Định tuyến hội thoại và kiểm tra JSON | [routing.py](../src/vigovbot/rag/routing.py) |
 | Điều phối RAG | [pipeline.py](../src/vigovbot/rag/pipeline.py) |
 | Giá trị cấu hình mặc định | [config.py](../src/vigovbot/rag/config.py) |
+| Web server và API cục bộ | [app.py](../src/vigovbot/server/app.py) |
+| Adapter Ollama/OpenAI-compatible | [providers.py](../src/vigovbot/server/providers.py) |

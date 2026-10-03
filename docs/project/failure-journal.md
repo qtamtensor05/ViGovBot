@@ -2,6 +2,23 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261003-03
+
+- Task: TASK-20261003-02.
+- Triệu chứng: hai module test RAG không import được, `ModuleNotFoundError: No
+  module named 'faiss'`.
+- Bối cảnh tái hiện: chạy `python -m unittest tests.test_rag_config_cli
+  tests.test_rag_pipeline -v`; workspace không có `.venv`, lệnh dùng Python 3.14
+  mặc định.
+- Nguyên nhân đã xác nhận: môi trường Python hiện tại chưa cài dependency
+  `faiss-cpu` thuộc nhóm `rag`/`test`.
+- Xử lý: không cài dependency vì task chỉ sửa tài liệu; chuyển sang kiểm tra tĩnh
+  liên kết và `git diff --check`.
+- Kết quả: kiểm thử ứng dụng chưa chạy được; lỗi không phát sinh từ thay đổi mã
+  nguồn vì task không sửa code.
+- Phòng tránh: dùng môi trường đã cài `.[test,dev]` hoặc `.[rag]` khi cần chạy bộ
+  test RAG; không coi lỗi thiếu dependency là regression của ứng dụng.
+
 ## ERR-20261003-01
 
 - Task: TASK-20261003-01.
