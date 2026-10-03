@@ -1,0 +1,28 @@
+# Nhật ký vấp ngã
+
+Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
+
+## ERR-20261003-01
+
+- Task: TASK-20261003-01.
+- Triệu chứng: PowerShell in lỗi Set-PSReadLineOption về virtual terminal và
+  invalid handle trước output của lệnh đọc file.
+- Bối cảnh: exec_command dùng login mặc định, nạp PowerShell profile.
+- Nguyên nhân: profile bật prediction của PSReadLine trong phiên không có
+  terminal tương tác phù hợp; thông báo chỉ tới profile dòng 12–13.
+- Xử lý: các lệnh tiếp theo dùng `login: false`.
+- Kiểm chứng: lệnh đọc tài liệu và liệt kê skill sau đó không còn lỗi profile.
+- Phòng tránh: dùng PowerShell không nạp profile cho lệnh agent không tương tác;
+  không chỉnh profile cá nhân ngoài phạm vi task.
+
+## ERR-20261003-02
+
+- Task: TASK-20261003-01.
+- Triệu chứng: quick_validate.py thất bại với `ModuleNotFoundError: No module named 'yaml'`.
+- Tái hiện: chạy validator bằng Python mặc định cho một trong hai skill mới.
+- Nguyên nhân: Python mặc định không có PyYAML mà validator import.
+- Xử lý: cài PyYAML bằng pip --target vào thư mục tạm riêng; đặt PYTHONPATH và
+  PYTHONUTF8 trong process kiểm chứng rồi chạy lại validator.
+- Kết quả: cả hai skill đều trả `Skill is valid!`, exit code 0.
+- Phòng tránh: kiểm tra dependency của công cụ validator; dùng môi trường riêng,
+  không thêm dependency tooling vào ứng dụng chỉ để kiểm tra Markdown.

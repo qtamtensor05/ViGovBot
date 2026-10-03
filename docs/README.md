@@ -19,6 +19,11 @@ loại theo mục đích để tránh lặp lại hướng dẫn vận hành tro
 
 ## Quy ước duy trì
 
+Hồ sơ task lớn nằm trong [yêu cầu](project/requests.md),
+[lịch sử triển khai](project/implementation-history.md),
+[current stage](project/current-stage.md) và [nhật ký vấp ngã](project/failure-journal.md).
+Xem [nguồn skill](project/skill-sources.md) và [hướng dẫn agent](../AGENTS.md).
+
 - `README.md` ở thư mục gốc là điểm vào duy nhất cho cài đặt và vận hành cơ bản.
 - Tài liệu kiến trúc mô tả ranh giới và hợp đồng, không sao chép hướng dẫn cài đặt.
 - Tài liệu vận hành cung cấp lệnh thực thi hoàn chỉnh và điều kiện tiên quyết.
