@@ -1,18 +1,27 @@
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from vigovbot.qa_v4.adapter import normalize_result, existing_rag, ollama_baseline
 from vigovbot.qa_v4.io import read_jsonl
 from vigovbot.qa_v4.report import finalize_report
 from unittest.mock import patch, MagicMock
-from vigovbot.qa_v4.runner import run_queries
+from vigovbot.qa_v4.runner import estimate_completion, run_queries
 from vigovbot.qa_v4.scoring import evaluate
 from vigovbot.qa_v4.__main__ import resolve_dataset, select_rows
 from vigovbot.evaluation.multiturn import load_queries
 
 
 class QAV4Tests(unittest.TestCase):
+    def test_estimated_completion_uses_observed_average_for_full_selection(self):
+        now = datetime(2026, 10, 3, 12, 0, tzinfo=timezone.utc)
+        eta = estimate_completion(30, completed=3, total=9, now=now)
+        self.assertEqual(eta["estimated_remaining_seconds"], 60)
+        self.assertEqual(eta["estimated_completion_at"], "2026-10-03T12:01:00+00:00")
+        with self.assertRaises(ValueError):
+            estimate_completion(1, completed=0, total=9, now=now)
+
     def test_small_dataset_alias_and_custom_view(self):
         with tempfile.TemporaryDirectory() as directory:
             dataset = Path(directory)
@@ -103,6 +112,9 @@ class QAV4Tests(unittest.TestCase):
                         "history": []}]
             report = run_queries(queries, answer, path, "free_running")
             self.assertEqual(report["failed"], 1)
+            self.assertIn("started_at", report)
+            self.assertIn("completed_at", report)
+            self.assertIn("eta_method", report)
             self.assertEqual(calls[1][1][-1]["content"], "generated")
             self.assertNotIn("secret", str(calls))
             saved = list(read_jsonl(path))

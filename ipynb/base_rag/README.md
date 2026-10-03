@@ -20,10 +20,15 @@ Giữ nguyên hội thoại khi chia view thành các nhóm chạy trên Colab.
 Bật `NO_RETRIEVAL` để chạy baseline Qwen/Ollama; chế độ này không cần corpus.
 Đổi `RUN_NAME` mỗi lượt chạy: runner không ghi đè kết quả và chưa hỗ trợ resume.
 Kết quả nằm trong `OUTPUT_DIR/RUN_NAME` trên Drive:
-`predictions.jsonl` (câu hỏi/câu trả lời hoặc lỗi), `scores.json`,
+`predictions.jsonl` (câu hỏi/câu trả lời hoặc lỗi), `predictions.jsonl.run.json`, `scores.json`,
 `comparison.csv` (câu hỏi/câu trả lời/đáp án tham chiếu/điểm), cấu hình và thông tin commit.
 Đáp án tham chiếu chỉ đọc khi chấm và xuất bảng, không gửi vào model.
 Notebook hiện chấm lexical tùy chọn; không bật BERTScore hay semantic judge tự động.
+
+Trong ô sinh câu trả lời, mỗi câu hiển thị thời gian còn lại và giờ hoàn thành dự
+kiến của toàn bộ tập đã chọn. ETA dùng tốc độ trung bình thực tế nên có thể dao
+động ở các câu đầu; file `predictions.jsonl.run.json` lưu thời điểm bắt đầu/kết
+thúc và tổng thời gian sau khi runner hoàn tất.
 
 Các thay đổi mã nguồn phải được commit/push lên GitHub trước khi Colab fetch.
 Đổi nhánh/commit khi đã import package cần khởi động lại runtime để tránh dùng module cũ.

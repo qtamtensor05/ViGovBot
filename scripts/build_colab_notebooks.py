@@ -218,8 +218,9 @@ if not RUN_NAME or Path(RUN_NAME).name != RUN_NAME:
     raise ValueError("RUN_NAME phải là một tên thư mục")
 output = Path(OUTPUT_DIR) / RUN_NAME
 PREDICTIONS = output / "predictions.jsonl"
+RUN_REPORT = Path(str(PREDICTIONS) + ".run.json")
 SCORES = output / "scores.json"
-if PREDICTIONS.exists() or SCORES.exists():
+if PREDICTIONS.exists() or RUN_REPORT.exists() or SCORES.exists():
     raise FileExistsError("Kết quả đã tồn tại; chọn RUN_NAME mới")
 output.mkdir(parents=True, exist_ok=True)
 print("Số câu:", len(queries), "| View:", VIEW, "| Baseline:", NO_RETRIEVAL)
@@ -258,7 +259,7 @@ command = [sys.executable, "-m", "vigovbot", "qa-v4", "run", *selection,
            "--config", str(CONFIG_PATH), "--mode", MODE, "--out", str(PREDICTIONS)]
 if NO_RETRIEVAL:
     command.append("--no-retrieval")
-print("Bắt đầu sinh câu trả lời; tiến trình từng câu hiển thị bên dưới.", flush=True)
+print("Bắt đầu sinh câu trả lời; mỗi câu sẽ hiển thị thời gian còn lại và giờ dự kiến hoàn thành.", flush=True)
 def stream_command(command):
     # Relay child output through the notebook kernel so Colab displays it reliably.
     with subprocess.Popen(command, cwd=REPO_DIR,
@@ -284,6 +285,10 @@ if returncode:
     print("Runner có lỗi. Nếu prediction tồn tại, vẫn chấm để báo coverage và lỗi.")
 if not PREDICTIONS.exists():
     raise RuntimeError("Không có prediction; kiểm tra lỗi phía trên trước khi chấm")
+if RUN_REPORT.exists():
+    run_report = json.loads(RUN_REPORT.read_text(encoding="utf-8"))
+    print("Thời gian chạy:", run_report.get("wall_seconds"), "giây | hoàn tất:",
+          run_report.get("completed_at"), flush=True)
 '''),
         cell("markdown", "## 8. Chấm điểm offline với cùng view/split/limit"),
         cell("code", '''

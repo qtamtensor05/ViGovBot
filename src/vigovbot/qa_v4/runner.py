@@ -2,10 +2,30 @@
 import json
 import sys
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from tqdm.auto import tqdm
 from vigovbot.console import configure_console
+
+
+def estimate_completion(elapsed_seconds, completed, total, now=None):
+    """Estimate the whole selected run from its observed sequential throughput."""
+    if completed < 1 or total < completed or elapsed_seconds < 0:
+        raise ValueError("Invalid progress values")
+    remaining_seconds = elapsed_seconds / completed * (total - completed)
+    now = now or datetime.now().astimezone()
+    return {
+        "estimated_remaining_seconds": remaining_seconds,
+        "estimated_completion_at": (now + timedelta(seconds=remaining_seconds)).isoformat(timespec="seconds"),
+    }
+
+
+def _duration(seconds):
+    seconds = max(0, round(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
 def run_queries(queries, answer_fn, output, mode="reference_history"):
@@ -18,6 +38,7 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
     successful = attempted = 0
     plain_progress = not sys.stderr.isatty()
     started = time.perf_counter()
+    started_at = datetime.now().astimezone()
     # Refuse accidental overwrite of existing experiments.
     with output.open("x", encoding="utf-8") as handle:
         progress = tqdm(
@@ -60,15 +81,23 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
             handle.write(json.dumps(prediction, ensure_ascii=False) + "\n")
             handle.flush()
             attempted += 1
-            progress.set_postfix(success=successful, failed=attempted - successful, refresh=False)
+            eta = estimate_completion(time.perf_counter() - started, attempted, len(queries))
+            progress.set_postfix(success=successful, failed=attempted - successful,
+                                 remaining=_duration(eta["estimated_remaining_seconds"]), refresh=False)
             if plain_progress:
                 status = prediction.get("error") or "OK"
                 print(f"[QA {attempted}/{len(queries)}] {status} | "
                       f"{prediction['latency_seconds']:.1f}s | "
-                      f"thành công={successful}, lỗi={attempted - successful}", flush=True)
+                      f"thành công={successful}, lỗi={attempted - successful} | "
+                      f"còn khoảng {_duration(eta['estimated_remaining_seconds'])} | "
+                      f"dự kiến xong {eta['estimated_completion_at']}", flush=True)
     elapsed = time.perf_counter() - started
+    completed_at = datetime.now().astimezone()
     report = {"attempted": attempted, "successful": successful, "failed": attempted - successful,
               "wall_seconds": elapsed, "history_mode": mode,
+              "started_at": started_at.isoformat(timespec="seconds"),
+              "completed_at": completed_at.isoformat(timespec="seconds"),
+              "eta_method": "elapsed wall time / completed questions * remaining questions",
               "successful_requests_per_second": successful / elapsed if elapsed else None,
               "concurrency": 1, "note": "Sequential throughput, not a concurrent load test"}
     Path(str(output) + ".run.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

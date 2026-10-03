@@ -1,5 +1,23 @@
 # Yêu cầu dự án
 
+## TASK-20261003-09
+
+- Ngày: 2026-10-03 (Asia/Saigon).
+- Yêu cầu: cập nhật mã nguồn đánh giá QA RAG để tính thời gian dự kiến hoàn
+  thành toàn bộ bộ test.
+- Phạm vi: runner QA v4 tuần tự, hiển thị tiến độ trên terminal tương tác và
+  log thường, báo cáo tổng kết cùng kiểm thử hồi quy; không thay đổi nội dung
+  dataset, cách gọi RAG hoặc cách chấm điểm.
+- Tiêu chí: sau mỗi ca đã xử lý có thời gian còn lại và giờ hoàn thành dự kiến
+  dựa trên tốc độ trung bình thực tế; báo cáo cuối ghi thời điểm bắt đầu/kết thúc
+  và phương pháp ước lượng; kiểm thử liên quan thành công.
+- Giả định: "tổng bộ test" là toàn bộ danh sách `queries` được chọn bởi lệnh
+  `python -m vigovbot.qa_v4 run`, sau khi áp dụng view/split/limit.
+- Bổ sung: cập nhật cả notebook Colab QA RAG và nguồn sinh notebook để hiển thị
+  ETA của runner, chỉ rõ file báo cáo thời gian và đọc tóm tắt sau khi chạy.
+- Trạng thái: completed; runner và notebook Colab đã đồng bộ ETA/báo cáo thời
+  gian; 8 test QA v4, 3 test Colab, Ruff và kiểm tra artifact đều đạt.
+
 ## TASK-20261003-08
 
 - Ngày: 2026-10-03 (Asia/Saigon).

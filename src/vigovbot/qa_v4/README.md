@@ -81,12 +81,18 @@ khi `run` và `score` để chấm cùng tập; bỏ limit khi chạy toàn bộ
 File đầu ra đã tồn tại sẽ bị từ chối ghi đè. Lỗi từng lượt được lưu trong
 predictions; `run` trả exit code 1 nếu có lỗi.
 
+Trong khi chạy, tiến độ hiển thị thời gian còn lại và giờ hoàn thành dự kiến cho
+toàn bộ tập đã chọn (sau view/split/limit). ETA dùng thời gian chạy trung bình của
+các câu đã hoàn tất nên sẽ ổn định dần; những câu đầu có thể dao động do thời gian
+khởi động model và độ dài câu khác nhau.
+
 ## Điểm và hiệu suất
 
 Score báo tỷ lệ thành công/lỗi, action accuracy, độ tương đồng với đáp án,
 latency trung bình/p50/p95/p99 và thời gian retrieval/generation nếu được cung cấp.
-File `.run.json` ghi thời gian batch và số request thành công mỗi giây. Đây là
-chạy tuần tự, không phải kiểm thử tải đồng thời và không gồm thời gian tải model ban đầu.
+File `.run.json` ghi thời gian batch, thời điểm bắt đầu/kết thúc, phương pháp tính
+ETA và số request thành công mỗi giây. Đây là chạy tuần tự, không phải kiểm thử tải
+đồng thời và không gồm thời gian tải model ban đầu.
 
 `--judgments judgments.jsonl` bổ sung phán quyết ngữ nghĩa theo `judge_rubric.md`.
 `--lexical` bật BLEU/ROUGE/chrF/TER, cần cài thêm `sacrebleu>=2,<3`.

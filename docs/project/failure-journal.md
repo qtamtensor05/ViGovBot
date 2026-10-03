@@ -2,6 +2,17 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261003-10
+
+- Task: TASK-20261003-09.
+- Triệu chứng: lệnh kiểm thử đầu tiên không import được `vigovbot`.
+- Bối cảnh tái hiện: `python -m unittest tests.test_qa_v4` dùng Python hệ thống.
+- Nguyên nhân đã xác nhận: package dùng layout `src/` và Python hệ thống không
+  cài editable package; đây là lỗi môi trường đã từng được ghi nhận.
+- Xử lý: chuyển sang `env\Scripts\python.exe`, là môi trường dự án hiện có.
+- Kết quả kiểm chứng: chạy lại đạt 8 test QA v4; Ruff cũng đạt.
+- Phòng tránh: dùng Python trong `env/` cho kiểm thử repository.
+
 ## ERR-20261003-09
 
 - Task: TASK-20261003-07.

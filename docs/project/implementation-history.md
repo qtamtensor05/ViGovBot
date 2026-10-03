@@ -1,5 +1,26 @@
 # Lịch sử triển khai
 
+## TASK-20261003-09 — ETA cho toàn bộ lượt chạy QA RAG
+
+- Hành vi: sau mỗi câu, runner tuần tự ước lượng thời gian còn lại bằng thời gian
+  tường trung bình của các câu đã hoàn tất nhân số câu còn lại; hiển thị cả thời
+  lượng và giờ hoàn thành dự kiến. Tập tổng là danh sách sau view/split/limit.
+- Báo cáo: `.run.json` bổ sung `started_at`, `completed_at` và `eta_method`;
+  không thay đổi schema từng prediction hoặc cách chấm điểm.
+- File: `src/vigovbot/qa_v4/runner.py`, `tests/test_qa_v4.py`, README QA v4 và
+  hồ sơ project.
+- Quyết định: dùng toàn bộ wall time quan sát trong runner để phản ánh cả lỗi và
+  các bước xử lý mỗi câu; ETA chỉ xuất hiện sau câu đầu và sẽ ổn định dần.
+- Kiểm chứng: `env\Scripts\python.exe -m unittest tests.test_qa_v4` đạt 8 test;
+  Ruff đạt; `git diff --check` giới hạn các file task đạt.
+- Chưa kiểm chứng: chưa chạy toàn bộ corpus/model thật vì không cần cho phép tính
+  và sẽ tiêu tốn đáng kể thời gian; độ chính xác ETA phụ thuộc độ biến thiên từng câu.
+- Bổ sung Colab: nguồn sinh và `ipynb/base_rag/lqwen2_5_7B_rag.ipynb` thông báo
+  ETA từng câu, quản lý `predictions.jsonl.run.json` như một output của lượt chạy
+  và in tổng thời gian/mốc hoàn tất; README Colab mô tả cách đọc kết quả.
+- Kiểm chứng bổ sung: tái sinh notebook thành công; 3 test `test_colab_runtime`
+  và Ruff cho script sinh notebook đạt; nội dung ETA/report có trong artifact.
+
 ## TASK-20261003-08 - 2026-10-03
 
 - Đồng bộ README dự án, kiến trúc và roadmap: hệ thống hiện có CLI, Colab và web
