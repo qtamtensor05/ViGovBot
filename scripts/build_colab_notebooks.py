@@ -159,100 +159,142 @@ if DOWNLOAD_OUTPUT:
 
 
 def build_rag():
-    settings = """
-# @title 1. Cấu hình input/output
-# @markdown **Mã nguồn**
+    settings = '''
+# @title 1. Cấu hình đánh giá QA v4 nhỏ
 REPO_URL = "https://github.com/qtamtensor05/ViGovBot.git"  # @param {type:"string"}
 GIT_REF = "main"  # @param {type:"string"}
 REPO_DIR = "/content/ViGovBot"  # @param {type:"string"}
-
-# @markdown **Input**
+# @markdown Data không nằm trên GitHub; đặt bộ nhỏ đã giải nén trên Drive.
+DATASET_DIR = "/content/drive/MyDrive/RAG_Data/rag_tthc_balanced_small"  # @param {type:"string"}
 CORPUS_PATH = "/content/drive/MyDrive/RAG_Data/unified.zip"  # @param {type:"string"}
-DATASET_PATH = "/content/drive/MyDrive/RAG_Data/qa_test/dataset.jsonl"  # @param {type:"string"}
-DATASET_ZIP = ""  # @param {type:"string"}
-MODEL_REVISION = ""  # @param {type:"string"}
-
-# @markdown **Output**
-CACHE_DIR = "/content/tthc_rag_cache"  # @param {type:"string"}
-OUTPUT_DIR = "/content/drive/MyDrive/RAG_Data/qwen2_5_7b_rag_results"  # @param {type:"string"}
-
-# @markdown **Tham số chạy**
-COMMAND = "run"  # @param ["run", "prepare", "smoke", "evaluate", "report"]
+VIEW = "views_main_test.json"  # @param ["views_main_test.json", "views_challenge_test.json", "views_dev.json", "views_main_core_test.json", "views_main_sparse_test.json"]
+SPLIT = "test"  # @param ["test", "dev"]
+MODE = "free_running"  # @param ["free_running", "reference_history"]
+NO_RETRIEVAL = False  # @param {type:"boolean"}
+MODEL = "qwen2.5:7b"  # @param {type:"string"}
 EMBEDDING_DEVICE = "cpu"  # @param ["cpu", "cuda"]
 TOP_K = 5  # @param {type:"integer"}
-MAX_CASES = 0  # @param {type:"integer"}
-SMOKE_TEST_N = 5  # @param {type:"integer"}
-BERTSCORE_DEVICE = "cpu"  # @param ["cpu", "cuda"]
-BERTSCORE_BATCH_SIZE = 1  # @param {type:"integer"}
-"""
-    cells = bootstrap("Lab Qwen2.5:7B + RAG", "rag,evaluation", settings)
-    cells.extend(
-        [
-            cell("markdown", "## 4. Kết nối dữ liệu\nMount Google Drive chứa input và output."),
-            cell("code", 'from google.colab import drive\ndrive.mount("/content/drive")'),
-            cell("markdown", "## 5. Tạo cấu hình chạy\nTạo YAML từ các giá trị ở Mục 1."),
-            cell(
-                "code",
-                """
-import yaml
+# @markdown 10 để thử; 0 để chạy toàn bộ view. Không dùng limit cho báo cáo cuối.
+LIMIT = 10  # @param {type:"integer"}
+CACHE_DIR = "/content/tthc_rag_cache"  # @param {type:"string"}
+OUTPUT_DIR = "/content/drive/MyDrive/RAG_Data/qa_v4_results"  # @param {type:"string"}
+# @markdown Mỗi lần chạy dùng RUN_NAME mới; runner chưa hỗ trợ resume.
+RUN_NAME = "small_main_smoke_rag"  # @param {type:"string"}
+LEXICAL = True  # @param {type:"boolean"}
+'''
+    cells = bootstrap("Colab: đánh giá QA v4 nhỏ với Qwen/Ollama và RAG", "rag,evaluation", settings)
+    cells[0] = cell("markdown", """# Đánh giá QA v4 nhỏ trên Colab
+Chọn **Runtime → Change runtime type → GPU**, rồi chạy lần lượt.
+Push mã nguồn mới lên GitHub và đặt `GIT_REF` đúng nhánh/commit trước khi chạy.
+Đưa thư mục `rag_tthc_balanced_small` và corpus `unified.zip` lên Google Drive.
+Notebook mặc định thử 10 câu; đặt `LIMIT = 0` để chạy toàn bộ view.
+Kết quả ghi lên Drive từng câu, gồm câu hỏi và câu trả lời. Runner chưa hỗ trợ resume;
+phiên bị ngắt cần dùng tên lượt chạy mới hoặc chia view thành các nhóm giữ nguyên hội thoại.
+Baseline bật `NO_RETRIEVAL`; baseline không cần corpus. Chấm điểm không gọi model.
+""")
+    cells.extend([
+        cell("markdown", "## 4. Mount Drive và kiểm tra đầu vào"),
+        cell("code", '''
+from google.colab import drive
+drive.mount("/content/drive")
+subprocess.run([sys.executable, "-m", "pip", "install", "-q", "sacrebleu>=2,<3"], check=True)
+from vigovbot.evaluation.multiturn import load_queries, validate_sequence
+from vigovbot.qa_v4.io import read_jsonl
+from vigovbot.qa_v4.__main__ import select_rows
 
-config = yaml.safe_load((REPO_DIR / "configs/rag.yaml").read_text(encoding="utf-8"))
-config["data"].update({
-    "unified_source": CORPUS_PATH,
-    "dataset_path": DATASET_PATH or None,
-    "dataset_zip": DATASET_ZIP or None,
-    "cache_dir": CACHE_DIR,
-    "output_dir": OUTPUT_DIR,
-})
-config["embedding"]["device"] = EMBEDDING_DEVICE
-config["embedding"]["revision"] = MODEL_REVISION or None
-config["retrieval"]["top_k"] = TOP_K
-config["evaluation"].update({
-    "max_cases": MAX_CASES or None,
-    "smoke_test_n": SMOKE_TEST_N,
-    "bertscore_device": BERTSCORE_DEVICE,
-    "bertscore_batch_size": BERTSCORE_BATCH_SIZE,
-})
-CONFIG_PATH = Path("/content/rag_colab.yaml")
-CONFIG_PATH.write_text(
-    yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8"
-)
-print("Config:", CONFIG_PATH)
-""",
-            ),
-            cell("markdown", "## 6. Chuẩn bị mô hình\nKhởi động Ollama và tải model khi cần."),
-            cell(
-                "code",
-                'from vigovbot.utils.colab_runtime import ensure_ollama\nensure_ollama(config["llm"]["model"], config["llm"]["ollama_url"])',
-            ),
-            cell("markdown", "## 7. Chạy lab\nThực thi lệnh đã chọn ở Mục 1."),
-            cell(
-                "code",
-                """
-subprocess.run(
-    [sys.executable, "-m", "vigovbot", "rag", "--config", str(CONFIG_PATH), COMMAND],
-    cwd=REPO_DIR,
-    check=True,
-)
-""",
-            ),
-            cell("markdown", "## 8. Xem output\nHiển thị báo cáo tổng hợp và danh sách file kết quả."),
-            cell(
-                "code",
-                """
-import json
-import pandas as pd
-
-output = Path(OUTPUT_DIR)
-summary_path = output / "summary.json"
-if summary_path.exists():
-    display(pd.DataFrame([json.loads(summary_path.read_text(encoding="utf-8"))]))
+dataset = Path(DATASET_DIR)
+if LIMIT < 0 or TOP_K < 1:
+    raise ValueError("LIMIT phải >= 0; TOP_K phải >= 1")
+queries = load_queries(dataset / "runner_queries.jsonl", dataset / VIEW, SPLIT)
+queries = queries[:LIMIT] if LIMIT else queries
+cases = select_rows(read_jsonl(dataset / "cases.jsonl"), dataset, VIEW, SPLIT, LIMIT or None)
+if [q["id"] for q in queries] != [c["id"] for c in cases]:
+    raise ValueError("Câu hỏi và case chấm không khớp")
+if MODE == "free_running":
+    validate_sequence(queries)
+if not NO_RETRIEVAL and not Path(CORPUS_PATH).exists():
+    raise FileNotFoundError(CORPUS_PATH)
+if not RUN_NAME or Path(RUN_NAME).name != RUN_NAME:
+    raise ValueError("RUN_NAME phải là một tên thư mục")
+output = Path(OUTPUT_DIR) / RUN_NAME
+PREDICTIONS = output / "predictions.jsonl"
+SCORES = output / "scores.json"
+if PREDICTIONS.exists() or SCORES.exists():
+    raise FileExistsError("Kết quả đã tồn tại; chọn RUN_NAME mới")
+output.mkdir(parents=True, exist_ok=True)
+print("Số câu:", len(queries), "| View:", VIEW, "| Baseline:", NO_RETRIEVAL)
 print("Output:", output)
-print("Files:", [p.name for p in output.iterdir()] if output.exists() else [])
-""",
-            ),
-        ]
-    )
+'''),
+        cell("markdown", "## 5. Tạo cấu hình RAG và lưu thông tin lượt chạy"),
+        cell("code", '''
+import json
+import yaml
+config = yaml.safe_load((REPO_DIR / "configs/rag.yaml").read_text(encoding="utf-8"))
+config["data"].update(unified_source=CORPUS_PATH, cache_dir=CACHE_DIR,
+                      output_dir=str(output), dataset_path=None, dataset_zip=None)
+config["embedding"]["device"] = EMBEDDING_DEVICE
+config["llm"]["model"] = MODEL
+config["retrieval"]["top_k"] = TOP_K
+CONFIG_PATH = Path("/content/qa_v4_colab.yaml")
+CONFIG_PATH.write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
+(output / "config.yaml").write_text(CONFIG_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+run_settings = {"git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+                "dataset": DATASET_DIR, "view": VIEW, "split": SPLIT, "limit": LIMIT,
+                "mode": MODE, "no_retrieval": NO_RETRIEVAL, "model": MODEL,
+                "top_k": TOP_K, "lexical": LEXICAL}
+(output / "notebook_run.json").write_text(json.dumps(run_settings, ensure_ascii=False, indent=2), encoding="utf-8")
+'''),
+        cell("markdown", "## 6. Cài Ollama, khởi động và tải model"),
+        cell("code", '''
+from vigovbot.utils.colab_runtime import ensure_ollama
+ensure_ollama(config["llm"]["model"], config["llm"]["ollama_url"])
+'''),
+        cell("markdown", "## 7. Sinh câu trả lời và lưu từng câu lên Drive"),
+        cell("code", '''
+selection = ["--dataset", str(dataset), "--view", VIEW, "--split", SPLIT]
+if LIMIT:
+    selection += ["--limit", str(LIMIT)]
+command = [sys.executable, "-m", "vigovbot", "qa-v4", "run", *selection,
+           "--config", str(CONFIG_PATH), "--mode", MODE, "--out", str(PREDICTIONS)]
+if NO_RETRIEVAL:
+    command.append("--no-retrieval")
+result = subprocess.run(command, cwd=REPO_DIR)
+if result.returncode:
+    print("Runner có lỗi. Nếu prediction tồn tại, vẫn chấm để báo coverage và lỗi.")
+if not PREDICTIONS.exists():
+    raise RuntimeError("Không có prediction; kiểm tra lỗi phía trên trước khi chấm")
+'''),
+        cell("markdown", "## 8. Chấm điểm offline với cùng view/split/limit"),
+        cell("code", '''
+command = [sys.executable, "-m", "vigovbot", "qa-v4", "score", *selection,
+           "--top-k", str(TOP_K), "--predictions", str(PREDICTIONS), "--out", str(SCORES)]
+if LEXICAL:
+    command.append("--lexical")
+subprocess.run(command, cwd=REPO_DIR, check=True)
+'''),
+        cell("markdown", "## 9. Xem câu hỏi, câu trả lời, đáp án tham chiếu và điểm\nRecall/MRR cần mapping chunk sang unit ID; correctness/faithfulness cần judgments ngữ nghĩa."),
+        cell("code", '''
+import pandas as pd
+report = json.loads(SCORES.read_text(encoding="utf-8"))
+display(pd.DataFrame([report["coverage"]]))
+display(pd.DataFrame(report.get("overall_available", {})).T)
+case_map = {c["id"]: c for c in cases}
+metric_map = {m["id"]: m for m in report["per_case"]}
+comparisons = []
+for prediction in read_jsonl(PREDICTIONS):
+    case = case_map.get(prediction["id"], {})
+    comparisons.append({**metric_map.get(prediction["id"], {}),
+                        "id": prediction["id"], "question": prediction.get("question", ""),
+                        "answer": prediction.get("answer", ""),
+                        "reference_answer": case.get("reference_answer", ""),
+                        "error": prediction.get("error", ""),
+                        "latency_seconds": prediction.get("latency_seconds")})
+comparison = pd.DataFrame(comparisons)
+comparison.to_csv(output / "comparison.csv", index=False, encoding="utf-8-sig")
+display(comparison.head(10))
+print("Kết quả:", output)
+'''),
+    ])
     save(ROOT / "ipynb/base_rag/lqwen2_5_7B_rag.ipynb", cells, True)
 
 

@@ -3,10 +3,30 @@
 Mở `lqwen2_5_7B_rag.ipynb`, chọn GPU và chạy tuần tự.
 Đặt `GIT_REF` tới commit đã có trên GitHub. Notebook cài package từ checkout,
 thêm thư mục `src` vào đường dẫn import của kernel, mount Drive, tạo YAML riêng
-từ `configs/rag.yaml` và gọi `python -m vigovbot rag`.
+từ `configs/rag.yaml` và gọi `python -m vigovbot qa-v4 run/score`.
 
-Chuẩn bị corpus có đủ index, metadata và `corpus_manifest.json`; bộ test
-`qa_test/dataset.jsonl` hoặc ZIP. Dùng output mới khi đổi code/config/dữ liệu.
+Chuẩn bị corpus có đủ index, metadata và `corpus_manifest.json` tại
+`/content/drive/MyDrive/RAG_Data/unified.zip` (hoặc thư mục corpus).
+Đưa bộ test nhỏ đã giải nén lên Drive tại
+`/content/drive/MyDrive/RAG_Data/rag_tthc_balanced_small`, gồm ít nhất
+`runner_queries.jsonl`, `cases.jsonl` và các file view cần chạy. Dữ liệu không
+được tải cùng git clone vì `Data/` bị gitignore.
+
+Ô cấu hình mặc định chọn `views_main_test.json`, split `test`, lịch sử
+`free_running` và `LIMIT = 10` để thử. Đặt `LIMIT = 0` để chạy toàn bộ 6.384 lượt.
+Challenge chọn `views_challenge_test.json`; dev chọn `views_dev.json` và split `dev`.
+Giữ nguyên hội thoại khi chia view thành các nhóm chạy trên Colab.
+
+Bật `NO_RETRIEVAL` để chạy baseline Qwen/Ollama; chế độ này không cần corpus.
+Đổi `RUN_NAME` mỗi lượt chạy: runner không ghi đè kết quả và chưa hỗ trợ resume.
+Kết quả nằm trong `OUTPUT_DIR/RUN_NAME` trên Drive:
+`predictions.jsonl` (câu hỏi/câu trả lời hoặc lỗi), `scores.json`,
+`comparison.csv` (câu hỏi/câu trả lời/đáp án tham chiếu/điểm), cấu hình và thông tin commit.
+Đáp án tham chiếu chỉ đọc khi chấm và xuất bảng, không gửi vào model.
+Notebook hiện chấm lexical tùy chọn; không bật BERTScore hay semantic judge tự động.
+
+Các thay đổi mã nguồn phải được commit/push lên GitHub trước khi Colab fetch.
+Đổi nhánh/commit khi đã import package cần khởi động lại runtime để tránh dùng module cũ.
 
 [Migration dữ liệu cũ](../../docs/migration.md) · [Kiến trúc](../../docs/architecture.md)
 
