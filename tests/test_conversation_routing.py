@@ -93,10 +93,26 @@ class RoutingTests(unittest.TestCase):
                 self.assertEqual(result["decision_reason"], "evidence_assessment")
 
     def test_invalid_router_never_silently_retrieves(self):
-        for response in ["not json", "[]", route("follow_up"), route("ambiguous", query=""),
+        for response in ["not json", "[]", route("ambiguous", query=""),
                          route(scope="invalid"), route(query="")]:
             with self.subTest(response=response), self.assertRaises(ValueError):
                 self.run_answer([response])
+        self.retriever.search.assert_not_called()
+
+    def test_follow_up_without_history_retries_as_standalone(self):
+        result, llm = self.run_answer([
+            route("follow_up"), route("new_question"),
+            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))])
+        self.assertEqual(result["action"], "answer")
+        self.assertEqual(llm.call_count, 3)
+        self.assertIn("KHÔNG có lịch sử", llm.call_args_list[1].args[0][0]["content"])
+        self.retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", 5)
+
+    def test_repeated_follow_up_without_history_clarifies(self):
+        result, llm = self.run_answer([route("follow_up"), route("follow_up")])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(llm.call_count, 2)
+        self.assertIn("fallback_reason", result["raw_routing"])
         self.retriever.search.assert_not_called()
 
     def test_inconsistent_evidence_action_rejected(self):

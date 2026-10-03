@@ -259,8 +259,28 @@ command = [sys.executable, "-m", "vigovbot", "qa-v4", "run", *selection,
 if NO_RETRIEVAL:
     command.append("--no-retrieval")
 print("Bắt đầu sinh câu trả lời; tiến trình từng câu hiển thị bên dưới.", flush=True)
-result = subprocess.run(command, cwd=REPO_DIR, env=dict(os.environ, PYTHONUNBUFFERED="1"))
-if result.returncode:
+def stream_command(command):
+    # Relay child output through the notebook kernel so Colab displays it reliably.
+    with subprocess.Popen(command, cwd=REPO_DIR,
+                          env=dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8"),
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                          text=True, encoding="utf-8", errors="replace", bufsize=1) as process:
+        print("PID tiến trình:", process.pid, flush=True)
+        try:
+            for line in process.stdout:
+                print(line, end="", flush=True)
+            return process.wait()
+        except BaseException:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            raise
+
+returncode = stream_command(command)
+if returncode:
     print("Runner có lỗi. Nếu prediction tồn tại, vẫn chấm để báo coverage và lỗi.")
 if not PREDICTIONS.exists():
     raise RuntimeError("Không có prediction; kiểm tra lỗi phía trên trước khi chấm")
@@ -272,7 +292,9 @@ command = [sys.executable, "-m", "vigovbot", "qa-v4", "score", *selection,
 if LEXICAL:
     command.append("--lexical")
 print("Đang chấm điểm offline...", flush=True)
-subprocess.run(command, cwd=REPO_DIR, check=True, env=dict(os.environ, PYTHONUNBUFFERED="1"))
+returncode = stream_command(command)
+if returncode:
+    raise RuntimeError(f"Chấm điểm thất bại: exit code {returncode}")
 print("Đã chấm xong:", SCORES, flush=True)
 '''),
         cell("markdown", "## 9. Xem câu hỏi, câu trả lời, đáp án tham chiếu và điểm\nRecall/MRR cần mapping chunk sang unit ID; correctness/faithfulness cần judgments ngữ nghĩa."),

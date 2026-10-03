@@ -43,6 +43,9 @@ def normalize_result(result, unit_mapping=None):
                   "citations": result.get("citations", []), "context_used": result.get("context_used", []),
                   "retrieval_query": result.get("retrieval_query"), "telemetry": telemetry,
                   "unit_mapping_status": status, "unmapped_chunk_ids": unmapped}
+    for key in ("routing", "raw_routing", "decision_reason", "evidence_status"):
+        if key in result:
+            normalized[key] = result[key]
     if units is not None:
         normalized["retrieved_unit_ids"] = units
     return normalized
