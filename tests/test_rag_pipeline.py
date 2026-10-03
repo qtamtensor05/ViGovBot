@@ -3,6 +3,7 @@
 import json
 import sqlite3
 import tempfile
+import threading
 import unittest
 import zipfile
 from pathlib import Path
@@ -109,6 +110,32 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(len(hits), 3)
         self.assertEqual(hits[0]["chunk_id"], "chunk_1")
         self.assertAlmostEqual(hits[0]["score"], 1.0)
+
+    def test_retriever_can_search_from_http_worker_thread(self):
+        index, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
+
+        class Encoder:
+            def encode(self, texts, **kwargs):
+                result = np.zeros((1, 1024), dtype=np.float32)
+                result[0, 0] = 1
+                return result
+
+        retriever = Retriever(index, database, Encoder())
+        self.addCleanup(retriever.close)
+        outcome = {}
+
+        def search():
+            try:
+                outcome["hits"] = retriever.search("Câu hỏi", top_k=1)
+            except Exception as exc:
+                outcome["error"] = exc
+
+        worker = threading.Thread(target=search)
+        worker.start()
+        worker.join(timeout=5)
+        self.assertFalse(worker.is_alive())
+        self.assertNotIn("error", outcome)
+        self.assertEqual(outcome["hits"][0]["chunk_id"], "chunk_0")
 
     def test_wrong_count_and_duplicate_chunk_rejected(self):
         for records in ([chunk(0)], [chunk(0)] * 3, [chunk(i) for i in range(4)]):

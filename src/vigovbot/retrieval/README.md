@@ -22,6 +22,9 @@ câu hỏi → encoder → vector 1024 chiều → chuẩn hóa L2 → FAISS sea
 Số hàng SQLite phải bằng số vector FAISS. Index phải có 1024 chiều và metric
 inner product. Vector câu hỏi phải hữu hạn, khác vector không và đúng shape.
 `top_k` phải dương và được giới hạn bởi số vector trong index. Caller phải gọi
-`close()` hoặc quản lý `Retriever` qua vòng đời của phiên inference.
+`close()` hoặc quản lý `Retriever` qua vòng đời của phiên inference. Kết nối
+SQLite được mở read-only với khả năng dùng từ thread HTTP khác thread khởi tạo;
+`search()` và `close()` dùng khóa nội bộ để tuần tự hóa truy cập vào encoder,
+FAISS và SQLite dùng chung.
 
 [Kiến trúc hệ thống](../../../docs/architecture.md) · [Module RAG](../rag/README.md)

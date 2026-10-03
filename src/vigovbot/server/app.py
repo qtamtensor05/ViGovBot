@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 
@@ -41,7 +42,13 @@ class ChatApplication:
 
     def public_models(self):
         return [
-            {"id": item.id, "label": item.label, "provider": item.provider, "model": item.model}
+            {
+                "id": item.id,
+                "label": item.label,
+                "provider": item.provider,
+                "model": item.model,
+                "mode": getattr(item, "mode", "rag"),
+            }
             for item in self.models.values()
         ]
 
@@ -77,16 +84,35 @@ class ChatApplication:
             for model_id in model_ids:
                 model = self.models[model_id]
                 try:
-                    result = answer_question(
-                        question.strip(),
-                        self.retriever,
-                        self.tokenizer,
-                        self._settings(model),
-                        history=clean_histories[model_id],
-                        answer_fn=answerer_for(model.provider),
-                    )
+                    mode = getattr(model, "mode", "rag")
+                    answer_fn = answerer_for(model.provider)
+                    settings = self._settings(model)
+                    if mode == "base":
+                        started = time.perf_counter()
+                        messages = [
+                            *clean_histories[model_id],
+                            {"role": "user", "content": question.strip()},
+                        ]
+                        answer, _, generation_s = answer_fn(messages, settings)
+                        result = {
+                            "prediction": answer,
+                            "action": None,
+                            "retrieved": [],
+                            "generation_s": generation_s,
+                            "latency_s": time.perf_counter() - started,
+                        }
+                    else:
+                        result = answer_question(
+                            question.strip(),
+                            self.retriever,
+                            self.tokenizer,
+                            settings,
+                            history=clean_histories[model_id],
+                            answer_fn=answer_fn,
+                        )
                     results.append({
                         "model_id": model_id,
+                        "mode": mode,
                         "answer": result["prediction"],
                         "action": result.get("action"),
                         "sources": result.get("retrieved", []),

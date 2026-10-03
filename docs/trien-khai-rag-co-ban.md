@@ -281,12 +281,23 @@ lịch sử riêng cho từng model trong trình duyệt và gửi lại qua m�
 không lưu phiên hội thoại. Các request chat được khóa và xử lý model đã chọn theo
 thứ tự để dùng chung tài nguyên an toàn.
 
+`configs/inference.yaml` khai báo sẵn hai lựa chọn cùng dùng `qwen2.5:7b`:
+
+- `mode: base`: gửi câu hỏi và lịch sử thẳng tới Qwen, không gọi embedding,
+  FAISS/SQLite hoặc prompt RAG; kết quả không có nguồn.
+- `mode: rag`: chạy toàn bộ router, truy hồi và xét bằng chứng; kết quả có các
+  nguồn được truy hồi.
+
+Chọn cả hai trên UI để xem hai câu trả lời cạnh nhau. Đây là so sánh chế độ suy
+luận trên cùng model instruction `qwen2.5:7b`; chữ "base" không chỉ một base
+checkpoint riêng chưa instruction-tune.
+
 Nếu `web.models` trống, server dùng model Ollama trong nhóm `llm` với ID
-`default`. Có thể khai báo tối đa tám model được chọn trong một request để so
-sánh, với provider `ollama` hoặc `openai_compatible`. Provider bên ngoài chỉ đọc
-khóa từ biến môi trường có tên trong `api_key_env`; không ghi khóa trực tiếp vào
-YAML. Đây là server nghiên cứu không có xác thực, TLS, lưu phiên hay kiểm soát
-truy cập; giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
+`default` và `mode: rag`. Có thể khai báo tối đa tám lựa chọn trong một request,
+với provider `ollama` hoặc `openai_compatible`. Provider bên ngoài chỉ đọc khóa
+từ biến môi trường có tên trong `api_key_env`; không ghi khóa trực tiếp vào YAML.
+Đây là server nghiên cứu không có xác thực, TLS, lưu phiên hay kiểm soát truy cập;
+giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
 
 ## 5. Chạy đánh giá
 

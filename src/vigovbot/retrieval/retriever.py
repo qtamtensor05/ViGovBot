@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import sqlite3
+import threading
 from pathlib import Path
 
 
@@ -10,15 +11,24 @@ class Retriever:
 
         with Path(index_path).open("rb") as handle:
             self.index = faiss.read_index(faiss.PyCallbackIOReader(handle.read))
-        self.db = sqlite3.connect(Path(db_path).resolve().as_uri() + "?mode=ro", uri=True)
+        self.db = sqlite3.connect(
+            Path(db_path).resolve().as_uri() + "?mode=ro",
+            uri=True,
+            check_same_thread=False,
+        )
         self.db.execute("PRAGMA cache_size=-16384")
         self.encoder = encoder
+        self._lock = threading.Lock()
         count = self.db.execute("SELECT count(*) FROM chunks").fetchone()[0]
         if count != self.index.ntotal or self.index.d != 1024 or self.index.metric_type != faiss.METRIC_INNER_PRODUCT:
             self.db.close()
             raise ValueError("SQLite và FAISS không khớp hoặc sai loại chỉ mục")
 
     def search(self, question, top_k=5):
+        with self._lock:
+            return self._search(question, top_k)
+
+    def _search(self, question, top_k):
         import faiss
         import numpy as np
 
@@ -47,4 +57,5 @@ class Retriever:
         return hits
 
     def close(self):
-        self.db.close()
+        with self._lock:
+            self.db.close()

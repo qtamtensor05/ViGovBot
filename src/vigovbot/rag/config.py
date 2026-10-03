@@ -61,6 +61,7 @@ class WebModelConfig(StrictModel):
     model: str = Field(min_length=1)
     base_url: str = Field(min_length=1)
     api_key_env: str | None = None
+    mode: str = Field(default="rag", pattern=r"^(base|rag)$")
 
     @model_validator(mode="after")
     def check_credentials(self):

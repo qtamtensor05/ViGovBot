@@ -1,5 +1,45 @@
 # Yêu cầu dự án
 
+## TASK-20261003-05
+
+- Ngày: 2026-10-03 (Asia/Saigon).
+- Yêu cầu: xác thực Qwen có trả sai định dạng dẫn đến fallback hay không.
+- Phạm vi: kiểm tra artifact Qwen thật, chạy lại validator hiện hành trên JSON
+  đã lưu và phân biệt lỗi cú pháp với lỗi hợp đồng routing.
+- Tiêu chí: xác định lượt fallback, JSON đầu/retry và nguyên nhân validator từ chối.
+- Trạng thái: completed; artifact Qwen thật có 3 lượt fallback, đã tái kiểm tra
+  JSON đầu/retry bằng validator hiện hành; nguyên nhân là sai hợp đồng routing.
+
+## TASK-20261003-04
+
+- Ngày: 2026-10-03 (Asia/Saigon).
+- Yêu cầu: sửa lỗi web ở nhánh Qwen + RAG: `SQLite objects created in a thread
+  can only be used in that same thread`.
+- Phạm vi: sửa vòng đời/truy cập SQLite của `Retriever` để dùng an toàn từ thread
+  xử lý HTTP, thêm kiểm thử hồi quy đa luồng và cập nhật hồ sơ kỹ thuật.
+- Tiêu chí hoàn thành: truy hồi từ thread khác thread khởi tạo không lỗi; truy cập
+  dùng chung được tuần tự hóa; toàn bộ test RAG/server liên quan thành công.
+- Giả định: web tiếp tục dùng một `Retriever` read-only chung và xử lý chat tuần
+  tự; không thay đổi schema corpus hoặc kết quả truy hồi.
+- Trạng thái: completed; kết nối SQLite read-only cho phép dùng khác thread và
+  Retriever tuần tự hóa truy cập; test hồi quy cùng 20 test liên quan đều đạt.
+
+## TASK-20261003-03
+
+- Ngày: 2026-10-03 (Asia/Saigon).
+- Yêu cầu: giao diện web phải hiển thị và so sánh câu trả lời của Qwen base với
+  Qwen sử dụng RAG cho cùng một câu hỏi.
+- Phạm vi: mở rộng cấu hình model web với chế độ `base`/`rag`, triển khai nhánh
+  gọi thẳng model không truy hồi, cấu hình sẵn hai lựa chọn Qwen, cập nhật UI,
+  kiểm thử và tài liệu liên quan.
+- Tiêu chí hoàn thành: chọn đồng thời hai chế độ trên web trả hai ô kết quả; nhánh
+  base không gọi pipeline truy hồi, nhánh RAG vẫn trả nguồn; cấu hình được validate
+  và có kiểm thử cho hai đường đi.
+- Giả định: "Qwen base" là cùng model Ollama `qwen2.5:7b` nhận câu hỏi/lịch sử
+  trực tiếp, không phải base checkpoint chưa instruction-tune.
+- Trạng thái: completed; hai chế độ xuất hiện trong cấu hình mặc định, nhánh base
+  bỏ qua truy hồi, nhánh RAG giữ nguồn; 19 test liên quan thành công.
+
 ## TASK-20261003-02
 
 - Ngày: 2026-10-03 (Asia/Saigon).

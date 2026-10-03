@@ -11,11 +11,18 @@ llm:
   ollama_url: http://localhost:11434
 web:
   models:
-    - id: qwen-local
-      label: Qwen 2.5 7B (Ollama)
+    - id: qwen-base
+      label: Qwen 2.5 7B — Base (không RAG)
       provider: ollama
       model: qwen2.5:7b
       base_url: http://localhost:11434
+      mode: base
+    - id: qwen-rag
+      label: Qwen 2.5 7B + RAG
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: http://localhost:11434
+      mode: rag
     # Ví dụ API chuẩn OpenAI-compatible:
     # - id: model-api
     #   label: Model qua API
@@ -23,3 +30,4 @@ web:
     #   model: ten-model-tren-api
     #   base_url: https://example.com/v1
     #   api_key_env: MODEL_API_KEY
+    #   mode: rag

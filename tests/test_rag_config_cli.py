@@ -33,6 +33,8 @@ class ConfigTests(unittest.TestCase):
             {"retrieval": {"top_k": 0}},
             {"llm": {"num_ctx": 500, "num_predict": 512}},
             {"evaluation": {"max_cases": 0}},
+            {"web": {"models": [{"id": "x", "label": "X", "provider": "ollama", "model": "qwen",
+                                  "base_url": "http://localhost", "mode": "unknown"}]}},
             {"unknown": True},
         ):
             with self.subTest(overrides=overrides), self.assertRaises(ValueError):

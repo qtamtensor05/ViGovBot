@@ -1,15 +1,14 @@
 # Current stage — giai đoạn hiện tại
 
 - Cập nhật: 2026-10-03 (Asia/Saigon).
-- Task: TASK-20261003-02.
-- Giai đoạn: hoàn tất TASK-20261003-02.
-- Đã làm: cập nhật hướng dẫn triển khai theo router nhiều lượt, xét bằng chứng,
-  CLI history, web API/UI nhiều model và giới hạn hiện tại; bỏ liên kết hỏng.
+- Task: TASK-20261003-05.
+- Giai đoạn: hoàn tất xác thực lỗi hợp đồng routing gây fallback.
+- Đã làm: đọc raw response Qwen thật, chạy validator trên JSON đầu/retry;
+  xác nhận 3 fallback trong 10 dòng artifact, thêm script chẩn đoán.
 - Còn lại: không còn hạng mục thuộc yêu cầu hiện tại.
 - Trở ngại: chưa ghi nhận trở ngại ngăn hoàn tất task.
-- Bước tiếp theo: task lớn tiếp theo tạo ID mới và cập nhật các hồ sơ này.
-- Bằng chứng: 16 liên kết tương đối đều có đích; `git diff --check` thành công.
-  Unit test RAG chưa chạy do Python hiện tại thiếu `faiss` (ERR-20261003-03).
-  Không chạy model, corpus hoặc web server thật vì chỉ thay đổi tài liệu.
-- Trạng thái ứng dụng: tài liệu triển khai đã đối chiếu trực tiếp với mã nguồn;
-  README/roadmap ngoài phạm vi task có thể còn mô tả trạng thái không đồng nhất.
+- Bước tiếp theo: nếu triển khai sửa, kiểm chứng prompt/schema routing trên model thật.
+- Bằng chứng: script verify_routing_artifact thành công trên
+  `outputs/qa_v4/local_smoke.jsonl`; dòng 8–10 sai hợp đồng cả hai lần.
+- Trạng thái ứng dụng: JSON Qwen đúng cú pháp nhưng follow_up có clarification
+  gây fallback; chưa thay đổi hành vi routing, chưa gọi model mới trong task này.
