@@ -160,16 +160,16 @@ if DOWNLOAD_OUTPUT:
 
 def build_rag():
     settings = '''
-# @title 1. Cấu hình đánh giá QA v4 nhỏ
+# @title 1. Cấu hình đánh giá ba bộ QA 1.500 lượt
 REPO_URL = "https://github.com/qtamtensor05/ViGovBot.git"  # @param {type:"string"}
 GIT_REF = "main"  # @param {type:"string"}
 REPO_DIR = "/content/ViGovBot"  # @param {type:"string"}
 # @markdown Data không nằm trên GitHub; đặt bộ nhỏ đã giải nén trên Drive.
-DATASET_DIR = "/content/drive/MyDrive/RAG_Data/rag_tthc_balanced_small"  # @param {type:"string"}
+DATASET_DIR = "/content/drive/MyDrive/RAG_Data/rag_tthc_three_1500"  # @param {type:"string"}
 CORPUS_PATH = "/content/drive/MyDrive/RAG_Data/unified.zip"  # @param {type:"string"}
-VIEW = "views_main_test.json"  # @param ["views_main_test.json", "views_challenge_test.json", "views_dev.json", "views_main_core_test.json", "views_main_sparse_test.json"]
+VIEW = "views_single_1500.json"  # @param ["views_single_1500.json", "views_multi_1500.json", "views_coverage_1500.json"]
 SPLIT = "test"  # @param ["test", "dev"]
-MODE = "free_running"  # @param ["free_running", "reference_history"]
+MODE = "reference_history"  # @param ["reference_history", "free_running"]
 NO_RETRIEVAL = False  # @param {type:"boolean"}
 MODEL = "qwen2.5:7b"  # @param {type:"string"}
 EMBEDDING_DEVICE = "cpu"  # @param ["cpu", "cuda"]
@@ -179,15 +179,16 @@ LIMIT = 10  # @param {type:"integer"}
 CACHE_DIR = "/content/tthc_rag_cache"  # @param {type:"string"}
 OUTPUT_DIR = "/content/drive/MyDrive/RAG_Data/qa_v4_results"  # @param {type:"string"}
 # @markdown Mỗi lần chạy dùng RUN_NAME mới; runner chưa hỗ trợ resume.
-RUN_NAME = "small_main_smoke_rag"  # @param {type:"string"}
+RUN_NAME = "three1500_single_smoke_rag"  # @param {type:"string"}
 LEXICAL = True  # @param {type:"boolean"}
 '''
-    cells = bootstrap("Colab: đánh giá QA v4 nhỏ với Qwen/Ollama và RAG", "rag,evaluation", settings)
-    cells[0] = cell("markdown", """# Đánh giá QA v4 nhỏ trên Colab
+    cells = bootstrap("Colab: đánh giá ba bộ QA 1.500 với Qwen/Ollama và RAG", "rag,evaluation", settings)
+    cells[0] = cell("markdown", """# Đánh giá ba bộ QA 1.500 trên Colab
 Chọn **Runtime → Change runtime type → GPU**, rồi chạy lần lượt.
 Push mã nguồn mới lên GitHub và đặt `GIT_REF` đúng nhánh/commit trước khi chạy.
-Đưa thư mục `rag_tthc_balanced_small` và corpus `unified.zip` lên Google Drive.
+Đưa thư mục `rag_tthc_three_1500` và corpus `unified.zip` lên Google Drive.
 Notebook mặc định thử 10 câu; đặt `LIMIT = 0` để chạy toàn bộ view.
+Single/coverage nên dùng `reference_history`; multi dùng `free_running` để đo hội thoại nối tiếp.
 Kết quả ghi lên Drive từng câu, gồm câu hỏi và câu trả lời. Runner chưa hỗ trợ resume;
 phiên bị ngắt cần dùng tên lượt chạy mới hoặc chia view thành các nhóm giữ nguyên hội thoại.
 Baseline bật `NO_RETRIEVAL`; baseline không cần corpus. Chấm điểm không gọi model.

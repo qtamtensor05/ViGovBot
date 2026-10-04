@@ -11,11 +11,14 @@ def resolve_dataset(dataset, view=None):
     aliases = {
         "rag_v4_small": Path("Data/qa_test_v4/rag_tthc_balanced_small"),
         "rag_tthc_balanced_small": Path("Data/qa_test_v4/rag_tthc_balanced_small"),
+        "test_rag_three_1500": Path("Data/qa_test_v4/rag_tthc_three_1500"),
+        "rag_tthc_three_1500": Path("Data/qa_test_v4/rag_tthc_three_1500"),
         "rag_tthc_v4_1": Path("Data/qa_test_v4/rag_tthc_v4_1"),
     }
     dataset = aliases.get(str(dataset), Path(dataset))
     if view is None:
-        view = "views_main_test.json" if (dataset / "views_main_test.json").is_file() else "views_balanced.json"
+        candidates = ("views_main_test.json", "views_single_1500.json", "views_balanced.json")
+        view = next((name for name in candidates if (dataset / name).is_file()), "views_balanced.json")
     return dataset, view
 
 
@@ -32,7 +35,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Send QA v4 to the existing RAG and evaluate responses")
     parser.add_argument("command", choices=["ask", "chat", "run", "score"])
     parser.add_argument("--dataset", type=Path, default=Path("Data/qa_test_v4/rag_tthc_v4_1"),
-                        help="Dataset directory or alias: rag_v4_small, rag_tthc_v4_1")
+                        help="Dataset directory or alias: rag_v4_small, rag_tthc_three_1500, rag_tthc_v4_1")
     parser.add_argument("--question")
     connection = parser.add_mutually_exclusive_group()
     connection.add_argument("--config", default="rag_config.yaml")

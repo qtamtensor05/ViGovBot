@@ -69,6 +69,10 @@ class QAV4Tests(unittest.TestCase):
             self.assertEqual([q["id"] for q in queries], [c["id"] for c in cases])
             self.assertEqual(resolve_dataset(dataset, "views_dev.json")[1], "views_dev.json")
         self.assertEqual(resolve_dataset("rag_v4_small")[0], Path("Data/qa_test_v4/rag_tthc_balanced_small"))
+        three, view = resolve_dataset("rag_tthc_three_1500")
+        self.assertEqual(three, Path("Data/qa_test_v4/rag_tthc_three_1500"))
+        self.assertEqual(view, "views_single_1500.json")
+        self.assertEqual(resolve_dataset("test_rag_three_1500")[0], three)
         self.assertEqual(resolve_dataset("rag_tthc_v4_1", "views_balanced.json")[1], "views_balanced.json")
 
     def test_adapter_preserves_chunk_ids_without_inventing_units(self):

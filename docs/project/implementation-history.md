@@ -1,5 +1,34 @@
 # Lịch sử triển khai
 
+## TASK-20261004-02 - Rà soát bộ ba tập 1.500
+
+- Xác nhận dataset cục bộ là `Data/qa_test_v4/rag_tthc_three_1500`, gồm
+  4.500 case test và ba view `views_single_1500.json`,
+  `views_multi_1500.json`, `views_coverage_1500.json`, mỗi view 1.500 ID.
+- Dùng trực tiếp loader/selector hiện hành để kiểm tra: cả ba view đều
+  chọn đúng 1.500 query/case theo cùng thứ tự; chuỗi multi qua
+  `validate_sequence` thành công.
+- Kết luận: pipeline/adapter/scorer không bắt buộc sửa nếu CLI truyền
+  `--dataset`, `--view`, `--split test` tường minh. Mặc định hiện tại không
+  phù hợp vì dataset này không có `views_balanced.json`.
+- Nếu chuyển notebook Colab chính thức thì cần đổi `DATASET_DIR`, danh sách
+  `VIEW`, tên output và tài liệu. Nếu chạy nhiều phiên, cần tích hợp
+  resume hoặc dùng `run_resume.py` kèm dataset qua endpoint; runner `qa-v4 run`
+  hiện tại từ chối output đã tồn tại.
+- Không thay đổi mã nguồn runtime trong task rà soát này; chưa chạy model
+  thật hay chấm 4.500 lượt.
+- Bổ sung triển khai theo yêu cầu sau rà soát: CLI nhận alias
+  `rag_tthc_three_1500`/`test_rag_three_1500` và tự chọn
+  `views_single_1500.json` khi phù hợp. Notebook Colab chuyển dataset mặc định,
+  dropdown ba view, mode mặc định `reference_history` và tên output smoke mới.
+- Tài liệu QA nêu rõ mode cho từng view; notebook đã sinh lại từ source.
+  Không tích hợp resume; runner vẫn yêu cầu output mới cho mỗi lượt.
+- Kiểm chứng: 13 test `tests.test_qa_v4` và `tests.test_colab_runtime` đạt;
+  Ruff đạt; notebook JSON có đủ dataset, ba view và run name mới;
+  `git diff --check` đạt (chỉ cảnh báo LF/CRLF).
+- Commit đề xuất: `feat: switch Colab QA evaluation to three 1500 sets`.
+
+
 ## TASK-20261004-01 — Đánh giá ZIP thứ hai và sửa generation
 
 - Theo điều chỉnh của người dùng, chỉ xét ZIP `_rag_2`: 23 lượt, 12 thành công,

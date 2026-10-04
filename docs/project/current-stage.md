@@ -1,4 +1,20 @@
-# Current stage — giai đoạn hiện tại
+# Current stage - giai đoạn hiện tại
+
+- Task hiện tại: TASK-20261004-02 (2026-10-04), completed.
+- Giai đoạn: đã chuyển notebook/CLI sang bộ `rag_tthc_three_1500`.
+- Đã xong: xác nhận 3 view x 1.500 lượt khớp query/case và chuỗi
+  multi hợp lệ; xác định CLI chạy được khi chọn dataset/view tường minh.
+- Đã xong triển khai: notebook dùng dataset mới và ba view; CLI có alias,
+  default single view; tài liệu và test đã đồng bộ.
+- Còn lại: không có trong phạm vi. Resume là cải tiến riêng nếu cần
+  chạy qua nhiều phiên Colab.
+- Bằng chứng: loader hiện hành chọn 1.500/1.500 query/case cho single,
+  multi, coverage; `validate_sequence` cho multi thành công.
+- Kiểm chứng: 13 test QA/Colab đạt; Ruff, notebook artifact và diff-check đạt.
+- Trở ngại: không có; chưa chạy model thật/4.500 lượt vì không
+  thuộc phạm vi cập nhật cấu hình.
+
+## Mục trước - TASK-20261004-01
 
 - Task hiện tại: TASK-20261004-01 (2026-10-04), partial.
 - Phạm vi đã chốt: chỉ ZIP thứ hai, 23 lượt; 4 lỗi generation, 7 lỗi dây chuyền.

@@ -57,7 +57,13 @@ Có thể truyền đường dẫn thư mục bộ test hoặc tên ngắn `rag_
 `Data/qa_test_v4/rag_tthc_balanced_small`. Bộ nhỏ mặc định dùng `views_main_test.json`
 (6.384 lượt test chính); challenge và dev chạy riêng qua `--view` và `--split`.
 Nếu thư mục bộ test có `views_main_test.json`, view này được chọn mặc định;
-nếu không, dùng `views_balanced.json`. `--view` luôn ưu tiên lựa chọn tường minh.
+nếu có `views_single_1500.json` thì dùng view single; trường hợp còn lại
+dùng `views_balanced.json`. `--view` luôn ưu tiên lựa chọn tường minh.
+
+Bộ ba tập có alias `rag_tthc_three_1500` hoặc `test_rag_three_1500`.
+Chạy riêng ba view `views_single_1500.json`, `views_multi_1500.json` và
+`views_coverage_1500.json`; multi nên dùng `--mode free_running`, còn single
+và coverage dùng `--mode reference_history`. Mỗi lượt chạy dùng output riêng.
 
 Chạy từ thư mục gốc bằng môi trường `env` trên Windows:
 

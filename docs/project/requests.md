@@ -1,5 +1,26 @@
 # Yêu cầu dự án
 
+## TASK-20261004-02
+
+- Ngày: 2026-10-04 (Asia/Saigon).
+- Yêu cầu: chuyển luồng đánh giá QA/Colab sang bộ
+  `rag_tthc_three_1500` (người dùng gọi `test_rag_three_1500`) và làm rõ
+  option chạy riêng các bộ single, multi và coverage.
+- Phạm vi: đối chiếu cấu trúc dataset, cập nhật alias/giá trị mặc định
+  phù hợp cho CLI và notebook Colab, tài liệu hóa lệnh chạy/chấm từng
+  view; không chạy 4.500 lượt model thật trong task này.
+- Tiêu chí: ba view 1.500 lượt chọn được tường minh; run và score dùng
+  cùng dataset/view/split; notebook sinh lại và kiểm thử CLI liên quan đạt.
+- Giả định: thư mục chuẩn trong repository là
+  `Data/qa_test_v4/rag_tthc_three_1500`; `test_rag_three_1500` là tên người
+  dùng dùng để chỉ cùng bộ dữ liệu.
+- Bổ sung: người dùng yêu cầu triển khai luôn thay đổi cho notebook.
+  Cập nhật dataset/view mặc định, alias CLI, tài liệu và test; không
+  thay đổi cơ chế resume của runner trong phạm vi này.
+- Trạng thái: completed; notebook đã chuyển mặc định sang bộ ba tập,
+  dropdown có single/multi/coverage, CLI có alias và default view phù hợp;
+  test và kiểm tra notebook sinh lại đều đạt.
+
 ## TASK-20261004-01
 
 - Ngày: 2026-10-04 (Asia/Saigon).
