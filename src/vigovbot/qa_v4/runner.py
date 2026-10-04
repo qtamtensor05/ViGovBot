@@ -28,7 +28,7 @@ def _duration(seconds):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
-def run_queries(queries, answer_fn, output, mode="reference_history"):
+def run_queries(queries, answer_fn, output, mode="reference_history", *, oracle_contexts=None, provenance=None):
     configure_console()
     if mode not in {"reference_history", "free_running"}:
         raise ValueError("Unknown history mode")
@@ -63,7 +63,11 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
                         raise ValueError("Selection starts mid-conversation")
                     history = histories.get(cv, [])
                 # Explicit allowlist: never pass case labels or reference answers.
-                prediction = answer_fn(q["question"], history=history)
+                if oracle_contexts is None:
+                    prediction = answer_fn(q["question"], history=history)
+                else:
+                    prediction = answer_fn(q['question'], history=history, context=oracle_contexts[q['id']])
+                    prediction['evaluation_mode'] = 'oracle_evidence_upper_bound'
                 if not isinstance(prediction.get("answer"), str) or not prediction["answer"].strip():
                     raise ValueError("Invalid RAG answer")
                 if cv and mode == "free_running":
@@ -107,5 +111,6 @@ def run_queries(queries, answer_fn, output, mode="reference_history"):
               "eta_method": "elapsed wall time / completed questions * remaining questions",
               "successful_requests_per_second": successful / elapsed if elapsed else None,
               "concurrency": 1, "note": "Sequential throughput, not a concurrent load test"}
+    if provenance is not None: report['provenance'] = provenance
     Path(str(output) + ".run.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return report

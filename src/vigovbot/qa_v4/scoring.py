@@ -8,6 +8,8 @@ import statistics
 import unicodedata
 from importlib.metadata import version, PackageNotFoundError
 from .scoring_legacy import score as legacy_score
+from .retrieval_metrics import RETRIEVAL_KEYS, summarize_retrieval
+from .review import fingerprint, validate_judgments
 
 def read(path):
     if not path: return []
@@ -45,14 +47,21 @@ def aggregate(rows, keys):
         if vals: result[key]={'mean':statistics.mean(vals),'n':len(vals)}
     return result
 
-def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert-base-multilingual-cased',device='cpu',batch_size=8):
+def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert-base-multilingual-cased',device='cpu',batch_size=8,bert_cache=None):
     if k<1: raise ValueError('k must be positive')
     cs=unique(cases); ps=unique(predictions); unique(judgments)
-    valid=[p for p in predictions if p['id'] in cs and not p.get('error') and isinstance(p.get('answer'),str)]
+    validate_judgments(cases, predictions, judgments)
+    if bert and bert_cache is not None: raise ValueError('Choose BERT computation or a validated cache, not both')
+    valid=[p for p in predictions if p['id'] in cs and not p.get('error') and isinstance(p.get('answer'),str) and p['answer'].strip()]
     vp=unique(valid)
     output=legacy_score(cases,valid,judgments,k=k)
     rows=output['per_case']; rowmap={r['id']:r for r in rows}
-    output['evaluation_version']='4.1.0'
+    retrieval_rows, retrieval_summary = summarize_retrieval(cases, predictions, k)
+    for r in rows:
+        for key in RETRIEVAL_KEYS: r.pop(key, None)
+        r.update(retrieval_rows[r['id']])
+    output['retrieval_evaluation'] = retrieval_summary
+    output['evaluation_version']='4.2.0'
     output['coverage']={'expected':len(cases),'successful_predictions':len(valid),'failed_or_missing':len(cases)-len(valid),'extra_prediction_ids':len(set(ps)-set(cs))}
     output['configuration']={'k':k,'normalization':'NFC + casefold + Unicode word tokens; Vietnamese syllables, not word segmentation','bert_enabled':bert,'bert_model':model if bert else None,'bert_device':device if bert else None}
     output['packages']={}
@@ -64,13 +73,13 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
         from rouge_score.rouge_scorer import RougeScorer
         bleu=BLEU(tokenize='none',effective_order=True); chrf=CHRF(word_order=2); ter=TER()
         rouge=RougeScorer(['rouge1','rouge2','rougeL'],tokenizer=VietnameseTokenizer())
-    pairs=[]; metrics=['judged_evidence_recall_at_k','mrr_at_k','action_accuracy','correctness','completeness','faithfulness','citation_support','behavior_correct','judged_hit_rate_at_k','exact_match','token_precision','token_recall','token_f1']
+    pairs=[]; metrics=['action_accuracy','correctness','completeness','faithfulness','citation_support','behavior_correct','exact_match','token_precision','token_recall','token_f1']
+    if retrieval_summary['available']:
+        metrics += sorted(RETRIEVAL_KEYS - {'unjudged_retrieved_count'})
     for c in cases:
         r=rowmap[c['id']]; p=vp.get(c['id']); r['expected_action']=c['expected_action']
         r['prediction_success']=int(p is not None)
         if not p: continue
-        gold={e['unit_id'] for e in c['evidence']}
-        if gold: r['judged_hit_rate_at_k']=int(bool(gold & set(list(dict.fromkeys(p.get('retrieved_unit_ids',[])))[:k])))
         # Reference similarity on substantive responses only, not abstention/clarification templates.
         if c['expected_action'] not in ['answer','partial','correct_premise']: continue
         ref=c.get('reference_answer'); hyp=p['answer']
@@ -89,7 +98,21 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
         if pairs:
             hs=[normalize(x[1]) for x in pairs]; rs=[normalize(x[2]) for x in pairs]
             output['corpus_similarity']={'n':len(pairs),'bleu':bleu.corpus_score(hs,[rs]).score,'bleu_signature':str(bleu.get_signature()),'chrf_plus_plus':chrf.corpus_score([x[1] for x in pairs],[[x[2] for x in pairs]]).score,'ter':ter.corpus_score(hs,[rs]).score}
-    if bert and pairs:
+    if bert_cache is not None:
+        if bert_cache.get('input_sha256') != fingerprint(pairs):
+            raise ValueError('BERT cache does not match current IDs/answers/references')
+        cached = unique(bert_cache['per_case'])
+        if set(cached) != {cid for cid, _, _ in pairs}: raise ValueError('BERT cache coverage mismatch')
+        for cid, _, _ in pairs:
+            for metric in ['precision', 'recall', 'f1']:
+                value = cached[cid][metric]
+                if not isinstance(value, (float, int)) or not math.isfinite(value):
+                    raise ValueError('Nonfinite BERT cache score')
+                rowmap[cid]['bertscore_' + metric] = value
+        output['configuration']['bert_enabled'] = True
+        output['configuration']['bert_cache_configuration'] = bert_cache['configuration']
+        metrics += ['bertscore_precision', 'bertscore_recall', 'bertscore_f1']
+    elif bert and pairs:
         from bert_score import score
         P,R,F,hashcode=score([x[1] for x in pairs],[x[2] for x in pairs],model_type=model,lang='vi',device=device,batch_size=batch_size,rescale_with_baseline=False,return_hash=True,verbose=True)
         output['configuration']['bert_hash']=hashcode
@@ -109,6 +132,16 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
         p=tp/(tp+fp) if tp+fp else 0; r=tp/(tp+fn) if tp+fn else 0
         output['action_classification'][a]={'precision':p,'recall':r,'f1':2*p*r/(p+r) if p+r else 0,'support':tp+fn}
     output['action_accuracy_all_expected']=sum(vp.get(c['id'],{}).get('action')==c['expected_action'] for c in cases)/len(cases) if cases else None
+    output['action_macro_f1'] = statistics.mean(v['f1'] for v in output['action_classification'].values()) if actions else None
+    output['action_confusion_matrix'] = {a: dict(collections.Counter(
+        vp.get(c['id'], {}).get('action', 'failed_or_missing') for c in cases if c['expected_action'] == a))
+        for a in actions}
+    output['semantic_evaluation'] = {'judged_cases': len(judgments),
+        'reviewer_kinds': dict(collections.Counter(j.get('reviewer_kind', 'unspecified') for j in judgments)),
+        'sampling_labels': dict(collections.Counter(j.get('sampling', 'unspecified') for j in judgments)),
+        'metric_coverage': {m: {'judged': sum(j.get(m) is not None for j in judgments), 'expected': len(cases)}
+                            for m in ('correctness', 'completeness', 'faithfulness', 'citation_support', 'behavior_correct')},
+        'note': 'Means apply only to judged cases; AI judgments are not independent human gold.'}
     output['latency_seconds_success']=summary([p.get('latency_seconds') for p in valid])
     output['latency_seconds_failed']=summary([p.get('latency_seconds') for p in predictions if p['id'] in cs and p.get('error')])
     output['server_telemetry']={key:summary([p.get('telemetry',{}).get(key) for p in valid]) for key in ['retrieval_seconds','generation_seconds','ttft_seconds','output_tokens','generation_tokens_per_second','cost_usd']}
@@ -117,7 +150,7 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
         if c.get('conversation_id'): conversations[c['conversation_id']].append(rowmap[c['id']])
     fully_judged=[rr for rr in conversations.values() if all('behavior_correct' in r and r['prediction_success'] for r in rr)]
     output['conversation_behavior_success']={'n_fully_judged_in_selected_view':len(fully_judged),'rate':statistics.mean([all(r['behavior_correct']==1 for r in rr) for rr in fully_judged]) if fully_judged else None,'note':'Selected view must include every conversation turn for whole-conversation interpretation.'}
-    output['limitations']+=['Similarity is not factual correctness or faithfulness.','Reference text metrics exclude abstain and clarify.','No precision/MAP/nDCG: qrels are non-exhaustive.','Missing/failed predictions excluded from similarity; see coverage and all-expected action accuracy.','BERTScore may truncate long texts to model maximum length.','No RAG model was run to build this package.']
+    output['limitations']+=['Similarity is not factual correctness or faithfulness.','Reference text metrics exclude abstain and clarify.','No precision/MAP/nDCG: qrels are non-exhaustive.','Missing/failed predictions excluded from similarity; see coverage and all-expected action accuracy.','BERTScore may truncate long texts to model maximum length.','Scoring is offline; it does not rerun the RAG.']
     return output
 
 def main():

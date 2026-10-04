@@ -28,7 +28,7 @@ def validate_history(history):
 
 
 def build_messages(question, hits, tokenizer, num_ctx=8192, num_predict=512, max_chunk_tokens=1200,
-                   history=None, structured=False, evidence_check=False):
+                   history=None, structured=False, evidence_check=False, citations=False):
     """Giới hạn prompt bằng tokenizer Qwen; chừa chỗ cho câu trả lời và template Ollama."""
     if num_ctx <= num_predict + 256 or max_chunk_tokens < 1:
         raise ValueError("Ngân sách token không hợp lệ")
@@ -41,6 +41,10 @@ def build_messages(question, hits, tokenizer, num_ctx=8192, num_predict=512, max
         system += ('\nTrả về JSON duy nhất gồm answer (câu trả lời tiếng Việt) và action: '
                    'answer (đủ thông tin), partial (chỉ đủ một phần), abstain (không có thông tin), '
                    'clarify (cần hỏi lại), correct_premise (sửa tiền đề sai).')
+    if citations:
+        system += ('\nThêm citations: danh sách {chunk_id, claim}. claim phải là một đoạn nguyên văn '
+                   'trong answer có bằng chứng trong chunk_id đã cung cấp. Dẫn nguồn cho các khẳng định '
+                   'thực tế chính; không dẫn nguồn cho phần không biết. Không tự tạo ID; không có nguồn thì [].')
     if evidence_check:
         system += ('\nĐánh giá bằng chứng trước khi trả lời. Thêm evidence_status vào JSON: '
                    'sufficient → action answer; partial → partial; missing → abstain; '
@@ -90,5 +94,6 @@ def build_messages(question, hits, tokenizer, num_ctx=8192, num_predict=512, max
         used.append(
             {k: hit[k] for k in ("row_id", "score", "chunk_id", "source_file", "source_code", "section_type")}
             | {"included_text": included}
+            | {k: hit[k] for k in ('pages', 'source_sha256') if k in hit}
         )
     return messages(context), used, size(context)

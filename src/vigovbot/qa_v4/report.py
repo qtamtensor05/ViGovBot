@@ -4,6 +4,11 @@ from pathlib import Path
 
 
 def finalize_report(report, predictions, selected_ids, prediction_path):
+    if report.get('retrieval_evaluation', {}).get('rank_unit') == 'original_unique_chunk':
+        path = Path(str(prediction_path) + '.run.json')
+        if path.exists():
+            report['runner_performance'] = json.loads(path.read_text(encoding='utf-8'))
+        return report
     valid = [p for p in predictions if p["id"] in selected_ids and not p.get("error")]
     available = bool(valid) and all("retrieved_unit_ids" in p and p.get("unit_mapping_status")
                                    not in {"unavailable", "incomplete_mapping"} for p in valid)

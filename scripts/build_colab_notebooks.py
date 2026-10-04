@@ -158,7 +158,7 @@ if DOWNLOAD_OUTPUT:
     save(ROOT / "ipynb/parse_metadata.ipynb", cells)
 
 
-def build_rag():
+def build_rag(*, baseline=False):
     settings = '''
 # @title 1. Cấu hình đánh giá ba bộ QA 1.500 lượt
 REPO_URL = "https://github.com/qtamtensor05/ViGovBot.git"  # @param {type:"string"}
@@ -182,16 +182,28 @@ OUTPUT_DIR = "/content/drive/MyDrive/RAG_Data/qa_v4_results"  # @param {type:"st
 RUN_NAME = "three1500_single_smoke_rag"  # @param {type:"string"}
 LEXICAL = True  # @param {type:"boolean"}
 '''
-    cells = bootstrap("Colab: đánh giá ba bộ QA 1.500 với Qwen/Ollama và RAG", "rag,evaluation", settings)
-    cells[0] = cell("markdown", """# Đánh giá ba bộ QA 1.500 trên Colab
+    if baseline:
+        settings = settings.replace("NO_RETRIEVAL = False", "NO_RETRIEVAL = True")
+        settings = settings.replace("three1500_single_smoke_rag", "three1500_single_smoke_base")
+    title = ("Colab: đánh giá Qwen baseline trên ba bộ QA 1.500" if baseline else
+             "Colab: đánh giá ba bộ QA 1.500 với Qwen/Ollama và RAG")
+    cells = bootstrap(title, "rag,evaluation", settings)
+    input_note = ("Đưa thư mục `rag_tthc_three_1500` lên Google Drive; baseline không cần corpus."
+                  if baseline else
+                  "Đưa thư mục `rag_tthc_three_1500` và corpus `unified.zip` lên Google Drive.")
+    mode_note = ("Notebook này mặc định `NO_RETRIEVAL = True` để gọi Qwen trực tiếp; "
+                 "không đo recall/MRR hay citation của retrieval."
+                 if baseline else
+                 "Bật `NO_RETRIEVAL` khi cần chạy baseline trên chính luồng đánh giá này.")
+    cells[0] = cell("markdown", f"""# {title.removeprefix('Colab: ')}
 Chọn **Runtime → Change runtime type → GPU**, rồi chạy lần lượt.
 Push mã nguồn mới lên GitHub và đặt `GIT_REF` đúng nhánh/commit trước khi chạy.
-Đưa thư mục `rag_tthc_three_1500` và corpus `unified.zip` lên Google Drive.
+{input_note}
 Notebook mặc định thử 10 câu; đặt `LIMIT = 0` để chạy toàn bộ view.
 Single/coverage nên dùng `reference_history`; multi dùng `free_running` để đo hội thoại nối tiếp.
 Kết quả ghi lên Drive từng câu, gồm câu hỏi và câu trả lời. Runner chưa hỗ trợ resume;
 phiên bị ngắt cần dùng tên lượt chạy mới hoặc chia view thành các nhóm giữ nguyên hội thoại.
-Baseline bật `NO_RETRIEVAL`; baseline không cần corpus. Chấm điểm không gọi model.
+{mode_note} Chấm điểm không gọi model.
 """)
     cells.extend([
         cell("markdown", "## 4. Mount Drive và kiểm tra đầu vào"),
@@ -227,7 +239,7 @@ output.mkdir(parents=True, exist_ok=True)
 print("Số câu:", len(queries), "| View:", VIEW, "| Baseline:", NO_RETRIEVAL)
 print("Output:", output)
 '''),
-        cell("markdown", "## 5. Tạo cấu hình RAG và lưu thông tin lượt chạy"),
+        cell("markdown", "## 5. Tạo cấu hình suy luận và lưu thông tin lượt chạy"),
         cell("code", '''
 import json
 import yaml
@@ -326,7 +338,8 @@ display(comparison.head(10))
 print("Kết quả:", output)
 '''),
     ])
-    save(ROOT / "ipynb/base_rag/lqwen2_5_7B_rag.ipynb", cells, True)
+    path = "ipynb/base/lqwen2_5_7B.ipynb" if baseline else "ipynb/base_rag/lqwen2_5_7B_rag.ipynb"
+    save(ROOT / path, cells, True)
 
 
 def build_corpus():
@@ -377,6 +390,7 @@ print("Output:", OUTPUT_DIR)
 def main():
     build_ingestion()
     build_rag()
+    build_rag(baseline=True)
     build_corpus()
 
 

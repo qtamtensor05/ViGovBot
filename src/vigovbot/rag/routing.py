@@ -96,7 +96,7 @@ EVIDENCE_ACTIONS = {"sufficient": "answer", "partial": "partial", "missing": "ab
                     "contradictory_premise": "correct_premise", "ambiguous": "clarify"}
 
 
-def answer_schema(require_evidence=False):
+def answer_schema(require_evidence=False, citation_ids=None):
     """Make inconsistent evidence/action pairs unrepresentable during decoding."""
     branches = []
     for evidence, action in EVIDENCE_ACTIONS.items():
@@ -104,9 +104,35 @@ def answer_schema(require_evidence=False):
                       "action": {"type": "string", "enum": [action]}}
         if require_evidence:
             properties["evidence_status"] = {"type": "string", "enum": [evidence]}
+        if citation_ids is not None:
+            properties['citations'] = {'type': 'array', 'items': {
+                'type': 'object', 'additionalProperties': False,
+                'required': ['chunk_id', 'claim'], 'properties': {
+                    'chunk_id': {'type': 'string', 'enum': citation_ids or ['__no_context__']},
+                    'claim': {'type': 'string', 'minLength': 1}}}}
+            if not citation_ids: properties['citations']['maxItems'] = 0
         branches.append({"type": "object", "additionalProperties": False,
                          "required": list(properties), "properties": properties})
     return {"anyOf": branches}
+
+
+def parse_citations(text, used):
+    """Validate source references, not whether the source entails the claim."""
+    payload = json.loads(text)
+    citations = payload.get('citations')
+    if not isinstance(citations, list): raise ValueError('citations must be an array')
+    contexts = {c['chunk_id']: c for c in used}
+    result = []
+    for c in citations:
+        if not isinstance(c, dict) or set(c) != {'chunk_id', 'claim'}:
+            raise ValueError('Invalid citation object')
+        if c['chunk_id'] not in contexts or not isinstance(c['claim'], str) or not c['claim'].strip() \
+                or c['claim'] not in payload.get('answer', ''):
+            raise ValueError('Citation must refer to used context and an exact answer span')
+        context = contexts[c['chunk_id']]
+        result.append({**c, **{k: context[k] for k in ('source_file', 'source_code', 'pages', 'source_sha256')
+                              if k in context}})
+    return result
 
 
 class StructuredAnswerError(ValueError):

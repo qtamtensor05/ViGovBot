@@ -1,3 +1,28 @@
+# TASK-20261004-05 — in_progress
+
+- Giai đoạn 1: đang chạy env/Scripts/python.exe -m vigovbot.qa_v4.audit --dataset Data/qa_test_v4/rag_tthc_three_1500 --out outputs/result_qa/evaluation_upgrade/source_review; session 2420.
+- Audit kiểm tra hash PDF, trang và nguyên văn; tách riêng trạng thái semantic/human review, không tự duyệt Gold.
+- Tiếp theo: mapping, CLI scoring, semantic judgments và benchmark comparison.
+- Bằng chứng sẽ lưu ở outputs/result_qa/evaluation_upgrade/.
+
+# TASK-20261004-04 — partial
+
+- Đã hoàn tất BERTScore 944/944 cặp: P=0,890979; R=0,891960; F1=0,891086.
+- Model xlm-roberta-large, CPU, batch 1, no-IDF, không rescale; 5 reference vượt 512 token.
+- Session 59548 đã kết thúc exit 0; thời gian script 932,48 giây. Không còn job chấm đang chạy.
+- Artifact: outputs/result_qa/supplemental_single_1500/; báo cáo chính đã thêm mục 9.
+- Kiểm chứng: ID, điểm hữu hạn, aggregate và SHA-256 đầu vào đạt.
+- Còn lại: mapping retrieval đã duyệt; audit 1.461/3.313 chunk khớp nội dung chỉ là ứng viên. Chưa công bố Recall@5/MRR@5.
+- Bước tiếp: hoàn thiện đối chiếu tài liệu/trang/đoạn của corpus RAG đã chạy và duyệt mapping; không đổi corpus ngầm.
+
+# TASK-20261004-03 — completed
+
+- Đã tạo outputs/result_qa/bao-cao-single-1500.md, phân tích đủ 1.500 lượt.
+- Kết quả: 1.499 thành công thực thi; 459 đúng nhãn (30,60%); điểm nghẽn routing.
+- Kiểm chứng: ID khớp view/CSV/scores, câu hỏi/reference/nhãn khớp dataset; số tổng và liên kết báo cáo đạt.
+- Còn lại trong phạm vi: không. Chưa chạy lại model hoặc chấm ngữ nghĩa; đề xuất cải thiện chưa triển khai.
+- Hồ sơ và trạng thái các task trước được giữ bên dưới.
+
 # Current stage - giai đoạn hiện tại
 
 - Task hiện tại: TASK-20261004-02 (2026-10-04), completed.

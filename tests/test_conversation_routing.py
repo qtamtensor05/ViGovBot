@@ -27,6 +27,16 @@ def route(relation="new_question", scope="in_scope", query="Phí cấp hộ chi�
 
 
 class RoutingTests(unittest.TestCase):
+    def test_opt_in_citations_are_validated_and_saved(self):
+        self.settings['citations_enabled'] = True
+        result, llm = self.run_answer([route(), json.dumps({
+            'answer': 'Phí 0 đồng', 'action': 'answer', 'evidence_status': 'sufficient',
+            'citations': [{'chunk_id': 'c1', 'claim': '0 đồng'}]})])
+        self.assertEqual(result['citations'][0]['source_file'], 'a.pdf')
+        self.assertEqual(result['citations_status'], 'validated_references_not_semantic_support')
+        schema = llm.call_args_list[-1].args[1]['response_format']
+        self.assertIn('citations', schema['anyOf'][0]['required'])
+
     def setUp(self):
         self.settings = dict(top_k=5, num_ctx=8192, num_predict=512, max_chunk_tokens=1200)
         self.history = [{"role": "user", "content": "OLD_TOPIC: giấy khai sinh"},

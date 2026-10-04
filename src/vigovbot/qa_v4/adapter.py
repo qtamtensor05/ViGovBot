@@ -49,6 +49,17 @@ def normalize_result(result, unit_mapping=None):
             normalized[key] = result[key]
     if units is not None:
         normalized["retrieved_unit_ids"] = units
+    if unit_mapping is not None:
+        normalized['retrieved_unit_groups'] = [
+            {'chunk_id': cid, 'unit_ids': unit_mapping.get(cid)} for cid in chunks]
+        normalized['mapping_review_kind'] = 'caller_supplied_mapping_not_independently_reviewed'
+    # Preserve ranked retrieval records and raw generation diagnostics for provenance.
+    normalized['retrieved'] = result.get('retrieved', [])
+    normalized['generation_metadata'] = {k: result['raw_ollama'][k]
+        for k in ('model', 'done_reason', 'eval_count', 'prompt_eval_count', 'total_duration')
+        if k in (result.get('raw_ollama') or {})}
+    for key in ('evaluation_mode', 'citations_status'):
+        if key in result: normalized[key] = result[key]
     return normalized
 
 
@@ -103,6 +114,7 @@ def ollama_baseline(config_path):
             )
             prediction, action, _ = parse_answer(text)
             return normalize_result({
+                'evaluation_mode': 'base_no_retrieval',
                 "prediction": prediction,
                 "action": action,
                 "retrieved": [],
@@ -118,6 +130,42 @@ def ollama_baseline(config_path):
             unload_model(config.llm.ollama_url, config.llm.model)
         except Exception:
             pass
+
+
+@contextmanager
+def ollama_oracle(config_path):
+    """Diagnostic upper bound: only quoted evidence, never reference answers/action labels."""
+    from vigovbot.rag.config import load_config
+    from vigovbot.llm.llm_client import check_model, ollama_answer, unload_model
+    from vigovbot.rag.routing import answer_schema, parse_answer, parse_citations
+    from vigovbot.prompts.prompt_templates import build_messages
+    from transformers import AutoTokenizer
+    config = load_config(config_path)
+    settings = config.inference_settings()
+    check_model(config.llm.ollama_url, config.llm.model)
+    tokenizer = AutoTokenizer.from_pretrained(config.llm.tokenizer, revision=config.llm.tokenizer_revision)
+    try:
+        def answer(question, history=None, *, context):
+            hits = [{'row_id': i, 'score': 1.0, 'chunk_id': e['unit_id'],
+                     'source_file': e['source_file'], 'source_code': e['unit_id'].split('#')[0],
+                     'section_type': 'oracle_evidence', 'text_content': e['quote'],
+                     'pages': e['pages'], 'source_sha256': e['source_sha256']} for i, e in enumerate(context)]
+            enabled = settings.get('citations_enabled', False)
+            messages, used, tokens = build_messages(question, hits, tokenizer, settings['num_ctx'],
+                settings['num_predict'], settings['max_chunk_tokens'], history=history,
+                structured=True, evidence_check=True, citations=enabled)
+            text, raw, seconds = ollama_answer(messages, {**settings, 'response_format':
+                answer_schema(True, [c['chunk_id'] for c in used] if enabled else None)})
+            prediction, action, evidence = parse_answer(text, require_evidence=True)
+            return normalize_result({'prediction': prediction, 'action': action, 'evidence_status': evidence,
+                'retrieved': [], 'context_used': used, 'retrieval_s': 0.0, 'generation_s': seconds,
+                'raw_ollama': raw, 'prompt_tokens_estimated': tokens,
+                'citations': parse_citations(text, used) if enabled else [],
+                'evaluation_mode': 'oracle_evidence_upper_bound'})
+        yield answer
+    finally:
+        try: unload_model(config.llm.ollama_url, config.llm.model)
+        except Exception: pass
 
 
 @contextmanager

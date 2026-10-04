@@ -154,3 +154,11 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   không có log Colab để xác định nguyên nhân artifact chỉ chứa 23 lượt.
 - Báo cáo chi tiết: colab-rag-2-assessment.md; cần smoke lại, không tuyên bố
   các lỗi nội dung đã hết từ kiểm thử mock hoặc action accuracy.
+
+## ERR-20261004-03 — TASK-20261004-03
+
+- Bối cảnh: kiểm tra artifact theo đường dẫn người dùng gọi output/result_qa và in dữ liệu tiếng Việt bằng Python.
+- Triệu chứng: đường dẫn không tồn tại; PowerShell profile báo PSReadLine khi redirect; Python stdout cp1252 gây UnicodeEncodeError; một truy vấn rg dùng glob đường dẫn Windows không hợp lệ.
+- Xác nhận/sửa: thư mục thực là outputs/result_qa; dùng login=false, PYTHONIOENCODING=utf-8 và tìm trên đường dẫn thư mục với glob file. Các lần đọc tiếp theo thành công, dữ liệu gốc không bị sửa.
+- Tránh lặp: xác nhận tên thư mục và encoding trước khi đọc artifact Unicode.
+- Lỗi artifact quan sát riêng: single_0445 StructuredAnswerError sau 2 lần sinh JSON; chưa sửa runtime, chi tiết và giả thuyết cắt token nằm trong báo cáo.

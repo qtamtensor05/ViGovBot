@@ -252,6 +252,7 @@ class PipelineTests(unittest.TestCase):
     def test_colab_notebooks_clone_and_delegate(self):
         root = Path(__file__).resolve().parents[1]
         for relative in (
+            "ipynb/base/lqwen2_5_7B.ipynb",
             "ipynb/base_rag/lqwen2_5_7B_rag.ipynb",
             "ipynb/parse_metadata.ipynb",
             "ipynb/build_corpus.ipynb",
@@ -274,6 +275,9 @@ class PipelineTests(unittest.TestCase):
             self.assertNotIn('"src.rag"', combined)
             self.assertNotIn("def prepare_corpus(", combined)
             self.assertNotIn("def evaluate_cases(", combined)
+            if relative == "ipynb/base/lqwen2_5_7B.ipynb":
+                self.assertIn("NO_RETRIEVAL = True", combined)
+                self.assertIn("views_multi_1500.json", combined)
 
 
 if __name__ == "__main__":

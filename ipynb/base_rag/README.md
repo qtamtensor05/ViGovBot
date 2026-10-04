@@ -7,15 +7,15 @@ từ `configs/rag.yaml` và gọi `python -m vigovbot qa-v4 run/score`.
 
 Chuẩn bị corpus có đủ index, metadata và `corpus_manifest.json` tại
 `/content/drive/MyDrive/RAG_Data/unified.zip` (hoặc thư mục corpus).
-Đưa bộ test nhỏ đã giải nén lên Drive tại
-`/content/drive/MyDrive/RAG_Data/rag_tthc_balanced_small`, gồm ít nhất
+Đưa bộ test đã giải nén lên Drive tại
+`/content/drive/MyDrive/RAG_Data/rag_tthc_three_1500`, gồm ít nhất
 `runner_queries.jsonl`, `cases.jsonl` và các file view cần chạy. Dữ liệu không
 được tải cùng git clone vì `Data/` bị gitignore.
 
-Ô cấu hình mặc định chọn `views_main_test.json`, split `test`, lịch sử
-`free_running` và `LIMIT = 10` để thử. Đặt `LIMIT = 0` để chạy toàn bộ 6.384 lượt.
-Challenge chọn `views_challenge_test.json`; dev chọn `views_dev.json` và split `dev`.
-Giữ nguyên hội thoại khi chia view thành các nhóm chạy trên Colab.
+Ô cấu hình có ba view `views_single_1500.json`, `views_multi_1500.json`
+và `views_coverage_1500.json`. Single/coverage dùng `reference_history`; multi
+dùng `free_running` để đo lỗi dây chuyền. `LIMIT = 10` để smoke;
+đặt `LIMIT = 0` để chạy đủ 1.500 lượt của view đã chọn.
 
 Bật `NO_RETRIEVAL` để chạy baseline Qwen/Ollama; chế độ này không cần corpus.
 Đổi `RUN_NAME` mỗi lượt chạy: runner không ghi đè kết quả và chưa hỗ trợ resume.

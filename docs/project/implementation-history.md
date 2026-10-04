@@ -227,3 +227,19 @@
 - Giới hạn: chưa thử hành vi skill trên task pipeline dài thực tế; completion
   notification tùy công cụ, skill không tự tạo cơ chế đánh thức agent.
 - Commit đề xuất: `docs: add ViGovBot task journals and long-command skills`.
+
+## TASK-20261004-03 — Báo cáo single_1500
+
+- Ngày: 2026-10-04. Phân tích offline artifact three1500_single_smoke_rag_1.
+- Tạo outputs/result_qa/bao-cao-single-1500.md: completeness, ma trận nhãn, lexical, routing, mẫu lỗi, latency và đề xuất ưu tiên.
+- Kết quả: 1.500 ID duy nhất, 1 lỗi JSON, 459 đúng nhãn; 277/278 ca correct_premise kết thúc trước evidence_assessment. Phân biệt nhãn với ngữ nghĩa, nêu mapping/citations và semantic judgments còn thiếu.
+- Kiểm chứng: Python stdlib đọc JSON/CSV, assert ID khớp view và tổng accuracy; đối chiếu 1.500 câu hỏi/nhãn/reference/field; liên kết báo cáo và UTF-8 hợp lệ. Không chạy lại model hoặc toàn bộ lexical scorer.
+- Giữ nguyên artifact đầu vào và các thay đổi mã/notebook có sẵn.
+
+## TASK-20261004-04 — Chấm bổ sung
+
+- Ngày: 2026-10-04. Đã chấm BERTScore đủ 944 ca bằng xlm-roberta-large CPU, batch 1, không IDF/rescale; F1 0,891086, 5 reference bị cắt ở 512 token. Script 932,48 giây, session 59548 exit 0.
+- Lệnh: env/Scripts/python.exe -u outputs/result_qa/supplemental_single_1500/score_bertscore.py. Script lưu checkpoint theo ca, cấu hình/hash input và summary. Không chạy lại Qwen.
+- Đã lưu provenance, điểm từng ca, summary, mapping audit và README; cập nhật mục 9 báo cáo chính.
+- Kiểm chứng Python: đủ 944 ID khớp tập cần chấm, tất cả điểm hữu hạn, trung bình tính lại khớp, toàn bộ SHA-256 artifact gốc không đổi; kiểm tra Markdown links và diff-check.
+- Mapping audit chỉ có 1.461/3.313 chunk khớp nguyên nội dung unit cùng mã thủ tục; 1.852 chưa xác định. Chưa đủ mapping đã duyệt để chấm retrieval; trạng thái partial. Không coi BERTScore cao là tỷ lệ đúng kiến thức.

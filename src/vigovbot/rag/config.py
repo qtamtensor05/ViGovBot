@@ -52,6 +52,7 @@ class RetrievalConfig(StrictModel):
 
 class ConversationConfig(StrictModel):
     routing_enabled: bool = True
+    citations_enabled: bool = False
 
 
 class WebModelConfig(StrictModel):

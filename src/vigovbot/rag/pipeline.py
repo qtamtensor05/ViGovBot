@@ -280,24 +280,31 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     retrieval_started = time.perf_counter()
     hits = retriever.search(retrieval_query, settings["top_k"])
     retrieval_s = time.perf_counter() - retrieval_started
-    structured = structured or routing_enabled
+    structured = structured or routing_enabled or settings.get('citations_enabled', False)
     messages, used, tokens = build_messages(
         question, hits, tokenizer, settings["num_ctx"], settings["num_predict"], settings["max_chunk_tokens"],
         history=history, structured=structured, evidence_check=routing_enabled,
+        citations=settings.get('citations_enabled', False),
     )
     if routing_enabled and not used:
         result = early_answer("Chưa tìm thấy thông tin trong tài liệu để trả lời câu hỏi này.",
                               "abstain", "no_context", hits=hits, used=used, tokens=tokens, retrieval_s=retrieval_s)
         result["retrieval_query"] = retrieval_query
         return result
-    generation_settings = ({**settings, "response_format": answer_schema(routing_enabled),
+    citation_ids = [c['chunk_id'] for c in used] if settings.get('citations_enabled', False) else None
+    generation_settings = ({**settings, "response_format": answer_schema(routing_enabled, citation_ids),
                             "response_schema_name": "answer"} if structured else settings)
     answer, raw, generation_s = answer_fn(messages, generation_settings)
     action = evidence = None
     generation_diagnostics = {"attempts": 1, "validation_errors": []}
+    citations = []
+    def parse_generation(text):
+        parsed = parse_answer(text, require_evidence=routing_enabled)
+        from vigovbot.rag.routing import parse_citations
+        return parsed, parse_citations(text, used) if citation_ids is not None else []
     if structured:
         try:
-            answer, action, evidence = parse_answer(answer, require_evidence=routing_enabled)
+            (answer, action, evidence), citations = parse_generation(answer)
         except ValueError as exc:
             generation_diagnostics["validation_errors"].append(str(exc))
             generation_diagnostics["initial_text"] = answer[:2000]
@@ -316,13 +323,15 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
             answer, raw, retry_s = answer_fn(retry_messages, generation_settings)
             generation_s += retry_s
             try:
-                answer, action, evidence = parse_answer(answer, require_evidence=routing_enabled)
+                (answer, action, evidence), citations = parse_generation(answer)
             except ValueError as retry_exc:
                 generation_diagnostics["validation_errors"].append(str(retry_exc))
                 generation_diagnostics["retry_text"] = answer[:2000]
                 raise StructuredAnswerError(generation_diagnostics) from retry_exc
     return {
         "prediction": answer,
+        "citations": citations,
+        "citations_status": "validated_references_not_semantic_support" if citation_ids is not None else "disabled",
         "generation_diagnostics": generation_diagnostics,
         "action": action,
         "routing": route,
