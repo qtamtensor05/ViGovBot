@@ -18,28 +18,29 @@ class Retriever:
         )
         self.db.execute("PRAGMA cache_size=-16384")
         self.encoder = encoder
-        self._lock = threading.Lock()
+        self._encoder_lock = threading.Lock()
+        self._db_lock = threading.Lock()
         count = self.db.execute("SELECT count(*) FROM chunks").fetchone()[0]
         if count != self.index.ntotal or self.index.d != 1024 or self.index.metric_type != faiss.METRIC_INNER_PRODUCT:
             self.db.close()
             raise ValueError("SQLite và FAISS không khớp hoặc sai loại chỉ mục")
 
     def search(self, question, top_k=5):
-        with self._lock:
-            return self._search(question, top_k)
-
-    def _search(self, question, top_k):
         import faiss
         import numpy as np
 
         if top_k < 1:
             raise ValueError("TOP_K phải lớn hơn 0")
-        vector = np.asarray(
-            self.encoder.encode(
-                [question], batch_size=1, convert_to_numpy=True, normalize_embeddings=False, show_progress_bar=False
-            ),
-            dtype=np.float32,
-        )
+        # SentenceTransformer shares mutable model/device state. Serialize only encoding;
+        # FAISS read-only search can run concurrently and SQLite access has its own lock.
+        with self._encoder_lock:
+            vector = np.asarray(
+                self.encoder.encode(
+                    [question], batch_size=1, convert_to_numpy=True, normalize_embeddings=False,
+                    show_progress_bar=False
+                ),
+                dtype=np.float32,
+            )
         if vector.shape != (1, 1024) or not np.isfinite(vector).all() or not np.any(vector):
             raise ValueError("Vector câu hỏi không hợp lệ")
         vector = np.ascontiguousarray(vector)
@@ -50,12 +51,13 @@ class Retriever:
         for score, row_id in zip(scores[0], ids[0]):
             if row_id < 0:
                 continue
-            row = self.db.execute("SELECT payload FROM chunks WHERE row_id=?", (int(row_id),)).fetchone()
+            with self._db_lock:
+                row = self.db.execute("SELECT payload FROM chunks WHERE row_id=?", (int(row_id),)).fetchone()
             if row is None:
                 raise ValueError(f"Thiếu metadata cho dòng FAISS {row_id}")
             hits.append({"row_id": int(row_id), "score": float(score), **json.loads(row[0])})
         return hits
 
     def close(self):
-        with self._lock:
+        with self._db_lock:
             self.db.close()

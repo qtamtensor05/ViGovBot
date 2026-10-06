@@ -1,4 +1,6 @@
 import tempfile
+import threading
+import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +17,63 @@ from vigovbot.rag.routing import StructuredAnswerError
 
 
 class QAV4Tests(unittest.TestCase):
+    def test_parallel_reference_history_preserves_output_order(self):
+        queries = [dict(id=str(i), question=str(i), history=[]) for i in range(4)]
+        active = maximum = 0
+        lock = threading.Lock()
+
+        def answer(question, history):
+            nonlocal active, maximum
+            with lock:
+                active += 1
+                maximum = max(maximum, active)
+            time.sleep(0.02 * (4 - int(question)))
+            with lock:
+                active -= 1
+            return {"answer": "a" + question}
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "parallel.jsonl"
+            with patch("builtins.print"):
+                report = run_queries(queries, answer, path, concurrency=4)
+            rows = list(read_jsonl(path))
+        self.assertGreater(maximum, 1)
+        self.assertEqual([row["id"] for row in rows], ["0", "1", "2", "3"])
+        self.assertEqual(report["concurrency"], 4)
+        self.assertEqual(report["effective_concurrency"], 4)
+        self.assertEqual(report["scheduling_unit"], "question")
+
+    def test_parallel_free_running_schedules_conversations_not_turns(self):
+        queries = [
+            dict(id="a1", question="a1", conversation_id="a", turn_index=1, history=[]),
+            dict(id="b1", question="b1", conversation_id="b", turn_index=1, history=[]),
+            dict(id="a2", question="a2", conversation_id="a", turn_index=2, history=[]),
+            dict(id="b2", question="b2", conversation_id="b", turn_index=2, history=[]),
+        ]
+        seen = {}
+        lock = threading.Lock()
+
+        def answer(question, history):
+            with lock:
+                seen[question] = list(history)
+            time.sleep(0.01)
+            return {"answer": "answer-" + question}
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "conversations.jsonl"
+            report = run_queries(queries, answer, path, "free_running", concurrency=2)
+            rows = list(read_jsonl(path))
+        self.assertEqual([row["id"] for row in rows], [q["id"] for q in queries])
+        self.assertEqual(seen["a2"][-1]["content"], "answer-a1")
+        self.assertEqual(seen["b2"][-1]["content"], "answer-b1")
+        self.assertNotIn("answer-b1", str(seen["a2"]))
+        self.assertEqual(report["scheduling_unit"], "conversation")
+
+    def test_invalid_concurrency_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(ValueError):
+                run_queries([], lambda *_args, **_kwargs: {}, Path(directory) / "x.jsonl", concurrency=0)
+
     def test_generation_diagnostics_survive_adapter_and_failed_conversation(self):
         diagnostics = {"attempts": 2, "validation_errors": ["invalid", "invalid"]}
         normalized = normalize_result({"prediction": "ok", "generation_diagnostics": diagnostics,

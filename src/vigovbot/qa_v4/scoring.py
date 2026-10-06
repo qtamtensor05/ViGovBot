@@ -5,6 +5,7 @@ import json
 import math
 import re
 import statistics
+import time
 import unicodedata
 from importlib.metadata import version, PackageNotFoundError
 from .scoring_legacy import score as legacy_score
@@ -47,7 +48,20 @@ def aggregate(rows, keys):
         if vals: result[key]={'mean':statistics.mean(vals),'n':len(vals)}
     return result
 
-def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert-base-multilingual-cased',device='cpu',batch_size=8,bert_cache=None):
+def unpack_bert_score(result):
+    """Normalize bert-score return_hash contracts across supported releases."""
+    if isinstance(result, tuple) and len(result) == 4:
+        return result
+    if isinstance(result, tuple) and len(result) == 2:
+        scores, hashcode = result
+        if isinstance(scores, tuple) and len(scores) == 3:
+            return *scores, hashcode
+    raise ValueError('Unexpected bert-score return value')
+
+def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert-base-multilingual-cased',device='cpu',batch_size=8,bert_cache=None,progress=False):
+    started = time.perf_counter()
+    if progress:
+        print(f'[Score] Chuẩn bị {len(cases)} case và {len(predictions)} prediction...', flush=True)
     if k<1: raise ValueError('k must be positive')
     cs=unique(cases); ps=unique(predictions); unique(judgments)
     validate_judgments(cases, predictions, judgments)
@@ -76,7 +90,11 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
     pairs=[]; metrics=['action_accuracy','correctness','completeness','faithfulness','citation_support','behavior_correct','exact_match','token_precision','token_recall','token_f1']
     if retrieval_summary['available']:
         metrics += sorted(RETRIEVAL_KEYS - {'unjudged_retrieved_count'})
-    for c in cases:
+    case_iterator = cases
+    if progress:
+        from tqdm.auto import tqdm
+        case_iterator = tqdm(cases, total=len(cases), desc='Lexical/reference', unit='case', dynamic_ncols=True)
+    for c in case_iterator:
         r=rowmap[c['id']]; p=vp.get(c['id']); r['expected_action']=c['expected_action']
         r['prediction_success']=int(p is not None)
         if not p: continue
@@ -114,7 +132,15 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
         metrics += ['bertscore_precision', 'bertscore_recall', 'bertscore_f1']
     elif bert and pairs:
         from bert_score import score
-        P,R,F,hashcode=score([x[1] for x in pairs],[x[2] for x in pairs],model_type=model,lang='vi',device=device,batch_size=batch_size,rescale_with_baseline=False,return_hash=True,verbose=True)
+        if progress:
+            print(f'[Score] BERTScore: {len(pairs)} cặp, model={model}, device={device}, batch={batch_size}.',
+                  flush=True)
+            print('[Score] Đang nạp model; lần đầu có thể im lặng vài phút trước khi progress batch xuất hiện.',
+                  flush=True)
+        bert_started = time.perf_counter()
+        P,R,F,hashcode=unpack_bert_score(score([x[1] for x in pairs],[x[2] for x in pairs],model_type=model,lang='vi',device=device,batch_size=batch_size,rescale_with_baseline=False,return_hash=True,verbose=True))
+        if progress:
+            print(f'[Score] BERTScore hoàn tất sau {time.perf_counter() - bert_started:.1f}s.', flush=True)
         output['configuration']['bert_hash']=hashcode
         for i,(cid,_,_) in enumerate(pairs):
             for name,values in [('bertscore_precision',P),('bertscore_recall',R),('bertscore_f1',F)]: rowmap[cid][name]=float(values[i])
@@ -151,6 +177,8 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
     fully_judged=[rr for rr in conversations.values() if all('behavior_correct' in r and r['prediction_success'] for r in rr)]
     output['conversation_behavior_success']={'n_fully_judged_in_selected_view':len(fully_judged),'rate':statistics.mean([all(r['behavior_correct']==1 for r in rr) for rr in fully_judged]) if fully_judged else None,'note':'Selected view must include every conversation turn for whole-conversation interpretation.'}
     output['limitations']+=['Similarity is not factual correctness or faithfulness.','Reference text metrics exclude abstain and clarify.','No precision/MAP/nDCG: qrels are non-exhaustive.','Missing/failed predictions excluded from similarity; see coverage and all-expected action accuracy.','BERTScore may truncate long texts to model maximum length.','Scoring is offline; it does not rerun the RAG.']
+    if progress:
+        print(f'[Score] Tổng hợp hoàn tất sau {time.perf_counter() - started:.1f}s; đang ghi artifact...', flush=True)
     return output
 
 def main():
@@ -163,7 +191,8 @@ def main():
     preds=read(a.predictions)
     modes={p.get('history_mode') for p in preds if p.get('history_mode')}
     if len(modes)>1: raise ValueError('Do not mix history modes in one report')
-    out=evaluate(cases,preds,read(a.judgments),a.k,not a.no_lexical,a.bertscore,a.bert_model,a.bert_device,a.bert_batch_size)
+    out=evaluate(cases,preds,read(a.judgments),a.k,not a.no_lexical,a.bertscore,a.bert_model,a.bert_device,a.bert_batch_size,progress=True)
     out['configuration']['history_modes']=sorted(modes)
     with open(a.out,'w',encoding='utf-8') as f: json.dump(out,f,ensure_ascii=False,indent=2,allow_nan=False)
+    print(f'[Score] Hoàn tất: {a.out}', flush=True)
 if __name__=='__main__': main()

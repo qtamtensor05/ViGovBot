@@ -305,3 +305,70 @@
 - Bổ sung số liệu tự tính: single Document Recall@5/MRR@5 trên 615 ca có truy hồi ≈ 0,885/0,867 (328/943 ca dừng ở routing bị tính 0 trong điểm 0,577/0,565).
 - Xóa theo lựa chọn người dùng: `bao-cao-single-1500.md`, `bao-cao-multi-cover.md`, `bao-cao-bo-sung-multi-cover.md`, `supplemental_single_1500/README.md`, `source_review/` v1, `pdf_text_cache.json`/`review_packets*`/`generation_review_packets.jsonl`/`mapping_candidates.json`, `visual_review/`, `review_multi_cover/`, mọi `*.log` và `*.py` trong thư mục. Giữ dữ liệu gốc run, kiểm chứng, judgments, BERTScore.
 - Kiểm chứng: 101 → 54 file, 93,2 → 45,2 MB; mọi liên kết tương đối trong báo cáo chính tồn tại. Thư mục bị gitignore nên không khôi phục qua git; tái lập chấm bổ sung cần script mới.
+
+## TASK-20261007-01 — Thiết lập môi trường đánh giá RAG (completed)
+
+- Cài Python 3.14.7 và Ollama 0.35.1 bằng winget; tạo `.venv`, cài
+  `locks/rag-windows-py314.txt`, package editable và bổ sung SacreBLEU 2.6.0 do
+  lockfile thiếu dependency đã khai báo trong extra evaluation.
+- Tải `qwen2.5:7b` 4,7 GB; xác minh Ollama API. Cache BAAI/bge-m3 và tokenizer
+  Qwen qua một smoke RAG thật. Giữ encoder trên CPU theo `configs/rag.yaml`; Qwen
+  chạy qua Ollama trên máy có RTX 5060 Ti 16 GB.
+- Dùng corpus có sẵn `Data/vector/unified` (117.871 vector/chunk), tạo SQLite cache
+  và không chạy embedding lại. Dataset không bị sửa.
+- Smoke single_0001 exit 0, có 5 chunk truy hồi và đáp án hợp lệ; wall 45,25 giây,
+  retrieval 0,337 giây. Score lexical coverage 1/1. Artifact ở
+  `outputs/environment_smoke_20261007/`.
+- Kiểm chứng: ba view single/multi/coverage đều 1.500 ca; multi sequence hợp lệ;
+  test dataset evaluation 3/3 và resume đạt; 40 unit test QA v4/RAG/config/Colab
+  đạt. Chưa chạy benchmark đủ 4.500 lượt.
+- Lỗi lock thiếu SacreBLEU và cách xử lý được ghi tại ERR-20261007-01.
+
+## TASK-20261007-02 — Khảo sát tăng tốc benchmark (completed)
+
+- Đối chiếu runner, adapter, retriever, cấu hình và phần cứng máy hiện tại. Xác
+  nhận runner tuần tự và mutex retriever bao trùm encoder + FAISS + SQLite.
+- Xác nhận index là `IndexFlatIP` 117.871 vector 1.024 chiều, tải vào RAM; không có
+  bằng chứng I/O đĩa là nút thắt. Telemetry smoke cho retrieval 0,337 giây, thấp
+  hơn đáng kể routing/generation của lượt cold-start.
+- Kết luận kiến trúc: song song theo query cho single/coverage và theo conversation
+  cho free-running multi; writer phải giữ một luồng và output deterministic/resume-safe.
+  Với GPU 16 GB, bắt đầu Ollama parallel 2, đo rồi mới tăng 4; giữ một loaded model.
+- CUDA BGE/BERTScore khả thi sau khi thay Torch CPU bằng wheel CUDA và kiểm tra
+  Blackwell; batch scoring nên tự giảm khi OOM. Không cam kết mốc dưới một phút
+  trước benchmark thực tế.
+- vLLM hiện yêu cầu Linux (Windows qua WSL2) và Python 3.10–3.13 theo tài liệu;
+  không thay trực tiếp Ollama trong môi trường Windows/Python 3.14 hiện tại.
+- Không sửa code/cấu hình/runtime; đây là kết quả khảo sát để chốt phase triển khai.
+
+## TASK-20261007-03 — Tăng tốc đánh giá trên RTX 5060 Ti (completed)
+
+- `qa_v4/runner.py`: thêm thread pool và `--concurrency`; single/coverage lập lịch
+  theo query, free-running multi theo conversation. Lượt trong conversation tuần
+  tự, lỗi chặn các lượt sau như cũ; writer buffer để giữ đúng thứ tự view. Run report
+  ghi concurrency hiệu lực và đơn vị lập lịch.
+- `retrieval/retriever.py`: thay mutex toàn search bằng khóa encoder và SQLite
+  riêng; FAISS IndexFlatIP read-only không còn bị khóa cùng generation worker.
+- Tạo `configs/rag-fast-local.yaml`: BGE-M3 CUDA, BERTScore CUDA batch 16; giữ
+  `configs/rag.yaml` CPU để tương thích máy khác. Cập nhật README QA v4 với lệnh
+  chạy ba view, cài CUDA wheel và giới hạn VRAM.
+- Môi trường máy: Torch 2.14.0+cu130 nhận RTX 5060 Ti; BGE dùng khoảng 2.198 MB
+  VRAM, sau warm-up đo 0,044 giây/query trên mẫu 6. Ollama đặt parallel=2,
+  max-loaded=1, Flash Attention và KV q8_0; log xác nhận CUDA compute 12.0.
+- Benchmark cùng bốn single: c1 36,758 giây, c2 16,625 giây, 4/4 thành công,
+  throughput tăng 2,21 lần; ID/action khớp. Multi hai conversation: 8/8 thành công,
+  32,845 giây. Artifact: `outputs/environment_speed_20261007/`.
+- BERTScore CUDA phát hiện contract `return_hash` khác; sửa scorer hỗ trợ dạng
+  4-tuple và nested 2-tuple, thêm test. Smoke cache nóng 3 cặp mất 0,82 giây,
+  score coverage 4/4. Không ngoại suy thành thời gian toàn tập khi chưa chạy đủ.
+- Kiểm chứng: 44 unit test đạt; Ruff, pip check, config load và diff-check đạt.
+  Không chạy đủ 4.500 lượt và không triển khai vLLM/WSL2.
+
+## TASK-20261007-04 — Tiến trình chấm điểm (completed)
+
+- `qa_v4/scoring.py` thêm progress tùy chọn cho CLI: phase chuẩn bị, tqdm lexical
+  theo case, mô tả BERTScore (số cặp/model/device/batch), thời gian BERT và tổng hợp.
+- `qa_v4/__main__.py` bật progress cho lệnh score và in đường dẫn artifact khi ghi
+  xong. Lời gọi thư viện/test giữ mặc định im lặng; metric và JSON schema không đổi.
+- Kiểm chứng smoke 4 case hiển thị 0→100%, tổng hợp và completion path; 24 test
+  QA v4/review, Ruff và diff-check đạt.
