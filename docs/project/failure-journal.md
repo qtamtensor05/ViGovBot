@@ -2,6 +2,67 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261006-05
+
+- Task: TASK-20261006-03.
+- Triệu chứng: kiểm tra sau vòng viết lại đầu phát hiện 339 chuỗi câu hỏi single
+  bị trùng, tương ứng 821 case dư ngoài bản đầu tiên.
+- Nguyên nhân đã xác nhận: tổ hợp biến thể quay vòng theo nhóm toàn cục, trong khi
+  cùng một tên thủ tục xuất hiện lại đúng chu kỳ nên nhận cùng cách diễn đạt.
+- Xử lý: giữ bản đầu và thêm tiền tố hỏi trung tính khác nhau cho các bản trùng.
+- Kết quả: 0 input single trùng; checksum và test đều đạt.
+- Phòng tránh: kiểm tra uniqueness trên câu hoàn chỉnh sau mọi phép paraphrase,
+  không chỉ kiểm tra số mẫu chuẩn hóa.
+
+## ERR-20261006-04
+
+- Task: TASK-20261006-03.
+- Triệu chứng: `git show HEAD:.../cases.jsonl` thất bại vì file tồn tại trên đĩa
+  nhưng không có trong HEAD.
+- Nguyên nhân đã xác nhận: dataset này không được Git theo dõi; không còn snapshot
+  cùng hash cũ trong repository sau khi ghi.
+- Xử lý: kiểm tra invariant hiện tại, checksum, phạm vi gán của script và công bố
+  giới hạn; không giả vờ đã có diff độc lập với bản gốc.
+- Phòng tránh: trước lần biến đổi dataset lớn tiếp theo, lưu snapshot bất biến hoặc
+  patch question-only có hash trong khu vực artifact được bảo toàn.
+
+## ERR-20261006-03
+
+- Task: TASK-20261006-03.
+- Triệu chứng: lệnh kiểm thử đầu tiên từ thư mục dataset không tìm thấy
+  `env\Scripts\python.exe`.
+- Nguyên nhân đã xác nhận: đường dẫn tương đối được tính từ thư mục dataset thay
+  vì gốc repository.
+- Xử lý: dùng đường dẫn tuyệt đối tới Python của môi trường dự án.
+- Kết quả: kiểm tra invariant, 3 unit test và test resume chạy thành công.
+- Phòng tránh: khi đổi `workdir`, dùng đường dẫn Python tuyệt đối hoặc tính lại
+  đường dẫn tương đối trước khi chạy.
+
+## ERR-20261006-02
+
+- Task: TASK-20261006-02.
+- Triệu chứng: lần chạy đầu `build_review.py` dừng với `SyntaxError` tại phần sinh
+  báo cáo Markdown.
+- Nguyên nhân đã xác nhận: ghép biểu thức nối chuỗi vào giữa f-string ba dấu nháy
+  làm chuỗi kết thúc sớm.
+- Xử lý: tính trước chuỗi phân bố/tổng hợp, sau đó nội suy biến vào một f-string.
+- Kết quả kiểm chứng: script chạy lại exit 0; AST parse thành công và các kiểm tra
+  count/ID/CSV đều đạt.
+- Phòng tránh: không trộn phép cộng chuỗi với f-string nhiều dòng; chuẩn bị phần
+  động phức tạp trong biến riêng.
+
+## ERR-20261006-01
+
+- Task: TASK-20261006-02.
+- Triệu chứng: PowerShell trong sandbox báo `Access is denied` khi đọc
+  `outputs/result_qa` dù đường dẫn thuộc workspace.
+- Nguyên nhân đã xác nhận trong phạm vi task: ACL của `outputs/` không cho tiến
+  trình sandbox đọc; không phải artifact bị thiếu.
+- Xử lý: xin quyền thao tác trực tiếp đúng workspace cho các lệnh đọc/ghi cần thiết.
+- Kết quả kiểm chứng: kiểm kê được artifact, sinh và đọc lại ba đầu ra thành công.
+- Phòng tránh: nếu lỗi ACL này tái diễn, không suy luận file không tồn tại; kiểm tra
+  lại bằng quyền workspace trực tiếp, giữ phạm vi lệnh ở dataset/artifact liên quan.
+
 ## ERR-20261003-10
 
 - Task: TASK-20261003-09.
@@ -162,3 +223,15 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xác nhận/sửa: thư mục thực là outputs/result_qa; dùng login=false, PYTHONIOENCODING=utf-8 và tìm trên đường dẫn thư mục với glob file. Các lần đọc tiếp theo thành công, dữ liệu gốc không bị sửa.
 - Tránh lặp: xác nhận tên thư mục và encoding trước khi đọc artifact Unicode.
 - Lỗi artifact quan sát riêng: single_0445 StructuredAnswerError sau 2 lần sinh JSON; chưa sửa runtime, chi tiết và giả thuyết cắt token nằm trong báo cáo.
+
+## ERR-20261005-01 — TASK-20261005-01
+
+- Assert kiểm chứng ban đầu giả định comparison.csv luôn đủ 1.500 dòng, thất bại ở cover.
+- Xác nhận: CSV chỉ chứa 1.113 dòng đã chạy; scores per_case chứa đủ 1.500 mục. Sửa mẫu số kiểm chứng theo loại artifact; kiểm chứng lại đạt. Không có dữ liệu đầu vào bị sửa.
+
+
+## ERR-20261005-02 — TASK-20261005-02
+
+- Script retrieval bổ sung ban đầu giả định mọi source_file có PDF tương ứng và mã chunk luôn khớp tên nguồn; dừng ở 1.014955_D.pdf (thiếu file) và unverified_a2801127764a (khác tên 2.009182739.pdf).
+- Đã sửa: giữ trạng thái unverified_source_identity, loại khỏi mẫu số đo được; không tự đoán ánh xạ _D/-Xoa hoặc mã unverified. Chạy lại exit 0; multi đo 1.142 ca, cover 1.110 ca.
+- Lỗi nội dung Gold phát hiện riêng: coverage_0381 có trường cơ quan ghi Không có thông tin nhưng trình tự PDF có hỗ trợ câu trả lời. Correctness/completeness để null chờ phân xử; không sửa Gold ngầm.

@@ -177,3 +177,83 @@
 - Phạm vi: single_1500; duyệt nguồn/case, mapping retrieval, CLI metric, chấm ngữ nghĩa, provenance/citations và cấu hình so sánh baseline/RAG/oracle.
 - Tiêu chí: artifact duyệt truy vết được; không nhầm AI review với human gold; metric có mẫu số và mapping kiểm chứng; test và tài liệu tái lập; chạy phần khả thi, nêu rõ phần cần runtime model.
 - Trạng thái: in_progress.
+
+## TASK-20261005-01
+
+- Yêu cầu: đánh giá hai kết quả mới multi và cover đã lưu; không chạy lại RAG.
+- Thư mục thực tế: outputs/result_qa/multi và outputs/result_qa/cover.
+- Tiêu chí: đối chiếu ID/dataset, điểm số, lỗi, giới hạn hội thoại và báo cáo Markdown.
+- Trạng thái: completed; đã tạo báo cáo multi/cover và kiểm chứng ID, nhãn, reference, số tổng.
+
+## TASK-20261005-02
+
+- Yêu cầu: chấm bổ sung BERTScore, retrieval và đúng nội dung cho multi/cover nếu dữ liệu cho phép, không chạy lại RAG.
+- Trạng thái: partial; BERTScore hoàn tất multi 1.143/cover 1.112 cặp. Document Recall@5/MRR@5 có trên tập nguồn xác minh được; semantic đã duyệt 360 multi + 3 cover. Chưa có evidence-unit retrieval và độ đúng nội dung toàn tập; cover thiếu 387 lượt. Báo cáo outputs/result_qa/bao-cao-bo-sung-multi-cover.md.
+
+
+## TASK-20261005-03
+
+- Yêu cầu: tổng kết ba kết quả single/multi/cover, tính kết quả cuối hiện có, giải thích cách tính từng chỉ số và có sử dụng AI chấm hay không.
+- Phạm vi: tổng hợp offline, không chạy lại RAG/BERT; giữ riêng mẫu số và giới hạn của ba view. Không tự đặt composite score.
+- Tiêu chí: bảng điểm từng bộ và phép tổng hợp truy vết được; công thức, AI provenance, mức độ hoàn tất và Markdown báo cáo.
+- Trạng thái: in_progress.
+
+## TASK-20261006-01
+
+- Ngày: 2026-10-06 (Asia/Saigon).
+- Yêu cầu: dọn `outputs/result_qa` vì có quá nhiều báo cáo đánh giá; rút gọn nội
+  dung dư thừa và tạo một bản tổng kết rõ kết quả, ảnh hưởng và đánh giá của cả
+  ba bộ single/multi/coverage.
+- Phạm vi: kiểm kê artifact hiện có; giữ dữ liệu/chứng cứ cần tái lập, hợp nhất
+  phần trình bày bị trùng và loại các báo cáo trung gian dư thừa trong thư mục
+  kết quả. Không chạy lại RAG hoặc tự bổ sung điểm chưa có.
+- Tiêu chí hoàn thành: có một báo cáo chính chỉ rõ từng loại chỉ số, mẫu số,
+  nguồn/provenance và giới hạn; danh sách file sau dọn dễ hiểu; các liên kết và
+  số liệu được kiểm chứng từ artifact còn giữ.
+- Giả định: "3 bộ test" là single, multi và coverage của
+  `rag_tthc_three_1500`; file dữ liệu gốc và bằng chứng chi tiết được ưu tiên giữ
+  hơn các bản báo cáo Markdown trung gian.
+- Bổ sung 06/10/2026 (người dùng chọn): lưu bản tóm tắt thành
+  `outputs/result_qa/tong-hop-danh-gia.md` làm báo cáo chính; xóa 3 báo cáo
+  `bao-cao-*`, README supplemental, cache/packet/mapping_candidates trung gian,
+  `source_review` v1, ảnh duyệt PNG, log và script `*.py` trong thư mục kết quả.
+  Giữ nguyên dữ liệu gốc của run (predictions/scores/comparison/config) và file
+  kiểm chứng/provenance/retrieval_verified/judgments/BERTScore. Thư mục bị
+  gitignore nên xóa là không khôi phục được qua git.
+- Trạng thái: completed.
+
+## TASK-20261006-02
+
+- Ngày: 2026-10-06 (Asia/Saigon).
+- Yêu cầu: liệt kê cụ thể các mẫu câu cần đa dạng hóa trong bộ test
+  `rag_tthc_three_1500`, lập danh sách ca Gold cần duyệt, và gợi ý thay đổi để đa
+  dạng hóa tập test.
+- Phạm vi: phân tích offline `cases.jsonl` và artifact kết quả đã có; tạo báo cáo
+  và danh sách CSV trong `outputs/testset_review/`. Không sửa dataset, không chạy
+  lại RAG, không tự duyệt/đổi Gold.
+- Tiêu chí hoàn thành: bảng mẫu câu theo bộ/nhãn có số lượng và ví dụ ID; danh
+  sách ca Gold cần duyệt có lý do và mức ưu tiên; gợi ý đa dạng hóa có ví dụ cụ thể
+  cho từng mẫu; số liệu được tính lại từ dữ liệu.
+- Giả định: "mẫu câu" xác định bằng cách thay tên thủ tục/số trong câu hỏi bằng
+  placeholder; tiêu chí chọn ca Gold dựa trên trạng thái verification và tín hiệu
+  bất thường, không phải phán quyết đúng/sai.
+- Trạng thái: completed.
+
+## TASK-20261006-03
+
+- Ngày: 2026-10-06 (Asia/Saigon).
+- Yêu cầu: thay đổi và cập nhật các case trong `rag_tthc_three_1500` để câu hỏi
+  đa dạng hơn dựa trên báo cáo rà soát mẫu câu đã tạo.
+- Phạm vi: sửa cách diễn đạt trường `question` trong `cases.jsonl`, ưu tiên các
+  khung lặp cao; giữ nguyên ID, bộ/view, lịch sử hội thoại, nhãn hành động, Gold,
+  required facts, evidence và provenance. Đồng bộ checksum/báo cáo validation và
+  hàng đợi human review nếu định dạng hiện hành yêu cầu. Không chạy lại RAG và
+  không tự thay đổi/duyệt Gold.
+- Tiêu chí hoàn thành: giảm rõ rệt mức tập trung của các mẫu lặp cao; câu viết lại
+  giữ cùng ý định và hành vi mong đợi; 1.500 ID mỗi view và chuỗi multi vẫn hợp lệ;
+  không sinh câu hỏi trùng trong single; có số liệu trước/sau và kiểm thử dataset.
+- Giả định: chỉ đa dạng hóa bề mặt câu hỏi, không thêm dữ kiện tình huống mới có
+  thể làm đổi Gold; các biến thể typo/no-diacritics hiện có phải giữ đúng loại.
+- Bổ sung khi triển khai: để hội thoại multi nhất quán, đồng bộ message `role=user`
+  trong history với câu hỏi mới của lượt trước; giữ nguyên toàn bộ message assistant/Gold.
+- Trạng thái: completed.

@@ -1,5 +1,44 @@
 # Lịch sử triển khai
 
+## TASK-20261006-03 — áp dụng đa dạng hóa câu hỏi
+
+- Thêm `Data/qa_test_v4/rag_tthc_three_1500/diversify_questions.py` và áp dụng
+  cho các nhóm mẫu chuẩn hóa có ít nhất 10 case. Script chỉ viết lại bề mặt câu hỏi,
+  bỏ qua augmentation typo/no-diacritics và khóa `--apply` theo hash input v1.
+- Cập nhật 3.772 câu; đồng bộ `runner_queries.jsonl` và 1.684 user-message trong
+  history multi. Assistant-message, Gold, required facts và evidence không nằm
+  trong phép gán của script.
+- Vòng đầu phát sinh 821 câu single trùng do tổ hợp biến thể quay vòng; đã sửa
+  bằng tiền tố hỏi trung tính, kiểm tra cuối còn 0 trùng. Số mẫu tăng 258 → 1.997,
+  nhóm lớn nhất giảm 357 → 27. Chỉnh thêm văn phong cho 134 câu sinh tự động còn gượng.
+- Nâng manifest thành `4.1-three1500-v2-diverse`; cập nhật validation, README,
+  checksum và các báo cáo/CSV trong `outputs/testset_review/`.
+- Kiểm chứng: đủ 4.500 ID và 1.500 ID/view; 381 chuỗi multi liên tục, user-history
+  khớp; query export khớp case; tất cả checksum đạt; `test_evaluation.py` đạt 3/3,
+  `test_resume.py` đạt. Không chạy RAG.
+- Giới hạn kiểm chứng: `cases.jsonl` không có trong Git và không còn snapshot cùng
+  hash cũ sau khi ghi, nên không thể diff độc lập mọi trường với bản v1. Báo cáo
+  nêu rõ giới hạn và không tuyên bố benchmark cũ là kết quả của v2-diverse.
+
+## TASK-20261006-02 — rà soát mẫu câu và Gold cần duyệt
+
+- Tạo `outputs/testset_review/build_review.py` để tính lại offline từ `cases.jsonl`
+  và dùng artifact verification/judgment hiện có làm tín hiệu triage.
+- Tạo `bao-cao-ra-soat-testset.md`, `mau-cau-can-da-dang-hoa.csv` và
+  `gold-can-duyet.csv`. CSV mẫu câu có bộ, nhãn, số lượng/mẫu số, tỷ lệ, ID/câu ví dụ,
+  gợi ý và ví dụ viết lại cho từng mẫu.
+- Quy tắc mẫu: thay nội dung trong ngoặc kép bằng `<THU_TUC>`, thay số độc lập/chuỗi
+  số bằng `<SO>`, chuẩn hóa khoảng trắng rồi nhóm theo bộ và `expected_action`.
+- Hàng đợi Gold chỉ chọn tín hiệu có khả năng hành động: xung đột được judgment nêu,
+  source literal chưa `passed`, cờ section completeness, hoặc bất thường cấu trúc
+  reference/facts/evidence. Trạng thái pending phổ quát không tự động đưa case vào hàng đợi.
+- Kết quả: 4.500 case, 258 mẫu theo bộ/nhãn, 78 mẫu có ít nhất 10 case; hàng đợi
+  1.318 ca (P0=1, P1=1.074, P2=243). Không có thay đổi dataset hay Gold.
+- Kiểm chứng: script chạy exit 0; tổng count mẫu 4.500; ID review duy nhất và thuộc
+  dataset; hash dataset `6ef2458020f12378ab86906a1e793c828d553687b2ecdeb8ed5a748931dbd02f`.
+- Lỗi thực tế: lần chạy đầu lỗi cú pháp khi ghép f-string báo cáo; đã tách chuỗi tổng
+  hợp ra biến và chạy lại thành công. ACL sandbox với `outputs/` yêu cầu thao tác trực tiếp.
+
 ## TASK-20261004-02 - Rà soát bộ ba tập 1.500
 
 - Xác nhận dataset cục bộ là `Data/qa_test_v4/rag_tthc_three_1500`, gồm
@@ -243,3 +282,26 @@
 - Đã lưu provenance, điểm từng ca, summary, mapping audit và README; cập nhật mục 9 báo cáo chính.
 - Kiểm chứng Python: đủ 944 ID khớp tập cần chấm, tất cả điểm hữu hạn, trung bình tính lại khớp, toàn bộ SHA-256 artifact gốc không đổi; kiểm tra Markdown links và diff-check.
 - Mapping audit chỉ có 1.461/3.313 chunk khớp nguyên nội dung unit cùng mã thủ tục; 1.852 chưa xác định. Chưa đủ mapping đã duyệt để chấm retrieval; trạng thái partial. Không coi BERTScore cao là tỷ lệ đúng kiến thức.
+
+## TASK-20261005-01
+
+- Phân tích offline multi/cover, tạo outputs/result_qa/bao-cao-multi-cover.md và kiem-chung-multi-cover.json.
+- Kiểm chứng ID duy nhất, view, câu hỏi/nhãn/reference và tính lại action accuracy; liên kết báo cáo hợp lệ. Multi: 1.500 ca, 381 hội thoại; cover: 1.113 dòng CSV/predictions so với 1.500 per_case. Không ghi đè artifact.
+- Chưa có BERTScore/retrieval/semantic judgments trong hai run; không chạy lại model.
+
+
+## TASK-20261005-02 — Chấm bổ sung multi/cover (partial)
+
+- Hoàn tất session 63478 exit 0: BERTScore xlm-roberta-large L17 CPU batch 1 no-IDF/no-rescale; multi 1.143 cặp F1=0,8949523699, cover 1.112 cặp F1=0,9031523112. Multi 1 cặp/cover 12 cặp quá giới hạn 512 token. Không chạy lại RAG.
+- Mapping candidates session 63968 exit 0: 3.453 chunk multi, 4.496 chunk cover; không tự duyệt mapping. Document Recall@5/MRR@5 trên hạng chunk gốc: 0,852890/0,826416 (multi n=1.142), 0,956757/0,935736 (cover n=1.110). Tách ca thiếu nguồn/không rõ retrieval/chưa chạy.
+- Duyệt nội dung AI 360 ca multi (357 personal-status abstentions đầy đủ theo 5 dạng answer đã đọc + 3 ca nội dung) và 3 ca cover (1 chờ phân xử Gold). Evidence-unit retrieval 6 ca có chủ đích. Không công bố pooled sample mean thành độ đúng toàn tập; không gọi AI review là human gold.
+- Tạo outputs/result_qa/score_supplemental_review.py, finalize_supplemental.py, bao-cao-bo-sung-multi-cover.md, kiem-chung-bo-sung-multi-cover.json và artifact mỗi bộ trong supplemental/. Báo cáo cũ có liên kết cập nhật.
+- Kiểm chứng: finalize_supplemental.py exit 0; ID BERT đúng tập đủ điều kiện, không trùng, điểm hữu hạn, mean/truncation tính lại khớp; retrieval mẫu số đủ 1.500 trạng thái và hạng mẫu khớp đối chiếu; judgment hash validator đạt; toàn bộ SHA-256 artifact gốc không đổi.
+- Còn thiếu: duyệt mapping bằng chứng toàn tập, phân xử Gold, duyệt nội dung các ca còn lại và bổ sung 387 prediction cover nếu muốn đánh giá đủ 1.500. Không đánh dấu completed cho các chỉ số chưa có.
+
+## TASK-20261006-01 - Hợp nhất và dọn `outputs/result_qa` (completed)
+
+- Tạo `outputs/result_qa/tong-hop-danh-gia.md` làm báo cáo chính duy nhất: cấu hình chạy, 7 nhóm nội dung đánh giá, bảng kết quả 3 bộ, ma trận nhầm lẫn single, bảng theo lượt multi, lưu ý diễn giải, việc còn lại, danh sách file giữ.
+- Bổ sung số liệu tự tính: single Document Recall@5/MRR@5 trên 615 ca có truy hồi ≈ 0,885/0,867 (328/943 ca dừng ở routing bị tính 0 trong điểm 0,577/0,565).
+- Xóa theo lựa chọn người dùng: `bao-cao-single-1500.md`, `bao-cao-multi-cover.md`, `bao-cao-bo-sung-multi-cover.md`, `supplemental_single_1500/README.md`, `source_review/` v1, `pdf_text_cache.json`/`review_packets*`/`generation_review_packets.jsonl`/`mapping_candidates.json`, `visual_review/`, `review_multi_cover/`, mọi `*.log` và `*.py` trong thư mục. Giữ dữ liệu gốc run, kiểm chứng, judgments, BERTScore.
+- Kiểm chứng: 101 → 54 file, 93,2 → 45,2 MB; mọi liên kết tương đối trong báo cáo chính tồn tại. Thư mục bị gitignore nên không khôi phục qua git; tái lập chấm bổ sung cần script mới.
