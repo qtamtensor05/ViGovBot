@@ -22,8 +22,23 @@ def resolve_dataset(dataset, view=None):
         else:
             default_view = "views_balanced.json"
         candidates = ("views_main_test.json", "views_single_1500.json", "views_balanced.json")
-        view = next((name for name in candidates if (dataset / name).is_file()), default_view)
+        view = next((name for name in candidates if (dataset / name).is_file()), None)
+        if view is None and str(dataset).endswith(("rag_tthc_three_1500", "rag_tthc_v4_1")):
+            view = default_view
     return dataset, view
+
+
+def dataset_file(dataset, kind, split=None):
+    """Resolve both QA v4 and unified-v2 package layouts without copying gold."""
+    direct = dataset / ("cases.jsonl" if kind == "cases" else "runner_queries.jsonl")
+    if direct.is_file():
+        return direct
+    package_split = split or "test"
+    name = f"{package_split}.jsonl" if kind == "cases" else f"{package_split}_queries.jsonl"
+    packaged = dataset / "data" / "rag" / name
+    if packaged.is_file():
+        return packaged
+    raise FileNotFoundError(f"Cannot find {kind} for split {package_split!r} in {dataset}")
 
 
 def select_rows(rows, dataset, view, split, limit=None):
@@ -80,7 +95,8 @@ def main(argv=None):
         if not args.predictions:
             parser.error("--predictions is required")
         from .scoring import evaluate
-        cases = select_rows(read_jsonl(args.dataset / "cases.jsonl"), args.dataset, args.view, args.split, args.limit)
+        cases_path = dataset_file(args.dataset, "cases", args.split)
+        cases = select_rows(read_jsonl(cases_path), args.dataset, args.view, args.split, args.limit)
         predictions = list(read_jsonl(args.predictions))
         if args.unit_map:
             from .retrieval_metrics import apply_mapping
@@ -102,12 +118,12 @@ def main(argv=None):
                           progress=True)
         from .audit import sha256
         report['provenance'] = {str(p): sha256(p) for p in
-            [args.dataset / 'cases.jsonl', args.dataset / args.view, args.predictions,
+            [cases_path, args.dataset / args.view if args.view else None, args.predictions,
              args.unit_map, args.judgments, args.bert_cache] if p}
         manifest = args.dataset / 'manifest.json'
         report['dataset_status'] = json.loads(manifest.read_text(encoding='utf-8')) if manifest.exists() else None
         from .review import fingerprint
-        report['benchmark'] = {'cases_sha256': sha256(args.dataset / 'cases.jsonl'),
+        report['benchmark'] = {'cases_sha256': sha256(cases_path),
                                'selected_ids_sha256': fingerprint(sorted(c['id'] for c in cases))}
         report['case_groups'] = {c['id']: c.get('conversation_id') or c.get('procedure_family_id')
                                  or c.get('document_id') or c['id'] for c in cases}
@@ -124,7 +140,7 @@ def main(argv=None):
     queries = None
     if args.command == "run":
         from vigovbot.evaluation.multiturn import load_queries, validate_sequence
-        queries = load_queries(args.dataset / "runner_queries.jsonl",
+        queries = load_queries(dataset_file(args.dataset, "queries", args.split),
                                args.dataset / args.view if args.view else None, args.split)
         if args.limit:
             queries = queries[:args.limit]
@@ -141,7 +157,8 @@ def main(argv=None):
     if args.oracle_evidence:
         ids = {q['id'] for q in queries}
         # Only evidence is forwarded. Reference text and behavior labels stay in the evaluator.
-        oracle_contexts = {c['id']: c['evidence'] for c in read_jsonl(args.dataset / 'cases.jsonl') if c['id'] in ids}
+        oracle_contexts = {c['id']: c['evidence'] for c in read_jsonl(
+            dataset_file(args.dataset, "cases", args.split)) if c['id'] in ids}
         session = ollama_oracle(args.config)
     elif args.no_retrieval:
         session = ollama_baseline(args.config)
@@ -180,7 +197,8 @@ def main(argv=None):
             from .audit import sha256
             provenance = {'mode': 'oracle' if args.oracle_evidence else ('base' if args.no_retrieval else 'rag'),
                           'inputs': {str(p): sha256(p) for p in
-                              [args.dataset / 'runner_queries.jsonl', args.dataset / args.view]},
+                              [dataset_file(args.dataset, "queries", args.split),
+                               args.dataset / args.view if args.view else None] if p},
                           'config_sha256': sha256(args.config) if not args.endpoint else None}
             report = run_queries(queries, answer, args.out or Path("outputs/qa_v4/predictions.jsonl"), args.mode,
                                  oracle_contexts=oracle_contexts, provenance=provenance,

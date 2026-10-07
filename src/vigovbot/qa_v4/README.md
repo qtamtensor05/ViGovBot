@@ -65,6 +65,10 @@ python -m vigovbot qa-v4 score --split test --limit 10 --predictions outputs/qa_
 
 Prediction baseline dùng cùng schema chấm điểm, nhưng không có evidence truy hồi;
 report vì vậy không công bố recall/MRR.
+Baseline gửi JSON Schema giới hạn `answer` không rỗng và năm giá trị `action`;
+nếu output vẫn không hợp lệ, runner thử lại đúng một lần rồi mới ghi failure kèm
+`generation_diagnostics`. Cơ chế này chỉ sửa hợp đồng đầu ra, không thêm retrieval
+hoặc dữ liệu gold vào prompt.
 
 Adapter tái sử dụng `prepare`, `inference_session` và `answer_question` của
 `vigovbot.rag.pipeline`; dùng cùng corpus, embedding, FAISS, tokenizer, routing,

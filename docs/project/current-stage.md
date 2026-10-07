@@ -265,3 +265,94 @@
   sinh chứa `RUN_REPORT`, thông báo ETA và phần đọc báo cáo; diff-check đạt.
 - Trạng thái ứng dụng: ETA áp dụng cho `qa-v4 run` và hiện trực tiếp trong notebook
   RAG Colab; không thay đổi truy hồi, sinh câu trả lời, dataset hoặc cách chấm điểm.
+# TASK-20261007-05 — partial
+
+- Đang thiết lập và chạy QA RAG cho 1.000 ca test của
+  `Data/qa_test/tthc_test_case_v1` trên máy hiện tại.
+- Đã xác nhận máy có RTX 3090 24 GB, 18 logical processors và khoảng 47,9 GB RAM
+  khả dụng; chưa có `.venv`, `python`, `git` hoặc `ollama` trong `PATH`.
+- Dataset có `test.jsonl` và `test_queries.jsonl`, mỗi file 1.000 ca; evaluator
+  riêng tính retrieval/lexical/BERTScore/runtime và để null metric semantic khi
+  thiếu judgment. Chế độ chính chọn `reference_history` để đúng hợp đồng dữ liệu.
+- Giai đoạn tiếp theo: cài runtime/dependency, tạo cấu hình RTX 3090, chạy
+  validation và smoke có concurrency trước khi chạy toàn bộ; artifact dự kiến ở
+  `outputs/tthc_test_case_v1/`.
+- Đã cài Python 3.14.7, `.venv`, lock RAG/evaluation, Torch 2.14.0+cu130 và
+  Ollama 0.40.0; `pip check` đạt, CUDA nhận RTX 3090 24 GB. Qwen 2.5 7B đã tải.
+- Đã thêm CLI đọc trực tiếp layout unified-v2 `data/rag/{split}*.jsonl` và cấu
+  hình `configs/rag-rtx3090.yaml`; 14 test QA runner và Ruff đạt.
+- Ollama user config: parallel=4, max-loaded=1, Flash Attention=1, KV q8_0.
+- Chuẩn bị smoke RAG 8 ca reference-history với concurrency 2; lệnh sẽ tải/cache
+  BGE-M3 và tokenizer nếu thiếu. Artifact:
+  `outputs/tthc_test_case_v1/smoke_c2_8.jsonl` và `.run.json`.
+- Smoke concurrency 2: 8/8 thành công, wall 76,57 giây (có warm-up Qwen đầu);
+  smoke cache nóng concurrency 4: 8/8, wall 24,52 giây, 0,326 câu/giây, không
+  OOM. Một lượt c4 bị dừng trước khi inference vì sandbox chặn HEAD Hugging Face;
+  chạy lại với `HF_HUB_OFFLINE=1` dùng cache thành công.
+- Chuẩn bị chạy toàn bộ 1.000 ca với concurrency 4, reference-history và cache
+  offline; artifact `outputs/tthc_test_case_v1/predictions_c4.jsonl`, thời gian
+  dự kiến ban đầu 50–90 phút theo smoke và độ dài đáp án thực tế.
+- Theo yêu cầu mới, đã dừng full run; file dở giữ 36 prediction thành công, không
+  có `.run.json` vì tiến trình chưa hoàn tất. Không có process benchmark còn chạy.
+- Bàn giao lệnh chạy mới dùng output `predictions_c4_full.jsonl` để tránh đụng
+  file dở, hiển thị từng ID, latency, số thành công/lỗi, ETA và giờ dự kiến xong.
+- Trạng thái partial: môi trường và smoke đạt; full 1.000 ca và score cuối chưa
+  chạy vì người dùng muốn tự chạy/quan sát.
+
+# TASK-20261007-05 — in_progress
+
+- Đang thiết lập và chạy QA RAG cho 1.000 ca test của
+  `Data/qa_test/tthc_test_case_v1` trên máy hiện tại.
+- Đã xác nhận máy có RTX 3090 24 GB, 18 logical processors và khoảng 47,9 GB RAM
+  khả dụng; chưa có `.venv`, Python thật, Git hoặc Ollama trong `PATH`.
+- Dataset có `test.jsonl` và `test_queries.jsonl`, mỗi file 1.000 ca; evaluator
+  riêng tính retrieval/lexical/BERTScore/runtime và để null metric semantic khi
+  thiếu judgment. Chế độ chính chọn `reference_history` để đúng hợp đồng dữ liệu.
+- Giai đoạn tiếp theo: cài runtime/dependency, tạo cấu hình RTX 3090, chạy
+  validation và smoke có concurrency trước khi chạy toàn bộ; artifact dự kiến ở
+  `outputs/tthc_test_case_v1/`.
+
+# TASK-20261007-06 — completed
+
+- Đang điều tra evaluator unified-v2 bị `KeyboardInterrupt` trong
+  `sacrebleu.BLEU.corpus_score` khi chấm 1.000 prediction.
+- Đã xác nhận prediction đủ 1.000 dòng; test có 691 ca một reference và 309 ca
+  hai reference, nên số reference không bất thường.
+- Tiếp theo: đo độ dài answer/token và benchmark riêng corpus BLEU để xác định
+  điểm nghẽn trước khi sửa; chưa chạy lại BERTScore toàn tập.
+- Đã xác nhận lexical gốc vẫn hoàn tất trong khoảng 3,75 giây; nguyên nhân gây
+  cảm giác treo là 805 lần gọi sentence BLEU phát cảnh báo `effective_order`, rồi
+  người dùng ngắt đúng lúc chuyển sang corpus BLEU.
+- Đã giữ `effective_order=False` và chỉ chặn logger cảnh báo lặp, nên công thức
+  không đổi; thêm thông báo phase corpus BLEU/BERTScore, progress BERTScore và
+  option `--bert-batch-size`.
+- Kiểm chứng: py_compile đạt, synthetic evaluator đạt; full lexical 1.000 ca
+  hoàn tất 3,70 giây, coverage 995/1.000, BLEU-4 23,9057. Artifact:
+  `outputs/tthc_test_case_v1/scores_lexical_fixed.json`.
+- Chưa tự chạy BERTScore toàn tập theo yêu cầu trước của người dùng muốn tự chạy
+  và quan sát; câu lệnh CUDA batch 32 được bàn giao.
+- Lượt BERTScore của người dùng chưa nạp được `xlm-roberta-large` vì terminal còn
+  hai biến offline từ bước RAG. Đã bàn giao lệnh xóa biến và chạy lại; lexical
+  không lỗi, output score đầy đủ chỉ được ghi sau khi BERTScore hoàn tất.
+
+# TASK-20261007-07 — completed
+
+- Đang sửa baseline Qwen để dùng `answer_schema(False)` và retry validation tối
+  đa một lần, không thêm retrieval hay gold vào prompt.
+- Baseline cũ đã chạy đủ 1.000 dòng; snapshot gần cuối cho thấy phần lớn failure
+  là `Invalid structured answer/action`, adapter cũ chỉ dùng `format=json` và
+  không retry. Artifact cũ được giữ nguyên để bảo toàn provenance.
+- Tiếp theo: triển khai helper có diagnostics, unit test initial/retry/failure,
+  rồi chạy smoke thật sang output mới.
+- Đã triển khai schema `answer_schema(False)`, retry validation đúng một lần và
+  lưu `generation_diagnostics`; 37 test QA/routing, Ruff check/format đạt.
+- Chuẩn bị smoke model thật 20 ca, concurrency 4, output mới
+  `outputs/tthc_test_case_v1/baseline_schema_retry_smoke20.jsonl`; dự kiến vài
+  phút, cần 20/20 hoặc lỗi còn lại phải có diagnostics.
+- Smoke thật hoàn tất 20/20, wall 21,08 giây, 0 failure; cả 20 hợp lệ ngay lần
+  đầu với schema. Cùng 20 vị trí trong run cũ có 5 failure schema.
+- Kiểm chứng cuối: 37 test QA/routing đạt; Ruff check/format và pip check đạt.
+  README baseline đã ghi rõ schema, retry và không đưa retrieval/gold vào prompt.
+- Artifact cũ `predictions_qwen_baseline_c4.jsonl` giữ nguyên; để benchmark chính
+  cần chạy lại đủ 1.000 ca sang tên output mới.
+

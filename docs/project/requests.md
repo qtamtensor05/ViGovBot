@@ -1,5 +1,53 @@
 # Yêu cầu dự án
 
+## TASK-20261007-07
+
+- Ngày: 2026-10-07 (Asia/Saigon).
+- Yêu cầu: sửa baseline Qwen không retrieval để dùng JSON Schema ràng buộc và
+  retry một lần giống luồng RAG, giảm lỗi `Invalid structured answer/action`.
+- Phạm vi: thay hợp đồng sinh baseline, lưu diagnostics, bổ sung unit test và
+  smoke model thật với output mới; không ghi đè artifact baseline 1.000 ca cũ.
+- Tiêu chí: schema chỉ cho phép answer không rỗng và năm action hợp lệ; output
+  sai được retry đúng một lần; hai lần sai vẫn là failure có diagnostics; test,
+  Ruff và smoke thật đạt.
+- Trạng thái: completed; schema/retry/diagnostics đã triển khai, test và smoke
+  Qwen thật 20/20 đạt, artifact baseline cũ không bị ghi đè.
+
+## TASK-20261007-06
+
+- Ngày: 2026-10-07 (Asia/Saigon).
+- Yêu cầu: sửa lệnh chấm `tthc_test_case_v1` bị người dùng ngắt tại corpus BLEU
+  trong SacreBLEU và cung cấp lại lệnh chấm chạy được.
+- Phạm vi: tái hiện riêng bước lexical trên 1.000 prediction đã hoàn tất, xác
+  định nguyên nhân hiệu năng, sửa evaluator kèm kiểm thử; sau đó smoke chấm thực.
+- Tiêu chí: lexical score hoàn tất trong thời gian hợp lý, không đổi định nghĩa
+  metric; test evaluator và kiểm tra mã đạt; không tự chạy BERTScore toàn tập nếu
+  người dùng chưa yêu cầu tiếp tục chờ job dài.
+- Trạng thái: completed; đã loại log cảnh báo lặp mà không đổi cách tính BLEU,
+  thêm tiến trình phase và batch size BERTScore, lexical full hoàn tất 3,70 giây.
+
+## TASK-20261007-05
+
+- Ngày: 2026-10-07 (Asia/Saigon).
+- Yêu cầu: thiết lập môi trường đúng với dự án trên máy hiện tại, chạy đánh giá
+  QA RAG cho 1.000 ca test trong `Data/qa_test/tthc_test_case_v1/data/rag`, chấm
+  theo evaluator tại `Data/qa_test/tthc_test_case_v1/evaluation`, và cung cấp
+  lệnh chạy nhiều luồng tận dụng cấu hình máy.
+- Phạm vi: kiểm tra phần cứng/phần mềm, cài Python/dependency/Ollama/model cần
+  thiết, tích hợp bộ dữ liệu v2 với RAG hiện hành mà không đưa gold vào inference,
+  chạy smoke rồi toàn bộ test nếu smoke đạt, chấm các metric có dữ liệu thực và
+  lưu artifact có thể tái lập.
+- Tiêu chí hoàn thành: môi trường `pip check` đạt; CUDA/model/corpus/RAG hoạt động;
+  prediction đủ 1.000 ID hoặc báo chính xác lỗi còn lại; evaluator sinh score;
+  lệnh run/score nhiều luồng và cấu hình máy được ghi rõ.
+- Giả định: “evalue” là thư mục `evaluation`; chế độ đánh giá chính là
+  `reference_history` theo README bộ dữ liệu; semantic accuracy/completeness/
+  faithfulness chỉ có khi có judgments, không tự suy từ lexical metric.
+- Bổ sung: người dùng yêu cầu dừng full run tự động và chỉ bàn giao câu lệnh có
+  progress/ETA để tự chạy và quan sát trên terminal.
+- Trạng thái: partial; môi trường/cấu hình/smoke đã hoàn tất, full run được dừng
+  theo yêu cầu ở 36 dòng đã ghi và chưa chấm toàn bộ 1.000 ca.
+
 ## TASK-20261004-02
 
 - Ngày: 2026-10-04 (Asia/Saigon).

@@ -271,3 +271,59 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   `ollama serve` trực tiếp trong session 99804; readiness và log cấu hình đạt.
 - Ảnh hưởng: không mất dữ liệu; lần bị từ chối không thực thi thay đổi. Ollama
   hiện chạy với parallel=2, max loaded=1, Flash Attention và KV q8_0.
+# ERR-20261007-03 — TASK-20261007-05
+
+- Triệu chứng: `python Data/qa_test/tthc_test_case_v1/validation/validate_package.py`
+  dừng với `FileNotFoundError` tại `data/train.jsonl`.
+- Bối cảnh tái hiện: bộ dữ liệu hiện đặt case/query RAG trong `data/rag/` và SFT
+  trong `data/fintuning/`, trong khi validator và `checksums.sha256` vẫn ghi đường
+  dẫn phẳng `data/{split}.jsonl`, `data/{split}_queries.jsonl`,
+  `data/{split}_sft.jsonl`.
+- Nguyên nhân đã xác nhận: layout artifact không khớp đường dẫn được mã hóa trong
+  validator/checksum; lỗi xảy ra trước khi kiểm tra nội dung split.
+- Cách xử lý: không di chuyển hoặc sửa gold; benchmark dùng tường minh
+  `data/rag/test_queries.jsonl` và `data/rag/test.jsonl`, đồng thời sẽ kiểm tra
+  hash/nội dung theo layout thực tế. Chưa sửa package nguồn trong lúc chuẩn bị run.
+- Kết quả kiểm chứng: ba file test/query/SFT tại layout thực tế khớp SHA-256 khai
+  báo; evaluator synthetic đạt và 28 test RAG/QA đạt. Validator gốc vẫn lỗi nếu
+  chưa sửa layout, nên không dùng kết quả đó để tuyên bố package validation đạt.
+
+# ERR-20261007-04 — TASK-20261007-05
+
+- Triệu chứng: smoke concurrency 4 liên tục retry HEAD tới Hugging Face với
+  `WinError 10013`, dù BGE-M3 đã có trong cache.
+- Bối cảnh: lượt smoke chạy trong sandbox không có mạng sau lượt tải model bằng
+  quyền mạng; thư viện vẫn thử kiểm tra các file cấu hình tùy chọn trên Hub.
+- Nguyên nhân: sandbox chặn socket, không phải thiếu trọng số hoặc lỗi CUDA.
+- Cách xử lý: dừng đúng session trước khi tạo prediction, xác nhận output chưa tồn
+  tại, chạy lại với `HF_HUB_OFFLINE=1` và `TRANSFORMERS_OFFLINE=1`.
+- Kết quả: smoke c4 đạt 8/8, exit 0, wall 24,52 giây; dùng cùng cách cho full run.
+
+# ERR-20261007-05 — TASK-20261007-06
+
+- Triệu chứng: evaluator bị người dùng ngắt tại `BLEU.corpus_score`; trước đó
+  terminal in lặp cảnh báo khuyến nghị `effective_order` cho sentence BLEU.
+- Tái hiện: 1.000 prediction, 995 thành công; evaluator lexical gốc thực tế hoàn
+  tất khoảng 3,75 giây nhưng phát hàng trăm dòng cảnh báo.
+- Nguyên nhân: không phải deadlock/corpus quá lớn; SacreBLEU logger cảnh báo ở mỗi
+  `sentence_score` khi hợp đồng hiện tại cố ý dùng `effective_order=False`.
+- Cách sửa: đặt riêng logger `sacrebleu` ở ERROR, giữ nguyên tham số metric; thêm
+  thông báo phase/progress và option batch BERTScore.
+- Kết quả: lexical full hoàn tất 3,70 giây, không còn warning flood; synthetic
+  evaluator và py_compile đạt. Tránh đổi `effective_order` ngầm vì sẽ đổi điểm
+  sentence BLEU của câu ngắn.
+
+# ERR-20261007-06 — TASK-20261007-06
+
+- Triệu chứng: BERTScore dừng trước khi nạp model với
+  `LocalEntryNotFoundError`/`outgoing traffic has been disabled` cho
+  `xlm-roberta-large`.
+- Bối cảnh: cùng terminal trước đó đã đặt `HF_HUB_OFFLINE=1` và
+  `TRANSFORMERS_OFFLINE=1` để chạy RAG bằng cache; model BERTScore chưa có cache.
+- Nguyên nhân: chế độ offline còn hiệu lực trong process PowerShell, không phải
+  lỗi CUDA, batch 32 hoặc evaluator.
+- Cách xử lý: xóa hai biến môi trường khỏi session, cho phép tải model lần đầu;
+  sau khi cache hoàn tất có thể dùng offline ở các lần sau.
+- Kết quả kiểm chứng: nguyên nhân xác nhận trực tiếp từ traceback; người dùng tự
+  chạy lại job dài theo yêu cầu trước, chưa có artifact BERTScore hoàn tất.
+

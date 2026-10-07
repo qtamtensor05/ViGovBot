@@ -372,3 +372,40 @@
   xong. Lời gọi thư viện/test giữ mặc định im lặng; metric và JSON schema không đổi.
 - Kiểm chứng smoke 4 case hiển thị 0→100%, tổng hợp và completion path; 24 test
   QA v4/review, Ruff và diff-check đạt.
+# TASK-20261007-05
+
+- Cài Python 3.14.7, môi trường `.venv` theo lock RAG/evaluation, Torch
+  2.14.0+cu130 và Ollama 0.40.0; tải Qwen 2.5 7B. CUDA nhận RTX 3090 24 GB,
+  `pip check` đạt.
+- Thêm `configs/rag-rtx3090.yaml` và cho CLI QA v4 đọc trực tiếp layout unified-v2
+  `data/rag/{split}.jsonl`/`{split}_queries.jsonl`; không sao chép hoặc đưa gold
+  vào inference. Thêm test layout; 14 test QA runner và Ruff đạt.
+- Đặt Ollama parallel=4, max-loaded=1, Flash Attention và KV q8_0. Smoke cache
+  nóng concurrency 4 đạt 8/8, wall 24,52 giây, không OOM.
+- Full run được người dùng yêu cầu dừng sau khi file ghi 36 prediction; không có
+  run report/score cuối. Bàn giao lệnh output mới để người dùng tự quan sát.
+- Dataset có lỗi layout giữa validator/checksum và artifact; hash nội dung test
+  theo ánh xạ thực tế vẫn khớp. Chi tiết ở ERR-20261007-03 và ERR-20261007-04.
+
+# TASK-20261007-06
+
+- Sửa evaluator unified-v2 để chặn cảnh báo SacreBLEU lặp theo từng câu trong khi
+  giữ nguyên `effective_order=False` và công thức điểm.
+- Bổ sung thông báo phase corpus BLEU/BERTScore, progress BERTScore và CLI
+  `--bert-batch-size`; cập nhật checksum của evaluator.
+- Kiểm chứng trên 1.000 prediction: py_compile và synthetic test đạt; lexical
+  hoàn tất 3,70 giây, coverage 995/1.000, corpus BLEU-4 23,9057. Không tự chạy
+  BERTScore toàn tập; người dùng sẽ chạy lệnh CUDA và quan sát progress.
+
+# TASK-20261007-07
+
+- Baseline Qwen không retrieval nay dùng `answer_schema(False)` thay vì chỉ
+  `format=json`, buộc `answer` không rỗng và `action` thuộc năm nhãn hợp lệ.
+- Thêm một retry khi parse/validation thất bại; lần hai thất bại ném
+  `StructuredAnswerError` và runner giữ `generation_diagnostics` gồm số attempt,
+  lỗi validation và output rút gọn. Không retry lỗi HTTP/hạ tầng.
+- Thêm test schema, recovery và failure diagnostics; cập nhật README.
+- Kiểm chứng: 37 test QA/routing, Ruff check/format và pip check đạt. Smoke Qwen
+  thật concurrency 4 đạt 20/20 trong 21,08 giây; 20 case tương ứng ở run cũ có
+  5 failure schema. Không ghi đè artifact baseline 1.000 ca cũ.
+
