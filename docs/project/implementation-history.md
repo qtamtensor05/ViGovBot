@@ -1,5 +1,20 @@
 # Lịch sử triển khai
 
+## TASK-20261007-08 — tài liệu hóa so sánh RAG và Base trên tthc_test_case_v1
+
+- Tạo tài liệu báo cáo `docs/bao-cao-danh-gia-rag-vs-base-tthc-v1.md` tổng hợp và
+  phân tích toàn diện kết quả 1.000 ca benchmark giữa RAG (`predictions_c4_full.jsonl`,
+  `scores_c4_full.json`) và Base (`predictions_qwen_baseline_schema_c4.jsonl`,
+  `scores_qwen_baseline_schema_c4.json`).
+- Báo cáo phân tích chi tiết hiệu năng thông lượng, so sánh chỉ số tương đồng văn
+  bản (Corpus BLEU 23.91 vs 8.27, Sentence BLEU 31.15 vs 15.41, ROUGE-L 0.5069 vs
+  0.3188, BERTScore 0.9041 vs 0.8816, Action Acc 66.63% vs 46.70%), phân tích
+  khả năng dập tắt ảo giác ở nhóm `abstain` (61.5% vs 12.3%), phân tích điểm yếu
+  tiếng Việt không dấu (`no_diacritics`) và nghịch lý gán nhãn ở nhóm `correct_premise`.
+- Cập nhật liên kết tài liệu trong `docs/README.md`.
+- Kiểm chứng: file Markdown tạo đúng quy chuẩn, đường dẫn tương đối và số liệu
+  khớp 100% với các file artifact kết quả trong `outputs/tthc_test_case_v1/`.
+
 ## TASK-20261006-03 — áp dụng đa dạng hóa câu hỏi
 
 - Thêm `Data/qa_test_v4/rag_tthc_three_1500/diversify_questions.py` và áp dụng

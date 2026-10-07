@@ -1,5 +1,20 @@
 # Yêu cầu dự án
 
+## TASK-20261007-08
+
+- Ngày: 2026-10-07 (Asia/Saigon).
+- Yêu cầu: lưu kết quả phân tích và so sánh RAG vs Base của bộ dữ liệu `tthc_test_case_v1`
+  thành tài liệu Markdown trong thư mục `docs/`.
+- Phạm vi: tạo tài liệu báo cáo `docs/bao-cao-danh-gia-rag-vs-base-tthc-v1.md`,
+  cập nhật bảng mục lục `docs/README.md`, liên kết đầy đủ artifact và số liệu kiểm chứng;
+  không sửa đổi dữ liệu gốc.
+- Tiêu chí: báo cáo đầy đủ phân tích tổng quan, thông lượng, điểm số text similarity
+  (BLEU, ROUGE, BERTScore), action accuracy, retrieval metrics và phân tích chi tiết
+  theo các nhóm `expected_action`, `noise`, `interaction`, `difficulty`; cập nhật
+  hồ sơ task journal đúng quy định.
+- Trạng thái: completed; báo cáo đã tạo tại `docs/bao-cao-danh-gia-rag-vs-base-tthc-v1.md`,
+  mục lục `docs/README.md` đã cập nhật.
+
 ## TASK-20261007-07
 
 - Ngày: 2026-10-07 (Asia/Saigon).

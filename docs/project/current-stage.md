@@ -1,3 +1,16 @@
+# TASK-20261007-08 — completed
+
+- Đã lập tài liệu báo cáo phân tích và so sánh RAG vs Base cho 1.000 ca kiểm thử
+  `tthc_test_case_v1` tại `docs/bao-cao-danh-gia-rag-vs-base-tthc-v1.md`.
+- Báo cáo đối chiếu trực tiếp dữ liệu giữa `scores_c4_full.json` (RAG) và
+  `scores_qwen_baseline_schema_c4.json` (Base), cùng run reports tương ứng.
+- Đã phân tích: thông lượng/thời gian chạy, text similarity (BLEU/ROUGE/BERTScore),
+  retrieval recall/MRR, khả năng chặn ảo giác ở nhóm `abstain` (+49.2%), điểm
+  yếu tiếng Việt không dấu (`no_diacritics`) của BGE-M3 và phân loại nhãn
+  `correct_premise` / `partial`.
+- Đã liên kết báo cáo trong `docs/README.md`.
+- Kiểm chứng: file tạo thành công, cú pháp Markdown chuẩn, liên kết hợp lệ.
+
 # TASK-20261007-04 — completed
 
 - Đang bổ sung tiến trình theo phase cho `qa-v4 score`; không đổi công thức điểm.
