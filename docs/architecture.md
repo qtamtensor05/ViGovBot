@@ -12,9 +12,11 @@ checkout và sử dụng namespace `vigovbot.*`; lớp tương thích `src.*` đ
 ```mermaid
 flowchart LR
     PDF --> ingestion --> chunking --> embeddings --> vectordb
-    question[Câu hỏi] --> retrieval
+    question[Câu hỏi + Lịch sử] --> router[router: Phân loại / Viết lại]
+    router -->|ngoài phạm vi / mơ hồ| answer[Câu trả lời trực tiếp]
+    router -->|câu mới / hỏi tiếp| retrieval
     vectordb --> retrieval --> prompts --> llm
-    llm --> answer[Câu trả lời và nguồn]
+    llm --> answer
     answer --> evaluation
     dataset[Bộ test và đáp án chuẩn] --> evaluation
 ```

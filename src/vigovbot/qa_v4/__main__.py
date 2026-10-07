@@ -17,8 +17,12 @@ def resolve_dataset(dataset, view=None):
     }
     dataset = aliases.get(str(dataset), Path(dataset))
     if view is None:
+        if str(dataset).endswith("rag_tthc_three_1500"):
+            default_view = "views_single_1500.json"
+        else:
+            default_view = "views_balanced.json"
         candidates = ("views_main_test.json", "views_single_1500.json", "views_balanced.json")
-        view = next((name for name in candidates if (dataset / name).is_file()), "views_balanced.json")
+        view = next((name for name in candidates if (dataset / name).is_file()), default_view)
     return dataset, view
 
 
