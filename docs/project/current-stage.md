@@ -1,3 +1,98 @@
+# TASK-20261007-04 — completed
+
+- Đang bổ sung tiến trình theo phase cho `qa-v4 score`; không đổi công thức điểm.
+- Mục tiêu: lexical có progress bar, BERTScore báo rõ model/device/batch và dùng
+  progress batch sẵn có, cuối lệnh in thời gian cùng đường dẫn artifact.
+- Đã triển khai: CLI in số case/prediction, progress `Lexical/reference`, số cặp
+  BERTScore + model/device/batch, cảnh báo thời gian nạp model, thời gian BERT,
+  tổng thời gian và `[Score] Hoàn tất: <output>`.
+- Smoke lexical 4/4 hiển thị đủ tiến trình và ghi artifact; 24 test QA v4/review
+  đạt, Ruff và diff-check đạt. Không thay công thức metric hoặc schema output.
+
+# TASK-20261007-03 — completed
+
+- Đang triển khai concurrency runner/retriever, CUDA BGE/BERTScore và cấu hình
+  Ollama phù hợp RTX 5060 Ti 16 GB; không triển khai vLLM trong task này.
+- Sẽ giữ output theo thứ tự view, song song theo conversation với free-running,
+  và benchmark smoke concurrency 1/2 trước khi kết luận mức tăng tốc.
+- Chuẩn bị kiểm tra toàn bộ call site/test và thiết kế writer/resume an toàn trước
+  khi sửa code; chưa thay môi trường CUDA hay restart Ollama.
+- Đã triển khai runner thread pool: reference-history song song theo câu,
+  free-running song song theo conversation; writer giữ thứ tự view. Retriever chỉ
+  khóa encoder và SQLite riêng, không khóa FAISS read-only.
+- 40 test QA v4/RAG đạt, gồm concurrency/output/history mới. Ruff chưa có trong
+  `.venv` vì lock đã cài không gồm extra dev; chuẩn bị cài Ruff 0.15.6 và thay
+  Torch CPU bằng wheel CUDA rồi xác minh trước khi đổi YAML.
+- Đã cài Ruff 0.15.6 và Torch 2.14.0+cu130; CUDA nhận RTX 5060 Ti. BGE-M3 dùng
+  khoảng 2.198 MB VRAM; warm-up đầu 15,48 giây, sáu encode sau trung bình 0,044
+  giây/query. Đã tạo `configs/rag-fast-local.yaml` thay vì đổi cấu hình CPU gốc.
+- Đã đặt biến user Ollama parallel=2, max loaded=1, Flash Attention=1, KV q8_0.
+  Hai lệnh Start-Process bị policy công cụ từ chối trước thực thi; đã khởi động
+  `ollama serve` bằng session 99804, log xác nhận đúng cấu hình và CUDA, API sẵn sàng.
+- Chuẩn bị benchmark cùng 4 câu single với concurrency 1 và 2; artifact mới ở
+  `outputs/environment_speed_20261007/`, không ghi đè smoke trước.
+- Benchmark single cùng 4 ID: concurrency 1 wall 36,758 giây (4/4); concurrency 2
+  wall 16,625 giây (4/4), throughput 0,109 → 0,241 câu/giây, nhanh 2,21 lần.
+  Thứ tự ID và action khớp giữa hai run; đây là smoke nhỏ, không ngoại suy tuyến tính.
+- Multi concurrency 2 chạy hai conversation x 4 lượt: 8/8 thành công, wall 32,845
+  giây; scheduling_unit trong run report là conversation.
+- BERTScore CUDA batch 16 tính 3 cặp: lượt đầu 9,41 giây sau tải/warm-up, lượt chạy
+  lại cache nóng 0,82 giây và score coverage 4/4. Đã sửa contract return_hash của
+  bert-score; lỗi và cách xử lý ở ERR-20261007-02.
+- Kiểm chứng cuối: 44 test QA v4/RAG/config/Colab đạt; Ruff đạt; pip check đạt;
+  config fast load thành cuda/cuda/batch 16; diff-check đạt.
+- Ollama server đang chạy ở session 99804; biến user tồn tại nên lần khởi động ứng
+  dụng sau vẫn nhận parallel=2/max-loaded=1/Flash Attention/q8_0.
+
+# TASK-20261007-02 — completed
+
+- Đã khảo sát phương án tăng tốc trên RTX 5060 Ti 16 GB, RAM 28 GB hữu dụng,
+  Windows và Ollama 0.35.1; chưa triển khai thay đổi kiến trúc trong task này.
+- Nút thắt code: `run_queries` tuần tự; `Retriever.search` khóa cả embedding,
+  FAISS search và SQLite nên thêm thread đơn thuần vẫn tuần tự hóa retrieval.
+- Corpus dùng `IndexFlatIP` 117.871 x 1.024, đã nằm trong RAM; không scan đĩa.
+  Smoke hiện tại retrieval 0,337 giây, trong khi routing cold-start 39,25 giây và
+  generation 5,54 giây, nên serving/model là ưu tiên lớn hơn đổi FAISS/HNSW.
+- Khả thi ưu tiên: concurrency theo câu/hội thoại, Ollama parallel 2 rồi benchmark
+  4, CUDA PyTorch cho BGE/BERTScore, batch BERTScore. Không khuyến nghị parallel 8
+  với context 8K trên 16 GB trước khi đo VRAM/KV cache.
+- vLLM không hỗ trợ Windows native; nếu dùng phải dựng WSL2/Linux và adapter
+  OpenAI-compatible. Đây là phase riêng sau khi benchmark Ollama tối ưu.
+
+# TASK-20261007-01 — completed
+
+- Đang thiết lập môi trường Windows để chạy QA v4 trên `rag_tthc_three_1500`.
+- Đã xác nhận RTX 5060 Ti 16 GB và driver NVIDIA hoạt động; Python hệ thống hiện
+  chỉ là Microsoft Store alias, chưa thấy `env/Scripts/python.exe`.
+- Đang kiểm kê Python launcher/package manager, dataset, corpus/index, backend sinh
+  và cấu hình model trước khi tạo môi trường và tải dependency.
+- Đã xác nhận dataset có đủ ba view 1.500 lượt; corpus có index 482.799.661 byte,
+  metadata 6.313.506.788 byte và manifest. Không cần chạy embedding lại.
+- Chuẩn bị cài Python 3.14 bằng winget, sau đó tạo `.venv` và cài theo
+  `locks/rag-windows-py314.txt`; artifact môi trường nằm tại `.venv/`.
+- Đã cài Python 3.14.7, tạo `.venv`, cài đủ lock `rag-windows-py314.txt` và
+  package editable; import Torch/FAISS/SentenceTransformers/Transformers/BERTScore đạt.
+  Torch trong lock là bản CPU, phù hợp cấu hình encoder `device: cpu`; Qwen dùng
+  GPU qua Ollama độc lập.
+- Đã cài Ollama 0.35.1, API localhost:11434 sẵn sàng. Chuẩn bị tải model
+  `qwen2.5:7b`; sau đó sẽ tải/cache BGE-M3 và tokenizer trong smoke run.
+- `qwen2.5:7b` (4,7 GB) đã tải thành công. Test dataset lần đầu phát hiện lock
+  thiếu SacreBLEU; đã cài `sacrebleu==2.6.0`, ghi ERR-20261007-01 và chạy lại
+  `test_evaluation.py` đạt 3/3; `test_resume.py` đạt.
+- Chuẩn bị chạy RAG thật một lượt single bằng `configs/rag.yaml`, output
+  `outputs/environment_smoke_20261007/single_limit1.jsonl`; lệnh này sẽ tải/cache
+  BGE-M3 và tokenizer nếu chưa có, rồi nạp corpus và gọi Qwen/Ollama.
+- Smoke RAG thật hoàn tất exit 0: single_0001 sinh đáp án thành công, truy hồi đủ
+  top-5; wall 45,25 giây, retrieval 0,337 giây. Score lexical exit 0, coverage 1/1.
+- BGE-M3 và tokenizer Qwen đã cache trong Hugging Face cache; SQLite corpus cache
+  đã tạo trong `outputs/rag_cache`. Ollama dỡ model sau phiên đúng lifecycle.
+- Xác minh ba view đều chọn đúng 1.500 ca và chuỗi multi hợp lệ; 40 unit test
+  QA v4/RAG/config/Colab đạt. Môi trường sẵn sàng chạy benchmark; chưa chạy toàn
+  bộ 4.500 lượt theo phạm vi đã ghi.
+- Artifact smoke: `outputs/environment_smoke_20261007/` gồm prediction, run report
+  và score. Lưu ý lockfile hiện thiếu SacreBLEU; `.venv` đã được bổ sung trực tiếp.
+- Dự kiến chỉ chạy smoke có giới hạn để xác minh; chưa chạy benchmark 4.500 lượt.
+
 # TASK-20261006-03 — completed
 
 - Đã viết lại 3.772/4.500 câu; giữ nguyên 400 case typo/no-diacritics. Số mẫu

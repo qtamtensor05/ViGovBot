@@ -4,6 +4,29 @@ Module đọc QA, gửi câu hỏi và lịch sử cho RAG hiện có, nhận c�
 đánh giá. Module không có pipeline BM25, model embedding hoặc model sinh
 câu trả lời riêng.
 
+## Chạy song song trên máy cục bộ
+
+`--concurrency N` chạy đồng thời N câu độc lập với single/coverage. Với
+`--mode free_running`, đơn vị lập lịch là hội thoại: các hội thoại chạy song song,
+nhưng các lượt trong cùng một `conversation_id` luôn tuần tự và dùng đúng câu trả
+lời vừa sinh. Output vẫn được ghi theo thứ tự view để so sánh và resume ổn định.
+
+Máy RTX 5060 Ti 16 GB đã có cấu hình [rag-fast-local.yaml](../../../configs/rag-fast-local.yaml):
+BGE-M3 và BERTScore dùng CUDA, BERTScore batch 16. Bắt đầu với concurrency 2;
+chỉ tăng 4 sau khi benchmark VRAM/503. Ollama trên Windows phải được khởi động lại
+sau khi đặt `OLLAMA_NUM_PARALLEL=2`, `OLLAMA_MAX_LOADED_MODELS=1`,
+`OLLAMA_FLASH_ATTENTION=1` và `OLLAMA_KV_CACHE_TYPE=q8_0`.
+
+Lock Windows mặc định cài Torch CPU. Trên máy này đã thay bằng wheel CUDA 13.0:
+
+```powershell
+.venv\Scripts\python.exe -m pip install --force-reinstall --no-deps torch==2.14.0 --index-url https://download.pytorch.org/whl/cu130
+.venv\Scripts\python.exe -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+Không đổi sang `device: cuda` nếu lệnh kiểm tra chưa trả `True`; CUDA wheel là
+bổ sung phụ thuộc theo máy và chưa nằm trong lock CPU dùng chung của repository.
+
 Luồng: `runner_queries.jsonl → RAG hiện có → predictions.jsonl → evaluator v4.1`.
 Chỉ bước `score` đọc `cases.jsonl` chứa đáp án và nhãn.
 
@@ -17,6 +40,17 @@ python -m vigovbot qa-v4 chat --config rag_config.yaml
 python -m vigovbot qa-v4 run --config rag_config.yaml --split test --limit 10 --out outputs/qa_v4/smoke.jsonl
 python -m vigovbot qa-v4 score --split test --limit 10 --predictions outputs/qa_v4/smoke.jsonl --out outputs/qa_v4/smoke_scores.json
 ```
+
+Ví dụ benchmark nhanh trên máy hiện tại:
+
+```powershell
+.venv\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --config configs/rag-fast-local.yaml --split test --mode reference_history --concurrency 2 --out outputs/qa_v4/single_fast.jsonl
+.venv\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_tthc_three_1500 --view views_multi_1500.json --config configs/rag-fast-local.yaml --split test --mode free_running --concurrency 2 --out outputs/qa_v4/multi_fast.jsonl
+.venv\Scripts\python.exe -m vigovbot qa-v4 score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --lexical --bertscore --bert-device cuda --bert-batch-size 16 --predictions outputs/qa_v4/single_fast.jsonl --out outputs/qa_v4/single_fast_scores.json
+```
+
+Không chạy RAG và BERTScore đồng thời trên GPU 16 GB. Nếu BERTScore hết VRAM,
+giảm batch lần lượt 16 → 8 → 4; không thay output benchmark RAG.
 
 ## Baseline Qwen không retrieval
 

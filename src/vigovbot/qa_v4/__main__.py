@@ -49,6 +49,8 @@ def main(argv=None):
     parser.add_argument("--view", help="ID view file; defaults to main test for the small dataset, balanced otherwise")
     parser.add_argument("--split", choices=["dev", "test"])
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--concurrency", type=int, default=1,
+                        help="Parallel questions, or parallel conversations in free-running mode")
     parser.add_argument("--mode", choices=["reference_history", "free_running"], default="reference_history")
     parser.add_argument("--out", type=Path)
     parser.add_argument("--predictions", type=Path)
@@ -66,8 +68,8 @@ def main(argv=None):
         parser.error("--no-retrieval cannot be combined with --endpoint")
     if args.oracle_evidence and (args.no_retrieval or args.endpoint or args.command != 'run'):
         parser.error('--oracle-evidence requires local run and cannot combine with baseline/HTTP')
-    if args.top_k < 1 or args.timeout <= 0 or (args.limit is not None and args.limit < 1):
-        parser.error("top-k, timeout and limit must be positive")
+    if args.top_k < 1 or args.timeout <= 0 or args.concurrency < 1 or (args.limit is not None and args.limit < 1):
+        parser.error("top-k, timeout, concurrency and limit must be positive")
     if args.command == "ask" and not args.question:
         parser.error("--question is required")
     if args.command == "score":
@@ -92,7 +94,8 @@ def main(argv=None):
         report = evaluate(cases, predictions, list(read_jsonl(args.judgments)) if args.judgments else [],
                           k=args.top_k, lexical=args.lexical, bert=args.bertscore,
                           model=args.bert_model, device=args.bert_device, batch_size=args.bert_batch_size,
-                          bert_cache=json.loads(args.bert_cache.read_text(encoding='utf-8')) if args.bert_cache else None)
+                          bert_cache=json.loads(args.bert_cache.read_text(encoding='utf-8')) if args.bert_cache else None,
+                          progress=True)
         from .audit import sha256
         report['provenance'] = {str(p): sha256(p) for p in
             [args.dataset / 'cases.jsonl', args.dataset / args.view, args.predictions,
@@ -111,6 +114,7 @@ def main(argv=None):
         out.parent.mkdir(parents=True, exist_ok=True)
         with out.open("x", encoding="utf-8") as handle:
             json.dump(report, handle, ensure_ascii=False, indent=2)
+        print(f"[Score] Hoàn tất: {out}", flush=True)
         print(json.dumps(report["coverage"], ensure_ascii=False))
         return 0
     queries = None
@@ -175,7 +179,8 @@ def main(argv=None):
                               [args.dataset / 'runner_queries.jsonl', args.dataset / args.view]},
                           'config_sha256': sha256(args.config) if not args.endpoint else None}
             report = run_queries(queries, answer, args.out or Path("outputs/qa_v4/predictions.jsonl"), args.mode,
-                                 oracle_contexts=oracle_contexts, provenance=provenance)
+                                 oracle_contexts=oracle_contexts, provenance=provenance,
+                                 concurrency=args.concurrency)
             print(json.dumps(report, ensure_ascii=False, indent=2))
             return int(report["failed"] > 0)
     return 0

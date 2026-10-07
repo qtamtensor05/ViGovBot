@@ -6,13 +6,20 @@ from pathlib import Path
 from vigovbot.qa_v4.audit import compact, fact_candidates
 from vigovbot.qa_v4.retrieval_metrics import apply_mapping, evidence_metrics, summarize_retrieval
 from vigovbot.qa_v4.review import fingerprint, judgment_input, validate_judgments, METRICS
-from vigovbot.qa_v4.scoring import evaluate
+from vigovbot.qa_v4.scoring import evaluate, unpack_bert_score
 from vigovbot.qa_v4.runner import run_queries
 from vigovbot.rag.routing import parse_citations
 from vigovbot.qa_v4.compare import compare
 
 
 class ReviewTests(unittest.TestCase):
+    def test_bert_score_return_contracts(self):
+        scores = (object(), object(), object())
+        self.assertEqual(unpack_bert_score((*scores, 'old')), (*scores, 'old'))
+        self.assertEqual(unpack_bert_score((scores, 'new')), (*scores, 'new'))
+        with self.assertRaises(ValueError):
+            unpack_bert_score((scores,))
+
     def case(self):
         return {'id': 'q', 'field_id': 'f', 'expected_action': 'answer',
                 'reference_answer': 'Đáp án', 'evidence': [{'unit_id': 'gold'}]}

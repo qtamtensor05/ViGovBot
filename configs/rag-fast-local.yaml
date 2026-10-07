@@ -1,0 +1,41 @@
+# Cấu hình benchmark nhanh cho máy Windows RTX 5060 Ti 16 GB.
+# Đường dẫn tương đối được tính từ thư mục configs/.
+data:
+  allow_legacy_corpus: false
+  unified_source: ../Data/vector/unified
+  dataset_path: ../Data/qa_test/dataset.jsonl
+  dataset_zip: null
+  cache_dir: ../outputs/rag_cache
+  output_dir: ../outputs/qwen2_5_7b_rag_results
+
+embedding:
+  model: BAAI/bge-m3
+  revision: null
+  device: cuda
+
+llm:
+  model: qwen2.5:7b
+  ollama_url: http://localhost:11434
+  tokenizer: Qwen/Qwen2.5-7B-Instruct
+  tokenizer_revision: null
+  temperature: 0.0
+  num_ctx: 8192
+  num_predict: 512
+  seed: 42
+  timeout: 300
+  keep_alive: 10m
+
+retrieval:
+  top_k: 5
+  max_chunk_tokens: 1200
+
+conversation:
+  routing_enabled: true
+
+evaluation:
+  smoke_test_n: 5
+  max_cases: null
+  bertscore_model: xlm-roberta-large
+  bertscore_device: cuda
+  bertscore_batch_size: 16
+  baseline_summary_path: null

@@ -235,3 +235,39 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Script retrieval bổ sung ban đầu giả định mọi source_file có PDF tương ứng và mã chunk luôn khớp tên nguồn; dừng ở 1.014955_D.pdf (thiếu file) và unverified_a2801127764a (khác tên 2.009182739.pdf).
 - Đã sửa: giữ trạng thái unverified_source_identity, loại khỏi mẫu số đo được; không tự đoán ánh xạ _D/-Xoa hoặc mã unverified. Chạy lại exit 0; multi đo 1.142 ca, cover 1.110 ca.
 - Lỗi nội dung Gold phát hiện riêng: coverage_0381 có trường cơ quan ghi Không có thông tin nhưng trình tự PDF có hỗ trợ câu trả lời. Correctness/completeness để null chờ phân xử; không sửa Gold ngầm.
+
+## ERR-20261007-01 — TASK-20261007-01
+
+- Triệu chứng: `test_evaluation.py` lỗi `ModuleNotFoundError: No module named
+  'sacrebleu'` dù đã cài toàn bộ `locks/rag-windows-py314.txt`.
+- Bối cảnh tái hiện: chạy test đi kèm dataset bằng `.venv/Scripts/python.exe`;
+  hai test khác đạt, `test_resume.py` cũng đạt.
+- Nguyên nhân đã xác nhận: lockfile RAG/evaluation Windows hiện tại không chứa
+  `sacrebleu`, trong khi evaluator của dataset import package này và
+  `pyproject.toml` khai báo nó trong extra `evaluation`.
+- Xử lý: cài bổ sung `sacrebleu>=2.4,<3` vào `.venv`, không sửa lockfile trong
+  task thiết lập máy; chạy lại test để kiểm chứng.
+- Phòng tránh: khi tái sinh lock cần kiểm tra dependency trực tiếp của
+  `evaluation` và chạy test dataset trong clean environment.
+
+## ERR-20261007-02 — TASK-20261007-03
+
+- Triệu chứng: BERTScore CUDA tính xong 3 cặp trong 9,41 giây nhưng scorer lỗi
+  `ValueError: not enough values to unpack (expected 4, got 2)` và chưa ghi output.
+- Bối cảnh: `bert-score==0.3.13`, `transformers==5.17.0`, gọi `score(...,
+  return_hash=True)` trong `qa_v4/scoring.py`.
+- Nguyên nhân xác nhận: API runtime trả `((P, R, F), hashcode)`, còn code giả định
+  dạng cũ `(P, R, F, hashcode)`.
+- Xử lý: chuẩn hóa cả hai dạng trả về, thêm unit test mock và chạy lại score CUDA.
+  Prediction RAG không bị sửa và không cần chạy lại model.
+- Phòng tránh: test đường BERTScore nên mock đúng nhiều contract phiên bản và có
+  ít nhất một smoke thật sau khi nâng dependency.
+
+## ERR-20261007-03 — TASK-20261007-03
+
+- Triệu chứng: hai lệnh PowerShell gộp dùng `Start-Process` để restart Ollama bị
+  policy terminal từ chối trước khi tạo process.
+- Xử lý: tách đặt biến user, dừng đúng process Ollama đã xác minh, rồi chạy
+  `ollama serve` trực tiếp trong session 99804; readiness và log cấu hình đạt.
+- Ảnh hưởng: không mất dữ liệu; lần bị từ chối không thực thi thay đổi. Ollama
+  hiện chạy với parallel=2, max loaded=1, Flash Attention và KV q8_0.

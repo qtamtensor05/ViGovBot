@@ -257,3 +257,66 @@
 - Bổ sung khi triển khai: để hội thoại multi nhất quán, đồng bộ message `role=user`
   trong history với câu hỏi mới của lượt trước; giữ nguyên toàn bộ message assistant/Gold.
 - Trạng thái: completed.
+
+## TASK-20261007-01
+
+- Ngày: 2026-10-07 (Asia/Saigon).
+- Yêu cầu: thiết lập môi trường cần thiết trên máy hiện tại để chạy đánh giá RAG
+  với bộ test `rag_tthc_three_1500`.
+- Phạm vi: kiểm tra phần cứng/phần mềm và dữ liệu sẵn có; tạo môi trường Python,
+  cài dependency phù hợp; chuẩn bị model/dịch vụ và corpus/index theo cấu hình nếu
+  còn thiếu; xác minh bằng kiểm tra dataset và một smoke run có giới hạn. Không chạy
+  toàn bộ 4.500 lượt nếu chưa được yêu cầu.
+- Tiêu chí hoàn thành: lệnh QA v4 nhận đúng ba view, dependency import được, backend
+  sinh và tài nguyên retrieval sẵn sàng, smoke run/score thực tế tạo artifact hoặc
+  ghi rõ trở ngại bên ngoài còn lại cùng lệnh tiếp tục.
+- Giả định: "chạy đánh giá RAG" nghĩa là chạy pipeline hiện tại trong repository
+  (không chỉ chấm lại prediction cũ); ưu tiên cấu hình Windows và GPU hiện tại,
+  không sửa nội dung dataset hay ghi đè artifact đánh giá cũ.
+- Trạng thái: completed; môi trường Python/Ollama/model/corpus đã sẵn sàng, ba
+  view được xác minh và smoke RAG + score một ca chạy thành công.
+
+## TASK-20261007-02
+
+- Ngày: 2026-10-07 (Asia/Saigon).
+- Yêu cầu: đánh giá khả năng tăng tốc benchmark `rag_tthc_three_1500` trên máy
+  hiện tại bằng runner song song, embedding/retrieval GPU, serving vLLM/TGI và
+  BERTScore/LLM-as-a-judge song song.
+- Phạm vi: khảo sát code, phần cứng/runtime và tài liệu chính thức hiện hành;
+  xác định hạng mục khả thi, giới hạn VRAM/Windows và thứ tự triển khai an toàn.
+  Chưa thay đổi runner, môi trường CUDA hay backend serving trong bước đánh giá này.
+- Tiêu chí: kết luận riêng cho single/coverage/multi, Ollama concurrency,
+  embedding/FAISS, vLLM và scoring; không đưa cam kết tốc độ khi chưa benchmark.
+- Trạng thái: completed; đã xác định runner và retriever đang khóa tuần tự, GPU
+  16 GB có thể triển khai concurrency thận trọng và CUDA scoring, còn vLLM cần
+  WSL2/Linux và không phải bước ưu tiên đầu tiên.
+
+## TASK-20261007-03
+
+- Ngày: 2026-10-07 (Asia/Saigon).
+- Yêu cầu: triển khai phương án tăng tốc đánh giá `rag_tthc_three_1500` đã đề
+  xuất, phù hợp máy Windows có RTX 5060 Ti 16 GB.
+- Phạm vi: thêm `--concurrency` cho single/coverage và song song theo hội thoại
+  cho multi; bảo toàn thứ tự output, lịch sử và lỗi dây chuyền; giảm vùng khóa
+  retrieval; cấu hình Ollama parallel thận trọng; cài/xác minh Torch CUDA, chuyển
+  BGE-M3 và BERTScore sang GPU với batch phù hợp; bổ sung test/tài liệu và benchmark
+  smoke concurrency 1/2. Không dựng vLLM/WSL2 và không chạy đủ 4.500 lượt.
+- Tiêu chí hoàn thành: test chứng minh không trộn history, output ổn định và CLI
+  kiểm tra concurrency; CUDA hoạt động trên GPU hiện tại; smoke RAG/score thành
+  công, có số đo trước/sau và không ghi đè artifact cũ.
+- Giả định: ưu tiên tính tái lập/chính xác hơn throughput tối đa; bắt đầu parallel
+  2, chỉ tăng 4 nếu đo VRAM/độ ổn định cho phép; giữ một model Ollama được nạp.
+- Trạng thái: completed; runner/retriever concurrency, cấu hình CUDA/Ollama và
+  BERTScore GPU đã triển khai, smoke single/multi cùng test/lint đều đạt.
+
+## TASK-20261007-04
+
+- Ngày: 2026-10-07 (Asia/Saigon).
+- Yêu cầu: bổ sung hiển thị tiến trình cho lệnh `qa-v4 score` vì giai đoạn chấm
+  hiện im lặng, khó biết còn chạy hay đã xong.
+- Phạm vi: thông báo các phase, số cặp lexical/BERTScore, progress bar lexical và
+  thời gian từng phase; giữ nguyên metric và artifact schema.
+- Tiêu chí: CLI hiển thị rõ lúc nạp model, đang chấm, tổng hợp và đường dẫn output
+  hoàn tất; test/lint đạt.
+- Trạng thái: completed; CLI score hiển thị phase, progress lexical/BERTScore,
+  thời gian và đường dẫn artifact hoàn tất; metric/schema không đổi.
