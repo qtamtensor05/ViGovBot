@@ -1,0 +1,91 @@
+services:
+  neo4j-init:
+    image: neo4j:5-community
+    environment:
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
+    volumes:
+      - neo4j-data:/data
+      - ./data/graph/backup:/backups:ro
+    entrypoint:
+      - /bin/bash
+      - /scripts/load-dump.sh
+    command: []
+    configs:
+      - source: neo4j-load-dump
+        target: /scripts/load-dump.sh
+        mode: 0555
+    restart: "no"
+
+  neo4j:
+    image: neo4j:5-community
+    depends_on:
+      neo4j-init:
+        condition: service_completed_successfully
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-change-this-before-production}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-change-this-before-production}
+      NEO4J_dbms_default__database: ${NEO4J_DATABASE:-neo4j}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 512m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+      - neo4j-import:/var/lib/neo4j/import
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$$NEO4J_PASSWORD\" 'RETURN 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  neo4j-data:
+  neo4j-logs:
+  neo4j-import:
+
+configs:
+  neo4j-load-dump:
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      readonly database_name="$${NEO4J_DATABASE:?NEO4J_DATABASE must be set}"
+      readonly marker="/data/.vigovbot-$${database_name}-restored"
+      readonly dump_path="/backups/$${database_name}.dump"
+
+      if [[ -f "$${marker}" ]]; then
+        echo "Neo4j dump already restored; keeping the existing database volume."
+        exit 0
+      fi
+
+      if [[ ! -f "$${dump_path}" ]]; then
+        echo "Missing required Neo4j dump: $${dump_path}" >&2
+        exit 1
+      fi
+
+      if find /data -mindepth 1 -maxdepth 1 \
+        ! -name "$$(basename "$${marker}")" \
+        ! -name databases \
+        ! -name transactions \
+        -print -quit | grep -q .; then
+        echo "Neo4j data volume has unexpected files but no restore marker; refusing to overwrite it." >&2
+        echo "To intentionally restore again, remove the neo4j-data volume with: docker compose down -v" >&2
+        exit 1
+      fi
+
+      for directory in /data/databases /data/transactions; do
+        if [[ -d "$${directory}" ]] && find "$${directory}" -mindepth 1 -print -quit | grep -q .; then
+          echo "Neo4j data volume already contains database files but has no restore marker; refusing to overwrite it." >&2
+          echo "To intentionally restore again, remove the neo4j-data volume with: docker compose down -v" >&2
+          exit 1
+        fi
+      done
+
+      neo4j-admin database load "$${database_name}" --from-path=/backups --overwrite-destination=true
+      touch "$${marker}"
+      echo "Restored $${dump_path} into database '$${database_name}'."
