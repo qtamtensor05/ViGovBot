@@ -3,6 +3,8 @@ import time
 import gc
 import json
 import logging
+import re
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -14,8 +16,14 @@ from vigovbot.llm.llm_client import check_model, unload_model
 from vigovbot.prompts.prompt_templates import SYSTEM_PROMPT
 from vigovbot.rag.version import PIPELINE_VERSION
 from vigovbot.rag.routing import (
-    routing_messages, routing_schema, parse_route, parse_answer, answer_schema, StructuredAnswerError,
+    routing_messages,
+    routing_schema,
+    parse_route,
+    parse_answer,
+    answer_schema,
+    StructuredAnswerError,
 )
+from vigovbot.graphrag.query_plan import empty_graph_plan, has_graph_entity_filters
 from vigovbot.retrieval.retriever import Retriever
 from vigovbot.utils.helpers import json_hash
 from vigovbot.experiments import ensure_run, runtime_identity
@@ -26,6 +34,26 @@ from vigovbot.artifacts import output_lock
 from vigovbot.console import configure_console
 
 LOG = logging.getLogger(__name__)
+_PROCEDURE_CODE = re.compile(r"(?<!\d)(\d+(?:\.\d+)+)(?!\d)")
+_CLEAR_STANDALONE_KEYWORDS = frozenset(
+    {
+        "cơ quan",
+        "cấp ",
+        "đăng ký",
+        "đăng kí",
+        "điều kiện",
+        "giấy tờ",
+        "hồ sơ",
+        "lệ phí",
+        "nhập khẩu",
+        "phí",
+        "quy trình",
+        "thời hạn",
+        "thủ tục",
+        "xuất khẩu",
+    }
+)
+_FOLLOW_UP_START = re.compile(r"^(?:còn|vậy|thế|nó|đó|này|bao nhiêu|khi nào|ở đâu|ai|gì)\b", re.IGNORECASE)
 
 
 def select_cases(config):
@@ -38,7 +66,7 @@ def select_cases(config):
 def source_fingerprint():
     """Phát hiện mã pipeline đổi, kể cả khi quên tăng số phiên bản."""
     root = Path(__file__).resolve().parents[1]
-    folders = ("rag", "evaluation", "retrieval", "prompts", "llm")
+    folders = ("rag", "graphrag", "evaluation", "retrieval", "prompts", "llm")
     paths = [p for folder in folders for p in (root / folder).glob("*.py")]
     paths += [root / "ingestion/unified.py", root / "embeddings/embedder.py", root / "vectordb/vector_store.py"]
     paths += [root / name for name in ("schemas.py", "artifacts.py", "experiments.py", "utils/helpers.py")]
@@ -113,6 +141,21 @@ def inference_session(config, paths):
             LOG.warning("Không dỡ được Qwen khỏi Ollama: %s", exc)
 
 
+@contextmanager
+def graph_inference_session(config):
+    """Create GraphRAG lazily so base/vector RAG never requires Neo4j."""
+    graph_retriever = None
+    try:
+        if config.graph.enabled:
+            from vigovbot.graphrag import Neo4jGraphRetriever
+
+            graph_retriever = Neo4jGraphRetriever(config.graph)
+        yield graph_retriever
+    finally:
+        if graph_retriever is not None:
+            graph_retriever.close()
+
+
 def execute(config, command="run", *, question=None, history=None):
     configure_console()
     if command not in {"prepare", "ask", "smoke", "evaluate", "report", "run"}:
@@ -140,16 +183,28 @@ def _execute(config, command="run", *, question=None, history=None):
         return {"count": paths[2]["count"], "database": str(paths[1])}
     model = check_model(config.llm.ollama_url, config.llm.model)
     if command == "ask":
-        with inference_session(config, paths) as (retriever, tokenizer):
-            return answer_question(question, retriever, tokenizer, config.inference_settings(), history=history)
+        with (
+            inference_session(config, paths) as (retriever, tokenizer),
+            graph_inference_session(config) as graph_retriever,
+        ):
+            return answer_question(
+                question,
+                retriever,
+                tokenizer,
+                config.inference_settings(),
+                history=history,
+                graph_retriever=graph_retriever,
+            )
     manifest = {**manifest_base(config, cases, selected), "ollama_digest": model.get("digest")}
     # Kiểm tra trước khi tải BGE-M3, tránh phí tài nguyên nếu cấu hình không khớp.
     if command != "smoke":
         ensure_run(config.data.output_dir, manifest)
-    with inference_session(config, paths) as (retriever, tokenizer):
+    with inference_session(config, paths) as (retriever, tokenizer), graph_inference_session(config) as graph_retriever:
 
         def answer(question):
-            return answer_question(question, retriever, tokenizer, config.inference_settings())
+            return answer_question(
+                question, retriever, tokenizer, config.inference_settings(), graph_retriever=graph_retriever
+            )
 
         if command in ("smoke", "run"):
             for case in selected[: config.evaluation.smoke_test_n]:
@@ -180,7 +235,18 @@ def _execute(config, command="run", *, question=None, history=None):
     return generate_report(config, selected)
 
 
-def answer_question(question, retriever, tokenizer, settings, history=None, *, structured=False, answer_fn=None):
+def answer_question(
+    question,
+    retriever,
+    tokenizer,
+    settings,
+    history=None,
+    *,
+    structured=False,
+    answer_fn=None,
+    graph_retriever=None,
+    progress=None,
+):
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Question must be nonempty")
     history = validate_history(history)
@@ -191,19 +257,66 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     route, routing_raw, routing_s, routing_tokens = None, None, 0.0, 0
     routing_attempts = 0
     fallback_reason = None
-    if routing_enabled:
+
+    def report(stage, label):
+        if progress is not None:
+            progress(stage, label)
+
+    def direct_route(rule, graph_plan=None):
+        return {
+            "scope": "in_scope",
+            "relation": "new_question",
+            "query": question,
+            "clarification": "",
+            "graph_plan": graph_plan or empty_graph_plan(),
+            "rule": rule,
+        }
+
+    matched_procedure_code = _PROCEDURE_CODE.search(question) if not history else None
+    if routing_enabled and matched_procedure_code is not None:
+        code = matched_procedure_code.group(1)
+        route = direct_route(
+            "procedure_code",
+            {
+                "procedure_code": code,
+                "procedure_name": "",
+                "agency": "",
+                "legal_basis": "",
+                "field": "",
+                "relationship_types": [],
+            },
+        )
+        routing_raw = {"rule": "procedure_code", "procedure_code": code}
+        report("routing_rule", "Đã nhận diện mã thủ tục; bỏ qua bước phân tích hội thoại…")
+    elif (
+        routing_enabled
+        and not history
+        and len(question.strip()) >= 24
+        and not _FOLLOW_UP_START.match(question.strip())
+        and any(keyword in question.casefold() for keyword in _CLEAR_STANDALONE_KEYWORDS)
+    ):
+        route = direct_route("clear_standalone_question")
+        routing_raw = {"rule": "clear_standalone_question"}
+        report("routing_rule", "Câu hỏi độc lập đã rõ; bỏ qua bước phân tích hội thoại…")
+    elif routing_enabled:
+        report("routing", "Đang phân tích câu hỏi và lịch sử hội thoại…")
         routing_started = time.perf_counter()
-        route_messages, routing_tokens = routing_messages(question, history, tokenizer, settings)
-        routing_settings = {**settings, "response_format": routing_schema(history)}
+        routing_settings = {
+            **settings,
+            "num_predict": settings.get("routing_num_predict", min(settings["num_predict"], 160)),
+            "response_format": routing_schema(history),
+        }
+        route_messages, routing_tokens = routing_messages(question, history, tokenizer, routing_settings)
         routing_attempts = 1
         route_text, routing_raw, _ = answer_fn(route_messages, routing_settings)
         try:
             route = parse_route(route_text, history)
         except ValueError as exc:
             # Retry invalid model routing without inventing history or source facts.
+            report("routing_retry", "Đang phân tích lại câu hỏi để bảo đảm đúng ngữ cảnh…")
             retry_messages = [dict(m) for m in route_messages]
             retry_messages[0]["content"] += (
-                "\nKiểm tra JSON trước khi trả: đúng bốn trường scope, relation, query, clarification. "
+                "\nKiểm tra JSON trước khi trả: đúng năm trường scope, relation, query, clarification, graph_plan. "
                 "Với in_scope và ambiguous: query phải rỗng, clarification phải có câu hỏi làm rõ. "
                 "Với in_scope và new_question/follow_up: query phải có nội dung, clarification phải rỗng. "
                 "Với out_of_scope: query và clarification phải rỗng. Nếu câu hỏi đủ rõ, không chọn ambiguous."
@@ -213,96 +326,204 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
                 '"query":"Lệ phí cấp hộ chiếu?","clarification":""}.'
             )
             if not history:
-                retry_messages[0]["content"] += (
-                    " Lượt hiện tại KHÔNG có lịch sử; không được chọn follow_up."
-                )
+                retry_messages[0]["content"] += " Lượt hiện tại KHÔNG có lịch sử; không được chọn follow_up."
             retry_messages[-1]["content"] += "\n\nDỮ LIỆU KIỂM TRA JSON:\n" + json.dumps(
-                {"validator_error": str(exc), "rejected_json": route_text[:2000]}, ensure_ascii=False)
+                {"validator_error": str(exc), "rejected_json": route_text[:2000]}, ensure_ascii=False
+            )
             retry_tokens = len(tokenizer.apply_chat_template(retry_messages, tokenize=True, add_generation_prompt=True))
-            if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
+            if retry_tokens > routing_settings["num_ctx"] - routing_settings["num_predict"] - 256:
                 raise ValueError("Routing retry exceeds context budget") from exc
             routing_attempts = 2
             retry_text, retry_raw, _ = answer_fn(retry_messages, routing_settings)
-            routing_raw = {"initial": routing_raw, "retry": retry_raw,
-                           "initial_text": route_text, "retry_text": retry_text,
-                           "initial_error": str(exc)}
+            routing_raw = {
+                "initial": routing_raw,
+                "retry": retry_raw,
+                "initial_text": route_text,
+                "retry_text": retry_text,
+                "initial_error": str(exc),
+            }
             routing_tokens += retry_tokens
             try:
                 route = parse_route(retry_text, history)
             except ValueError as retry_exc:
-                route = {"scope": "in_scope", "relation": "ambiguous", "query": "",
-                         "clarification": "Bạn vui lòng nêu rõ thủ tục và nội dung cần tra cứu?"}
+                route = {
+                    "scope": "in_scope",
+                    "relation": "ambiguous",
+                    "query": "",
+                    "clarification": "Bạn vui lòng nêu rõ thủ tục và nội dung cần tra cứu?",
+                }
                 routing_raw["fallback_reason"] = "invalid_routing_after_retry"
                 fallback_reason = "invalid_routing_after_retry"
                 routing_raw["retry_error"] = str(retry_exc)
         routing_s = time.perf_counter() - routing_started
 
     def early_answer(text, action, reason, *, hits=(), used=(), tokens=0, retrieval_s=0.0):
+        report("complete", "Đã hoàn tất kiểm tra câu hỏi.")
         return {
-            "prediction": text, "action": action, "decision_reason": reason,
-            "routing": route, "routing_s": routing_s, "routing_prompt_tokens_estimated": routing_tokens,
-            "routing_attempts": routing_attempts, "fallback_reason": fallback_reason,
-            "raw_routing": routing_raw, "retrieval_query": None if not hits else retrieval_query,
+            "prediction": text,
+            "action": action,
+            "decision_reason": reason,
+            "routing": route,
+            "routing_s": routing_s,
+            "routing_prompt_tokens_estimated": routing_tokens,
+            "routing_attempts": routing_attempts,
+            "fallback_reason": fallback_reason,
+            "raw_routing": routing_raw,
+            "retrieval_query": None if not hits else retrieval_query,
             "evidence_status": "missing" if reason == "no_context" else None,
-            "retrieved": [{key: h[key] for key in ("row_id", "score", "chunk_id", "source_file", "source_code")}
-                          for h in hits],
-            "context_used": list(used), "prompt_tokens_estimated": tokens,
-            "retrieval_s": retrieval_s, "generation_s": 0.0,
-            "latency_s": time.perf_counter() - started, "raw_ollama": None,
+            "retrieved": [
+                {key: h[key] for key in ("row_id", "score", "chunk_id", "source_file", "source_code")} for h in hits
+            ],
+            "context_used": list(used),
+            "prompt_tokens_estimated": tokens,
+            "retrieval_s": retrieval_s,
+            "generation_s": 0.0,
+            "latency_s": time.perf_counter() - started,
+            "raw_ollama": None,
         }
 
     if route and route["scope"] == "out_of_scope":
-        return early_answer("Mình hỗ trợ tra cứu thủ tục hành chính Việt Nam. Bạn cần tìm hiểu thủ tục nào?",
-                            "abstain", "out_of_scope")
+        return early_answer(
+            "Mình hỗ trợ tra cứu thủ tục hành chính Việt Nam. Bạn cần tìm hiểu thủ tục nào?", "abstain", "out_of_scope"
+        )
     if route and route["relation"] == "ambiguous":
-        return early_answer(route["clarification"], "clarify",
-                            "routing_fallback" if fallback_reason else "ambiguous_question")
+        return early_answer(
+            route["clarification"], "clarify", "routing_fallback" if fallback_reason else "ambiguous_question"
+        )
     # Rewrite follow-ups using only the supplied conversation, never evaluation labels.
     retrieval_query = question
+    graph_plan = None
     if route:
         # A new question must not inherit any previous subject, even via a rewritten query.
         retrieval_query = question if route["relation"] == "new_question" else route["query"]
         # The resolved query is sufficient for generation; old topics/assistant claims stay out.
-        question = (retrieval_query if route["relation"] == "new_question" else
-                    f"Câu hỏi gốc: {original_question}\nNgữ cảnh được giải quyết từ lịch sử: {retrieval_query}")
+        question = (
+            retrieval_query
+            if route["relation"] == "new_question"
+            else f"Câu hỏi gốc: {original_question}\nNgữ cảnh được giải quyết từ lịch sử: {retrieval_query}"
+        )
         history = []
+        graph_plan = route["graph_plan"]
     elif history:
+        report("rewrite", "Đang làm rõ câu hỏi theo lịch sử hội thoại…")
         rewrite_messages = [
-            {"role": "system", "content": "Viết lại câu hỏi cuối thành một truy vấn tra cứu độc lập bằng tiếng Việt. "
-             "Dùng lịch sử để xác định thủ tục và các chi tiết người dùng đã sửa. "
-             "Không trả lời câu hỏi, không thêm thông tin. Chỉ xuất truy vấn."},
-            *history, {"role": "user", "content": question},
+            {
+                "role": "system",
+                "content": "Viết lại câu hỏi cuối thành một truy vấn tra cứu độc lập bằng tiếng Việt. "
+                "Dùng lịch sử để xác định thủ tục và các chi tiết người dùng đã sửa. "
+                "Không trả lời câu hỏi, không thêm thông tin. Chỉ xuất truy vấn.",
+            },
+            *history,
+            {"role": "user", "content": question},
         ]
         if len(tokenizer.apply_chat_template(rewrite_messages, tokenize=True, add_generation_prompt=True)) > (
-                settings["num_ctx"] - settings["num_predict"] - 256):
+            settings["num_ctx"] - settings["num_predict"] - 256
+        ):
             raise ValueError("Lịch sử quá dài so với NUM_CTX")
         retrieval_query, _, _ = answer_fn(rewrite_messages, settings)
+    report("retrieving_vector", "Đang truy xuất ngữ cảnh từ tài liệu…")
     retrieval_started = time.perf_counter()
-    hits = retriever.search(retrieval_query, settings["top_k"])
-    retrieval_s = time.perf_counter() - retrieval_started
-    structured = structured or routing_enabled or settings.get('citations_enabled', False)
+    if graph_retriever is None:
+        hits = retriever.search(retrieval_query, settings["top_k"])
+        retrieval_s = time.perf_counter() - retrieval_started
+        graph_procedures = []
+        graph_retrieval_s = 0.0
+        graph_fallback_reason = None
+    else:
+        hits = retriever.search(retrieval_query, settings["top_k"])
+        retrieval_s = time.perf_counter() - retrieval_started
+        procedure_codes = []
+        for hit in hits:
+            source_code = hit.get("source_code")
+            if not isinstance(source_code, str):
+                continue
+            source_code = source_code.strip()
+            if source_code and source_code not in procedure_codes:
+                procedure_codes.append(source_code)
+        max_graph_procedures = getattr(graph_retriever.config, "max_procedures", settings["top_k"])
+        if not isinstance(max_graph_procedures, int) or max_graph_procedures < 1:
+            max_graph_procedures = settings["top_k"]
+        procedure_codes = procedure_codes[:max_graph_procedures]
+        report("retrieving_graph", "Đang truy xuất quan hệ thủ tục từ Neo4j…")
+        graph_started = time.perf_counter()
+        graph_fallback_reason = None
+        graph_wait_timeout_s = getattr(graph_retriever.config, "wait_timeout_s", 6.0)
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="vigovbot-graph")
+        try:
+            graph_future = executor.submit(
+                graph_retriever.search,
+                retrieval_query,
+                graph_plan if has_graph_entity_filters(graph_plan) else None,
+                procedure_codes,
+            )
+            graph_procedures = graph_future.result(timeout=graph_wait_timeout_s)
+        except FutureTimeout:
+            graph_future.cancel()
+            graph_procedures = []
+            graph_fallback_reason = "graph_wait_timeout"
+            LOG.warning("GraphRAG vượt ngân sách chờ %.1f giây; tiếp tục với vector RAG", graph_wait_timeout_s)
+            report("graph_timeout", "Neo4j phản hồi chậm; tiếp tục trả lời bằng tài liệu đã truy xuất…")
+        except Exception as exc:
+            graph_procedures = []
+            graph_fallback_reason = "graph_retrieval_error"
+            LOG.warning("GraphRAG không truy xuất được; tiếp tục với vector RAG: %s", exc)
+            report("graph_unavailable", "Không lấy được graph; tiếp tục trả lời bằng tài liệu đã truy xuất…")
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+        graph_retrieval_s = time.perf_counter() - graph_started
+    graph_context = ""
+    if graph_procedures:
+        from vigovbot.graphrag import format_graph_context
+
+        graph_context = format_graph_context(graph_procedures, graph_retriever.config.max_context_chars)
+    structured = structured or routing_enabled or settings.get("citations_enabled", False)
     messages, used, tokens = build_messages(
-        question, hits, tokenizer, settings["num_ctx"], settings["num_predict"], settings["max_chunk_tokens"],
-        history=history, structured=structured, evidence_check=routing_enabled,
-        citations=settings.get('citations_enabled', False),
+        question,
+        hits,
+        tokenizer,
+        settings["num_ctx"],
+        settings["num_predict"],
+        settings["max_chunk_tokens"],
+        history=history,
+        structured=structured,
+        evidence_check=routing_enabled,
+        citations=settings.get("citations_enabled", False),
+        additional_context=graph_context,
     )
-    if routing_enabled and not used:
-        result = early_answer("Chưa tìm thấy thông tin trong tài liệu để trả lời câu hỏi này.",
-                              "abstain", "no_context", hits=hits, used=used, tokens=tokens, retrieval_s=retrieval_s)
+    if routing_enabled and not used and not graph_context:
+        result = early_answer(
+            "Chưa tìm thấy thông tin trong tài liệu để trả lời câu hỏi này.",
+            "abstain",
+            "no_context",
+            hits=hits,
+            used=used,
+            tokens=tokens,
+            retrieval_s=retrieval_s,
+        )
         result["retrieval_query"] = retrieval_query
+        result["graph_retrieval_s"] = graph_retrieval_s
+        result["graph_fallback_reason"] = graph_fallback_reason
         return result
-    citation_ids = [c['chunk_id'] for c in used] if settings.get('citations_enabled', False) else None
-    generation_settings = ({**settings, "response_format": answer_schema(routing_enabled, citation_ids),
-                            "response_schema_name": "answer"} if structured else settings)
+    citation_ids = [c["chunk_id"] for c in used] if settings.get("citations_enabled", False) else None
+    generation_settings = (
+        {**settings, "response_format": answer_schema(routing_enabled, citation_ids), "response_schema_name": "answer"}
+        if structured
+        else settings
+    )
+    report("generating", "Qwen đang soạn câu trả lời từ ngữ cảnh đã truy xuất…")
     answer, raw, generation_s = answer_fn(messages, generation_settings)
     action = evidence = None
     generation_diagnostics = {"attempts": 1, "validation_errors": []}
     citations = []
+
     def parse_generation(text):
         parsed = parse_answer(text, require_evidence=routing_enabled)
         from vigovbot.rag.routing import parse_citations
+
         return parsed, parse_citations(text, used) if citation_ids is not None else []
+
     if structured:
+        report("validating", "Đang kiểm tra cấu trúc và bằng chứng của câu trả lời…")
         try:
             (answer, action, evidence), citations = parse_generation(answer)
         except ValueError as exc:
@@ -310,16 +531,15 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
             generation_diagnostics["initial_text"] = answer[:2000]
             retry_messages = [dict(m) for m in messages]
             retry_messages[0]["content"] += (
-                "\nĐầu ra trước không hợp lệ: " + str(exc) +
-                ". Sinh lại JSON ngắn gọn theo schema, answer không rỗng. "
+                "\nĐầu ra trước không hợp lệ: " + str(exc) + ". Sinh lại JSON ngắn gọn theo schema, answer không rỗng. "
                 "evidence_status/action phải khớp; không đổi nhãn để che thiếu bằng chứng."
             )
-            retry_tokens = len(tokenizer.apply_chat_template(
-                retry_messages, tokenize=True, add_generation_prompt=True))
+            retry_tokens = len(tokenizer.apply_chat_template(retry_messages, tokenize=True, add_generation_prompt=True))
             if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
                 generation_diagnostics["retry_skipped"] = "context_budget"
                 raise StructuredAnswerError(generation_diagnostics) from exc
             generation_diagnostics["attempts"] = 2
+            report("generation_retry", "Đang sinh lại câu trả lời theo cấu trúc đã kiểm tra…")
             answer, raw, retry_s = answer_fn(retry_messages, generation_settings)
             generation_s += retry_s
             try:
@@ -328,6 +548,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
                 generation_diagnostics["validation_errors"].append(str(retry_exc))
                 generation_diagnostics["retry_text"] = answer[:2000]
                 raise StructuredAnswerError(generation_diagnostics) from retry_exc
+    report("complete", "Đã hoàn tất câu trả lời.")
     return {
         "prediction": answer,
         "citations": citations,
@@ -346,9 +567,12 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         "retrieved": [
             {key: h[key] for key in ("row_id", "score", "chunk_id", "source_file", "source_code")} for h in hits
         ],
+        "graph_sources": [procedure.as_public_dict() for procedure in graph_procedures],
         "context_used": used,
         "prompt_tokens_estimated": tokens,
         "retrieval_s": retrieval_s,
+        "graph_retrieval_s": graph_retrieval_s,
+        "graph_fallback_reason": graph_fallback_reason,
         "generation_s": generation_s,
         "latency_s": time.perf_counter() - started,
         "raw_ollama": raw,

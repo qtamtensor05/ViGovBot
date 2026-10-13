@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class StrictModel(BaseModel):
@@ -53,6 +53,42 @@ class RetrievalConfig(StrictModel):
 class ConversationConfig(StrictModel):
     routing_enabled: bool = True
     citations_enabled: bool = False
+    routing_num_predict: int = Field(default=160, gt=0, le=512)
+
+
+class GraphRAGConfig(StrictModel):
+    enabled: bool = False
+    uri: str = "bolt://127.0.0.1:7687"
+    database: str = "neo4j"
+    username: str = "neo4j"
+    password_env: str = "NEO4J_PASSWORD"
+    max_procedures: int = Field(default=3, ge=1, le=10)
+    max_relationships: int = Field(default=6, ge=1, le=20)
+    max_context_chars: int = Field(default=2400, ge=200, le=12000)
+    query_timeout_s: float = Field(default=5.0, gt=0, le=60)
+    wait_timeout_s: float = Field(default=6.0, gt=0, le=65)
+    cache_ttl_s: int = Field(default=120, ge=0, le=3600)
+    cache_max_entries: int = Field(default=128, ge=0, le=1000)
+
+    @model_validator(mode="after")
+    def check_timeouts(self):
+        if self.wait_timeout_s < self.query_timeout_s:
+            raise ValueError("graph.wait_timeout_s phải lớn hơn hoặc bằng graph.query_timeout_s")
+        return self
+
+    @field_validator("uri")
+    @classmethod
+    def check_uri(cls, value):
+        if not re.fullmatch(r"(?:bolt|neo4j)(?:\+(?:s|ssc))?://[^\s/]+", value):
+            raise ValueError("graph.uri phải là URI Bolt/Neo4j hợp lệ")
+        return value
+
+    @field_validator("password_env")
+    @classmethod
+    def check_password_env(cls, value):
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+            raise ValueError("graph.password_env phải là tên biến môi trường hợp lệ")
+        return value
 
 
 class WebModelConfig(StrictModel):
@@ -62,7 +98,7 @@ class WebModelConfig(StrictModel):
     model: str = Field(min_length=1)
     base_url: str = Field(min_length=1)
     api_key_env: str | None = None
-    mode: str = Field(default="rag", pattern=r"^(base|rag)$")
+    mode: str = Field(default="rag", pattern=r"^(base|rag|graphrag)$")
 
     @model_validator(mode="after")
     def check_credentials(self):
@@ -98,6 +134,7 @@ class RAGConfig(StrictModel):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     conversation: ConversationConfig = Field(default_factory=ConversationConfig)
+    graph: GraphRAGConfig = Field(default_factory=GraphRAGConfig)
     web: WebConfig = Field(default_factory=WebConfig)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
 

@@ -14,7 +14,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Qwen + RAG: unified/SQLite/FAISS và đánh giá qa_test")
     parser.add_argument("--config", default="rag_config.yaml", help="Đường dẫn cấu hình YAML")
     parser.add_argument(
-        "command", choices=["prepare", "ask", "web", "smoke", "evaluate", "report", "run"], nargs="?", default="run"
+        "command",
+        choices=["prepare", "ask", "web", "api", "graph-index", "smoke", "evaluate", "report", "run"],
+        nargs="?",
+        default="run",
     )
     parser.add_argument("--question", help="Question for the ask command; no evaluation dataset required")
     parser.add_argument("--history", help="JSON file containing prior user/assistant message pairs (ask only)")
@@ -35,6 +38,25 @@ def main(argv=None):
 
         serve(load_config(args.config), host=args.host, port=args.port)
         return 0
+    if args.command == "api":
+        if not 1 <= args.port <= 65535:
+            parser.error("--port must be between 1 and 65535")
+        from vigovbot.server.fastapi_app import serve
+
+        serve(load_config(args.config), host=args.host, port=args.port)
+        return 0
+    if args.command == "graph-index":
+        config = load_config(args.config)
+        if not config.graph.enabled:
+            parser.error("graph-index requires graph.enabled: true")
+        from vigovbot.graphrag import Neo4jGraphRetriever
+
+        retriever = Neo4jGraphRetriever(config.graph)
+        try:
+            print(json.dumps({"indexes": retriever.provision_indexes()}, ensure_ascii=False, indent=2))
+        finally:
+            retriever.close()
+        return 0
 
     from vigovbot.rag.pipeline import execute
 
@@ -42,6 +64,7 @@ def main(argv=None):
         kwargs = {"question": args.question}
         if args.history:
             from vigovbot.prompts.prompt_templates import validate_history
+
             kwargs["history"] = validate_history(json.loads(Path(args.history).read_text(encoding="utf-8-sig")))
         result = execute(load_config(args.config), args.command, **kwargs)
     else:
