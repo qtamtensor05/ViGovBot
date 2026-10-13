@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import queue
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,10 +21,11 @@ MAX_BODY_BYTES = 1_000_000
 class ChatApplication:
     """Own the long-lived retrieval resources used by HTTP requests."""
 
-    def __init__(self, config, retriever, tokenizer):
+    def __init__(self, config, retriever, tokenizer, *, graph_retriever=None):
         self.config = config
         self.retriever = retriever
         self.tokenizer = tokenizer
+        self.graph_retriever = graph_retriever
         self._lock = threading.Lock()
         configured = config.web.models
         if configured:
@@ -62,7 +64,7 @@ class ChatApplication:
             settings["base_url"] = model.base_url
         return settings
 
-    def chat(self, payload):
+    def _validate_chat_payload(self, payload):
         if not isinstance(payload, dict):
             raise ValueError("Dữ liệu gửi lên phải là một JSON object")
         question = payload.get("question")
@@ -79,20 +81,62 @@ class ChatApplication:
         if not isinstance(histories, dict):
             raise ValueError("histories phải là JSON object")
         clean_histories = {model_id: validate_history(histories.get(model_id)) for model_id in model_ids}
+        return question.strip(), model_ids, clean_histories
+
+    def _public_result(self, model_id, mode, result):
+        public_result = {
+            "model_id": model_id,
+            "mode": mode,
+            "answer": result["prediction"],
+            "action": result.get("action"),
+            "sources": result.get("retrieved", []),
+            "latency_s": result.get("latency_s"),
+        }
+        if mode == "rag":
+            route = result.get("routing") or {}
+            public_result["routing_diagnostics"] = {
+                "fallback_reason": result.get("fallback_reason"),
+                "routing_attempts": result.get("routing_attempts", 0),
+                "decision_reason": result.get("decision_reason"),
+                "relation": route.get("relation"),
+                "scope": route.get("scope"),
+            }
+            if getattr(self.config.web, "debug_routing", False):
+                public_result["raw_routing"] = result.get("raw_routing")
+        elif mode == "graphrag":
+            route = result.get("routing") or {}
+            public_result["routing_diagnostics"] = {
+                "fallback_reason": result.get("fallback_reason"),
+                "routing_attempts": result.get("routing_attempts", 0),
+                "decision_reason": result.get("decision_reason"),
+                "relation": route.get("relation"),
+                "scope": route.get("scope"),
+            }
+            public_result["graph_sources"] = result.get("graph_sources", [])
+            public_result["graph_retrieval_s"] = result.get("graph_retrieval_s")
+            if getattr(self.config.web, "debug_routing", False):
+                public_result["raw_routing"] = result.get("raw_routing")
+        return public_result
+
+    def _chat(self, question, model_ids, clean_histories, *, progress=None):
         results = []
         with self._lock:
             for model_id in model_ids:
                 model = self.models[model_id]
                 try:
                     mode = getattr(model, "mode", "rag")
+                    if progress is not None:
+                        progress(model_id, "starting", f"Đang chuẩn bị {model.label}…")
                     answer_fn = answerer_for(model.provider)
                     settings = self._settings(model)
                     if mode == "base":
                         started = time.perf_counter()
                         messages = [
                             *clean_histories[model_id],
-                            {"role": "user", "content": question.strip()},
+                            {"role": "user", "content": question},
                         ]
+                        if progress is not None:
+                            progress(model_id, "generating", "Qwen đang soạn câu trả lời…")
                         answer, _, generation_s = answer_fn(messages, settings)
                         result = {
                             "prediction": answer,
@@ -102,37 +146,75 @@ class ChatApplication:
                             "latency_s": time.perf_counter() - started,
                         }
                     else:
+                        if mode == "graphrag" and self.graph_retriever is None:
+                            raise RuntimeError("GraphRAG chưa được bật trong cấu hình graph.enabled")
                         result = answer_question(
-                            question.strip(),
+                            question,
                             self.retriever,
                             self.tokenizer,
                             settings,
                             history=clean_histories[model_id],
                             answer_fn=answer_fn,
+                            graph_retriever=self.graph_retriever if mode == "graphrag" else None,
+                            **(
+                                {"progress": lambda stage, label: progress(model_id, stage, label)}
+                                if progress is not None
+                                else {}
+                            ),
                         )
-                    public_result = {
-                        "model_id": model_id,
-                        "mode": mode,
-                        "answer": result["prediction"],
-                        "action": result.get("action"),
-                        "sources": result.get("retrieved", []),
-                        "latency_s": result.get("latency_s"),
-                    }
-                    if mode == "rag":
-                        route = result.get("routing") or {}
-                        public_result["routing_diagnostics"] = {
-                            "fallback_reason": result.get("fallback_reason"),
-                            "routing_attempts": result.get("routing_attempts", 0),
-                            "decision_reason": result.get("decision_reason"),
-                            "relation": route.get("relation"), "scope": route.get("scope"),
-                        }
-                        if getattr(self.config.web, "debug_routing", False):
-                            public_result["raw_routing"] = result.get("raw_routing")
-                    results.append(public_result)
+                    results.append(self._public_result(model_id, mode, result))
                 except Exception as exc:
                     LOG.exception("Model %s không trả lời được", model_id)
                     results.append({"model_id": model_id, "error": str(exc)})
         return {"results": results}
+
+    def chat(self, payload):
+        return self._chat(*self._validate_chat_payload(payload))
+
+    def _start_chat(self, question, model_ids, clean_histories, emit):
+        def progress(model_id, stage, label):
+            emit({"type": "progress", "model_id": model_id, "stage": stage, "label": label})
+
+        def run():
+            try:
+                emit({"type": "progress", "stage": "queued", "label": "Đang chờ phiên xử lý…"})
+                result = self._chat(question, model_ids, clean_histories, progress=progress)
+                emit({"type": "result", **result})
+            except Exception:
+                LOG.exception("Lỗi khi stream câu trả lời")
+                emit({"type": "error", "error": "Không thể xử lý câu hỏi. Hãy xem log của server."})
+            finally:
+                emit(None)
+
+        worker = threading.Thread(target=run, name="vigovbot-chat-stream", daemon=True)
+        worker.start()
+        return worker
+
+    def start_chat(self, payload, emit):
+        question, model_ids, clean_histories = self._validate_chat_payload(payload)
+        return self._start_chat(question, model_ids, clean_histories, emit)
+
+    def chat_events(self, payload):
+        events = queue.Queue()
+        cancelled = threading.Event()
+
+        def emit(event):
+            if event is None or not cancelled.is_set():
+                events.put(event)
+
+        self.start_chat(payload, emit)
+
+        def iterator():
+            try:
+                while True:
+                    event = events.get()
+                    if event is None:
+                        return
+                    yield event
+            finally:
+                cancelled.set()
+
+        return iterator()
 
 
 def make_handler(app):
@@ -191,8 +273,10 @@ def make_handler(app):
 def serve(config, host="127.0.0.1", port=8000):
     """Load the corpus/models once, then serve until Ctrl+C."""
     paths = prepare(config)
-    with inference_session(config, paths) as (retriever, tokenizer):
-        app = ChatApplication(config, retriever, tokenizer)
+    from vigovbot.rag.pipeline import graph_inference_session
+
+    with inference_session(config, paths) as (retriever, tokenizer), graph_inference_session(config) as graph_retriever:
+        app = ChatApplication(config, retriever, tokenizer, graph_retriever=graph_retriever)
         server = ThreadingHTTPServer((host, port), make_handler(app))
         LOG.info("ViGovBot đang chạy tại http://%s:%d", host, port)
         try:

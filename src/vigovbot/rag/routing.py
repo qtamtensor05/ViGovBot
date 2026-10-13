@@ -1,5 +1,13 @@
 """Conversation routing contracts; no evaluation labels enter this module."""
+
 import json
+
+from vigovbot.graphrag.query_plan import (
+    GRAPH_PLAN_ENTITY_FIELDS,
+    GRAPH_RELATIONSHIP_TYPES,
+    empty_graph_plan,
+    normalize_graph_plan,
+)
 
 ROUTING_PROMPT = """Bạn phân tích câu hỏi cho hệ thống tra cứu thủ tục hành chính Việt Nam.
 Chỉ phân loại và tạo truy vấn, KHÔNG trả lời kiến thức thủ tục hoặc đoán tài liệu có đủ không.
@@ -21,6 +29,14 @@ Trả JSON với đúng các trường:
   Không có lịch sử thì không được chọn follow_up; câu hỏi như 'còn lệ phí?' phải ambiguous.
 - clarification: câu hỏi ngắn để người dùng làm rõ nếu ambiguous; rỗng ở nhánh khác.
   Không dùng clarification để xác nhận lại một câu hỏi đã rõ hoặc tóm tắt query.
+- graph_plan: luôn có procedure_code, procedure_name, agency, legal_basis, field và
+  relationship_types. Đây là filter cho graph, không phải câu trả lời. Chỉ điền
+  thực thể được nêu rõ trong câu hỏi hoặc được giải quyết chắc chắn từ lịch sử;
+  không đoán mã/tên/cơ quan/căn cứ. Mọi chuỗi không xác định là "".
+  relationship_types chỉ dùng các nhãn HANDLED_BY, AUTHORIZED_BY, COORDINATED_BY,
+  DELEGATED_TO, LEGAL_BASIS, CONTAINS. Chỉ nêu nhãn liên quan trực tiếp điều người
+  dùng hỏi; để [] khi không cần ưu tiên quan hệ. Với out_of_scope hoặc ambiguous,
+  toàn bộ chuỗi phải là "" và relationship_types phải là [].
 Không dùng câu trả lời cũ làm bằng chứng pháp lý. Không tự chọn một trong nhiều thủ tục khi chưa rõ.
 Giữ đầy đủ mọi ý hỏi khi viết query, kể cả yêu cầu tra trạng thái hồ sơ cá nhân.
 Câu hỏi có tiền đề sai về cơ quan/phí vẫn thuộc phạm vi thủ tục, cần truy hồi để kiểm chứng.
@@ -28,13 +44,35 @@ Nếu lịch sử nêu nhiều thủ tục và 'thủ tục đó' không xác đ
 không tự lấy thủ tục cuối cùng. Không yêu cầu tên cơ sở/cá nhân khi câu hỏi về quy định chung đã rõ.
 Ví dụ:
 - Lịch sử về hộ chiếu; câu mới 'Tôi đang tìm hiểu cấp bản sao hộ tịch. Phí trực tuyến là gì?':
-  {"scope":"in_scope","relation":"new_question","query":"Phí cấp bản sao hộ tịch trực tuyến là gì?","clarification":""}
+  {"scope":"in_scope","relation":"new_question","query":"Phí cấp bản sao hộ tịch trực tuyến là gì?","clarification":"","graph_plan":{"procedure_code":"","procedure_name":"cấp bản sao hộ tịch","agency":"","legal_basis":"","field":"","relationship_types":[]}}
 - Lịch sử xác định cấp hộ chiếu; câu mới 'Còn lệ phí?':
-  {"scope":"in_scope","relation":"follow_up","query":"Lệ phí cấp hộ chiếu là bao nhiêu?","clarification":""}
+  {"scope":"in_scope","relation":"follow_up","query":"Lệ phí cấp hộ chiếu là bao nhiêu?","clarification":"","graph_plan":{"procedure_code":"","procedure_name":"cấp hộ chiếu","agency":"","legal_basis":"","field":"","relationship_types":[]}}
 - Không có lịch sử; câu mới 'Còn lệ phí?':
-  {"scope":"in_scope","relation":"ambiguous","query":"","clarification":"Bạn muốn hỏi lệ phí thủ tục nào?"}
+  {"scope":"in_scope","relation":"ambiguous","query":"","clarification":"Bạn muốn hỏi lệ phí thủ tục nào?","graph_plan":{"procedure_code":"","procedure_name":"","agency":"","legal_basis":"","field":"","relationship_types":[]}}
 - Câu mới 'Viết bài thơ về mùa thu':
-  {"scope":"out_of_scope","relation":"new_question","query":"","clarification":""}"""
+  {"scope":"out_of_scope","relation":"new_question","query":"","clarification":"","graph_plan":{"procedure_code":"","procedure_name":"","agency":"","legal_basis":"","field":"","relationship_types":[]}}"""
+
+
+def graph_plan_schema(retrieval):
+    """Constrain graph extraction without adding a second model request."""
+    entity_schema = {"type": "string"} if retrieval else {"type": "string", "enum": [""]}
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [*GRAPH_PLAN_ENTITY_FIELDS, "relationship_types"],
+        "properties": {
+            **{field: entity_schema for field in GRAPH_PLAN_ENTITY_FIELDS},
+            "relationship_types": (
+                {
+                    "type": "array",
+                    "items": {"type": "string", "enum": list(GRAPH_RELATIONSHIP_TYPES)},
+                    "uniqueItems": True,
+                }
+                if retrieval
+                else {"type": "array", "maxItems": 0}
+            ),
+        },
+    }
 
 
 def routing_schema(history):
@@ -44,25 +82,32 @@ def routing_schema(history):
     for scope, relation in [("in_scope", r) for r in relations] + [("out_of_scope", "new_question")]:
         retrieval = scope == "in_scope" and relation != "ambiguous"
         clarification = scope == "in_scope" and relation == "ambiguous"
-        branches.append({
-            "type": "object", "additionalProperties": False,
-            "required": ["scope", "relation", "query", "clarification"],
-            "properties": {
-                "scope": {"type": "string", "enum": [scope]},
-                "relation": {"type": "string", "enum": [relation]},
-                "query": {"type": "string", "minLength": 1} if retrieval else {"type": "string", "enum": [""]},
-                "clarification": ({"type": "string", "minLength": 1} if clarification
-                                  else {"type": "string", "enum": [""]}),
-            },
-        })
+        branches.append(
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["scope", "relation", "query", "clarification", "graph_plan"],
+                "properties": {
+                    "scope": {"type": "string", "enum": [scope]},
+                    "relation": {"type": "string", "enum": [relation]},
+                    "query": {"type": "string", "minLength": 1} if retrieval else {"type": "string", "enum": [""]},
+                    "clarification": (
+                        {"type": "string", "minLength": 1} if clarification else {"type": "string", "enum": [""]}
+                    ),
+                    "graph_plan": graph_plan_schema(retrieval),
+                },
+            }
+        )
     return {"anyOf": branches}
 
 
 def routing_messages(question, history, tokenizer, settings):
-    messages = [{"role": "system", "content": ROUTING_PROMPT}, *history,
-                 {"role": "user", "content": question}]
-    messages[0]["content"] += ("\nCó lịch sử: chỉ follow_up nếu cần lượt trước để hiểu câu hiện tại."
-                               if history else "\nLượt hiện tại KHÔNG có lịch sử; không được chọn follow_up.")
+    messages = [{"role": "system", "content": ROUTING_PROMPT}, *history, {"role": "user", "content": question}]
+    messages[0]["content"] += (
+        "\nCó lịch sử: chỉ follow_up nếu cần lượt trước để hiểu câu hiện tại."
+        if history
+        else "\nLượt hiện tại KHÔNG có lịch sử; không được chọn follow_up."
+    )
     tokens = len(tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True))
     if tokens > settings["num_ctx"] - settings["num_predict"] - 256:
         raise ValueError("Câu hỏi và lịch sử quá dài cho bước phân loại; tăng num_ctx hoặc rút gọn lịch sử")
@@ -71,14 +116,18 @@ def routing_messages(question, history, tokenizer, settings):
 
 def parse_route(text, history):
     route = json.loads(text)
-    if not isinstance(route, dict) or set(route) != {"scope", "relation", "query", "clarification"}:
+    required = {"scope", "relation", "query", "clarification"}
+    if not isinstance(route, dict) or not required.issubset(route) or set(route) - (required | {"graph_plan"}):
         raise ValueError("Invalid routing object")
     if route["scope"] not in ("in_scope", "out_of_scope") or route["relation"] not in (
-            "new_question", "follow_up", "ambiguous"):
+        "new_question",
+        "follow_up",
+        "ambiguous",
+    ):
         raise ValueError("Invalid routing labels")
-    if not all(isinstance(route[k], str) for k in route):
+    if not all(isinstance(route[k], str) for k in required):
         raise ValueError("Invalid routing text")
-    route = {k: v.strip() for k, v in route.items()}
+    route = {**route, **{key: route[key].strip() for key in required}}
     if route["relation"] == "follow_up" and not history:
         raise ValueError("follow_up requires history")
     if route["scope"] == "in_scope":
@@ -89,49 +138,72 @@ def parse_route(text, history):
             raise ValueError("Retrieval route requires query and no clarification")
     elif route["query"] or route["clarification"]:
         raise ValueError("Out-of-scope route must not contain query or clarification")
+    try:
+        route["graph_plan"] = normalize_graph_plan(route.get("graph_plan", empty_graph_plan()))
+    except ValueError:
+        route["graph_plan"] = empty_graph_plan()
     return route
 
 
-EVIDENCE_ACTIONS = {"sufficient": "answer", "partial": "partial", "missing": "abstain",
-                    "contradictory_premise": "correct_premise", "ambiguous": "clarify"}
+EVIDENCE_ACTIONS = {
+    "sufficient": "answer",
+    "partial": "partial",
+    "missing": "abstain",
+    "contradictory_premise": "correct_premise",
+    "ambiguous": "clarify",
+}
 
 
 def answer_schema(require_evidence=False, citation_ids=None):
     """Make inconsistent evidence/action pairs unrepresentable during decoding."""
     branches = []
     for evidence, action in EVIDENCE_ACTIONS.items():
-        properties = {"answer": {"type": "string", "minLength": 1},
-                      "action": {"type": "string", "enum": [action]}}
+        properties = {"answer": {"type": "string", "minLength": 1}, "action": {"type": "string", "enum": [action]}}
         if require_evidence:
             properties["evidence_status"] = {"type": "string", "enum": [evidence]}
         if citation_ids is not None:
-            properties['citations'] = {'type': 'array', 'items': {
-                'type': 'object', 'additionalProperties': False,
-                'required': ['chunk_id', 'claim'], 'properties': {
-                    'chunk_id': {'type': 'string', 'enum': citation_ids or ['__no_context__']},
-                    'claim': {'type': 'string', 'minLength': 1}}}}
-            if not citation_ids: properties['citations']['maxItems'] = 0
-        branches.append({"type": "object", "additionalProperties": False,
-                         "required": list(properties), "properties": properties})
+            properties["citations"] = {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["chunk_id", "claim"],
+                    "properties": {
+                        "chunk_id": {"type": "string", "enum": citation_ids or ["__no_context__"]},
+                        "claim": {"type": "string", "minLength": 1},
+                    },
+                },
+            }
+            if not citation_ids:
+                properties["citations"]["maxItems"] = 0
+        branches.append(
+            {"type": "object", "additionalProperties": False, "required": list(properties), "properties": properties}
+        )
     return {"anyOf": branches}
 
 
 def parse_citations(text, used):
     """Validate source references, not whether the source entails the claim."""
     payload = json.loads(text)
-    citations = payload.get('citations')
-    if not isinstance(citations, list): raise ValueError('citations must be an array')
-    contexts = {c['chunk_id']: c for c in used}
+    citations = payload.get("citations")
+    if not isinstance(citations, list):
+        raise ValueError("citations must be an array")
+    contexts = {c["chunk_id"]: c for c in used}
     result = []
     for c in citations:
-        if not isinstance(c, dict) or set(c) != {'chunk_id', 'claim'}:
-            raise ValueError('Invalid citation object')
-        if c['chunk_id'] not in contexts or not isinstance(c['claim'], str) or not c['claim'].strip() \
-                or c['claim'] not in payload.get('answer', ''):
-            raise ValueError('Citation must refer to used context and an exact answer span')
-        context = contexts[c['chunk_id']]
-        result.append({**c, **{k: context[k] for k in ('source_file', 'source_code', 'pages', 'source_sha256')
-                              if k in context}})
+        if not isinstance(c, dict) or set(c) != {"chunk_id", "claim"}:
+            raise ValueError("Invalid citation object")
+        if (
+            c["chunk_id"] not in contexts
+            or not isinstance(c["claim"], str)
+            or not c["claim"].strip()
+            or c["claim"] not in payload.get("answer", "")
+        ):
+            raise ValueError("Citation must refer to used context and an exact answer span")
+        context = contexts[c["chunk_id"]]
+        result.append(
+            {**c, **{k: context[k] for k in ("source_file", "source_code", "pages", "source_sha256") if k in context}}
+        )
     return result
 
 
