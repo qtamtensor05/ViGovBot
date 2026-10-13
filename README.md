@@ -33,6 +33,20 @@ Các lệnh trong tài liệu được thực thi từ thư mục gốc của re
 
 ## Cài đặt
 
+### Nix flake + uv (tùy chọn)
+
+Nếu dùng Nix (NixOS/Linux/macOS), có thể vào dev shell bằng `flake.nix` rồi cài
+dependency Python qua `uv`:
+
+```bash
+nix develop            # hoặc: nix develop .#rag
+uv venv --seed
+uv pip install -e ".[test,dev]"  # hoặc: ".[rag]"
+```
+
+Chi tiết về nhóm dependency, lock file và Nix được ghi tại
+[tài liệu môi trường](docs/environments.md).
+
 ### Môi trường kiểm thử
 
 ```powershell

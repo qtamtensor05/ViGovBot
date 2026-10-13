@@ -37,6 +37,42 @@ Phiên bản Python được khai báo hỗ trợ: 3.10–3.14. Môi trường �
 Windows x64, Python 3.14. Các tổ hợp hệ điều hành và phiên bản Python khác chưa
 được xác nhận bằng quy trình kiểm chứng của dự án.
 
+## Môi trường Nix flake + uv
+
+Nếu dùng Nix (NixOS hoặc Linux/macOS có cài Nix), repository cung cấp `flake.nix`
+để tạo dev shell gồm Python/uv và một số dependency hệ thống (CA cert, Tesseract).
+Các gói Python vẫn được cài theo `pyproject.toml` thông qua `uv`.
+
+Môi trường kiểm thử (offline):
+
+```bash
+nix develop
+uv venv --seed
+uv pip install -e ".[test,dev]"
+python -m unittest discover -s tests -v
+python scripts/demo_offline.py
+```
+
+Môi trường RAG (có Ollama nếu nixpkgs hỗ trợ gói `ollama`):
+
+```bash
+nix develop .#rag
+uv venv --seed
+uv pip install -e ".[rag]"
+ollama pull qwen2.5:7b
+python -m vigovbot rag --config configs/inference.yaml ask --question "Hồ sơ cấp bản sao hộ tịch gồm những gì?"
+```
+
+Ghi chú:
+
+- `flake.nix` export `TESSDATA_PREFIX` trỏ về `tesseract` trong dev shell.
+  Nếu cần trỏ tessdata riêng, đặt `ingestion.ocr.tessdata` trong YAML hoặc export
+  `TESSDATA_PREFIX` theo máy chạy.
+- Khi chạy provider OpenAI-compatible, sao chép `.env.example` → `.env` và đặt
+  biến môi trường theo `api_key_env` trong YAML; không ghi API key trực tiếp vào YAML.
+- Repository không commit sẵn `flake.lock`; khi cần pin phiên bản, chạy
+  `nix flake lock` hoặc `nix flake update`.
+
 ## Cài đặt tái lập bằng lock file
 
 `locks/*-windows-py314.txt` chứa phiên bản của cả dependency trực tiếp và
