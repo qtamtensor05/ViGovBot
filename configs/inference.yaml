@@ -1,5 +1,5 @@
 data:
-  unified_source: ../Data/vector/unified
+  unified_source: ../data/vector/unified
   cache_dir: ../outputs/rag_cache
   allow_legacy_corpus: false
 embedding:

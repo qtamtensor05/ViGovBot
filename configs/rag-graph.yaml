@@ -1,0 +1,70 @@
+# Cấu hình GraphRAG local: giữ retrieval vector và bổ sung Neo4j khi chọn mode graphrag.
+data:
+  allow_legacy_corpus: false
+  unified_source: ../data/vector/unified
+  dataset_path: ../data/qa_test/dataset.jsonl
+  dataset_zip: null
+  cache_dir: ../outputs/rag_cache
+  output_dir: ../outputs/qwen2_5_7b_graphrag_results
+
+embedding:
+  model: BAAI/bge-m3
+  revision: null
+  device: cpu
+
+llm:
+  model: qwen2.5:7b
+  ollama_url: http://localhost:11434
+  tokenizer: Qwen/Qwen2.5-7B-Instruct
+  tokenizer_revision: null
+  temperature: 0.0
+  num_ctx: 8192
+  num_predict: 512
+  seed: 42
+  timeout: 300
+  keep_alive: 10m
+
+retrieval:
+  top_k: 5
+  max_chunk_tokens: 1200
+
+conversation:
+  routing_enabled: true
+  routing_num_predict: 160
+
+graph:
+  enabled: true
+  uri: bolt://127.0.0.1:7687
+  database: neo4j
+  username: neo4j
+  password_env: NEO4J_PASSWORD
+  max_procedures: 3
+  max_relationships: 6
+  max_context_chars: 2400
+  query_timeout_s: 5
+  wait_timeout_s: 6
+  cache_ttl_s: 120
+  cache_max_entries: 128
+
+web:
+  models:
+    - id: qwen-rag
+      label: Qwen + Vector RAG
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: http://localhost:11434
+      mode: rag
+    - id: qwen-graphrag
+      label: Qwen + GraphRAG
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: http://localhost:11434
+      mode: graphrag
+
+evaluation:
+  smoke_test_n: 5
+  max_cases: null
+  bertscore_model: xlm-roberta-large
+  bertscore_device: cpu
+  bertscore_batch_size: 1
+  baseline_summary_path: null
