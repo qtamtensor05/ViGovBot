@@ -2,6 +2,47 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261013-02
+
+- Task: TASK-20261013-02.
+- Triệu chứng: lần render Compose đầu tiên cảnh báo các biến nội bộ của shell script
+  (`database_name`, `marker`, `dump_path`) chưa được đặt và thay bằng chuỗi rỗng.
+- Nguyên nhân đã xác nhận: Docker Compose nội suy `${...}` trong `configs.content`
+  trước khi shell trong init container thực thi.
+- Xử lý: escape toàn bộ biến shell nội bộ thành `$${...}`; chỉ giữ
+  `${NEO4J_PASSWORD:-...}` cho biến cấu hình do Docker Compose đọc.
+- Kết quả: đã sửa source Compose; sau đó `docker compose up -d` chạy được tới init
+  và phát hiện tiếp lỗi guard volume (ERR-20261013-03).
+- Phòng tránh: với script nhúng trong Compose, luôn escape `$` dành cho shell bằng
+  `$$` để Compose không thực hiện nội suy.
+
+## ERR-20261013-03
+
+- Task: TASK-20261013-02.
+- Triệu chứng: `neo4j-init` dừng với thông báo volume data không rỗng và thiếu
+  marker restore, ngay cả khi volume vừa được tạo.
+- Nguyên nhân đã xác nhận: image/container Neo4j tạo sẵn hai thư mục rỗng
+  `/data/databases` và `/data/transactions`; guard an toàn ban đầu coi chúng là
+  dấu hiệu database đã tồn tại.
+- Xử lý: cho phép duy nhất hai thư mục khởi tạo này khi rỗng, nhưng kiểm tra nội
+  dung bên trong và vẫn từ chối ghi đè dữ liệu/database thực tế khi không có marker.
+- Kết quả: đã sửa Compose; chưa chạy lại container sau bản vá guard cuối để xác
+  nhận dump được restore.
+- Phòng tránh: guard restore cần phân biệt metadata/thư mục bootstrap do image tạo
+  với file database thực tế.
+
+## ERR-20261013-01
+
+- Task: TASK-20261013-01.
+- Triệu chứng: các lệnh Nix cần evaluate/build (`nix eval`) thất bại với lỗi
+  `cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Operation not permitted`.
+- Nguyên nhân đã xác nhận: môi trường sandbox hiện tại không cho phép truy cập
+  nix-daemon, nên không thể kiểm chứng `nix develop` hoặc evaluate nixpkgs.
+- Xử lý: chỉ bổ sung `flake.nix` và tài liệu hướng dẫn; đánh dấu kiểm chứng Nix
+  là pending/partial trong task journal.
+- Phòng tránh: khi cần kiểm chứng Nix, chạy trong môi trường có nix-daemon hoạt
+  động (hoặc single-user Nix) và có mạng để fetch nixpkgs/wheels.
+
 ## ERR-20261006-05
 
 - Task: TASK-20261006-03.

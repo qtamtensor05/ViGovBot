@@ -1,3 +1,38 @@
+# TASK-20261013-02 — partial
+
+- Đang tạo Docker Compose để khôi phục `data/graph/backup/neo4j.dump` vào Neo4j.
+- Đã xác nhận file dump tồn tại (11 MB), `docker-compose.yml` đang rỗng và Docker/
+  Docker Compose có sẵn trên máy.
+- Đã triển khai: `neo4j-init` chỉ đọc `data/graph/backup/neo4j.dump`, dùng
+  `neo4j-admin database load` một lần vào named volume `neo4j-data`; service
+  `neo4j` chỉ bind các cổng Bolt/Browser vào loopback và giữ data/log/import bằng
+  named volumes. Init từ chối ghi đè volume không rỗng không có marker restore.
+- Đã sửa lỗi Compose nội suy biến shell trong init script bằng cách dùng trực tiếp
+  tên dump và marker cố định (`neo4j.dump`, `.vigovbot-neo4j-restored`).
+- Đã chuyển tên database thành biến `NEO4J_DATABASE` trong `.env`; Compose dùng biến
+  này cho Neo4j database mặc định, marker restore và tên dump `<database>.dump`.
+- Đã xác định init lỗi vì volume mới có sẵn `databases/` và `transactions/` rỗng do
+  image tạo; guard đã được sửa để cho phép đúng hai thư mục rỗng này, nhưng vẫn chặn
+  dữ liệu Neo4j thực tế khi thiếu marker restore.
+- Kiểm chứng thực tế: Docker đã pull `neo4j:5-community`, tạo named volume/network
+  và gọi init; log xác nhận lỗi guard với hai thư mục bootstrap rỗng, đã được vá.
+  Chưa chạy lại sau bản vá cuối để xác nhận dump khôi phục thành công. Cần đặt
+  `NEO4J_PASSWORD` trước khi chạy để không dùng mật khẩu local mặc định.
+
+# TASK-20261013-01 — partial
+
+- Mục tiêu: có môi trường phát triển/tái lập cơ bản bằng Nix flake, kết hợp `uv`
+  để cài dependency Python theo `pyproject.toml`.
+- Đã triển khai: thêm `flake.nix` với `devShells.default` và `devShells.rag`,
+  cập nhật hướng dẫn trong `docs/environments.md` và `README.md`, và chỉnh
+  `config.yaml` để dùng đường dẫn `data/` đúng theo repo.
+- Chưa kiểm chứng: không chạy được `nix develop` trong sandbox hiện tại do không
+  truy cập được nix-daemon; cần chạy trên máy có Nix cấu hình đầy đủ để xác nhận
+  các package/attr (`ollama`, `tesseract`, `python312`) đúng theo nixpkgs pin.
+- Bước tiếp theo: trên máy local chạy `nix develop` + `uv venv --seed` +
+  `uv pip install -e ".[test,dev]"` và `python scripts/demo_offline.py`; nếu cần
+  RAG thì `nix develop .#rag` + `uv pip install -e ".[rag]"` + `ollama pull qwen2.5:7b`.
+
 # TASK-20261007-08 — completed
 
 - Đã lập tài liệu báo cáo phân tích và so sánh RAG vs Base cho 1.000 ca kiểm thử

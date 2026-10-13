@@ -1,5 +1,33 @@
 # Lịch sử triển khai
 
+## TASK-20261013-02 — Neo4j Compose khôi phục graph từ dump
+
+- Thêm `docker-compose.yml`: init service mount read-only
+  `data/graph/backup/neo4j.dump`, load database `neo4j` bằng `neo4j-admin` vào
+  named volume `neo4j-data` và lưu marker sau khi thành công. Service Neo4j chỉ chạy
+  sau init thành công, persist data/log/import bằng named volume, và chỉ publish
+  Browser/Bolt tới `127.0.0.1`.
+- Init service từ chối ghi đè volume có dữ liệu nhưng thiếu marker, để tránh làm mất
+  database local khi dump bị thay đổi hoặc lần restore trước không hoàn chỉnh.
+- Tên database được cấu hình qua `NEO4J_DATABASE` (mặc định `neo4j`) trong `.env`;
+  init service khôi phục dump theo tên `data/graph/backup/<database>.dump`.
+- Kiểm chứng runtime: `neo4j:5-community` đã pull, Compose đã tạo named volumes/
+  network và chạy init. Init đã phát hiện/sửa hai lỗi config/guard; bản sửa guard
+  cuối chưa được chạy lại nên chưa xác nhận dump khôi phục thành công.
+
+## TASK-20261013-01 — bổ sung môi trường Nix flake + hướng dẫn uv
+
+- Thêm `flake.nix` cung cấp 2 dev shell: `nix develop` (offline/test) và
+  `nix develop .#rag` (thêm Ollama nếu nixpkgs có gói `ollama`). Mỗi shell cài
+  Python 3.12, `uv`, `git`, `tesseract`, `cacert`; trên Linux bổ sung thư viện
+  runtime phổ biến và `LD_LIBRARY_PATH` để giảm rủi ro khi dùng wheel từ PyPI.
+- Cập nhật `docs/environments.md` và `README.md` với quy trình dùng `uv`:
+  tạo venv, cài extras (`.[test,dev]` hoặc `.[rag]`) và chạy test/demo/RAG.
+- Sửa `config.yaml` đổi `Data/pdf` → `data/pdf` để chạy được trên hệ điều hành
+  phân biệt hoa/thường (Linux/macOS).
+- Kiểm chứng: chỉ kiểm tra tĩnh (cú pháp Nix/tài liệu); không chạy được
+  `nix develop` trong sandbox hiện tại vì không truy cập được nix-daemon.
+
 ## TASK-20261007-08 — tài liệu hóa so sánh RAG và Base trên tthc_test_case_v1
 
 - Tạo tài liệu báo cáo `docs/bao-cao-danh-gia-rag-vs-base-tthc-v1.md` tổng hợp và

@@ -1,5 +1,39 @@
 # Yêu cầu dự án
 
+## TASK-20261013-02
+
+- Ngày: 2026-10-13 (Asia/Saigon).
+- Yêu cầu: tạo Docker Compose dùng dump ở `data/graph/backup` để khôi phục graph
+  vào Neo4j local.
+- Phạm vi: cấu hình một init service load `neo4j.dump` vào persistent named volume,
+  sau đó khởi động Neo4j Community với cổng chỉ bind loopback. Không thay đổi dữ liệu
+  graph, không triển khai truy vấn/tích hợp GraphRAG vào runtime Python trong task này.
+- Tiêu chí hoàn thành: `docker compose config` hợp lệ; lần `up` đầu load dump trước
+  khi server Neo4j chạy, các lần sau giữ data volume và không load lại dump.
+- Giả định: dump tương thích với Neo4j 5.x; Docker daemon chạy trên máy local.
+- Trạng thái: partial; image/volume/network đã tạo và init đã được chạy, nhưng hai
+  lỗi guard/config đã được phát hiện. Bản sửa guard cuối chưa được chạy lại để xác
+  nhận dump khôi phục thành công.
+
+## TASK-20261013-01
+
+- Ngày: 2026-10-13 (Asia/Saigon).
+- Yêu cầu: cài đặt môi trường cần thiết cho dự án qua Nix flake và uv (nếu cần),
+  kèm cấu hình/tài liệu để chạy được các lệnh chính.
+- Phạm vi: bổ sung `flake.nix` (dev shell) cung cấp Python/uv và dependency hệ
+  thống tối thiểu (CA cert, Tesseract, Ollama nếu có); bổ sung hướng dẫn cài
+  dependency Python bằng `uv` theo `pyproject.toml` và chạy test/demo/RAG. Không
+  thay đổi logic runtime, không tải model/corpus hoặc chạy pipeline dài trong task này.
+  Điều chỉnh cấu hình mặc định `config.yaml` để trỏ đúng thư mục `data/` trên hệ
+  điều hành phân biệt hoa/thường.
+- Tiêu chí hoàn thành: có lệnh rõ ràng để (1) vào dev shell bằng `nix develop`,
+  (2) tạo venv và cài dependency bằng `uv` theo các nhóm extras, (3) chạy được test
+  offline/demo và có hướng dẫn RAG (Ollama/model) và OCR (Tesseract/tessdata).
+- Giả định: người dùng chạy trên máy có Nix cấu hình đầy đủ (nix-daemon và mạng
+  để fetch nixpkgs/wheels).
+- Trạng thái: partial; đã thêm `flake.nix` và cập nhật tài liệu, nhưng chưa thể
+  kiểm chứng `nix develop` trong sandbox hiện tại do thiếu quyền truy cập nix-daemon.
+
 ## TASK-20261007-08
 
 - Ngày: 2026-10-07 (Asia/Saigon).
