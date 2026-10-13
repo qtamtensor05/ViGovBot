@@ -18,6 +18,8 @@ from vigovbot.evaluation.runner import evaluate_cases
 from vigovbot.retrieval.retriever import Retriever
 from vigovbot.prompts.prompt_templates import build_messages
 from vigovbot.llm.llm_client import ollama_answer
+from vigovbot.rag.pipeline import answer_question
+from vigovbot.graphrag.models import GraphProcedure
 from vigovbot.utils.helpers import read_results, append_result, ensure_run
 
 
@@ -177,6 +179,51 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_messages("x" * 10000, hits, CharacterTokenizer(), 2048, 512, 400)
 
+    def test_prompt_keeps_graph_context_as_reference_data(self):
+        graph_context = "[Thủ tục | 1.000005] Thủ tục hải quan\n- HANDLED_BY: (Agency) Chi cục Hải quan"
+        messages, _, count = build_messages(
+            "Cơ quan nào xử lý?", [], CharacterTokenizer(), 2048, 512, 400, additional_context=graph_context
+        )
+        self.assertLessEqual(count, 2048 - 512 - 256)
+        self.assertIn("NGỮ CẢNH ĐỒ THỊ TRI THỨC", messages[1]["content"])
+        self.assertIn("Chi cục Hải quan", messages[1]["content"])
+
+    def test_answer_question_limits_graph_to_vector_source_codes(self):
+        graph_calls = {}
+
+        class VectorRetriever:
+            def search(self, query, top_k):
+                return [{**chunk(5), "row_id": 5, "score": 0.9}, {**chunk(7), "row_id": 7, "score": 0.8}]
+
+        class GraphRetriever:
+            config = type("Config", (), {"max_context_chars": 300, "max_procedures": 3, "wait_timeout_s": 1})()
+
+            def search(self, query, plan=None, procedure_codes=None):
+                graph_calls["query"] = query
+                graph_calls["plan"] = plan
+                graph_calls["procedure_codes"] = procedure_codes
+                return [GraphProcedure("1.000005", "Thủ tục hải quan", ())]
+
+        result = answer_question(
+            "Cơ quan nào xử lý?",
+            VectorRetriever(),
+            CharacterTokenizer(),
+            {
+                "routing_enabled": False,
+                "citations_enabled": False,
+                "top_k": 1,
+                "num_ctx": 2048,
+                "num_predict": 128,
+                "max_chunk_tokens": 400,
+            },
+            answer_fn=lambda messages, settings: ("Trả lời", {}, 0.0),
+            graph_retriever=GraphRetriever(),
+        )
+
+        self.assertEqual(result["prediction"], "Trả lời")
+        self.assertEqual(result["graph_sources"][0]["procedure_code"], "1.000005")
+        self.assertEqual(graph_calls["procedure_codes"], ["1.000005", "1.000007"])
+
     def test_resume_and_no_ground_truth_leakage(self):
         output = self.root / "results"
         config = {"settings": {"model": "qwen2.5:7b"}}
@@ -269,7 +316,7 @@ class PipelineTests(unittest.TestCase):
             self.assertIn('"git", "clone"', combined)
             self.assertIn('"vigovbot', combined)
             self.assertIn('REPO_DIR / "src"', combined)
-            self.assertIn('import vigovbot', combined)
+            self.assertIn("import vigovbot", combined)
             self.assertIn('"pip", "install"', combined)
             self.assertNotIn("from src.", combined)
             self.assertNotIn('"src.rag"', combined)

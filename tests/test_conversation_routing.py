@@ -1,4 +1,5 @@
 """Offline behavioral tests for routing, evidence decisions and v4 output."""
+
 import json
 import tempfile
 import unittest
@@ -7,6 +8,7 @@ from unittest.mock import Mock, patch
 
 from vigovbot.evaluation.multiturn import evaluate_multiturn
 from vigovbot.experiments import read_results
+from vigovbot.graphrag import empty_graph_plan
 from vigovbot.rag.pipeline import answer_question
 from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
 
@@ -22,38 +24,114 @@ class Tokenizer:
         return self.encode("".join(m["content"] for m in messages))
 
 
-def route(relation="new_question", scope="in_scope", query="Phí cấp hộ chiếu?", clarification=""):
-    return json.dumps(dict(scope=scope, relation=relation, query=query, clarification=clarification))
+def route(relation="new_question", scope="in_scope", query="Phí cấp hộ chiếu?", clarification="", graph_plan=None):
+    return json.dumps(
+        dict(
+            scope=scope,
+            relation=relation,
+            query=query,
+            clarification=clarification,
+            graph_plan=empty_graph_plan() if graph_plan is None else graph_plan,
+        )
+    )
 
 
 class RoutingTests(unittest.TestCase):
     def test_opt_in_citations_are_validated_and_saved(self):
-        self.settings['citations_enabled'] = True
-        result, llm = self.run_answer([route(), json.dumps({
-            'answer': 'Phí 0 đồng', 'action': 'answer', 'evidence_status': 'sufficient',
-            'citations': [{'chunk_id': 'c1', 'claim': '0 đồng'}]})])
-        self.assertEqual(result['citations'][0]['source_file'], 'a.pdf')
-        self.assertEqual(result['citations_status'], 'validated_references_not_semantic_support')
-        schema = llm.call_args_list[-1].args[1]['response_format']
-        self.assertIn('citations', schema['anyOf'][0]['required'])
+        self.settings["citations_enabled"] = True
+        result, llm = self.run_answer(
+            [
+                route(),
+                json.dumps(
+                    {
+                        "answer": "Phí 0 đồng",
+                        "action": "answer",
+                        "evidence_status": "sufficient",
+                        "citations": [{"chunk_id": "c1", "claim": "0 đồng"}],
+                    }
+                ),
+            ]
+        )
+        self.assertEqual(result["citations"][0]["source_file"], "a.pdf")
+        self.assertEqual(result["citations_status"], "validated_references_not_semantic_support")
+        schema = llm.call_args_list[-1].args[1]["response_format"]
+        self.assertIn("citations", schema["anyOf"][0]["required"])
 
     def setUp(self):
         self.settings = dict(top_k=5, num_ctx=8192, num_predict=512, max_chunk_tokens=1200)
-        self.history = [{"role": "user", "content": "OLD_TOPIC: giấy khai sinh"},
-                        {"role": "assistant", "content": "OLD_CLAIM"}]
+        self.history = [
+            {"role": "user", "content": "OLD_TOPIC: giấy khai sinh"},
+            {"role": "assistant", "content": "OLD_CLAIM"},
+        ]
         self.retriever = Mock()
-        self.retriever.search.return_value = [dict(row_id=1, chunk_id="c1", score=.9, source_file="a.pdf",
-                                                 source_code="1", section_type="fees", text_content="Phí 0 đồng")]
+        self.retriever.search.return_value = [
+            dict(
+                row_id=1,
+                chunk_id="c1",
+                score=0.9,
+                source_file="a.pdf",
+                source_code="1",
+                section_type="fees",
+                text_content="Phí 0 đồng",
+            )
+        ]
 
-    def run_answer(self, responses, question="Phí cấp hộ chiếu?", history=None):
-        with patch("vigovbot.rag.pipeline.ollama_answer", side_effect=[(r, {}, .1) for r in responses]) as llm:
-            result = answer_question(question, self.retriever, Tokenizer(), self.settings, history=history)
+    def run_answer(self, responses, question="Phí cấp hộ chiếu?", history=None, graph_retriever=None):
+        with patch("vigovbot.rag.pipeline.ollama_answer", side_effect=[(r, {}, 0.1) for r in responses]) as llm:
+            result = answer_question(
+                question,
+                self.retriever,
+                Tokenizer(),
+                self.settings,
+                history=history,
+                graph_retriever=graph_retriever,
+            )
         return result, llm
 
+    def test_graph_retrieval_receives_validated_router_plan(self):
+        plan = {
+            "procedure_code": "",
+            "procedure_name": "cấp hộ chiếu",
+            "agency": "",
+            "legal_basis": "",
+            "field": "",
+            "relationship_types": ["HANDLED_BY"],
+        }
+        graph_retriever = Mock()
+        graph_retriever.search.return_value = []
+        result, _ = self.run_answer(
+            [route(graph_plan=plan), json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))],
+            graph_retriever=graph_retriever,
+        )
+        graph_retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", plan, ["1"])
+        self.assertEqual(result["routing"]["graph_plan"], plan)
+
+    def test_clear_standalone_question_skips_router_call(self):
+        answer = json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))
+        result, llm = self.run_answer([answer], question="Quy trình xuất khẩu khí qua đường ống gồm những bước nào?")
+
+        self.assertEqual(llm.call_count, 1)
+        self.assertEqual(result["routing"]["rule"], "clear_standalone_question")
+        self.assertEqual(result["raw_routing"], {"rule": "clear_standalone_question"})
+
+    def test_invalid_router_graph_plan_keeps_valid_route_and_uses_empty_plan(self):
+        invalid_plan = {**empty_graph_plan(), "agency": ["Bộ Công an"]}
+        result, _ = self.run_answer(
+            [
+                route(graph_plan=invalid_plan),
+                json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient")),
+            ]
+        )
+        self.assertEqual(result["routing"]["graph_plan"], empty_graph_plan())
+
     def test_new_question_drops_old_subject_and_ignores_contaminated_rewrite(self):
-        result, llm = self.run_answer([
-            route(query="OLD_TOPIC"),
-            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))], history=self.history)
+        result, llm = self.run_answer(
+            [
+                route(query="OLD_TOPIC"),
+                json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient")),
+            ],
+            history=self.history,
+        )
         self.retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", 5)
         self.assertNotIn("OLD_", str(llm.call_args_list[1].args[0]))
         self.assertEqual(result["action"], "answer")
@@ -61,10 +139,14 @@ class RoutingTests(unittest.TestCase):
 
     def test_follow_up_uses_resolved_query_without_old_assistant_claims(self):
         resolved = "Lệ phí cấp hộ chiếu trực tuyến cho người lớn?"
-        result, llm = self.run_answer([
-            route("follow_up", query=resolved),
-            json.dumps(dict(answer="Chưa có thông tin.", action="abstain", evidence_status="missing"))],
-            question="Còn lệ phí trực tuyến?", history=self.history)
+        result, llm = self.run_answer(
+            [
+                route("follow_up", query=resolved),
+                json.dumps(dict(answer="Chưa có thông tin.", action="abstain", evidence_status="missing")),
+            ],
+            question="Còn lệ phí trực tuyến?",
+            history=self.history,
+        )
         self.retriever.search.assert_called_once_with(resolved, 5)
         self.assertIn(resolved, str(llm.call_args_list[1].args[0]))
         self.assertNotIn("OLD_CLAIM", str(llm.call_args_list[1].args[0]))
@@ -94,17 +176,20 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(llm.call_count, 1)
 
     def test_partial_correction_and_clarification_after_retrieval(self):
-        for evidence, action in [("partial", "partial"), ("contradictory_premise", "correct_premise"),
-                                 ("ambiguous", "clarify")]:
+        for evidence, action in [
+            ("partial", "partial"),
+            ("contradictory_premise", "correct_premise"),
+            ("ambiguous", "clarify"),
+        ]:
             with self.subTest(evidence=evidence):
-                result, _ = self.run_answer([route(), json.dumps(dict(answer="Nội dung", action=action,
-                                                                      evidence_status=evidence))])
+                result, _ = self.run_answer(
+                    [route(), json.dumps(dict(answer="Nội dung", action=action, evidence_status=evidence))]
+                )
                 self.assertEqual(result["action"], action)
                 self.assertEqual(result["decision_reason"], "evidence_assessment")
 
     def test_invalid_router_never_silently_retrieves(self):
-        for response in ["not json", "[]", route("ambiguous", query=""),
-                         route(scope="invalid"), route(query="")]:
+        for response in ["not json", "[]", route("ambiguous", query=""), route(scope="invalid"), route(query="")]:
             with self.subTest(response=response):
                 result, llm = self.run_answer([response, response])
                 self.assertEqual(result["action"], "clarify")
@@ -116,9 +201,13 @@ class RoutingTests(unittest.TestCase):
         self.retriever.search.assert_not_called()
 
     def test_follow_up_without_history_retries_as_standalone(self):
-        result, llm = self.run_answer([
-            route("follow_up"), route("new_question"),
-            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))])
+        result, llm = self.run_answer(
+            [
+                route("follow_up"),
+                route("new_question"),
+                json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient")),
+            ]
+        )
         self.assertEqual(result["action"], "answer")
         self.assertEqual(llm.call_count, 3)
         self.assertIn("KHÔNG có lịch sử", llm.call_args_list[1].args[0][0]["content"])
@@ -133,10 +222,14 @@ class RoutingTests(unittest.TestCase):
 
     def test_inconsistent_ambiguous_fields_retry_with_history(self):
         invalid = route("ambiguous", query="Có truy vấn", clarification="Bạn hỏi gì?")
-        result, llm = self.run_answer([
-            invalid, route("follow_up"),
-            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))],
-            history=self.history)
+        result, llm = self.run_answer(
+            [
+                invalid,
+                route("follow_up"),
+                json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient")),
+            ],
+            history=self.history,
+        )
         self.assertEqual(result["action"], "answer")
         self.assertEqual(llm.call_count, 3)
         self.assertNotIn("KHÔNG có lịch sử", llm.call_args_list[1].args[0][0]["content"])
@@ -159,15 +252,22 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(len(answer_schema(True)["anyOf"]), 5)
 
     def test_generation_retry_recovers_invalid_json_and_keeps_evidence(self):
-        for invalid in ['{"answer":"unfinished', '{"answer":"x","action":"answer"}',
-                        '{"answer":"x","action":"answer","evidence_status":"missing"}']:
+        for invalid in [
+            '{"answer":"unfinished',
+            '{"answer":"x","action":"answer"}',
+            '{"answer":"x","action":"answer","evidence_status":"missing"}',
+        ]:
             with self.subTest(invalid=invalid):
-                result, llm = self.run_answer([
-                    route(), invalid,
-                    json.dumps(dict(answer="Chưa có thông tin", action="abstain", evidence_status="missing"))])
+                result, llm = self.run_answer(
+                    [
+                        route(),
+                        invalid,
+                        json.dumps(dict(answer="Chưa có thông tin", action="abstain", evidence_status="missing")),
+                    ]
+                )
                 self.assertEqual(result["action"], "abstain")
                 self.assertEqual(result["generation_diagnostics"]["attempts"], 2)
-                self.assertAlmostEqual(result["generation_s"], .2)
+                self.assertAlmostEqual(result["generation_s"], 0.2)
                 initial, retry = llm.call_args_list[1:]
                 self.assertEqual(initial.args[1]["response_format"], answer_schema(True))
                 self.assertEqual(initial.args[1], retry.args[1])
@@ -175,18 +275,27 @@ class RoutingTests(unittest.TestCase):
 
     def test_follow_up_preserves_personal_status_even_if_rewrite_omits_it(self):
         question = "Cho biết cơ quan thực hiện và hồ sơ tôi đã được duyệt chưa?"
-        _, llm = self.run_answer([
-            route("follow_up", query="Cơ quan cấp hộ chiếu?"),
-            json.dumps(dict(answer="Chỉ biết cơ quan", action="partial", evidence_status="partial"))],
-            question=question, history=self.history)
+        _, llm = self.run_answer(
+            [
+                route("follow_up", query="Cơ quan cấp hộ chiếu?"),
+                json.dumps(dict(answer="Chỉ biết cơ quan", action="partial", evidence_status="partial")),
+            ],
+            question=question,
+            history=self.history,
+        )
         self.assertIn(question, llm.call_args_list[1].args[0][-1]["content"])
         self.assertNotIn("OLD_CLAIM", str(llm.call_args_list[1].args[0]))
 
     def test_generation_retry_respects_context_budget(self):
         invalid = '{"answer":"x","action":"answer","evidence_status":"missing"}'
-        with patch("vigovbot.rag.pipeline.build_messages", return_value=(
+        with patch(
+            "vigovbot.rag.pipeline.build_messages",
+            return_value=(
                 [{"role": "system", "content": "x" * 7420}, {"role": "user", "content": "q"}],
-                [{"chunk_id": "c1"}], 7421)):
+                [{"chunk_id": "c1"}],
+                7421,
+            ),
+        ):
             with self.assertRaises(StructuredAnswerError) as caught:
                 self.run_answer([route(), invalid])
         self.assertEqual(caught.exception.diagnostics["retry_skipped"], "context_budget")
@@ -194,10 +303,14 @@ class RoutingTests(unittest.TestCase):
 
     def test_retry_explains_rejected_follow_up_and_preserves_schema(self):
         invalid = route("follow_up", clarification="Vous voulez confirmer?")
-        result, llm = self.run_answer([
-            invalid, route("new_question"),
-            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))],
-            history=self.history)
+        result, llm = self.run_answer(
+            [
+                invalid,
+                route("new_question"),
+                json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient")),
+            ],
+            history=self.history,
+        )
         retry_messages, retry_settings = llm.call_args_list[1].args
         self.assertIn("Retrieval route requires query and no clarification", retry_messages[-1]["content"])
         self.assertIn("rejected_json", retry_messages[-1]["content"])
@@ -227,15 +340,23 @@ class RoutingTests(unittest.TestCase):
         llm.assert_not_called()
 
     def test_clarification_is_successful_turn_and_v4_keeps_diagnostics(self):
-        qs = [dict(id=str(i), question=q, conversation_id="cv", turn_index=i, history=[])
-              for i, q in enumerate(["Còn lệ phí?", "Cấp hộ chiếu"], 1)]
-        responses = [route("ambiguous", query="", clarification="Bạn hỏi thủ tục nào?"),
-                     route("follow_up"),
-                     json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))]
-        with tempfile.TemporaryDirectory() as root, patch(
-                "vigovbot.rag.pipeline.ollama_answer", side_effect=[(r, {}, .1) for r in responses]) as llm:
+        qs = [
+            dict(id=str(i), question=q, conversation_id="cv", turn_index=i, history=[])
+            for i, q in enumerate(["Còn lệ phí?", "Cấp hộ chiếu"], 1)
+        ]
+        responses = [
+            route("ambiguous", query="", clarification="Bạn hỏi thủ tục nào?"),
+            route("follow_up"),
+            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient")),
+        ]
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch("vigovbot.rag.pipeline.ollama_answer", side_effect=[(r, {}, 0.1) for r in responses]) as llm,
+        ):
+
             def answer(q, history):
                 return answer_question(q, self.retriever, Tokenizer(), self.settings, history)
+
             summary = evaluate_multiturn(qs, root, {}, answer)
             rows = read_results(Path(root) / "predictions.jsonl")
         self.assertEqual(summary["successful"], 2)

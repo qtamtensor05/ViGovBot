@@ -15,6 +15,14 @@ from vigovbot.rag.pipeline import execute, source_fingerprint
 
 
 class ConfigTests(unittest.TestCase):
+    def test_graphrag_config_uses_repository_data_directory(self):
+        root = Path(__file__).resolve().parents[1]
+
+        config = load_config(root / "configs" / "rag-graph.yaml")
+
+        self.assertEqual(config.data.unified_source, root / "data" / "vector" / "unified")
+        self.assertTrue((config.data.unified_source / "corpus_manifest.json").is_file())
+
     def test_relative_paths_resolve_against_yaml(self):
         with tempfile.TemporaryDirectory() as work:
             path = Path(work) / "rag.yaml"
@@ -26,6 +34,7 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.data.dataset_path, Path(work).resolve() / "qa_test/dataset.jsonl")
             self.assertEqual(config.inference_settings()["top_k"], 5)
             self.assertTrue(config.inference_settings()["routing_enabled"])
+            self.assertFalse(config.graph.enabled)
 
     def test_config_rejects_typos_and_invalid_budget(self):
         data = {"unified_source": "unified.zip", "dataset_path": "qa.jsonl"}
@@ -33,8 +42,24 @@ class ConfigTests(unittest.TestCase):
             {"retrieval": {"top_k": 0}},
             {"llm": {"num_ctx": 500, "num_predict": 512}},
             {"evaluation": {"max_cases": 0}},
-            {"web": {"models": [{"id": "x", "label": "X", "provider": "ollama", "model": "qwen",
-                                  "base_url": "http://localhost", "mode": "unknown"}]}},
+            {
+                "web": {
+                    "models": [
+                        {
+                            "id": "x",
+                            "label": "X",
+                            "provider": "ollama",
+                            "model": "qwen",
+                            "base_url": "http://localhost",
+                            "mode": "unknown",
+                        }
+                    ]
+                }
+            },
+            {"graph": {"uri": "http://localhost:7687"}},
+            {"graph": {"password_env": "invalid-name"}},
+            {"graph": {"query_timeout_s": 10, "wait_timeout_s": 5}},
+            {"conversation": {"routing_num_predict": 0}},
             {"unknown": True},
         ):
             with self.subTest(overrides=overrides), self.assertRaises(ValueError):
@@ -49,6 +74,30 @@ class ConfigTests(unittest.TestCase):
         ):
             self.assertEqual(main(["--config", "test.yaml", "prepare"]), 0)
         execute_mock.assert_called_once_with("test", "prepare")
+
+    def test_cli_routes_fastapi_without_starting_server(self):
+        from vigovbot.rag.__main__ import main
+
+        with (
+            patch("vigovbot.rag.__main__.load_config", return_value="test"),
+            patch("vigovbot.server.fastapi_app.serve") as serve,
+        ):
+            self.assertEqual(main(["--config", "test.yaml", "api", "--port", "8010"]), 0)
+        serve.assert_called_once_with("test", host="127.0.0.1", port=8010)
+
+    def test_cli_provisions_graph_indexes_without_loading_rag_model(self):
+        from vigovbot.rag.__main__ import main
+
+        config = types.SimpleNamespace(graph=types.SimpleNamespace(enabled=True))
+        with (
+            patch("vigovbot.rag.__main__.load_config", return_value=config),
+            patch("vigovbot.graphrag.Neo4jGraphRetriever") as retriever_class,
+        ):
+            retriever_class.return_value.provision_indexes.return_value = ["CREATE RANGE INDEX test"]
+            self.assertEqual(main(["--config", "test.yaml", "graph-index"]), 0)
+        retriever_class.assert_called_once_with(config.graph)
+        retriever_class.return_value.provision_indexes.assert_called_once_with()
+        retriever_class.return_value.close.assert_called_once_with()
 
     def test_pipeline_smoke_evaluate_resume_and_report(self):
         with tempfile.TemporaryDirectory() as work:
@@ -115,11 +164,18 @@ class ConfigTests(unittest.TestCase):
                 patch("vigovbot.rag.pipeline.load_encoder", return_value=Encoder()),
                 patch("vigovbot.rag.pipeline.check_model", return_value={"digest": "abc"}),
                 patch("vigovbot.rag.pipeline.unload_model"),
-                patch("vigovbot.rag.pipeline.ollama_answer", side_effect=lambda messages, settings: (
-                    json.dumps({"scope": "in_scope", "relation": "new_question", "query": "Phí?", "clarification": ""})
-                    if "scope:" in messages[0]["content"] else
-                    json.dumps({"answer": "0 đồng", "action": "answer", "evidence_status": "sufficient"}),
-                    {}, 0.1)) as chat,
+                patch(
+                    "vigovbot.rag.pipeline.ollama_answer",
+                    side_effect=lambda messages, settings: (
+                        json.dumps(
+                            {"scope": "in_scope", "relation": "new_question", "query": "Phí?", "clarification": ""}
+                        )
+                        if "scope:" in messages[0]["content"]
+                        else json.dumps({"answer": "0 đồng", "action": "answer", "evidence_status": "sufficient"}),
+                        {},
+                        0.1,
+                    ),
+                ) as chat,
             ):
                 self.assertEqual(execute(config, "prepare")["count"], 1)
                 self.assertEqual(execute(config, "smoke")["smoke_cases"], 1)

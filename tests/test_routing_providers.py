@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from vigovbot.llm.llm_client import ollama_answer
+from vigovbot.graphrag import empty_graph_plan
 from vigovbot.rag.routing import parse_route, routing_schema, answer_schema, parse_answer
 from vigovbot.server.providers import openai_compatible_answer
 
@@ -12,12 +13,26 @@ from vigovbot.server.providers import openai_compatible_answer
 class RoutingProviderTests(unittest.TestCase):
     def setUp(self):
         self.schema = routing_schema([])
-        self.settings = dict(model="qwen", ollama_url="http://localhost:11434", base_url="http://api/v1",
-                             temperature=0, num_ctx=8192, num_predict=512, seed=42,
-                             timeout=20, keep_alive="10m", response_format=self.schema)
-        self.messages = [{"role": "system", "content": "Phân loại JSON"},
-                         {"role": "user", "content": "Phí hộ chiếu?"}]
-        self.route = dict(scope="in_scope", relation="new_question", query="Phí hộ chiếu?", clarification="")
+        self.settings = dict(
+            model="qwen",
+            ollama_url="http://localhost:11434",
+            base_url="http://api/v1",
+            temperature=0,
+            num_ctx=8192,
+            num_predict=512,
+            seed=42,
+            timeout=20,
+            keep_alive="10m",
+            response_format=self.schema,
+        )
+        self.messages = [{"role": "system", "content": "Phân loại JSON"}, {"role": "user", "content": "Phí hộ chiếu?"}]
+        self.route = dict(
+            scope="in_scope",
+            relation="new_question",
+            query="Phí hộ chiếu?",
+            clarification="",
+            graph_plan=empty_graph_plan(),
+        )
 
     def test_ollama_transmits_schema_without_changing_result(self):
         raw = {"message": {"content": json.dumps(self.route)}}
