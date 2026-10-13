@@ -1,8 +1,86 @@
+# TASK-20261014-02 — completed
+
+- Đã xác nhận Ollama phục vụ `qwen2.5:7b` và Neo4j local healthy; khoảng ba phút
+  là vấn đề latency UX, không phải dấu hiệu dịch vụ lỗi.
+- Nút thắt có bằng chứng source/config: router JSON dùng cùng `num_predict: 512`
+  với câu trả lời, còn Cypher GraphRAG khởi đầu `MATCH (procedure:Procedure)` với
+  `CONTAINS` và nhiều `EXISTS` trên node lân cận, có khả năng scan graph rộng.
+- Đã triển khai vector-first theo FAISS/SQLite hiện hữu: metadata `source_code` từ
+  vector hit giới hạn `Procedure.procedure_code` trước traversal. Có Neo4j
+  full-text/range index, fallback scan cũ, timeout graph, cache retrieval và rule
+  lookup; không thay sang Qdrant vì chưa có lý do vận hành/scale.
+- Khảo sát schema corpus ban đầu đã cố `json.loads()` toàn bộ metadata và bị dừng
+  sau khoảng 45 giây trước khi trả record; sẽ dùng parser streaming để đọc mẫu,
+  không lặp lại tải toàn bộ artifact lớn.
+- Đã hoàn thiện vector-first bằng `source_code`: pipeline lấy hit FAISS/SQLite trước
+  và Neo4j chỉ equality-filter `Procedure.procedure_code` trước traversal. Khi thiếu
+  mã, retriever dùng full-text index với fallback scan cũ; có cache TTL, ngân sách
+  chờ graph và `graph-index` provision range/full-text index idempotent. Router có
+  budget output riêng và rule bỏ qua call Qwen cho mã thủ tục rõ ràng.
+- Đã provision `vigovbot_procedure_code` và `vigovbot_procedure_text` trên Neo4j
+  local. Probe thật: mã `1.000005` trả đúng graph context trong 0,3099 giây lần đầu
+  (0,0055 giây cùng kết nối); full-text câu hỏi xuất khẩu khí trả `1.000005` đầu
+  tiên trong 0,359 giây. Ask offline thật trước/sau cho cùng câu hỏi lần lượt là
+  173,591/117,613 giây: router 58,366/0 giây, vector 0,978/0,141 giây, graph
+  2,288/0,103 giây. Lần sau có graph source `1.000005`; Qwen generation 117,261
+  giây là nút thắt UX còn lại, không phải retrieval.
+
+# TASK-20261014-01 — completed
+
+- Router Qwen hiện trả `graph_plan` trong chính lượt phân tích hội thoại, gồm mã/tên
+  thủ tục, cơ quan, căn cứ pháp lý, lĩnh vực và quan hệ cần ưu tiên. Không có lượt
+  Qwen bổ sung; route JSON cũ thiếu plan vẫn tương thích bằng plan rỗng.
+- `Neo4jGraphRetriever` dùng plan đã validate để lọc `Procedure` cùng `Agency`,
+  `LegalDocument`, `Field`; toàn bộ giá trị là Cypher parameter. Plan trống/lỗi
+  tiếp tục dùng token search cũ, còn relationship type chỉ xếp ưu tiên context.
+- Kiểm chứng đạt: 33 test unit router/GraphRAG/provider + 24 RAG pipeline/server/
+  FastAPI trong Nix RAG shell; Ruff check/format và `git diff --check` đạt.
+- Chưa benchmark Qwen/Ollama, Neo4j và corpus thật, vì vậy chưa khẳng định mức giảm
+  latency hay thay đổi recall ngoài test mô phỏng.
+
+# TASK-20261013-05 — completed
+
+- Đã triển khai SSE `POST /api/chat/stream` giữ nguyên `POST /api/chat`, phát tiến
+  độ thực theo router, vector, Neo4j, Qwen và validator; Next.js hiển thị trạng
+  thái cùng thời gian chờ. Không đưa JSON/schema dở dang lên UI như kết quả cuối.
+- Đã xác định hai nguyên nhân độ trễ có thể tránh: UI từng chọn đồng thời Vector
+  RAG và GraphRAG nhưng backend xử lý tuần tự; Graph retrieval theo sau vector dù
+  độc lập. UI nay mặc định chọn một GraphRAG mode và pipeline chạy vector/Neo4j
+  song song, vẫn tuần tự hóa các lượt model để tránh tranh chấp Ollama.
+- Kiểm chứng đạt: 9 test `server`/`FastAPI` trong `.venv`, 1 test retrieval song
+  song trong Nix RAG shell, Ruff check/format, `git diff --check`, Next.js lint và
+  production build. Chưa benchmark Qwen/Ollama/corpus/Neo4j thật, nên không tuyên
+  bố số giây giảm latency trên máy local.
+
+# TASK-20261013-04 — completed
+
+- Đã sửa cấu hình GraphRAG/local dùng `Data/` viết hoa sang `data/`, khớp layout
+  repository trên Linux. Bổ sung regression test cho `configs/rag-graph.yaml`.
+- Kiểm chứng: 6 `ConfigTests` đạt trong Nix RAG shell; Ruff và `git diff --check`
+  đạt. Corpus thực với đúng config đã xác minh manifest/checksum thành công,
+  dùng `BAAI/bge-m3` và source `data/vector/unified`.
+- Không thay đổi corpus, Neo4j, model hay cơ chế retrieval. Có thể chạy lại lệnh
+  API GraphRAG trước đó.
+
+# TASK-20261013-03 — completed
+
+- Đã khảo sát source/API/UI/test và schema Neo4j thực tế, triển khai GraphRAG hybrid
+  trong module `graphrag`, cấu hình `configs/rag-graph.yaml`, FastAPI adapter/CLI
+  `api`, UI Next.js và tài liệu vận hành. HTTP server cũ cùng base/vector RAG được giữ.
+- GraphRAG lazy-load driver chỉ khi mode `graphrag` chạy; truy vấn Neo4j parameterized,
+  giới hạn procedure/quan hệ/context. Xác minh thực tế trả thủ tục hải quan cùng
+  `HANDLED_BY`, `AUTHORIZED_BY`, `LEGAL_BASIS` từ graph local.
+- Kiểm chứng đạt: 29 test liên quan trong `nix develop .#rag`; Ruff check, format
+  các file mới và `git diff --check`; Next.js `npm run lint` + `npm run build`.
+- Full regression chạy 122 test có 1 failure baseline ở `test_multiturn` vì expectation
+  `response_format == "json"` đã lạc hậu so với JSON Schema trong chính `HEAD`; không
+  sửa lỗi ngoài phạm vi. Có 1 test skipped theo điều kiện dữ liệu hiện hữu.
+
 # TASK-20261013-02 — partial
 
-- Đang tạo Docker Compose để khôi phục `data/graph/backup/neo4j.dump` vào Neo4j.
-- Đã xác nhận file dump tồn tại (11 MB), `docker-compose.yml` đang rỗng và Docker/
-  Docker Compose có sẵn trên máy.
+- Đang xác minh Neo4j Browser sau khi đã tạo Docker Compose khôi phục
+  `data/graph/backup/neo4j.dump` vào Neo4j.
+- Đã xác nhận file dump tồn tại (11 MB), Docker/Docker Compose có sẵn trên máy.
 - Đã triển khai: `neo4j-init` chỉ đọc `data/graph/backup/neo4j.dump`, dùng
   `neo4j-admin database load` một lần vào named volume `neo4j-data`; service
   `neo4j` chỉ bind các cổng Bolt/Browser vào loopback và giữ data/log/import bằng
@@ -14,10 +92,16 @@
 - Đã xác định init lỗi vì volume mới có sẵn `databases/` và `transactions/` rỗng do
   image tạo; guard đã được sửa để cho phép đúng hai thư mục rỗng này, nhưng vẫn chặn
   dữ liệu Neo4j thực tế khi thiếu marker restore.
-- Kiểm chứng thực tế: Docker đã pull `neo4j:5-community`, tạo named volume/network
-  và gọi init; log xác nhận lỗi guard với hai thư mục bootstrap rỗng, đã được vá.
-  Chưa chạy lại sau bản vá cuối để xác nhận dump khôi phục thành công. Cần đặt
-  `NEO4J_PASSWORD` trước khi chạy để không dùng mật khẩu local mặc định.
+- Đã xác định `neo4j` không khởi động vì Compose truyền `NEO4J_PASSWORD` trực tiếp
+  vào image và image diễn giải nó thành setting không hợp lệ. Compose hiện chỉ dùng
+  `NEO4J_AUTH`, setting database đúng và healthcheck cổng Bolt không cần password.
+- Đã đặt advertised address cho Bolt/HTTP theo loopback host. Container hiện
+  `healthy`; `cypher-shell` trong container xác thực qua `bolt://127.0.0.1:7687`
+  và truy vấn `RETURN 1` thành công. Host nhận `101 Switching Protocols` cho
+  WebSocket Bolt tại cùng endpoint.
+- Lỗi Browser `readyState: 3` không còn bằng chứng thuộc Neo4j server, cổng hay
+  mật khẩu. Cần người dùng mở Browser được Neo4j phục vụ cục bộ thay vì Browser
+  HTTPS bên ngoài, hoặc cung cấp lỗi DevTools để xác định chặn ở client/browser.
 
 # TASK-20261013-01 — partial
 

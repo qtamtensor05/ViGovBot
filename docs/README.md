@@ -9,6 +9,7 @@ loại theo mục đích để tránh lặp lại hướng dẫn vận hành tro
 |---|---|---|
 | Tổng quan | [README dự án](../README.md) | Trạng thái, yêu cầu, cài đặt và giao diện CLI |
 | Vận hành | [Triển khai RAG](trien-khai-rag-co-ban.md) | Tạo corpus, thực hiện truy vấn và chạy đánh giá |
+| GraphRAG | [GraphRAG + FastAPI + Next.js](graphrag.md) | Neo4j hybrid retrieval, API và giao diện web |
 | Kiến trúc | [Kiến trúc hệ thống](architecture.md) | Thành phần, luồng dữ liệu, phụ thuộc và hợp đồng artifact |
 | Dữ liệu | [Embedding và corpus](../EMBEDDING.md) | Định dạng pack, revision mô hình, hợp nhất và giới hạn tài nguyên |
 | Môi trường | [Môi trường và khả năng tái lập](environments.md) | Dependency, lock file, nền tảng hỗ trợ và kiểm chứng |

@@ -1,5 +1,40 @@
 # Lịch sử triển khai
 
+## TASK-20261013-04 — Sửa đường dẫn corpus GraphRAG trên Linux
+
+- Chuẩn hóa các cấu hình RAG/inference/indexing local và default pipeline từ
+  `Data/` sang `data/`, phù hợp filesystem Linux phân biệt hoa/thường và layout
+  repository. Không đổi đường dẫn Google Drive/Colab vốn là external layout.
+- `configs/rag-graph.yaml` nay resolve tới `data/vector/unified`; thêm regression
+  test xác nhận config này và manifest corpus tồn tại, ngăn lỗi `FileNotFoundError`
+  lặp lại khi khởi động API.
+- Kiểm chứng: 6 `ConfigTests` đạt trong `nix develop .#rag`, Ruff test file và
+  `git diff --check` đạt; `verify_corpus()` với config GraphRAG xác minh đúng
+  corpus BGE-M3 bằng manifest/checksum thực tế.
+
+## TASK-20261013-03 — GraphRAG hybrid, FastAPI và Next.js
+
+- Khảo sát xác nhận graph local có `Procedure`, `Agency`, `LegalDocument`, `Field`
+  với 36.064 quan hệ. Thêm `vigovbot.graphrag` theo Protocol/Strategy: model dữ liệu
+  graph độc lập và `Neo4jGraphRetriever` lazy-connect, Cypher parameterized, token
+  query lọc stopword, xếp hạng số term khớp và context bị giới hạn ký tự.
+- `answer_question()` vẫn giữ vector RAG hiện tại, chỉ nhận dependency graph tùy chọn;
+  context Neo4j được thêm như dữ liệu tham khảo trong ngân sách prompt. Mode mới
+  `graphrag` được `ChatApplication` gọi riêng; `base` và `rag` không dùng driver.
+- Thêm FastAPI adapter `server.fastapi_app`, endpoint `/api/health`, `/api/models`,
+  `/api/chat`, CLI `vigovbot rag ... api`, dependency `fastapi`/`uvicorn`/`neo4j` và
+  CORS chỉ cho Next.js local. Server `ThreadingHTTPServer` cũ vẫn giữ nguyên.
+- Thay Next.js scaffold bằng UI chat chọn mode, gửi history theo model, hiển thị nguồn
+  vector/graph; dùng `NEXT_PUBLIC_API_BASE_URL` và không lộ secret Neo4j. Production
+  build dùng webpack + TypeScript compiler API để tái lập trong môi trường hiện có.
+- Thêm `configs/rag-graph.yaml`, `docs/graphrag.md`, cập nhật README/architecture/env
+  docs; bổ sung test graph mapping, FastAPI contract, CLI `api`, server GraphRAG và
+  prompt graph context.
+- Kiểm chứng: truy vấn read-only qua Python Neo4j driver trả đúng thủ tục hải quan;
+  29 test liên quan trong Nix RAG shell đạt; Ruff check/format file mới/diff sạch;
+  Next.js lint + production build đạt. Full suite có một failure baseline multi-turn
+  đã xác minh tồn tại ở `HEAD`, nên không sửa ngoài phạm vi task.
+
 ## TASK-20261013-02 — Neo4j Compose khôi phục graph từ dump
 
 - Thêm `docker-compose.yml`: init service mount read-only
@@ -12,8 +47,10 @@
 - Tên database được cấu hình qua `NEO4J_DATABASE` (mặc định `neo4j`) trong `.env`;
   init service khôi phục dump theo tên `data/graph/backup/<database>.dump`.
 - Kiểm chứng runtime: `neo4j:5-community` đã pull, Compose đã tạo named volumes/
-  network và chạy init. Init đã phát hiện/sửa hai lỗi config/guard; bản sửa guard
-  cuối chưa được chạy lại nên chưa xác nhận dump khôi phục thành công.
+  network, init đã khôi phục dump và Neo4j ở trạng thái `healthy`. `cypher-shell`
+  xác thực và chạy `RETURN 1` qua Bolt thành công; WebSocket handshake từ host tới
+  `127.0.0.1:7687` trả `101 Switching Protocols`. Chưa xác định được lỗi riêng ở
+  phiên Browser của người dùng vì đây là lỗi phía client và chưa có DevTools detail.
 
 ## TASK-20261013-01 — bổ sung môi trường Nix flake + hướng dẫn uv
 
@@ -451,4 +488,81 @@
 - Kiểm chứng: 37 test QA/routing, Ruff check/format và pip check đạt. Smoke Qwen
   thật concurrency 4 đạt 20/20 trong 21,08 giây; 20 case tương ứng ở run cũ có
   5 failure schema. Không ghi đè artifact baseline 1.000 ca cũ.
+
+# TASK-20261013-05 — completed
+
+- Đã thêm `progress` callback cho `answer_question()` tại các pha router/retry,
+  rewrite history, vector, Neo4j, Qwen generation, validation/retry và hoàn tất.
+  `ChatApplication` chạy công việc trong worker có queue, FastAPI chuyển event
+  thành SSE ở `POST /api/chat/stream`; `POST /api/chat` giữ nguyên JSON contract.
+- Next.js đọc SSE qua `fetch`, hiện nhãn công việc và đồng hồ chờ có `aria-live`;
+  đáp án chỉ hiển thị sau event `result` vì output đang bị schema/evidence validator
+  kiểm tra. Bổ sung API/UI/architecture docs và test contract event.
+- Đã tối ưu không đổi kết quả: vector retrieval và Neo4j retrieval chạy song song;
+  UI mặc định chỉ chọn GraphRAG mode thay vì vô tình chạy Vector RAG và GraphRAG
+  tuần tự. FastAPI dùng `asyncio.Queue` để bridge worker thread với SSE ASGI, tránh
+  chặn event loop trong khi Qwen đang chạy.
+- Kiểm chứng: 9 test `tests.test_server`/`tests.test_fastapi_server` đạt trong
+  `.venv`; test `test_answer_question_retrieves_vector_and_graph_concurrently` đạt
+  trong `nix develop .#rag` với `.venv`; Ruff check/format, `git diff --check`,
+  `npm run lint` và `npm run build` đều đạt. Chưa gọi Qwen/Ollama/Neo4j thật để
+  benchmark, nên phần giảm latency runtime cần đo riêng trên dịch vụ local.
+
+## TASK-20261014-01 — Lập kế hoạch truy vấn GraphRAG theo thực thể
+
+- Thêm contract `graph_plan` vào lượt router Qwen đang có: `procedure_code`,
+  `procedure_name`, `agency`, `legal_basis`, `field` và whitelist
+  `relationship_types`. Prompt/schema yêu cầu plan rỗng cho nhánh mơ hồ/ngoài
+  phạm vi; parser vẫn chấp nhận route bốn trường cũ để giữ tương thích.
+- Thêm module validate dùng chung cho router/GraphRAG. Extraction sai kiểu, khóa,
+  độ dài hoặc nhãn quan hệ không làm hỏng route chính: nó được hạ xuống plan rỗng.
+- `Neo4jGraphRetriever.search()` nhận plan tùy chọn. Khi có thực thể hợp lệ, Cypher
+  parameterized lọc `Procedure` theo mã/tên và node `Agency`/`LegalDocument`/
+  `Field`, rồi ưu tiên quan hệ người dùng hỏi trong context; khi plan thiếu/lỗi,
+  nó giữ nguyên token query cũ. Pipeline chỉ truyền plan khi nó thực sự thu hẹp
+  candidate, nên fake/strategy GraphRetriever cũ một tham số vẫn dùng được.
+- Cập nhật `docs/graphrag.md` và thêm regression test cho contract provider,
+  router → graph retriever, mapping tham số Cypher và fallback token search.
+- Kiểm chứng thực tế: `python -m compileall` các file đổi; Ruff check/format; trong
+  `nix develop .#rag`, 33 test `graphrag`/routing/provider/pipeline trọng tâm và
+  24 test `rag_pipeline`/`server`/`fastapi_server` đều đạt; `git diff --check`
+  đạt. Chưa chạy Qwen, Neo4j và corpus thật, không có benchmark latency/recall.
+
+## TASK-20261014-02 — Chẩn đoán latency câu hỏi GraphRAG (partial)
+
+- Xác nhận câu hỏi mất khoảng ba phút là latency UX cần tối ưu, không phải lỗi
+  Neo4j/Ollama. Probe read-only cho thấy Ollama đang phục vụ `qwen2.5:7b`, Neo4j
+  container healthy và cổng Bolt mở.
+- Đọc source/config xác nhận router structured-output dùng `num_predict: 512` như
+  generation cuối, dù chỉ cần JSON route/graph plan; đây là ứng viên trực tiếp cho
+  khoảng 60 giây pha phân tích. Graph retriever hiện có nhánh `MATCH (procedure)`
+  + `CONTAINS`/`EXISTS`, nên câu hỏi tổng quát theo tên thủ tục có thể scan rộng
+  trước khi lấy neighbourhood.
+- Chưa chạy trace end-to-end hay benchmark thay đổi index/model budget; không có
+  số giảm latency thực tế. Khuyến nghị tiếp theo là tách budget router, thêm phase
+  timing trên UI/API và thay procedure name scan bằng Neo4j full-text/index.
+
+### Hoàn tất triển khai và benchmark ngày 2026-10-14
+
+- Pipeline nay truy xuất FAISS/SQLite trước, deduplicate `source_code` theo thứ tự
+  score rồi truyền tối đa `graph.max_procedures` mã vào Neo4j. Cypher dùng equality
+  `Procedure.procedure_code IN $procedure_codes`; chỉ khi metadata không có mã mới
+  dùng full-text `vigovbot_procedure_text`, và fallback token scan cũ nếu index chưa
+  tồn tại. Nếu entity plan Qwen lọc rỗng candidate mã đã xác nhận, retriever chạy lại
+  cùng candidate không áp entity filter để không mất graph context vì extraction sai.
+- Thêm range index `vigovbot_procedure_code`, CLI `graph-index`, query timeout
+  Neo4j, deadline chờ graph ở pipeline, cache TTL LRU trong process và tiếp tục
+  vector RAG nếu graph timeout/lỗi. Không thay dữ liệu graph hay corpus. Router có
+  `routing_num_predict`; rule không gọi router Qwen cho mã thủ tục hoặc câu hỏi độc
+  lập rõ có keyword thủ tục, nhưng câu ngắn/đại từ vẫn qua router để giữ clarification.
+- Provision index và benchmark thật trên Neo4j/Ollama local: direct procedure-code
+  probe 0,3099 giây lần kết nối đầu, 0,0055 giây connection ấm; full-text trả
+  `1.000005` đầu tiên trong 0,359 giây. Ask cùng câu hỏi trước/sau là 173,591/117,613
+  giây; router giảm 58,366→0 giây, retrieval vector 0,978→0,141 giây, graph
+  2,288→0,103 giây và graph source đã có `1.000005`. Generation Qwen là 117,261
+  giây trong run sau, nên tối ưu retrieval không thể tự đưa tổng latency xuống thấp.
+- Kiểm chứng: 65 test `test_graphrag`, `test_rag_pipeline`, `test_rag_config_cli`,
+  `test_conversation_routing`, `test_server`, `test_fastapi_server` đạt; Ruff check,
+  Ruff format check và `git diff --check` đạt. Chưa benchmark nhiều câu hỏi hoặc
+  concurrent API, nên số đo chỉ đại diện một câu hỏi/cấu hình local.
 

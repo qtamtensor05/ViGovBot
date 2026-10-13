@@ -13,7 +13,7 @@ thư viện từ thư mục gốc repository; không cần file cài đặt trun
 | `pdf` | Trích xuất PDF; OCR thật cần Tesseract/tessdata riêng |
 | `embedding` | Mã hóa chunk bằng BGE-M3, cần trọng số mô hình |
 | `vector` | Tạo và đọc FAISS/SQLite |
-| `rag` | Encoder, retrieval và Ollama client |
+| `rag` | Encoder, retrieval, Ollama client, Neo4j driver, FastAPI và Uvicorn |
 | `evaluation` | Metric và biểu đồ, BERTScore cần trọng số riêng |
 | `test` | Test offline với FAISS/SQLite thật, encoder/HTTP được mô phỏng |
 | `dev` | Ruff để kiểm tra mã và định dạng |

@@ -16,6 +16,7 @@ flowchart LR
     router -->|ngoài phạm vi / mơ hồ| answer[Câu trả lời trực tiếp]
     router -->|câu mới / hỏi tiếp| retrieval
     vectordb --> retrieval --> prompts --> llm
+    graph[Neo4j GraphRAG tùy chọn] --> prompts
     llm --> answer
     answer --> evaluation
     dataset[Bộ test và đáp án chuẩn] --> evaluation
@@ -28,6 +29,7 @@ flowchart LR
 | `embeddings` | BGE-M3, tạo pack; nạp encoder câu hỏi |
 | `vectordb` | Kiểm tra/gộp pack, FAISS, cache SQLite |
 | `retrieval` | Chuẩn hóa vector câu hỏi, tra FAISS và đọc metadata |
+| `graphrag` | Truy vấn Neo4j theo `Procedure`, giới hạn và định dạng context graph |
 | `prompts` | Prompt tiếng Việt, ngân sách ngữ cảnh, ghi lại nguồn đã dùng |
 | `llm` | Giao tiếp Ollama |
 | `rag` | Chuẩn bị corpus, phiên inference, điều phối hỏi đáp/benchmark |
@@ -48,6 +50,7 @@ bản sao logic embedding/RAG; sinh lại bằng `python scripts/build_colab_not
 `prepare` phụ thuộc corpus; `ask` phụ thuộc corpus và mô hình. Các lệnh
 `smoke`, `evaluate`, `run`, `report` phụ thuộc thêm bộ test. API Python
 `answer_question()` nhận retriever/tokenizer/settings, không nhận đáp án chuẩn.
+Graph retriever là dependency tùy chọn, chỉ được truyền cho đường GraphRAG.
 
 Manifest thí nghiệm lưu cấu hình, fingerprint mã xử lý, checksum bộ test/corpus,
 revision embedding, digest Ollama và phiên bản runtime Python/thư viện chính.
@@ -79,10 +82,16 @@ từ nguồn đáng tin cậy. Chế độ legacy không thể chứng minh mode
 
 ## Phạm vi hệ thống
 
-Hiện phục vụ nghiên cứu qua CLI, notebook Colab và web UI/API cục bộ. Web dùng
-`ThreadingHTTPServer`, nạp một encoder/FAISS/SQLite dùng chung và tuần tự hóa các
-lượt chat; SQLite mở read-only để truy hồi từ thread request. Lịch sử nằm trong
-trình duyệt và được gửi lại theo từng model/chế độ. Chưa có lưu phiên phía server,
-quản lý người dùng, xác thực/TLS hoặc pipeline fine-tuning QLoRA.
+Hiện phục vụ nghiên cứu qua CLI, notebook Colab và web UI/API cục bộ. `web` cũ dùng
+`ThreadingHTTPServer`; `api` là FastAPI adapter giữ chat JSON `POST /api/chat` cho
+Next.js và có thêm `POST /api/chat/stream` theo SSE. Stream phát các pha thực thi
+(router, vector, Neo4j, Qwen, kiểm tra output), không công bố token JSON chưa qua
+validator. Cả hai nạp một encoder/FAISS/SQLite dùng chung và tuần tự hóa các lượt
+chat; SQLite mở read-only để truy hồi từ thread request. GraphRAG chỉ tạo Neo4j driver
+khi được chọn. Vector retrieval và GraphRAG retrieval độc lập nên chạy song song cho
+một lượt GraphRAG; còn nhiều model được chọn trên UI vẫn chạy tuần tự để tránh tranh
+chấp phiên Qwen/Ollama. Lịch sử nằm trong trình duyệt và được gửi lại theo từng
+model/chế độ. Chưa có lưu phiên phía server, quản lý người dùng, xác thực/TLS hoặc
+pipeline fine-tuning QLoRA.
 Các nội dung liên quan được quy định tại [migration](migration.md),
 [môi trường](environments.md) và [quy trình phát triển](../CONTRIBUTING.md).

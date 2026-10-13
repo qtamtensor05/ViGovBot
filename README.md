@@ -7,9 +7,9 @@ vector và sinh câu trả lời kèm thông tin nguồn bằng Qwen qua Ollama.
 ```text
 PDF/OCR → chuẩn hóa và chia đoạn → BGE-M3 → FAISS/SQLite
                                               ↓
-Câu hỏi + lịch sử → Qwen định tuyến → BGE-M3/FAISS truy hồi
-                                      ↓
-                         xét bằng chứng → câu trả lời và nguồn
+Câu hỏi + lịch sử → Qwen định tuyến → BGE-M3/FAISS truy hồi ─┐
+                                      Neo4j GraphRAG (tùy chọn) ├→ xét bằng chứng → câu trả lời và nguồn
+                                                               ┘
 ```
 
 ## Trạng thái dự án
@@ -122,6 +122,19 @@ sai vẫn trả câu mặc định. UI hiển thị riêng fallback kỹ thuật
 Đặt `web.debug_routing: true` rồi khởi động lại server để xem raw JSON router.
 Provider OpenAI-compatible ở nhánh RAG cần hỗ trợ strict `json_schema`;
 chi tiết trong [tài liệu RAG nhiều lượt](docs/rag-multi-turn.md).
+
+### GraphRAG với FastAPI + Next.js
+
+`configs/rag-graph.yaml` thêm Neo4j vào context của vector RAG, còn `rag`/`base`
+hiện có vẫn hoạt động khi graph tắt. Chạy FastAPI rồi dùng Next.js tại `ui/`:
+
+```bash
+uv run --extra rag python -m vigovbot rag --config configs/rag-graph.yaml api --port 8000
+cd ui && cp .env.example .env.local && npm run dev
+```
+
+Hướng dẫn cấu hình, bảo mật biến môi trường và hợp đồng API ở
+[tài liệu GraphRAG](docs/graphrag.md).
 
 ## Giao diện dòng lệnh
 

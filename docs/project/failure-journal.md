@@ -2,6 +2,126 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261014-07
+
+- Task: `TASK-20261014-02`.
+- Triệu chứng: ask end-to-end đầu có vector hit `source_code=1.000005` nhưng
+  `graph_sources` rỗng; graph mất 2,288 giây trước khi generation bắt đầu.
+- Bối cảnh tái hiện: router trích `field: "xuất khẩu khí qua đường ống"`, trong
+  khi graph thực tế ghi Field là `Hải quan`; plan entity filter được AND với mã
+  procedure từ vector nên loại chính candidate vector đã xác nhận.
+- Nguyên nhân đã xác nhận: entity plan có thể trích một cụm chủ đề không trùng
+  canonical entity graph; không được xem plan như nguồn tin cậy hơn metadata corpus.
+- Cách xử lý: khi query theo `source_code` không trả record và plan có entity filter,
+  lặp lại cùng equality-filtered query với chuỗi entity rỗng, vẫn giữ ưu tiên quan hệ.
+- Kết quả kiểm chứng: test regression mới đạt; ask lại trả graph source `1.000005`
+  với `graph_retrieval_s=0,103` giây.
+- Phòng tránh: vector candidate là ràng buộc ưu tiên; extraction plan chỉ nên tinh
+  chỉnh và phải có fallback khi nó loại toàn bộ candidate đã xác nhận.
+
+## ERR-20261014-06
+
+- Task: `TASK-20261014-02`.
+- Triệu chứng: probe full-text đầu tiên cho câu hỏi quy trình xuất khẩu khí qua
+  đường ống không trả thủ tục `1.000005`, dù metadata/corpus và truy vấn theo mã
+  đều xác nhận procedure này tồn tại.
+- Bối cảnh tái hiện: sau khi tạo `vigovbot_procedure_text`, retriever ghép tất cả
+  token bằng Lucene `AND`; các từ tổng quát như “toàn bộ/quy trình” không xuất hiện
+  trong tên thủ tục nên loại bỏ match đúng.
+- Nguyên nhân đã xác nhận: toán tử `AND` biến truy vấn full-text thành điều kiện
+  bắt buộc mọi token, không phù hợp câu hỏi tự nhiên dài.
+- Cách xử lý: ghép token bằng `OR`, để full-text score xếp hạng; giữ equality filter
+  theo `source_code` là đường ưu tiên trước full-text.
+- Kết quả kiểm chứng: probe read-only sau sửa trả `1.000005` ở vị trí đầu trong
+  0,359 giây; 63 test GraphRAG/RAG/server/config đạt.
+- Phòng tránh: test truy vấn full-text bằng câu hỏi dài có từ bao quát, không chỉ
+  test tên thủ tục ngắn.
+
+## ERR-20261014-05
+
+- Task: `TASK-20261014-02`.
+- Triệu chứng: probe Neo4j sau provision index dừng với `Unknown function 'indexOf'`
+  trong Cypher dùng để giữ thứ tự các mã procedure từ vector retrieval.
+- Bối cảnh tái hiện: Neo4j Community 5 local, query `Procedure.procedure_code IN
+  $procedure_codes` có `indexOf($procedure_codes, procedure.procedure_code)`.
+- Nguyên nhân đã xác nhận: `indexOf` không là hàm Cypher khả dụng ở runtime này.
+- Cách xử lý: giữ filter equality có thể dùng range index, sau đó xếp hạng nhỏ kết
+  quả đã trả về trong Python theo thứ tự metadata vector.
+- Kết quả kiểm chứng: `1.000005` trả đúng context graph; cold probe 0,3099 giây,
+  cùng connection 0,0055 giây.
+- Phòng tránh: thực thi ít nhất một Cypher thật trên Neo4j version mục tiêu; unit
+  test mock không phát hiện thiếu hàm server-side.
+
+## ERR-20261014-04
+
+- Task: `TASK-20261014-02`.
+- Triệu chứng: `graph-index` và probe Bolt local ban đầu dừng với
+  `PermissionError: [Errno 1] Operation not permitted` khi tạo socket tới 127.0.0.1.
+- Bối cảnh tái hiện: lệnh chạy trong filesystem/network sandbox; Docker Compose đã
+  báo Neo4j `healthy` và biến `NEO4J_PASSWORD` đã có.
+- Nguyên nhân đã xác nhận: sandbox chặn TCP local, không phải lỗi Neo4j, cấu hình
+  Bolt hoặc mật khẩu.
+- Cách xử lý: chạy đúng lệnh read-only/provision với quyền local-service được phê
+  duyệt; hai index được tạo thành công và probe Bolt hoạt động.
+- Phòng tránh: sau lỗi socket sandbox, không chẩn đoán Neo4j như lỗi dịch vụ; dùng
+  quyền local-service có chủ đích cho integration probe.
+
+## ERR-20261014-03
+
+- Task: `TASK-20261014-02`.
+- Triệu chứng: lệnh khảo sát metadata dùng `json.loads()` toàn bộ
+  `data/vector/unified/tthc_unified_metadata.json` bị dừng với exit `143` sau
+  khoảng 45 giây, trước khi in record mẫu.
+- Bối cảnh tái hiện: chạy trong Nix RAG shell; mục tiêu chỉ là xác nhận key metadata
+  cho vector-first filter, không cần nạp toàn corpus vào RAM.
+- Nguyên nhân xác nhận: cách khảo sát nạp nguyên JSON lớn là không phù hợp với giới
+  hạn thời gian/tài nguyên của phiên chẩn đoán; chưa có bằng chứng corpus hỏng hay
+  retrieval runtime bị lỗi.
+- Cách xử lý: dùng `ijson` đọc streaming số record tối thiểu hoặc lấy metadata từ
+  SQLite corpus đã chuẩn bị; không chạy lại `json.loads()` toàn file.
+- Kết quả: đang chuyển sang đọc streaming và giữ các lệnh benchmark theo quy trình
+  chờ hoàn tất, không tail artifact lớn.
+
+## ERR-20261014-01
+
+- Task: TASK-20261013-05.
+- Triệu chứng: kiểm thử SSE ban đầu không kết thúc; `TestClient` cũng timeout với
+  cả `StreamingResponse` tối giản có async generator. Thử bridge bằng
+  `asyncio.to_thread` tiếp tục treo ở lời gọi iterator thứ hai trong runtime hiện có.
+- Bối cảnh tái hiện: test FastAPI trực tiếp tiêu thụ body stream dưới `.venv` Nix;
+  test tách riêng FastAPI/Starlette cũng timeout nên không quy lỗi cho Qwen, Neo4j
+  hoặc queue nghiệp vụ.
+- Nguyên nhân đã xác nhận: cơ chế test stream đồng bộ và bridge `to_thread` không
+  hoạt động tin cậy trong tổ hợp runtime hiện hữu. Generator lazy còn đòi hỏi mock
+  provider bao phủ đúng thời điểm body được tiêu thụ.
+- Cách xử lý: FastAPI endpoint chuyển sang `asyncio.Queue`; worker dùng
+  `loop.call_soon_threadsafe` phát event, ASGI async generator chỉ `await queue.get`.
+  Test gọi endpoint/bộ đọc body trong cùng event loop và giữ mock suốt quá trình.
+- Kết quả kiểm chứng: FastAPI SSE contract hoàn tất trong 0,229 giây với result
+  mô phỏng; 9 test server/FastAPI sau cùng đều đạt. Không dùng `TestClient` làm
+  oracle streaming trong môi trường này.
+- Phòng tránh: kiểm thử stream phải dùng async queue/async generator, cùng event
+  loop với body consumer, và không phụ thuộc `TestClient` nếu ngay route tối giản
+  đã timeout trong environment đang chạy.
+
+## ERR-20261013-10
+
+- Task: TASK-20261013-04.
+- Triệu chứng: `nix develop .#rag --command ./.venv/bin/vigovbot rag --config
+  configs/rag-graph.yaml api --port 8000` dừng với `FileNotFoundError` cho
+  `.../Data/vector/unified` trước khi FastAPI khởi động.
+- Nguyên nhân đã xác nhận: cấu hình GraphRAG và một số cấu hình local cũ tham
+  chiếu `Data/` viết hoa, khác với layout repository `data/` trên filesystem
+  Linux phân biệt hoa/thường. Corpus `data/vector/unified` hiện có manifest và
+  checksum nên không phải lỗi artifact legacy hay Neo4j.
+- Cách thử sửa: chuẩn hóa các đường dẫn local sang `data/`, sau đó regression
+  test cấu hình và khởi động API đến sau bước prepare corpus.
+- Kết quả: đã sửa toàn bộ config local liên quan và thêm regression test. Sáu
+  `ConfigTests` đạt; `verify_corpus()` với chính `configs/rag-graph.yaml` xác minh
+  thành công manifest/checksum của corpus tại `data/vector/unified`.
+- Phòng tránh: cấu hình chạy local phải dùng đúng case của đường dẫn repository;
+  giữ regression test đọc config vận hành thực thay vì chỉ YAML giả lập.
+
 ## ERR-20261013-02
 
 - Task: TASK-20261013-02.
@@ -30,6 +150,93 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   nhận dump được restore.
 - Phòng tránh: guard restore cần phân biệt metadata/thư mục bootstrap do image tạo
   với file database thực tế.
+
+## ERR-20261013-04
+
+- Task: TASK-20261013-02.
+- Triệu chứng: container `neo4j` dừng ngay khi khởi động với lỗi
+  `Unrecognized setting. No declared setting with name: PASSWORD`.
+- Nguyên nhân đã xác nhận: mọi biến môi trường bắt đầu bằng `NEO4J_` (trừ biến
+  Docker đặc biệt như `NEO4J_AUTH`) được image Neo4j diễn giải là cấu hình server;
+  biến ứng dụng `NEO4J_PASSWORD` bị đổi thành setting `PASSWORD` không tồn tại.
+- Xử lý: chỉ truyền mật khẩu vào `NEO4J_AUTH`; thay `NEO4J_dbms_default__database`
+  bằng setting đúng `NEO4J_initial_dbms_default__database`; healthcheck chỉ probe
+  cổng Bolt, không phụ thuộc password có trong dump.
+- Kết quả: source Compose đã được sửa; cần recreate service `neo4j` để áp dụng.
+- Phòng tránh: không truyền secret ứng dụng mang tiền tố `NEO4J_` vào container
+  Neo4j trừ các biến Docker/setting đã được tài liệu Neo4j hỗ trợ.
+
+## ERR-20261013-06
+
+- Task: TASK-20261013-03.
+- Triệu chứng: chạy nhóm test GraphRAG/server/pipeline bằng Python hệ thống thất bại
+  ngay lúc import với `ModuleNotFoundError` cho `vigovbot` và `faiss`; test FastAPI
+  bị skip vì dependency chưa cài.
+- Nguyên nhân đã xác nhận: interpreter Nix hiện tại không phải virtual environment
+  của project và không có editable package hay extra `test`/`rag`.
+- Xử lý: `.venv` đã tồn tại nên không xóa; dùng `uv pip install --python .venv/bin/python
+  -e ".[rag,test,dev]"`. Test FAISS tiếp tục cần chạy trong `nix develop .#rag` để
+  nhận `LD_LIBRARY_PATH` của Nix.
+- Kết quả: 29 test GraphRAG/server/FastAPI/pipeline/config mục tiêu đạt trong Nix
+  shell. Không thay đổi mã ứng dụng để che lỗi dependency.
+- Phòng tránh: chạy test package qua `.venv` hoặc `uv run` có đủ extra, không dùng
+  interpreter Nix base trực tiếp.
+
+## ERR-20261013-07
+
+- Task: TASK-20261013-03.
+- Triệu chứng: truy vấn GraphRAG read-only đầu tiên tạo cảnh báo Neo4j về `CALL`
+  subquery không có scope clause và trả procedure ít liên quan do cùng khớp stopword.
+- Nguyên nhân đã xác nhận: Cypher dùng cú pháp subquery cũ và sắp xếp theo tên thay
+  vì số term khớp với truy vấn.
+- Xử lý: dùng `CALL (procedure)`, lọc thêm stopword tiếng Việt và tính `match_count`
+  để ưu tiên procedure khớp nhiều term nhất trước khi giới hạn kết quả.
+- Kết quả: Python Neo4j driver truy vấn local graph thành công, kết quả đầu là thủ tục
+  hải quan về khí cùng `HANDLED_BY`/`AUTHORIZED_BY`/`LEGAL_BASIS`; không còn cảnh báo.
+- Phòng tránh: xác minh truy vấn GraphRAG thật trên schema dump, không chỉ dùng mock.
+
+## ERR-20261013-08
+
+- Task: TASK-20261013-03.
+- Triệu chứng: Next.js production build ban đầu không tải được Geist từ Google Fonts;
+  sau đó Turbopack bị chặn bind cổng nội bộ và webpack gặp lỗi parse TypeScript CLI.
+- Nguyên nhân: scaffold phụ thuộc font tải lúc build; runner hạn chế tiến trình/cổng
+  Turbopack; Next 16.4 CLI TypeScript checker lỗi parse dù `tsc --showConfig` hợp lệ.
+- Xử lý: bỏ `next/font/google`, dùng system font; đổi build sang webpack và cấu hình
+  `experimental.useTypeScriptCli: false` theo tài liệu Next.js local.
+- Kết quả: `npm run lint` và `npm run build` hoàn tất production build.
+- Phòng tránh: UI local không phụ thuộc font/CDN khi build; dùng compiler API khi
+  Next CLI checker không tương thích môi trường hiện hành.
+
+## ERR-20261013-09
+
+- Task: TASK-20261013-03.
+- Triệu chứng: full Python regression chạy 122 test còn 1 failure tại
+  `test_rewrite_and_answer_receive_history`, kỳ vọng `response_format == "json"`.
+- Nguyên nhân đã xác nhận ngoài phạm vi: test này chưa cập nhật sau khi baseline
+  `HEAD` đã chuyển output structured sang `answer_schema(...)` object; `git blame`
+  cho thấy assertion cũ hơn thay đổi pipeline và `git show HEAD` xác nhận logic đó
+  đã tồn tại trước task GraphRAG.
+- Xử lý: không sửa test/code không liên quan. Chạy riêng 29 test bị ảnh hưởng bởi
+  GraphRAG/FastAPI/pipeline/config đều đạt.
+- Phòng tránh: cập nhật assertion multi-turn trong một task bảo trì riêng, không
+  trộn sửa regression baseline vào thay đổi kiến trúc GraphRAG.
+
+## ERR-20261013-05
+
+- Task: TASK-20261013-02.
+- Triệu chứng: Neo4j Browser dùng direct Bolt `bolt://127.0.0.1:7687` vẫn báo
+  WebSocket connection failure sau khi service đã `healthy` và log xác nhận Bolt
+  lắng nghe cổng 7687.
+- Giả thuyết advertised address đã được thêm nhưng không được xem là nguyên nhân đã
+  xác nhận. Kiểm chứng tiếp theo cho thấy `cypher-shell` xác thực/thực thi `RETURN 1`
+  qua Bolt thành công và host nhận `101 Switching Protocols` từ endpoint WebSocket.
+- Kết luận hiện có: Neo4j server, publish cổng, Bolt, xác thực và WebSocket listener
+  hoạt động; `readyState: 3` còn lại thuộc ngữ cảnh Browser/client hoặc chính sách
+  trình duyệt. Chưa có lỗi DevTools để kết luận cụ thể hơn.
+- Phòng tránh: mở giao diện Browser do container phục vụ tại HTTP local, không dùng
+  trang Browser HTTPS bên ngoài để kết nối Bolt không mã hóa; chỉ suy luận nguyên
+  nhân client sau khi lấy Console/Network detail.
 
 ## ERR-20261013-01
 

@@ -22,7 +22,7 @@ RAGConfig
    └── web/CLI/evaluation <───────────────────────┘
               │
               ├── ask: câu trả lời và nguồn
-              ├── web: Qwen base so với Qwen + RAG
+              ├── web/api: Qwen base, Vector RAG hoặc GraphRAG
               └── evaluate/run: prediction, metric và báo cáo
 ```
 
@@ -36,14 +36,14 @@ RAGConfig
 | `config.py` | Mô hình cấu hình Pydantic, kiểm tra trường và phân giải đường dẫn tương đối |
 | `pipeline.py` | Điều phối chuẩn bị corpus, phiên inference, hỏi đáp và đánh giá |
 | `routing.py` | Prompt, JSON Schema và validator cho định tuyến hội thoại/đầu ra có cấu trúc |
-| `__main__.py` | Giao diện CLI cho `prepare`, `ask`, `web`, `smoke`, `evaluate`, `report`, `run` |
+| `__main__.py` | Giao diện CLI cho `prepare`, `ask`, `web`, `api`, `smoke`, `evaluate`, `report`, `run` |
 | `version.py` | Phiên bản pipeline dùng trong manifest thí nghiệm |
 
 ## Đầu vào
 
 ### Cấu hình
 
-`load_config(path)` đọc YAML và trả về `RAGConfig` gồm bảy nhóm:
+`load_config(path)` đọc YAML và trả về `RAGConfig` gồm tám nhóm:
 
 | Nhóm | Nội dung |
 |---|---|
@@ -51,6 +51,7 @@ RAGConfig
 | `embedding` | Tên model, revision và thiết bị của encoder truy vấn |
 | `llm` | Model Ollama, tokenizer, ngân sách context và tham số sinh |
 | `retrieval` | `top_k` và giới hạn token của từng chunk |
+| `graph` | Cờ opt-in, endpoint Neo4j, giới hạn procedure/quan hệ/context và tên biến mật khẩu |
 | `conversation` | Bật/tắt phân loại phạm vi, quan hệ hội thoại và xét bằng chứng |
 | `web` | Danh sách provider/model, chế độ `base`/`rag` và cờ debug routing |
 | `evaluation` | Số ca smoke test, giới hạn bộ test và cấu hình BERTScore |
@@ -120,8 +121,9 @@ Kết quả cũ không được tiếp tục nếu các thông tin này không c
 - Model/revision của encoder truy vấn phải khớp manifest corpus.
 - Router dùng JSON Schema theo nhánh và retry một lần khi JSON sai; hai lần sai
   trả `routing_fallback` và không truy hồi.
-- `mode: base` gọi provider trực tiếp; `mode: rag` chạy router, retrieval và xét
-  bằng chứng. Hai lựa chọn có history riêng ở client web.
+- `mode: base` gọi provider trực tiếp; `mode: rag` chạy router, vector retrieval và
+  xét bằng chứng; `mode: graphrag` gộp thêm context Neo4j. Các mode có history riêng
+  ở client web.
 - `num_ctx` phải lớn hơn `num_predict + 256`.
 - `ask` không phụ thuộc bộ test; các lệnh đánh giá bắt buộc có bộ test.
 - `report` chỉ chạy trên kết quả có `run_manifest.json` tương thích.

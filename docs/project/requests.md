@@ -1,5 +1,118 @@
 # Yêu cầu dự án
 
+## TASK-20261014-02
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: phân tích vì sao câu hỏi “Toàn bộ quy trình xuất khẩu khí qua đường
+  ống gồm những bước nào?” mất khoảng 60 giây ở pha phân tích và còn chậm hơn ở
+  pha truy xuất, đồng thời xác định cách cải thiện thực tế.
+- Phạm vi: đối chiếu cấu hình/router/Cypher với pha telemetry hiện có; kiểm tra
+  read-only dịch vụ local nếu khả dụng; đề xuất thứ tự tối ưu có số đo khi môi
+  trường cho phép. Không thay đổi model, dữ liệu graph, index hoặc cấu hình runtime
+  trong task chẩn đoán nếu chưa có quyết định triển khai của người dùng.
+- Tiêu chí hoàn thành: nêu nguyên nhân có bằng chứng, phân biệt Qwen/Neo4j/vector,
+  giải pháp ưu tiên và giới hạn số đo thực tế.
+- Giả định: mốc 60 giây là quan sát từ UI FastAPI GraphRAG trên máy local; chưa có
+  trace request ID hoặc log timing chi tiết được cung cấp.
+- Trạng thái: partial; đã xác định các điểm nghẽn từ cấu hình/source và xác nhận
+  Ollama/Neo4j local đang hoạt động. Người dùng làm rõ đây là đánh giá latency UX,
+  không phải lỗi container; chưa chạy trace end-to-end hoặc benchmark thay đổi.
+- Bổ sung phạm vi ngày 2026-10-14: người dùng yêu cầu triển khai tối ưu retrieval/
+  search. Sẽ chuyển tìm procedure sang Neo4j full-text index có fallback scan cũ,
+  đặt ngân sách chờ graph để vector RAG không bị chặn vô hạn, thêm CLI provision
+  index và regression test. Không thay model/corpus; benchmark runtime thật nếu
+  dịch vụ sẵn sàng sau khi triển khai.
+- Bổ sung phạm vi ngày 2026-10-14: thực hiện vector-first bằng FAISS/SQLite hiện
+  hữu (không thay vội sang Qdrant), dùng metadata vector hit để giới hạn procedure
+  GraphRAG, lọc traversal/quan hệ, index Neo4j, cache retrieval và giảm lời gọi LLM
+  ở nhánh lookup/rule rõ ràng. Chỉ thêm metadata filter khi corpus thực có trường
+  tương ứng; không suy diễn `field_id`/`procedure_id` chưa tồn tại.
+- Kết quả triển khai/đo ngày 2026-10-14: hoàn tất vector-first theo `source_code`,
+  range/full-text index Neo4j, fallback scan, cache, timeout, rule routing và CLI
+  provision index. Lượt ask thật cùng câu hỏi giảm từ 173,591 giây xuống 117,613
+  giây; router giảm từ 58,366 giây xuống 0, graph trả procedure `1.000005` trong
+  0,103 giây. Generation Qwen còn 117,261 giây là nút thắt chính ngoài retrieval.
+- Trạng thái: completed.
+
+## TASK-20261014-01
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: triển khai ngay việc phân tích câu hỏi đầu vào để GraphRAG tìm trong
+  graph theo các thực thể và ý định đã được phân tích, thay vì chỉ tách token từ
+  toàn bộ câu hỏi.
+- Phạm vi: mở rộng lượt router Qwen đang có để sinh graph query plan có schema;
+  dùng plan đã kiểm tra để lọc procedure theo mã/tên và thực thể liên quan; giữ
+  fallback tìm token hiện hữu khi plan vắng hoặc không hợp lệ. Không thêm một
+  lượt gọi model riêng và không thay đổi graph data/Neo4j schema.
+- Tiêu chí hoàn thành: graph retrieval nhận plan có cấu trúc từ router cùng lượt
+  phân tích hiện có; Cypher tiếp tục parameterized, giới hạn context hiện hữu;
+  có unit test xác minh parsing, mapping plan sang tham số truy vấn và fallback;
+  tài liệu nhật ký phản ánh kiểm chứng thực tế.
+- Giả định: graph chứa `Procedure` cùng node lân cận có thuộc tính `name`, và
+  `procedure_name`/`procedure_code` là các thuộc tính ổn định của procedure.
+- Trạng thái: completed; router sinh `graph_plan` trong cùng lượt Qwen, Neo4j áp
+  dụng filter parameterized theo plan hợp lệ và giữ fallback token search cho plan
+  vắng/lỗi. Unit/API regression liên quan đạt; chưa benchmark Qwen/Neo4j/corpus
+  thật nên không có kết luận định lượng về latency hoặc recall.
+
+## TASK-20261013-05
+
+- Ngày: 2026-10-13 (Asia/Saigon).
+- Yêu cầu: điều tra vì sao một câu hỏi với Qwen + GraphRAG phản hồi chậm và cải
+  thiện giao diện để người dùng nhìn thấy tiến độ trong khi chờ, tương tự trải
+  nghiệm chat streaming.
+- Phạm vi: lần theo thời gian xử lý từ Next.js qua FastAPI, vector/graph retrieval
+  và Qwen/Ollama; bổ sung contract tiến độ/streaming an toàn cùng UI hiển thị pha
+  xử lý và phần trả lời đã sinh. Giữ nguyên hợp đồng `POST /api/chat` hiện có.
+- Tiêu chí hoàn thành: người dùng biết backend đang chuẩn bị, truy xuất vector,
+  truy xuất graph hay sinh câu trả lời; câu trả lời được hiển thị sau khi qua
+  kiểm tra schema/bằng chứng thay vì đưa token JSON chưa xác thực lên UI; có kiểm
+  thử phù hợp và giữ nguyên `POST /api/chat`.
+- Giả định: FastAPI là backend giao diện đang chạy với `configs/rag-graph.yaml`,
+  Qwen được phục vụ từ Ollama local; đo đạc runtime thật sẽ là bước riêng nếu cần.
+- Trạng thái: completed; SSE progress, UI trạng thái/thời gian chờ, tối ưu truy
+  xuất song song và lựa chọn mode mặc định đã hoàn tất. Không benchmark Qwen/Ollama
+  thật trong task này nên chưa có số latency trước/sau trên máy local.
+
+## TASK-20261013-04
+
+- Ngày: 2026-10-13 (Asia/Saigon).
+- Yêu cầu: khắc phục lỗi khởi động GraphRAG API trên Linux sau khi lệnh `api`
+  không tìm thấy corpus vector.
+- Phạm vi: sửa đường dẫn phân biệt hoa/thường trong các cấu hình local để khớp
+  layout `data/` của repository; bổ sung regression test cho cấu hình GraphRAG.
+  Không thay đổi corpus, graph Neo4j, model hay hành vi retrieval.
+- Tiêu chí hoàn thành: `configs/rag-graph.yaml` resolve tới corpus hiện có ở
+  `data/vector/unified`; FastAPI GraphRAG qua CLI vượt qua bước xác minh corpus.
+- Giả định: corpus có manifest/checksum hợp lệ đã tồn tại cục bộ; API chỉ cần
+  corpus, không cần dataset đánh giá để khởi động.
+- Trạng thái: completed; các cấu hình local đã dùng `data/` viết thường, regression
+  test đạt và corpus thực tế đã vượt xác minh manifest/checksum.
+
+## TASK-20261013-03
+
+- Ngày: 2026-10-13 (Asia/Saigon).
+- Yêu cầu: khảo sát source code trước khi triển khai, tích hợp Knowledge Graph/
+  GraphRAG vào pipeline RAG hiện có; mở rộng FastAPI và Next.js theo module,
+  tuân thủ SOLID và chỉ áp dụng design pattern khi cần. Bảo toàn chức năng hiện tại,
+  bổ sung kiểm thử và tài liệu; không tự ý viết lại kiến trúc.
+- Phạm vi: xác định extension point truy hồi, cấu hình và API/UI hiện có; thêm lớp
+  GraphRAG có thể bật/tắt bằng cấu hình, tích hợp nguồn graph Neo4j đã có và giữ
+  nguyên đường đi vector RAG/base hiện hữu. Không thay đổi dữ liệu graph backup,
+  không thay thế provider/model hoặc giao diện hiện hữu ngoài phần GraphRAG cần có.
+- Tiêu chí hoàn thành: pipeline hiện tại không đổi khi GraphRAG tắt; khi bật,
+  backend có contract rõ ràng để lấy context graph và gộp an toàn với vector context;
+  FastAPI/Next.js có API/điều khiển tương ứng; có unit/API/UI tests và tài liệu vận
+  hành/cấu hình. Các phụ thuộc Neo4j phải tường minh và không làm ứng dụng hỏng khi
+  graph service chưa chạy nếu chế độ GraphRAG không được chọn.
+- Giả định: Neo4j local từ TASK-20261013-02 là graph store mục tiêu; schema graph
+  sẽ được khảo sát từ dump/runtime để chọn truy vấn không làm phụ thuộc cứng vào
+  nhãn quan hệ chưa xác nhận.
+- Trạng thái: completed; GraphRAG hybrid, FastAPI adapter, Next.js UI, cấu hình,
+  test và tài liệu đã hoàn tất. Xác minh trực tiếp Neo4j trả đúng procedure hải quan;
+  test liên quan, lint và production build đạt. Một test multi-turn cũ của baseline
+  còn sai expectation JSON schema, được ghi riêng và không bị thay đổi trong task.
+
 ## TASK-20261013-02
 
 - Ngày: 2026-10-13 (Asia/Saigon).
@@ -11,9 +124,9 @@
 - Tiêu chí hoàn thành: `docker compose config` hợp lệ; lần `up` đầu load dump trước
   khi server Neo4j chạy, các lần sau giữ data volume và không load lại dump.
 - Giả định: dump tương thích với Neo4j 5.x; Docker daemon chạy trên máy local.
-- Trạng thái: partial; image/volume/network đã tạo và init đã được chạy, nhưng hai
-  lỗi guard/config đã được phát hiện. Bản sửa guard cuối chưa được chạy lại để xác
-  nhận dump khôi phục thành công.
+- Trạng thái: partial; init đã khôi phục dump và Neo4j đang `healthy`. Bolt xác thực
+  cùng WebSocket handshake ở host đều thành công; còn cần xác minh phiên Neo4j
+  Browser cụ thể của người dùng vì Browser báo lỗi client-side `readyState: 3`.
 
 ## TASK-20261013-01
 
