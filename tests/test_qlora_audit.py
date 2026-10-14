@@ -181,9 +181,14 @@ class EvaluationIsolationTests(unittest.TestCase):
         ]
         tokenizer, model = Tokenizer(), Model()
         with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "predictions.jsonl"
             result = _evaluate_model(model, tokenizer, records,
                                      {"max_seq_length": 100, "max_new_tokens": 2, "temperature": 0.0},
-                                     Path(directory) / "predictions.jsonl")
+                                     output)
+            rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(rows[0]["question"], "q")
+            self.assertEqual(rows[0]["generated_answer"], "generated")
+            self.assertIn("metrics", rows[0])
         self.assertTrue(all(messages[-1]["role"] == "user" for messages in tokenizer.generation_messages))
         self.assertTrue(all("short" not in json.dumps(messages) and "long answer" not in json.dumps(messages)
                             for messages in tokenizer.generation_messages))

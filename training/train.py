@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
 import time
 from pathlib import Path
@@ -50,6 +51,7 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
 
     import torch
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    from training.control import QLoRAControlCallback
     from transformers import (AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig,
                               EarlyStoppingCallback, Trainer, TrainingArguments, set_seed)
 
@@ -59,11 +61,16 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
     if smoke_limit:
         train_records, validation_records = train_records[:smoke_limit], validation_records[:max(1, smoke_limit // 2)]
     dataset_hashes = {name: sha256_file(path) for name, path in paths.items()}
+    resume_start_global_step = 0
     if resume:
         if run_id is not None:
             raise ValueError("--run-id cannot be combined with --resume; resume continues the original run directory")
         run_dir = checkpoint_run_dir(resume)
-        checkpoint = str(validate_resume_checkpoint(resume, config, dataset_hashes))
+        checkpoint_path = validate_resume_checkpoint(resume, config, dataset_hashes)
+        checkpoint = str(checkpoint_path)
+        resume_start_global_step = json.loads(
+            (checkpoint_path / "trainer_state.json").read_text(encoding="utf-8")
+        )["global_step"]
     else:
         run_dir = create_run_dir(config, run_id)
         snapshot_config(config, run_dir)
@@ -119,10 +126,15 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
         report_to=["tensorboard"] if config["reporting"]["tensorboard"] else [], bf16=bf16, fp16=fp16,
         remove_unused_columns=False, restore_callback_states_from_checkpoint=True, ignore_data_skip=False,
         save_only_model=False, include_num_input_tokens_seen=True)
-    callbacks = []
+    control_callback = QLoRAControlCallback(
+        run_dir, resume_checkpoint=checkpoint, resume_start_global_step=resume_start_global_step
+    )
+    callbacks = [control_callback]
+    early_callback = None
     if config["early_stopping"]["enabled"]:
-        callbacks.append(EarlyStoppingCallback(early_stopping_patience=config["early_stopping"]["patience"],
-                                               early_stopping_threshold=config["early_stopping"]["threshold"]))
+        early_callback = EarlyStoppingCallback(early_stopping_patience=config["early_stopping"]["patience"],
+                                               early_stopping_threshold=config["early_stopping"]["threshold"])
+        callbacks.append(early_callback)
     trainer = Trainer(model=model, args=args, train_dataset=train_dataset, eval_dataset=eval_dataset,
                       data_collator=padding_collator(tokenizer), callbacks=callbacks)
     started = time.perf_counter()
@@ -130,26 +142,77 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
     status, reason = "completed", "epochs_completed"
     try:
         result = trainer.train(resume_from_checkpoint=checkpoint)
-        if trainer.state.global_step < trainer.state.max_steps:
+        stop_requested = (run_dir / "control" / "stop.requested").is_file()
+        if stop_requested:
+            status, reason = "stopped_by_request", "graceful_stop_request"
+        elif (early_callback is not None and
+              early_callback.early_stopping_patience_counter >= config["early_stopping"]["patience"]):
             status, reason = "early_stopped", "validation_loss_patience"
     except KeyboardInterrupt:
         status, reason = "interrupted", "keyboard_interrupt"
         trainer.save_state()
         write_json(run_dir / "training_metrics.json", {"status": status, "stopping_reason": reason,
+                                                        "wall_clock_seconds": time.perf_counter() - started,
                                                         "global_step": trainer.state.global_step,
                                                         "best_checkpoint": trainer.state.best_model_checkpoint})
         if config["reporting"]["save_csv"]:
             _write_log(run_dir / "training_log.csv", trainer.state.log_history)
         raise
+    except Exception as exc:
+        write_json(run_dir / "training_metrics.json", {
+            "status": "failed", "stopping_reason": "exception",
+            "error_type": type(exc).__name__, "error_message": str(exc),
+            "wall_clock_seconds": time.perf_counter() - started,
+            "global_step": trainer.state.global_step,
+            "best_checkpoint": trainer.state.best_model_checkpoint,
+            "peak_gpu_allocated_bytes_measured": torch.cuda.max_memory_allocated(),
+            "peak_gpu_reserved_bytes_measured": torch.cuda.max_memory_reserved(),
+        })
+        if config["reporting"]["save_csv"]:
+            _write_log(run_dir / "training_log.csv", trainer.state.log_history)
+        raise
+    if config["reporting"]["save_csv"]:
+        _write_log(run_dir / "training_log.csv", trainer.state.log_history)
+    if status == "stopped_by_request":
+        elapsed = time.perf_counter() - started
+        latest_checkpoint = run_dir / "checkpoints" / f"checkpoint-{trainer.state.global_step}"
+        checkpoint_verified = latest_checkpoint.is_dir()
+        metrics = {
+            "status": status,
+            "stopping_reason": reason,
+            "global_step": trainer.state.global_step,
+            "resume_start_global_step": resume_start_global_step,
+            "optimizer_steps_executed_this_invocation": trainer.state.global_step - resume_start_global_step,
+            "wall_clock_seconds": elapsed,
+            "latest_checkpoint": str(latest_checkpoint) if checkpoint_verified else None,
+            "checkpoint_verified_after_stop": checkpoint_verified,
+            "best_checkpoint": trainer.state.best_model_checkpoint,
+            "best_validation_loss": trainer.state.best_metric,
+            "early_stopping": {"enabled": config["early_stopping"]["enabled"],
+                               "triggered": False, "reason": "graceful_stop_request"},
+            "peak_gpu_allocated_bytes_measured": torch.cuda.max_memory_allocated(),
+            "peak_gpu_reserved_bytes_measured": torch.cuda.max_memory_reserved(),
+        }
+        write_json(run_dir / "training_metrics.json", metrics)
+        write_json(run_dir / "timing_report.json", {
+            "training_wall_clock_seconds_measured": elapsed,
+            "time_per_optimizer_step_seconds_measured": (
+                elapsed / metrics["optimizer_steps_executed_this_invocation"]
+                if metrics["optimizer_steps_executed_this_invocation"] else None),
+            "note": "Partial timing captured at graceful stop.",
+        })
+        return run_dir
     if not trainer.state.best_model_checkpoint or trainer.state.best_metric is None:
         raise RuntimeError("Training completed without a best validation checkpoint")
     # Trainer restores the selected checkpoint before returning when
     # load_best_model_at_end=True. Evaluate that restored model on both splits so
     # the reported generalization gap uses comparable token-level definitions.
+    # EarlyStoppingCallback expects the in-training `eval_loss` key. These final
+    # audits deliberately use distinct prefixes and must not mutate patience or
+    # emit a false "disabled" warning after training has already completed.
+    trainer.remove_callback(EarlyStoppingCallback)
     final_validation = trainer.evaluate(eval_dataset=eval_dataset, metric_key_prefix="final_validation")
     final_training = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="final_training")
-    if config["reporting"]["save_csv"]:
-        _write_log(run_dir / "training_log.csv", trainer.state.log_history)
     trainer.save_model(run_dir / "best_adapter")
     tokenizer.save_pretrained(run_dir / "best_adapter")
     elapsed = time.perf_counter() - started
@@ -158,10 +221,20 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
     peak_allocated = torch.cuda.max_memory_allocated() if torch.cuda.is_available() else None
     peak_reserved = torch.cuda.max_memory_reserved() if torch.cuda.is_available() else None
     trainer_metrics = result.metrics if status != "interrupted" else None
+    optimizer_steps_this_invocation = trainer.state.global_step - resume_start_global_step
     metrics = {"status": status, "stopping_reason": reason, "wall_clock_seconds": elapsed,
                "global_step": trainer.state.global_step,
+               "resume_start_global_step": resume_start_global_step,
+               "optimizer_steps_executed_this_invocation": optimizer_steps_this_invocation,
                "best_checkpoint": trainer.state.best_model_checkpoint, "best_validation_loss": trainer.state.best_metric,
                "best_checkpoint_step": int(Path(trainer.state.best_model_checkpoint).name.rsplit("-", 1)[-1]),
+               "early_stopping": {
+                   "enabled": config["early_stopping"]["enabled"],
+                   "patience": config["early_stopping"]["patience"],
+                   "threshold": config["early_stopping"]["threshold"],
+                   "triggered": status == "early_stopped",
+                   "reason": reason if status == "early_stopped" else "not_triggered",
+               },
                "best_adapter_restored_before_save": True,
                "final_validation_loss": final_validation_loss,
                "final_training_loss": final_training_loss,
@@ -175,14 +248,30 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
                "total_input_tokens_seen": getattr(trainer.state, "num_input_tokens_seen", None),
                "total_input_tokens_note": "Measured input tokens include masked prompt tokens; loss only uses labels != -100.",
                "time_per_optimizer_step_seconds_measured": (
-                   trainer_metrics.get("train_runtime", elapsed) / trainer.state.global_step
-                   if trainer_metrics and trainer.state.global_step else None
+                   trainer_metrics.get("train_runtime", elapsed) / optimizer_steps_this_invocation
+                   if trainer_metrics and optimizer_steps_this_invocation else None
                ),
                "trainer_metrics": trainer_metrics}
     write_json(run_dir / "training_metrics.json", metrics)
+    epoch_durations = []
+    epoch_path = run_dir / "epoch_metrics.jsonl"
+    if epoch_path.exists():
+        epoch_durations = [json.loads(line) for line in epoch_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     write_json(run_dir / "timing_report.json", {"training_wall_clock_seconds_measured": elapsed,
+                                                 "epoch_measurements": epoch_durations,
+                                                 "time_per_optimizer_step_seconds_measured": metrics["time_per_optimizer_step_seconds_measured"],
+                                                 "trainer_throughput": {key: value for key, value in (trainer_metrics or {}).items() if "per_second" in key},
                                                  "gpu_kernel_time_seconds": None,
                                                  "note": "Trainer throughput is in trainer_metrics; GPU kernel time requires a profiler."})
+    checkpoints = []
+    for path in sorted((run_dir / "checkpoints").glob("checkpoint-*")):
+        state_path = path / "trainer_state.json"
+        state_data = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+        checkpoints.append({"path": str(path), "global_step": state_data.get("global_step"),
+                            "best_metric": state_data.get("best_metric"), "verified": state_path.exists()})
+    write_json(run_dir / "checkpoint_metadata.json", {"best_checkpoint": trainer.state.best_model_checkpoint,
+                                                        "best_global_step": metrics["best_checkpoint_step"],
+                                                        "checkpoints": checkpoints})
     parameter_report["lora_adapter_checkpoint_size_bytes"] = directory_size(run_dir / "best_adapter")
     write_json(run_dir / "parameter_report.json", {**parameter_report, **memory_estimates(parameter_report["total_parameters"])})
     return run_dir

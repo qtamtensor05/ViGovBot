@@ -13,6 +13,8 @@ from training.config import resolve_path
 def create_run_dir(config: dict, run_id: str | None = None) -> Path:
     run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     root = resolve_path(config, config["data"].get("output_dir", "outputs/qlora")) / run_id
+    if root.exists():
+        raise FileExistsError(f"Refusing to overwrite existing run directory: {root}")
     for name in ("plots", "checkpoints", "best_adapter"):
         (root / name).mkdir(parents=True, exist_ok=True)
     return root

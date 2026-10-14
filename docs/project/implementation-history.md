@@ -462,3 +462,69 @@
 - Báo cáo `docs/qlora-pre-gpu-audit.md`; trạng thái partial vì CUDA,
   bitsandbytes kernel, GPU smoke và resume thật chưa được chạy.
 
+## TASK-20261014-03 - GPU smoke RTX 5060 Ti 16 GB (completed)
+
+- Cài Python 3.11.9 user-scope, tạo `.venv-qlora`, cài PyTorch 2.9.1+cu130 và
+  stack QLoRA pin của repo. Driver 616.92/CUDA runtime 13.0 nhận SM 12.0; wheel
+  có `sm_120`; CUDA matmul và BF16 đạt; không cài CUDA Toolkit/WSL/driver.
+- Thêm config full/smoke RTX 5060 Ti với path dataset thực tế, requirements
+  Windows Blackwell, GPU diagnostic, resume verifier và acceptance gate JSON/MD.
+- Dataset official tokenizer đạt 3.000/1.000/1.000, hash được lưu, max length
+  1.619/1.513/1.539 dưới 2.048; assistant-only masking/EOS và split isolation
+  được test bằng pipeline hiện có.
+- bitsandbytes 0.49.0 chạy NF4, double quant, BF16 backward và PagedAdamW8bit
+  kernel thật; optimizer state uint8. `pip check` đạt.
+- Smoke Qwen2.5-7B thật 4 optimizer step: loss 1,9367→1,3523; eval loss tốt nhất
+  2,574343; 40.370.176 LoRA parameter trainable, 4.352.972.288 frozen; checkpoint-2
+  đủ adapter/optimizer/scheduler/RNG/trainer/callback. Peak sau resume allocated/
+  reserved 11.678.638.080/12.450.791.424 byte; khoảng 9,797 giây/optimizer step.
+- Resume checkpoint-2→4 giữ log/LR liên tục, optimizer step 2→4, scheduler/RNG/
+  callback/best metric và adapter cuối khớp run không gián đoạn. Buffer uint8
+  optimizer không byte-identical dù scale/outcome khớp; ghi giới hạn tại
+  ERR-20261014-12 và acceptance report.
+- Sửa callback hậu kiểm không làm EarlyStopping báo thiếu metric; sửa timing
+  resume dùng số step thực thi trong invocation. Sinh 7 plot và summary report.
+- Kiểm chứng cuối: acceptance 7/7 PASS; 136 test đạt, 2 optional skip; pip check,
+  Ruff, compileall và git diff-check đạt. Kết luận `READY WITH LIMITATIONS`; chưa
+  chạy full 5 epoch hoặc đánh giá chất lượng cuối theo đúng phạm vi.
+
+## TASK-20261014-04 - Điều khiển QLoRA độc lập PowerShell (completed)
+
+- Thêm `start_qlora.ps1`, `status_qlora.ps1`, `stop_qlora.ps1`,
+  `start_tensorboard.ps1` và worker ẩn. Worker độc lập khỏi Codex/ChatGPT, lưu
+  stdout/stderr/PID/exit code theo run + attempt; không ghi đè log resume.
+- Start dùng `.venv-qlora` và config RTX 5060 Ti cố định, chạy validator CUDA/
+  dataset/config/resume, tính 1.875 full optimizer step, chặn active/rogue
+  `training.train`, tạo run ID duy nhất và không truyền override hyperparameter.
+- Thêm Trainer callback ghi `live_status.json` và TensorBoard train/eval loss,
+  learning rate, gradient norm, step, epoch, GPU allocated/reserved/peak memory.
+  Stop request được nhận cuối optimizer step, yêu cầu save + training stop;
+  script chỉ báo checkpoint mới sau khi kiểm directory có timestamp phù hợp.
+- `create_run_dir` từ chối directory đã tồn tại. Resume validate immutable config,
+  dataset SHA-256 và đầy đủ adapter/optimizer/scheduler/RNG/callback state.
+- README `docs/qlora-operations.md` ghi lệnh start/status/TensorBoard/stop/resume/
+  plot/report, exit code và OOM không auto-restart. HF cache giữ hành vi chuẩn,
+  không ép tải lại model.
+- Kiểm chứng không full train: năm PowerShell script AST parse đạt trên Windows
+  PowerShell; start dry-run đạt GPU + 3.000/1.000/1.000 record + 1.875 step;
+  TensorBoard dry-run đạt; unit mock live metrics/graceful stop và overwrite guard
+  đạt. Full suite 138 test đạt, 2 optional skip; pip check, Ruff, compileall và
+  diff-check đạt.
+
+# TASK-20261014-05 — audit cuối logging/reporting QLoRA
+
+- Thêm `training_events.jsonl` append-only và fsync ở từng log callback, chứa UTC,
+  invocation, step/epoch, loss, LR, gradient norm và mẫu CUDA memory; bổ sung epoch,
+  checkpoint và resume history để giữ dữ liệu đã đo khi run gián đoạn.
+- Làm rõ trạng thái lỗi/interrupted/graceful stop và early stopping; lưu timing,
+  throughput, peak memory và checkpoint metadata từ dữ liệu thực.
+- Tách artifact evaluation theo split, thêm question/generated answer/metric mỗi mẫu,
+  token-weighted loss/perplexity và absolute improvement; test generation vẫn chỉ
+  chạy qua CLI hậu kỳ, không được gọi trong validation loop.
+- Plot ưu tiên event JSONL, tạo manifest generated/unavailable; report xuất cả JSON
+  và Markdown với bảng availability, không thay thế metric thiếu bằng số giả.
+- Thêm `training.readiness` và `docs/qlora-experiment-readiness.md`. Readiness trên
+  config RTX đạt READY mà không load model/start train.
+- Kiểm chứng: `pytest -q` đạt 137 passed, 2 skipped, 40 subtests; compileall, Ruff và
+  diff-check đạt. Không chạy full training hoặc tải model weights.
+

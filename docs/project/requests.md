@@ -418,3 +418,64 @@
 - Trạng thái: partial; audit local và các fix critical/high đã hoàn
   tất, full suite/static/data validation đạt và báo cáo đã tạo. Dự
   án READY có điều kiện cho GPU smoke; CUDA smoke/resume thật còn pending.
+## TASK-20261014-03
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: trực tiếp thiết lập và kiểm chứng QLoRA cho
+  `Qwen/Qwen2.5-7B-Instruct` trên Windows 10, RTX 5060 Ti 16 GB (Blackwell),
+  gồm môi trường Python/PyTorch CUDA, dependency, bitsandbytes 4-bit, dữ liệu,
+  cấu hình phần cứng, preflight, smoke train thật, checkpoint/resume, metric,
+  báo cáo và acceptance gate.
+- Phạm vi: giữ nguyên pipeline hiện có trừ khi phát hiện lỗi tương thích/đúng đắn;
+  không chạy full training, không xóa dữ liệu/checkpoint, không tự cài toolkit CUDA,
+  WSL2, driver hoặc thay đổi hệ thống cần quyền quản trị/reboot.
+- Tiêu chí hoàn thành: CUDA tensor hoạt động trên SM 12.0; dependency nhất quán;
+  NF4/double-quant/BF16 và backward thật đạt; ba split/hash/tokenizer/format/loss
+  được kiểm chứng; smoke tối thiểu 3 optimizer step có checkpoint-2; resume giữ
+  optimizer/scheduler/RNG/callback và tăng đúng global step; acceptance report JSON
+  và Markdown phân loại PASS/FAIL/BLOCKED; kết luận READY/READY WITH LIMITATIONS/BLOCKED
+  dựa trên bằng chứng thực thi.
+- Giả định: có thể tạo `.venv-qlora`, cài package trong venv và tải model từ
+  Hugging Face khi đủ dung lượng/truy cập; mọi thay đổi cấp hệ điều hành sẽ dừng
+  để xin phê duyệt.
+- Trạng thái: completed; environment/CUDA/bitsandbytes/dataset/preflight/smoke 4
+  step/checkpoint-resume/metrics/plots/acceptance đã chạy thật và đạt. Kết luận
+  máy `READY WITH LIMITATIONS` cho full training có giám sát; không chạy full
+  training theo phạm vi task.
+## TASK-20261014-04
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: chuẩn bị bộ điều khiển PowerShell để người dùng tự chạy full QLoRA
+  độc lập với Codex/ChatGPT, gồm start/status/stop/TensorBoard/resume, log/PID/run
+  metadata, kiểm tra trước khi chạy, chống chạy trùng và dry-run/mock test.
+- Phạm vi: giữ pipeline/config RTX 5060 Ti đã smoke-test; bổ sung live status,
+  GPU TensorBoard metrics và graceful stop tại ranh giới optimizer step. Không
+  khởi chạy full training, không tự đổi hyperparameter, không tự restart OOM,
+  không xóa checkpoint hoặc tải lại model ngoài hành vi cache chuẩn của HF.
+- Tiêu chí hoàn thành: script PowerShell kiểm đúng venv/GPU/data/config/resume;
+  tiến trình worker độc lập có stdout/stderr/exit code/PID; status hiển thị step,
+  epoch, loss, elapsed/ETA/VRAM; stop chỉ tác động đúng run và xác minh checkpoint;
+  TensorBoard localhost:6006; README có lệnh chính xác; dry-run/mock và test/static
+  checks đạt mà không chạy full training.
+- Trạng thái: completed; đã tạo start/status/stop/TensorBoard/worker, live status,
+  graceful checkpoint stop, resume validation, log/PID/exit metadata, README và
+  kiểm thử dry-run/mock; không khởi chạy full training.
+
+## TASK-20261014-05
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: audit cuối pipeline ghi log, metric, trực quan hóa và báo cáo của thí
+  nghiệm QLoRA Qwen2.5-7B-Instruct; bảo đảm dữ liệu thực nghiệm đủ cho báo cáo kỹ
+  thuật/luận văn và dữ liệu đã đo được vẫn còn sau khi run bị gián đoạn.
+- Phạm vi: log có cấu trúc liên tục; loss/LR/gradient/timing/throughput/GPU/parameter;
+  cấu hình và provenance; token-weighted loss/perplexity; đánh giá baseline so với
+  adapter trên cùng test set; metric theo mẫu và tổng hợp; plot/report/status,
+  checkpoint/resume; readiness check nhẹ. Không chạy full training, không tự tải
+  model weights và không chạy generation evaluation trong validation loop.
+- Tiêu chí hoàn thành: ba CLI `training.plot`, `training.report`, `training.evaluate`
+  hoạt động theo contract; readiness check xác minh schema/thư mục/config và khả
+  năng tạo plot/report bằng artifact tổng hợp; metric thiếu được ghi rõ unavailable;
+  tạo `docs/qlora-experiment-readiness.md`; test liên quan đạt.
+- Trạng thái: completed; đã bổ sung event log append-only, history epoch/checkpoint/
+  resume, evaluation theo split, plot manifest, report availability và readiness
+  gate. Readiness RTX trả READY; full training/model download không được khởi chạy.

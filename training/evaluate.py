@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from training.artifacts import write_json
@@ -19,6 +20,8 @@ def _evaluate_model(model, tokenizer, records, generation: dict, output: Path) -
     for record in records:
         messages = record["messages"]
         prompt, reference = messages[:-1], messages[-1]["content"]
+        question = next((item.get("content", "") for item in reversed(prompt)
+                         if item.get("role") == "user"), "")
         batch = encode_assistant_only(tokenizer, messages, generation["max_seq_length"])
         tensors = {key: torch.tensor([value], device=model.device) for key, value in batch.items()}
         with torch.inference_mode():
@@ -41,12 +44,14 @@ def _evaluate_model(model, tokenizer, records, generation: dict, output: Path) -
         example_targets = sum(value != -100 for value in batch["labels"])
         loss_sum += loss * example_targets
         target_tokens += example_targets
-        rows.append({"id": record["id"], "prediction": prediction, "reference": reference, "teacher_forced_loss": loss,
+        rows.append({"id": record["id"], "question": question, "prediction": prediction,
+                     "generated_answer": prediction, "reference": reference, "teacher_forced_loss": loss,
                      "metrics": generation_metrics(prediction, reference), "structured_checks": structured_checks(prediction, reference)})
     with output.open("w", encoding="utf-8") as handle:
         for row in rows: handle.write(json.dumps(row, ensure_ascii=False) + "\n")
     with output.with_suffix(".csv").open("w", newline="", encoding="utf-8-sig") as handle:
-        fields = ["id", "prediction", "reference", "teacher_forced_loss", "metrics", "structured_checks"]
+        fields = ["id", "question", "prediction", "generated_answer", "reference",
+                  "teacher_forced_loss", "metrics", "structured_checks"]
         writer = csv.DictWriter(handle, fieldnames=fields); writer.writeheader()
         for row in rows:
             writer.writerow({**row, "metrics": json.dumps(row["metrics"], ensure_ascii=False),
@@ -67,22 +72,29 @@ def evaluate(run_dir: str | Path, split: str = "test", limit: int | None = None)
     if limit: records = records[:limit]
     generation = {"max_seq_length": config["model"]["max_seq_length"], **config["evaluation"]["generation"]}
     baseline_model, tokenizer = load_model(config["model"]["name"], None, True)
-    baseline = _evaluate_model(baseline_model, tokenizer, records, generation, root / "baseline_predictions.jsonl")
+    baseline = _evaluate_model(baseline_model, tokenizer, records, generation,
+                               root / f"baseline_predictions_{split}.jsonl")
     del baseline_model
     try:
         import torch
         if torch.cuda.is_available(): torch.cuda.empty_cache()
     except ImportError: pass
     tuned_model, tokenizer = load_model(config["model"]["name"], str(root / "best_adapter"), True)
-    tuned = _evaluate_model(tuned_model, tokenizer, records, generation, root / "finetuned_predictions.jsonl")
+    tuned = _evaluate_model(tuned_model, tokenizer, records, generation,
+                            root / f"finetuned_predictions_{split}.jsonl")
     comparison = {}
     for key, base in baseline["generation_metrics"].items():
         fine = tuned["generation_metrics"].get(key)
-        comparison[key] = {"baseline": base, "finetuned": fine, "absolute_difference": fine - base,
-                           "relative_change": (fine - base) / abs(base) if base else None}
-    result = {"split": split, "selection_policy": "Test data was not used for training, early stopping, tuning, or checkpoint selection.",
+        difference = fine - base if fine is not None and base is not None else None
+        comparison[key] = {"baseline": base, "finetuned": fine, "absolute_improvement": difference,
+                           "absolute_difference": difference,
+                           "relative_change": difference / abs(base) if difference is not None and base else None}
+    result = {"created_at_utc": datetime.now(timezone.utc).isoformat(), "split": split,
+              "selection_policy": "Test data was not used for training, early stopping, tuning, or checkpoint selection.",
               "baseline": baseline, "finetuned": tuned, "comparison": comparison}
-    write_json(root / "evaluation_results.json", result)
+    write_json(root / f"evaluation_results_{split}.json", result)
+    if split == "test":
+        write_json(root / "evaluation_results.json", result)
     return result
 
 

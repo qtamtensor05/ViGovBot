@@ -74,3 +74,45 @@ Run lưu config/environment/hash, log CSV, metrics, prediction JSONL, plots,
 checkpoint và adapter. Plot chỉ vẽ điểm đã quan sát, không nội suy. Kiểm tra
 procedure code/tiền/văn bản/cơ quan là rule-based; fabricated claim và refusal
 cá nhân được ghi `unavailable` nếu không có evidence/nhãn tin cậy.
+
+## Windows RTX 5060 Ti 16 GB đã kiểm chứng
+
+Trên Windows 10 với driver NVIDIA 616.92, dùng Python 3.11 và wheel PyTorch
+2.9.1 CUDA 13.0. Không cần cài CUDA Toolkit hệ thống vì wheel mang runtime cần
+thiết. Driver phải đủ mới cho CUDA 13.0 và wheel phải có `sm_120`.
+
+```powershell
+py -3.11 -m venv .venv-qlora
+.venv-qlora\Scripts\python -m pip install --upgrade pip setuptools wheel
+.venv-qlora\Scripts\python -m pip install torch==2.9.1 `
+  --index-url https://download.pytorch.org/whl/cu130
+.venv-qlora\Scripts\python -m pip install -r requirements\qlora-windows-blackwell.txt -e .
+.venv-qlora\Scripts\python -m pip check
+.venv-qlora\Scripts\python -m training.gpu_diagnostics `
+  --output outputs\qlora\gpu_environment_diagnostic.json
+.venv-qlora\Scripts\python -m training.validate_data `
+  --config configs\gpu_rtx5060ti_16gb.yaml --with-tokenizer
+.venv-qlora\Scripts\python -m training.preflight `
+  --config configs\gpu_rtx5060ti_16gb.yaml `
+  --output outputs\qlora\preflight_rtx5060ti.json
+```
+
+Smoke và resume dùng config riêng, không đổi hyperparameter full-training:
+
+```powershell
+.venv-qlora\Scripts\python -m training.train `
+  --config configs\smoke_rtx5060ti_16gb.yaml --approve --run-id smoke-HOST-DATE
+.venv-qlora\Scripts\python -m training.train `
+  --config configs\smoke_rtx5060ti_16gb.yaml --approve `
+  --resume outputs\qlora\smoke-HOST-DATE\checkpoints\checkpoint-2
+.venv-qlora\Scripts\python -m training.gpu_acceptance `
+  --run_dir outputs\qlora\smoke-HOST-DATE
+```
+
+Kết quả smoke trên máy đã kiểm chứng không phải metric chất lượng model. Buffer
+optimizer uint8 của bitsandbytes có thể không byte-identical sau resume; gate kiểm
+step state, scheduler/RNG/callback, loss/gradient và adapter cuối so với run không
+gián đoạn. Không đánh dấu sẵn sàng nếu adapter hoặc continuity khác.
+
+Để vận hành full training độc lập với Codex/ChatGPT bằng PowerShell, xem
+[Vận hành full QLoRA độc lập trên Windows](qlora-operations.md).

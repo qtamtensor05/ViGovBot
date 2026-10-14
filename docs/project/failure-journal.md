@@ -441,3 +441,79 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: so sánh `loss < best_loss - threshold`; test patience/threshold/tie
   và callback Transformers state transition đều đạt.
 
+## ERR-20261014-11
+
+- Task: TASK-20261014-03.
+- Triệu chứng: smoke train thành công nhưng hai phép evaluate cuối với prefix
+  `final_validation`/`final_training` khiến `EarlyStoppingCallback` cảnh báo thiếu
+  `eval_loss` và tự vô hiệu ở phase hậu kiểm.
+- Nguyên nhân: callback chỉ hiểu metric key của evaluation trong training, nhưng
+  vẫn còn gắn vào Trainer khi chạy audit loss với prefix riêng sau khi train xong.
+- Xử lý: tháo `EarlyStoppingCallback` sau khi đã chọn/restore best checkpoint và
+  trước hai final evaluation; không thay đổi callback state đã lưu trong checkpoint.
+- Kiểm chứng: sẽ chạy resume thật từ checkpoint-2 và kiểm state/hashes; test tĩnh
+  cùng smoke sau sửa được ghi ở implementation history khi hoàn tất.
+
+## ERR-20261014-12
+
+- Task: TASK-20261014-03.
+- Triệu chứng: sau resume từ checkpoint-2, adapter/scheduler/RNG hash, loss, gradient,
+  LR và best metric khớp run không gián đoạn, nhưng hash byte `optimizer.pt` khác.
+- Giả thuyết: Torch pickle có biểu diễn byte không ổn định dù state tensor giống nhau;
+  chỉ so hash toàn file là tiêu chí quá chặt và chưa chứng minh optimizer bị reset.
+- Xử lý: giữ kết quả ban đầu là FAIL, chạy thêm một smoke không gián đoạn cùng seed,
+  rồi so sánh đệ quy key/dtype/shape/value tensor của optimizer state; chỉ PASS nếu
+  state ngữ nghĩa và adapter cuối đều bằng nhau.
+
+## ERR-20261014-13
+
+- Task: TASK-20261014-03.
+- Triệu chứng: sau resume checkpoint-2→4, metric time/optimizer-step lấy runtime
+  của riêng invocation resume nhưng chia cho global step 4, làm thời gian bị thấp
+  hơn thực tế khoảng hai lần.
+- Nguyên nhân: code không lưu global step bắt đầu từ checkpoint.
+- Xử lý: đọc `trainer_state.json` đã validate, lưu `resume_start_global_step`,
+  tính số step thực thi trong invocation và dùng mẫu số đó cho timing.
+- Kiểm chứng: chạy lại resume thật và acceptance gate sau sửa.
+
+## ERR-20261014-14
+
+- Task: TASK-20261014-03.
+- Triệu chứng: full suite trong `.venv-qlora` chạy 116 test, 12 error/2 skip;
+  toàn bộ error do `ModuleNotFoundError: faiss`, trong khi 21 test QLoRA đã đạt.
+- Nguyên nhân: requirements QLoRA cố ý không kéo stack RAG, nhưng full suite có
+  test artifact/embedding/RAG cần dependency `faiss-cpu` thuộc extra test của repo.
+- Xử lý: cài package editable với extra `test` trong chính venv để kiểm toàn repo,
+  sau đó chạy lại `pip check` và full suite; lượt hai còn 1 error do
+  `sentence_transformers` thuộc extra `embedding`, nên cài thêm đúng extra này.
+  Không thay pin QLoRA production.
+
+## ERR-20261014-15
+
+- Task: TASK-20261014-04.
+- Triệu chứng: `start_qlora.ps1 -DryRun` lỗi parse trên Windows PowerShell 5.1;
+  chuỗi tiếng Việt UTF-8 không BOM bị giải mã theo ANSI, tạo ký tự phá cú pháp.
+- Nguyên nhân: Windows PowerShell 5.1 không mặc định đọc source `.ps1` UTF-8
+  không BOM, trong khi repository lưu text UTF-8 chuẩn.
+- Xử lý: giữ tài liệu tiếng Việt nhưng dùng chuỗi ASCII trong toàn bộ `.ps1`,
+  tương thích cả Windows PowerShell 5.1 và PowerShell 7; chạy lại AST/dry-run.
+
+## ERR-20261014-16
+
+- Task: TASK-20261014-04.
+- Triệu chứng: phép thử status mock bằng cách tạo rồi xóa đệ quy artifact tạm bị
+  policy công cụ chặn trước thực thi.
+- Nguyên nhân: command test chứa `Remove-Item -Recurse`; không phải lỗi script.
+- Xử lý: không retry/xóa bằng đường vòng; dùng AST parse, start/TensorBoard dry-run
+  read-only và unit mock callback/stop protocol. Không có artifact mock được tạo.
+
+## ERR-20261014-17
+
+- Task: TASK-20261014-05.
+- Triệu chứng: lệnh kiểm tra cuối gọi `git` theo PATH thất bại với
+  `CommandNotFoundException`; các lệnh test trước đó vẫn hoàn tất.
+- Nguyên nhân: Git đã cài nhưng thư mục executable không có trong PATH của PowerShell
+  hiện tại.
+- Xử lý: gọi trực tiếp `C:\Program Files\Git\cmd\git.exe` cho `diff --check` và
+  `status --short`; diff-check đạt. Không sửa PATH hệ thống.
+

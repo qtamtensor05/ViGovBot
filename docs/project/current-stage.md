@@ -415,3 +415,93 @@
 - Kết luận: READY có điều kiện cho GPU smoke, chưa READY cho full
   training. Còn bắt buộc smoke NF4/CUDA/bitsandbytes và resume checkpoint thật.
 
+﻿# TASK-20261014-03 — completed
+
+- Đang kiểm kê Windows/RTX 5060 Ti, driver/CUDA, Python/venv, dung lượng đĩa,
+  Git, dataset và implementation QLoRA trước khi cài dependency.
+- Mục tiêu tiếp theo: chọn wheel PyTorch chính thức tương thích driver + SM 12.0,
+  tạo `.venv-qlora`, kiểm CUDA tensor rồi mới cài/test stack QLoRA.
+- Chưa chạy training hoặc tải trọng số 7B; chưa có kết luận readiness.
+- Kiểm kê host: RTX 5060 Ti 16.311 MiB, compute 12.0, driver 616.92 quảng bá
+  CUDA 13.4; VRAM trống 15.323 MiB; đĩa C trống 996,56 GiB. Git commit
+  `659bd9ec80595636f7346e9b41195e5a51224c96`.
+- Không có Python launcher/interpreter độc lập; chỉ có Store alias và Python 3.13
+  nhúng của Blender. Chuẩn bị cài Python 3.11 user-scope bằng winget rồi tạo
+  `.venv-qlora`.
+- Wheel đã chọn: PyTorch 2.9.1 CUDA 13.0 chính thức cho Windows, phù hợp pin repo,
+  driver 616.92 và SM 12.0. Lệnh dài bắt đầu: `winget install --id
+  Python.Python.3.11 --exact --scope user --silent ...`; artifact là interpreter
+  user-scope và `.venv-qlora` ở bước kế tiếp.
+- Python 3.11.9 user-scope và `.venv-qlora` đã tạo; pip 26.2.1, setuptools 84.0.0,
+  wheel 0.48.0. Chuẩn bị chạy lệnh dài cài `torch==2.9.1` từ index chính thức
+  `https://download.pytorch.org/whl/cu130`, sau đó kiểm CUDA tensor thật.
+- PyTorch 2.9.1+cu130 cài thành công; runtime CUDA 13.0 nhận RTX 5060 Ti,
+  compute (12, 0), BF16=true, arch list có `sm_120`; CUDA matmul 1024x1024 đạt.
+- Chuẩn bị lệnh dài cài `requirements/qlora-gpu.txt` cùng sentencepiece, evaluate,
+  scikit-learn, psutil, pytest, Ruff và package editable; sau đó chạy `pip check`
+  và test bitsandbytes kernel, không chỉ import.
+- Dependency cài thành công, `pip check` đạt. Diagnostic thật lưu tại
+  `outputs/qlora/gpu_environment_diagnostic.json`: NF4 BF16 forward/backward,
+  double quantization và PagedAdamW8bit state uint8 đều PASS.
+- Đã thêm config RTX 5060 Ti và smoke config kế thừa đúng schema/path dữ liệu,
+  cùng requirements Windows Blackwell. Dataset có đúng 3.000/1.000/1.000 record.
+- Chuẩn bị chạy validator official tokenizer; artifact đích
+  `outputs/qlora/dataset_report_rtx5060ti.json`, không tải model weights.
+- Validator official Qwen đạt 5.000/5.000; max token train/validation/test lần lượt
+  1.619/1.513/1.539, dưới 2.048; không có exact conversation/question overlap.
+  Preflight JSON đạt CUDA/config/Hub/tokenizer; 21 test QLoRA và Ruff đạt.
+- Chuẩn bị lệnh dài smoke thật: `.venv-qlora/Scripts/python.exe -m training.train
+  --config configs/smoke_rtx5060ti_16gb.yaml --approve --run-id
+  smoke-rtx5060ti-20261014`. Lần này tải Qwen weights khi cần; artifact đích
+  `outputs/qlora/smoke-rtx5060ti-20261014/`; yêu cầu checkpoint-2 và 4 step.
+- Smoke thật hoàn tất 4 step, loss hữu hạn 1,9367→1,3523, peak allocated/reserved
+  10,83/11,55 GiB, không OOM; checkpoint-2 và checkpoint-4 đủ state.
+- Phát hiện/cố định cảnh báo callback hậu kiểm ở ERR-20261014-11; đã chụp hash
+  checkpoint-4 không gián đoạn. Chuẩn bị resume thật từ checkpoint-2 trong cùng
+  run directory và đối chiếu continuity/hash; artifact report ở
+  `outputs/qlora/smoke-rtx5060ti-20261014/resume_verification_report.json`.
+- Resume thực thi đúng step 3–4, LR/loss/adapter/scheduler/RNG/callback khớp; chỉ
+  hash byte pickle optimizer khác (ERR-20261014-12). Chuẩn bị smoke uninterrupted
+  đối chứng cùng seed tại `outputs/qlora/smoke-rtx5060ti-reference-20261014/`, rồi
+  so nội dung tensor optimizer; chưa kết luận resume PASS trước đối chiếu này.
+- Đối chiếu cuối: optimizer step 2→4, scheduler/RNG/callback/adapter/loss/gradient
+  khớp; uint8 buffer optimizer không byte-identical nhưng không reset. Acceptance
+  7/7 PASS; 7 plot và báo cáo JSON/Markdown đã sinh.
+- Kiểm chứng cuối: 136 test đạt, 2 optional skip; pip check, Ruff, compileall và
+  diff-check đạt. Trạng thái máy: `READY WITH LIMITATIONS` cho full training có
+  giám sát; chưa chạy full training theo yêu cầu.
+
+﻿# TASK-20261014-04 — completed
+
+- Đang bổ sung cơ chế vận hành full QLoRA độc lập bằng PowerShell; không chạy full
+  training trong task này.
+- Pipeline hiện chưa ghi status live và KeyboardInterrupt không dùng được ổn định
+  giữa hai process Windows; sẽ dùng stop-request file được Trainer callback nhận
+  ở cuối optimizer step, yêu cầu save rồi dừng.
+- Artifact điều khiển dự kiến nằm trong từng run directory và active pointer tại
+  `outputs/qlora/control/`; stdout/stderr/exit code tách riêng, không ghi đè run.
+- Tiếp theo: triển khai callback/validator, bốn script + worker, README và dry-run
+  test; không thay hyperparameter trong config GPU.
+- Đã hoàn tất start/status/stop/TensorBoard + worker độc lập, live status/TensorBoard
+  GPU metrics, graceful checkpoint stop, resume validation và chống chạy trùng/
+  ghi đè. Mỗi attempt có log/metadata riêng; exit code được giữ.
+- Dry-run start xác nhận RTX 5060 Ti, ba split 3.000/1.000/1.000 và 1.875 step;
+  không tạo worker/run. PowerShell AST và TensorBoard dry-run đạt.
+- Kiểm chứng cuối: 138 test đạt, 2 optional skip; pip check, Ruff, compileall và
+  diff-check đạt. Không chạy full training theo yêu cầu.
+
+# TASK-20261014-05 — completed
+
+- Giai đoạn: audit và khắc phục logging/reporting QLoRA đã hoàn tất.
+- Đã xong: đối chiếu yêu cầu với callback, train artifact, evaluate, metrics, plot
+  và report; xác nhận TensorBoard có metric nhưng CSV cuối-run chưa phải log liên
+  tục và một số plot chưa có nguồn dữ liệu thực tương ứng.
+- Đã xong: event JSONL append-only/timing/checkpoint-resume metadata; evaluation
+  theo split và câu hỏi; manifest plot/report unavailable; readiness check và tài liệu.
+- Còn lại: measurement thực chỉ xuất hiện sau full training và post-training test
+  evaluation do người dùng chủ động chạy; đây không phải phần còn thiếu của tooling.
+- Trở ngại: không có.
+- Bước tiếp theo: người dùng chạy readiness, start full training, rồi evaluate → plot → report.
+- Bằng chứng: readiness RTX `READY` và không load model/start train; `137 passed,
+  2 skipped, 40 subtests`; compileall, Ruff và `git diff --check` đạt.
+
