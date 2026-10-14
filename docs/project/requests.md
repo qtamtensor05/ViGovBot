@@ -418,6 +418,23 @@
 - Trạng thái: partial; audit local và các fix critical/high đã hoàn
   tất, full suite/static/data validation đạt và báo cáo đã tạo. Dự
   án READY có điều kiện cho GPU smoke; CUDA smoke/resume thật còn pending.
+
+## TASK-20261014-08
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: đánh giá các artifact QLoRA hiện có trong `outputs/qlora` và viết
+  lệnh vẽ các biểu đồ loss.
+- Phạm vi: kiểm kê run/checkpoint/trạng thái/metric và log history thực tế;
+  phân tích train/eval loss, xu hướng hội tụ, best checkpoint và dấu hiệu
+  overfit nếu dữ liệu cho phép; xác định cách gọi công cụ vẽ biểu đồ hiện có
+  hoặc bổ sung tối thiểu nếu còn thiếu. Không chạy lại training 7B.
+- Tiêu chí hoàn thành: kết luận dựa trên artifact thật, nêu rõ giới hạn đánh
+  giá; cung cấp lệnh PowerShell chạy được để sinh biểu đồ loss và kiểm chứng
+  lệnh/công cụ ở mức phù hợp mà không ghi đè artifact huấn luyện.
+- Giả định: `output/qlora` trong yêu cầu là thư mục thực tế `outputs/qlora` của
+  repository.
+- Trạng thái: completed; đã đánh giá full run bằng artifact thực, xác minh best
+  adapter/checkpoint, sinh 9 biểu đồ (gồm 3 biểu đồ loss) và kiểm thử công cụ vẽ.
 ## TASK-20261014-03
 
 - Ngày: 2026-10-14 (Asia/Saigon).
@@ -502,3 +519,17 @@
   test và smoke CLI không tải model đạt; tài liệu nêu lệnh chính xác.
 - Trạng thái: completed; backend QLoRA QA-v4, lệnh run/score/paired compare, provenance,
   tài liệu và mock test đã hoàn tất; không chạy evaluation 1.000 câu.
+
+## TASK-20261014-08
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: đánh giá full run `qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d` từ event/log/metrics/checkpoint thật; chạy plot biểu đồ.
+- Trạng thái: completed.
+
+## TASK-20261014-09
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: viết báo cáo phân tích triển khai QLoRA của dự án, bao gồm cấu hình tham số, kiến trúc triển khai, kết quả phân tích train loss, val loss, các chỉ số đo đạc thực tế; nêu rõ hiện chưa có kết quả test và sẽ bổ sung sau.
+- Phạm vi: tạo tài liệu báo cáo `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md` dựa trên dữ liệu thực tế từ run `outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d`. Không bịa số liệu, không tự ý gán kết quả test khi chưa chạy.
+- Tiêu chí hoàn thành: báo cáo đầy đủ các mục yêu cầu, số liệu đối chiếu chuẩn xác với `training_metrics.json`, `config.yaml`, `parameter_report.json`, `timing_report.json` và `training_log.csv`.
+- Trạng thái: completed.
