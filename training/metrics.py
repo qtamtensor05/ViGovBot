@@ -50,6 +50,27 @@ def generation_metrics(prediction: str, reference: str) -> dict[str, float | Non
     return values
 
 
+def aggregate_generation_metrics(rows: list[dict]) -> dict[str, float | None]:
+    if not rows:
+        return {}
+    metric_names = sorted({key for row in rows for key, value in row["metrics"].items()
+                           if value is not None and key not in {"bleu", "chrf"}})
+    result = {
+        key: sum(float(row["metrics"][key]) for row in rows if row["metrics"].get(key) is not None)
+        / sum(row["metrics"].get(key) is not None for row in rows)
+        for key in metric_names
+    }
+    try:
+        import sacrebleu
+        predictions = [row["prediction"] for row in rows]
+        references = [[row["reference"] for row in rows]]
+        result["bleu"] = sacrebleu.corpus_bleu(predictions, references).score
+        result["chrf"] = sacrebleu.corpus_chrf(predictions, references).score
+    except ImportError:
+        result.update(bleu=None, chrf=None)
+    return result
+
+
 def structured_checks(prediction: str, reference: str) -> dict[str, bool | None]:
     patterns = {
         "procedure_code": r"\b\d+(?:\.\d+){2,}[A-Za-z0-9_-]*\b",

@@ -10,12 +10,12 @@ from training.config import load_config
 from training.data import dataset_paths, read_jsonl
 from training.inference import load_model
 from training.masking import encode_assistant_only
-from training.metrics import generation_metrics, perplexity, structured_checks
+from training.metrics import aggregate_generation_metrics, generation_metrics, perplexity, structured_checks
 
 
 def _evaluate_model(model, tokenizer, records, generation: dict, output: Path) -> dict:
     import torch
-    rows, losses = [], []
+    rows, loss_sum, target_tokens = [], 0.0, 0
     for record in records:
         messages = record["messages"]
         prompt, reference = messages[:-1], messages[-1]["content"]
@@ -23,12 +23,24 @@ def _evaluate_model(model, tokenizer, records, generation: dict, output: Path) -
         tensors = {key: torch.tensor([value], device=model.device) for key, value in batch.items()}
         with torch.inference_mode():
             loss = float(model(**tensors).loss)
-            prompt_ids = tokenizer.apply_chat_template(prompt, tokenize=True, add_generation_prompt=True,
-                                                       return_tensors="pt").to(model.device)
-            generated = model.generate(prompt_ids, max_new_tokens=generation["max_new_tokens"],
-                                       temperature=generation["temperature"], do_sample=generation["temperature"] > 0)
-        prediction = tokenizer.decode(generated[0, prompt_ids.shape[-1]:], skip_special_tokens=True).strip()
-        losses.append(loss)
+            encoded = tokenizer.apply_chat_template(prompt, tokenize=True, add_generation_prompt=True,
+                                                    return_tensors="pt", return_dict=True)
+            if hasattr(encoded, "keys"):
+                model_inputs = {key: value.to(model.device) for key, value in encoded.items()}
+                prompt_length = model_inputs["input_ids"].shape[-1]
+                generated = model.generate(**model_inputs, max_new_tokens=generation["max_new_tokens"],
+                                           temperature=generation["temperature"],
+                                           do_sample=generation["temperature"] > 0)
+            else:
+                prompt_ids = encoded.to(model.device)
+                prompt_length = prompt_ids.shape[-1]
+                generated = model.generate(prompt_ids, max_new_tokens=generation["max_new_tokens"],
+                                           temperature=generation["temperature"],
+                                           do_sample=generation["temperature"] > 0)
+        prediction = tokenizer.decode(generated[0, prompt_length:], skip_special_tokens=True).strip()
+        example_targets = sum(value != -100 for value in batch["labels"])
+        loss_sum += loss * example_targets
+        target_tokens += example_targets
         rows.append({"id": record["id"], "prediction": prediction, "reference": reference, "teacher_forced_loss": loss,
                      "metrics": generation_metrics(prediction, reference), "structured_checks": structured_checks(prediction, reference)})
     with output.open("w", encoding="utf-8") as handle:
@@ -39,12 +51,11 @@ def _evaluate_model(model, tokenizer, records, generation: dict, output: Path) -
         for row in rows:
             writer.writerow({**row, "metrics": json.dumps(row["metrics"], ensure_ascii=False),
                              "structured_checks": json.dumps(row["structured_checks"], ensure_ascii=False)})
-    keys = sorted({key for row in rows for key, value in row["metrics"].items() if value is not None})
-    means = {key: sum(float(row["metrics"][key]) for row in rows if row["metrics"][key] is not None) /
-                  sum(row["metrics"][key] is not None for row in rows) for key in keys}
-    mean_loss = sum(losses) / len(losses) if losses else None
-    return {"examples": len(rows), "teacher_forced_loss": mean_loss,
-            "teacher_forced_perplexity": perplexity(mean_loss) if mean_loss is not None else None, "generation_metrics": means}
+    token_loss = loss_sum / target_tokens if target_tokens else None
+    return {"examples": len(rows), "target_tokens": target_tokens, "teacher_forced_token_loss": token_loss,
+            "teacher_forced_perplexity": perplexity(token_loss) if token_loss is not None else None,
+            "generation_metrics": aggregate_generation_metrics(rows),
+            "aggregation": "EM/normalized-EM/token-PRF/ROUGE are macro means; BLEU and chrF are corpus scores."}
 
 
 def evaluate(run_dir: str | Path, split: str = "test", limit: int | None = None) -> dict:

@@ -13,7 +13,7 @@ class EarlyStoppingState:
     stopped_step: int | None = None
 
     def update(self, loss: float, step: int) -> bool:
-        if self.best_loss is None or self.best_loss - loss > self.threshold:
+        if self.best_loss is None or loss < self.best_loss - self.threshold:
             self.best_loss, self.best_step, self.bad_evaluations = loss, step, 0
             return False
         self.bad_evaluations += 1

@@ -402,3 +402,19 @@
 - Trạng thái: partial; toàn bộ hạ tầng local-first và portable GPU đã
   triển khai, validator 5.000 record và test QLoRA/server liên quan đạt.
   Training/evaluation model 7B, CUDA/bitsandbytes và artifact thật chờ máy GPU.
+## TASK-20261014-02
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: audit pre-GPU toàn diện implementation QLoRA local-first hiện
+  có, sửa trực tiếp lỗi nghiêm trọng, bổ sung test CPU/checkpoint/early
+  stopping, điều tra failure JSON mode so với JSON schema và lập báo cáo.
+- Phạm vi kiểm tra: Qwen multi-turn/masking/EOS/truncation; NF4/PEFT/
+  optimizer/checkpointing/precision; early stop/best restore/resume state; split
+  isolation và leakage; metrics/parameter/VRAM/timing/plots; Windows-Linux
+  portability; baseline so với PEFT chatbot.
+- Tiêu chí: không tải model weights, không chạy training 7B; test/static
+  checks được chạy thật; tạo `docs/qlora-pre-gpu-audit.md`; kết luận
+  minh bạch READY hoặc NOT READY cho GPU smoke.
+- Trạng thái: partial; audit local và các fix critical/high đã hoàn
+  tất, full suite/static/data validation đạt và báo cáo đã tạo. Dự
+  án READY có điều kiện cho GPU smoke; CUDA smoke/resume thật còn pending.

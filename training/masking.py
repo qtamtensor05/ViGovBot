@@ -16,22 +16,31 @@ def token_ids(value) -> list[int]:
 
 
 def encode_assistant_only(tokenizer, messages: list[dict], max_length: int) -> dict[str, list[int]]:
-    """Tokenize Qwen chat and supervise only assistant message spans."""
+    """Tokenize Qwen chat and supervise assistant content plus its EOS marker."""
     full = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=False)
     full = token_ids(full)
-    labels = [IGNORE_INDEX] * len(full)
-    previous = 0
-    for index, message in enumerate(messages):
-        prefix = tokenizer.apply_chat_template(messages[: index + 1], tokenize=True, add_generation_prompt=False)
-        current = len(token_ids(prefix))
-        if message["role"] == "assistant":
-            labels[previous:current] = full[previous:current]
-        previous = current
     if len(full) > max_length:
-        full = full[:max_length]
-        labels = labels[:max_length]
+        raise ValueError(
+            f"Conversation has {len(full)} tokens, exceeding max_seq_length={max_length}; "
+            "refusing to truncate an assistant target"
+        )
+    labels = [IGNORE_INDEX] * len(full)
+    for index, message in enumerate(messages):
+        if message["role"] == "assistant":
+            # The generation prompt ends immediately before assistant content, so
+            # role/header tokens remain masked while content, <|im_end|> and the
+            # template newline are supervised.
+            start = len(token_ids(tokenizer.apply_chat_template(
+                messages[:index], tokenize=True, add_generation_prompt=True
+            )))
+            end = len(token_ids(tokenizer.apply_chat_template(
+                messages[: index + 1], tokenize=True, add_generation_prompt=False
+            )))
+            if not 0 <= start < end <= len(full):
+                raise ValueError("Chat template produced inconsistent assistant token boundaries")
+            labels[start:end] = full[start:end]
     if not any(value != IGNORE_INDEX for value in labels):
-        raise ValueError("Truncation removed every assistant target token; increase max_seq_length or filter the example")
+        raise ValueError("Conversation contains no assistant target tokens")
     return {"input_ids": full, "attention_mask": [1] * len(full), "labels": labels}
 
 

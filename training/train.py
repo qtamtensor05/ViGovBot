@@ -7,11 +7,11 @@ import time
 from pathlib import Path
 
 from training.artifacts import create_run_dir, git_commit, snapshot_config, write_json
-from training.checkpoints import validate_resume_checkpoint
+from training.checkpoints import checkpoint_run_dir, validate_resume_checkpoint
 from training.config import load_config
 from training.data import dataset_paths, read_jsonl, sha256_file
 from training.masking import encode_assistant_only, padding_collator
-from training.parameters import count_parameters, directory_size, memory_estimates
+from training.parameters import count_parameters, directory_size, memory_estimates, validate_lora_trainability
 from training.preflight import estimated_requirements, inspect_environment, suggestions
 
 
@@ -20,6 +20,14 @@ class ConversationDataset:
         self.items = [encode_assistant_only(tokenizer, item["messages"], max_length) for item in records]
     def __len__(self): return len(self.items)
     def __getitem__(self, index): return self.items[index]
+
+
+def _write_log(path: Path, history: list[dict]) -> None:
+    keys = sorted(set().union(*(item.keys() for item in history))) if history else []
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, keys)
+        writer.writeheader()
+        writer.writerows(history)
 
 
 def _precision(torch, config):
@@ -50,16 +58,26 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
     smoke_limit = config.get("execution", {}).get("max_samples")
     if smoke_limit:
         train_records, validation_records = train_records[:smoke_limit], validation_records[:max(1, smoke_limit // 2)]
-    run_dir = create_run_dir(config, run_id)
-    snapshot_config(config, run_dir)
+    dataset_hashes = {name: sha256_file(path) for name, path in paths.items()}
+    if resume:
+        if run_id is not None:
+            raise ValueError("--run-id cannot be combined with --resume; resume continues the original run directory")
+        run_dir = checkpoint_run_dir(resume)
+        checkpoint = str(validate_resume_checkpoint(resume, config, dataset_hashes))
+    else:
+        run_dir = create_run_dir(config, run_id)
+        snapshot_config(config, run_dir)
+        checkpoint = None
     environment.update({"git_commit": git_commit(config["_project_root"]),
-                        "dataset_hashes": {name: sha256_file(path) for name, path in paths.items()},
+                        "dataset_hashes": dataset_hashes,
                         "effective_config": {key: value for key, value in config.items() if not key.startswith("_")},
                         "preflight_suggestions_not_applied": suggestions(environment),
                         "memory_estimates": estimated_requirements(config, environment)})
-    write_json(run_dir / "environment.json", environment)
     set_seed(config["training"]["seed"])
     dtype, bf16, fp16 = _precision(torch, config)
+    environment["effective_precision"] = {"compute_dtype": str(dtype), "bf16": bf16, "fp16": fp16}
+    if not resume:
+        write_json(run_dir / "environment.json", environment)
     quant = config["quantization"]
     quant_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type=quant["bnb_4bit_quant_type"],
                                      bnb_4bit_use_double_quant=quant["bnb_4bit_use_double_quant"],
@@ -68,13 +86,19 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
     tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(config["model"]["name"], quantization_config=quant_config,
                                                  device_map="auto", trust_remote_code=False)
+    base_parameter_count = sum(item.numel() for item in model.parameters())
     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=config["training"]["gradient_checkpointing"])
     lora = config["lora"]
     model = get_peft_model(model, LoraConfig(r=lora["r"], lora_alpha=lora["alpha"], lora_dropout=lora["dropout"],
                                              bias=lora["bias"], target_modules=lora["target_modules"],
                                              task_type="CAUSAL_LM"))
+    trainable_names = validate_lora_trainability(model)
     parameter_report = count_parameters(model)
-    parameter_report["total_base_model_parameters"] = sum(item.numel() for item in model.get_base_model().parameters())
+    parameter_report["total_base_model_parameters"] = base_parameter_count
+    parameter_report["trainable_parameter_names"] = trainable_names
+    parameter_report["quantized_model_memory_footprint_bytes_measured"] = (
+        int(model.get_memory_footprint()) if hasattr(model, "get_memory_footprint") else None
+    )
     write_json(run_dir / "parameter_report.json", {**parameter_report, **memory_estimates(parameter_report["total_parameters"])})
     max_length = config["model"]["max_seq_length"]
     train_dataset = ConversationDataset(train_records, tokenizer, max_length)
@@ -93,15 +117,16 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
         save_total_limit=values["save_total_limit"], load_best_model_at_end=values["load_best_model_at_end"],
         metric_for_best_model=values["metric_for_best_model"], greater_is_better=values["greater_is_better"],
         report_to=["tensorboard"] if config["reporting"]["tensorboard"] else [], bf16=bf16, fp16=fp16,
-        remove_unused_columns=False)
+        remove_unused_columns=False, restore_callback_states_from_checkpoint=True, ignore_data_skip=False,
+        save_only_model=False, include_num_input_tokens_seen=True)
     callbacks = []
     if config["early_stopping"]["enabled"]:
         callbacks.append(EarlyStoppingCallback(early_stopping_patience=config["early_stopping"]["patience"],
                                                early_stopping_threshold=config["early_stopping"]["threshold"]))
     trainer = Trainer(model=model, args=args, train_dataset=train_dataset, eval_dataset=eval_dataset,
                       data_collator=padding_collator(tokenizer), callbacks=callbacks)
-    checkpoint = str(validate_resume_checkpoint(resume)) if resume else None
     started = time.perf_counter()
+    torch.cuda.reset_peak_memory_stats()
     status, reason = "completed", "epochs_completed"
     try:
         result = trainer.train(resume_from_checkpoint=checkpoint)
@@ -113,32 +138,47 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
         write_json(run_dir / "training_metrics.json", {"status": status, "stopping_reason": reason,
                                                         "global_step": trainer.state.global_step,
                                                         "best_checkpoint": trainer.state.best_model_checkpoint})
-        raise
-    finally:
-        history = trainer.state.log_history
         if config["reporting"]["save_csv"]:
-            keys = sorted(set().union(*(item.keys() for item in history))) if history else []
-            with (run_dir / "training_log.csv").open("w", newline="", encoding="utf-8") as handle:
-                writer = csv.DictWriter(handle, keys); writer.writeheader(); writer.writerows(history)
+            _write_log(run_dir / "training_log.csv", trainer.state.log_history)
+        raise
+    if not trainer.state.best_model_checkpoint or trainer.state.best_metric is None:
+        raise RuntimeError("Training completed without a best validation checkpoint")
+    # Trainer restores the selected checkpoint before returning when
+    # load_best_model_at_end=True. Evaluate that restored model on both splits so
+    # the reported generalization gap uses comparable token-level definitions.
+    final_validation = trainer.evaluate(eval_dataset=eval_dataset, metric_key_prefix="final_validation")
+    final_training = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="final_training")
+    if config["reporting"]["save_csv"]:
+        _write_log(run_dir / "training_log.csv", trainer.state.log_history)
     trainer.save_model(run_dir / "best_adapter")
     tokenizer.save_pretrained(run_dir / "best_adapter")
     elapsed = time.perf_counter() - started
-    eval_losses = [item["eval_loss"] for item in trainer.state.log_history if "eval_loss" in item]
-    train_losses = [item["loss"] for item in trainer.state.log_history if "loss" in item]
+    final_validation_loss = final_validation["final_validation_loss"]
+    final_training_loss = final_training["final_training_loss"]
     peak_allocated = torch.cuda.max_memory_allocated() if torch.cuda.is_available() else None
     peak_reserved = torch.cuda.max_memory_reserved() if torch.cuda.is_available() else None
+    trainer_metrics = result.metrics if status != "interrupted" else None
     metrics = {"status": status, "stopping_reason": reason, "wall_clock_seconds": elapsed,
+               "global_step": trainer.state.global_step,
                "best_checkpoint": trainer.state.best_model_checkpoint, "best_validation_loss": trainer.state.best_metric,
-               "final_validation_loss": eval_losses[-1] if eval_losses else None,
-               "final_training_loss": train_losses[-1] if train_losses else None,
-               "validation_perplexity": math.exp(eval_losses[-1]) if eval_losses and eval_losses[-1] < 709 else None,
-               "generalization_gap": (eval_losses[-1] - train_losses[-1]) if eval_losses and train_losses else None,
+               "best_checkpoint_step": int(Path(trainer.state.best_model_checkpoint).name.rsplit("-", 1)[-1]),
+               "best_adapter_restored_before_save": True,
+               "final_validation_loss": final_validation_loss,
+               "final_training_loss": final_training_loss,
+               "validation_perplexity": math.exp(final_validation_loss) if final_validation_loss < 709 else None,
+               "training_perplexity": math.exp(final_training_loss) if final_training_loss < 709 else None,
+               "generalization_gap": final_validation_loss - final_training_loss,
                "peak_gpu_allocated_bytes_measured": peak_allocated,
                "peak_gpu_reserved_bytes_measured": peak_reserved,
                "gpu_utilization": None,
                "gpu_utilization_note": "Unavailable unless an external sampler is configured; no value was invented.",
                "total_input_tokens_seen": getattr(trainer.state, "num_input_tokens_seen", None),
-               "trainer_metrics": result.metrics if status != "interrupted" else None}
+               "total_input_tokens_note": "Measured input tokens include masked prompt tokens; loss only uses labels != -100.",
+               "time_per_optimizer_step_seconds_measured": (
+                   trainer_metrics.get("train_runtime", elapsed) / trainer.state.global_step
+                   if trainer_metrics and trainer.state.global_step else None
+               ),
+               "trainer_metrics": trainer_metrics}
     write_json(run_dir / "training_metrics.json", metrics)
     write_json(run_dir / "timing_report.json", {"training_wall_clock_seconds_measured": elapsed,
                                                  "gpu_kernel_time_seconds": None,

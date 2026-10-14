@@ -33,3 +33,4 @@ Xem [nguồn skill](project/skill-sources.md) và [hướng dẫn agent](../AGEN
 # QLoRA fine-tuning
 
 - [Pipeline QLoRA Qwen2.5-7B local-first và GPU portable](qlora-training.md)
+- [Audit pre-GPU QLoRA Qwen2.5-7B](qlora-pre-gpu-audit.md)

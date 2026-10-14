@@ -392,3 +392,26 @@
 - Full suite hiện có 124 đạt, 1 skipped, 1 failure cũ về JSON schema trong
   `test_multiturn`; xem ERR-20261014-04. Không có full QLoRA run/checkpoint/metric GPU.
 
+# TASK-20261014-02 - partial
+
+- Đang audit pre-GPU implementation QLoRA hiện có; không nạp model weights
+  hoặc chạy training 7B.
+- Giai đoạn: đọc source/config/test thực tế, dựng test mô phỏng
+  masking/checkpoint/early stopping/metrics/plots, sau đó sửa critical findings.
+- Đầu ra bắt buộc: `docs/qlora-pre-gpu-audit.md`, test/static-check logs
+  tóm tắt và kết luận READY/NOT READY cho GPU smoke.
+- Findings đã sửa: assistant header bị tính loss; truncation cắt target;
+  resume sang run directory mới/thiếu kiểm optimizer-scheduler-RNG-callback;
+  loss evaluation trung bình theo example thay vì target token; corpus BLEU/chrF
+  bị thay bằng trung bình sentence; base parameter count và best-model metrics.
+- JSON schema failure được xác nhận là test cũ: runtime schema là contract
+  chủ ý, còn provider vẫn hỗ trợ JSON mode cũ. Đã sửa assertion test.
+- Nhóm audit hiện đạt 27 test (1 skipped) và Ruff. Chuẩn bị chạy
+  full suite `unittest discover` và validator 5.000 record với official tokenizer
+  cache-only; không tải model weights.
+- Kết quả cuối local: full suite 136 passed, 1 optional skipped, 0 failed;
+  Ruff/compileall/diff-check đạt; validator official tokenizer offline đạt
+  5.000/5.000 record. Báo cáo: `docs/qlora-pre-gpu-audit.md`.
+- Kết luận: READY có điều kiện cho GPU smoke, chưa READY cho full
+  training. Còn bắt buộc smoke NF4/CUDA/bitsandbytes và resume checkpoint thật.
+

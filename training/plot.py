@@ -18,6 +18,11 @@ def generate_plots(run_dir: str | Path) -> list[Path]:
     if not csv_path.exists():
         raise FileNotFoundError(f"Missing observed training log: {csv_path}")
     frame = pd.read_csv(csv_path)
+    training_metrics_path = root / "training_metrics.json"
+    training_metrics = (json.loads(training_metrics_path.read_text(encoding="utf-8"))
+                        if training_metrics_path.exists() else {})
+    best_step = training_metrics.get("best_checkpoint_step")
+    stopped_step = training_metrics.get("global_step") if training_metrics.get("status") == "early_stopped" else None
     figures = [
         ("training_loss.png", ["loss"], "Training loss", "Loss"),
         ("validation_loss.png", ["eval_loss"], "Validation loss", "Loss"),
@@ -35,6 +40,10 @@ def generate_plots(run_dir: str | Path) -> list[Path]:
         for column in present:
             observed = frame[["step", column]].dropna()
             axis.plot(observed["step"], observed[column], marker="o" if column == "eval_loss" else None, label=column)
+        if "loss" in filename and best_step is not None:
+            axis.axvline(best_step, color="green", linestyle="--", label="best checkpoint")
+        if "loss" in filename and stopped_step is not None:
+            axis.axvline(stopped_step, color="red", linestyle=":", label="early stop")
         axis.set(title=title, xlabel="Optimizer step", ylabel=ylabel)
         axis.grid(alpha=.25)
         axis.legend()

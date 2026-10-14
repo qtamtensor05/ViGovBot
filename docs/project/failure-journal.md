@@ -383,3 +383,61 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: thêm bộ chuẩn hóa output list/tensor/mapping/batch một mẫu,
   dùng chung cho thống kê và assistant-only masking; thêm regression test.
 
+## ERR-20261014-06
+
+- Task: TASK-20261014-02.
+- Triệu chứng: official Qwen tokenizer cho thấy assistant header
+  `<|im_start|>assistant` đang có label khác `-100`; truncation chỉ từ chối
+  khi toàn bộ target biến mất, nên có thể cắt answer cuối.
+- Nguyên nhân: boundary assistant được suy ra từ end của prefix trước
+  thay vì end của generation prompt; truncation áp sau khi tạo label.
+- Xử lý: target bắt đầu sau `add_generation_prompt=True`, giữ assistant
+  content và `<|im_end|>`; từ chối toàn mẫu vượt max sequence.
+- Kiểm chứng: official tokenizer cache-only và regression multi-turn/EOS đạt.
+
+## ERR-20261014-07
+
+- Task: TASK-20261014-02.
+- Triệu chứng: resume tạo run directory mới; validator chỉ yêu cầu
+  adapter/trainer state, không chứng minh optimizer, scheduler, RNG, callback,
+  config hay dataset không đổi.
+- Nguyên nhân: checkpoint path chỉ được chuyển cho Trainer sau khi
+  artifact run mới đã tạo; callback restore dùng default false.
+- Xử lý: resume run directory gốc, validate đủ state/hash/config/global step,
+  bật callback restore, giữ data skip và full trainer checkpoint.
+- Kiểm chứng: simulated complete/corrupt/config-drift/dataset-drift checkpoint
+  tests đạt; resume thật vẫn chờ GPU smoke.
+
+## ERR-20261014-08
+
+- Task: TASK-20261014-02.
+- Triệu chứng: teacher-forced loss được trung bình theo example; BLEU/
+  chrF aggregate là trung bình sentence score; generalization gap trộn final
+  training log loss với validation evaluation loss.
+- Nguyên nhân: aggregation ban đầu không giữ denominator target token và
+  không tách corpus metric; hai loss lấy từ hai loại event Trainer.
+- Xử lý: weighted target-token loss/perplexity, corpus BLEU/chrF và evaluate
+  cả train/validation bằng best-restored model trước khi tính gap.
+- Kiểm chứng: metric fixture và reference-exclusion/token-weight test đạt.
+
+## ERR-20261014-09
+
+- Task: TASK-20261014-02.
+- Triệu chứng: `test_multiturn` mong `response_format == "json"` trong khi
+  structured answer runtime truyền `answer_schema(False)`.
+- Nguyên nhân xác nhận: expectation của test lỗi thời; schema là hành vi
+  chủ ý được các test routing/provider khác bảo vệ.
+- Xử lý: cập nhật assertion sang `answer_schema(False)`; không đổi runtime.
+  Provider vẫn xử lý chuỗi `json` cho caller cũ nên backward compatibility giữ nguyên.
+- Kiểm chứng: full suite 136 test đạt, 1 optional skip, 0 failure.
+
+## ERR-20261014-10
+
+- Task: TASK-20261014-02.
+- Triệu chứng: test threshold early stopping với improvement đúng bằng
+  0,01 bị reset patience do sai số floating-point.
+- Nguyên nhân: biểu thức `best_loss - loss > threshold` tạo giá trị nhỉnh
+  lớn hơn 0,01 trong binary float.
+- Xử lý: so sánh `loss < best_loss - threshold`; test patience/threshold/tie
+  và callback Transformers state transition đều đạt.
+

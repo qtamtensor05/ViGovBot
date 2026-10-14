@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from training.checkpoints import validate_resume_checkpoint
+from training.checkpoints import checkpoint_run_dir, validate_resume_checkpoint
 from training.config import load_config
 from training.data import analyze_splits, read_jsonl, validate_conversation
 from training.early_stopping import EarlyStoppingState, select_best_checkpoint
@@ -57,9 +57,15 @@ class MaskingTests(unittest.TestCase):
         self.assertEqual(len(encoded["labels"]), len(encoded["input_ids"]))
         self.assertTrue(any(value == IGNORE_INDEX for value in encoded["labels"]))
         self.assertTrue(any(value != IGNORE_INDEX for value in encoded["labels"]))
+        # Fake template: assistant header is one token and must remain masked;
+        # assistant content and EOS are supervised.
+        self.assertEqual(encoded["labels"][4], IGNORE_INDEX)
+        self.assertNotEqual(encoded["labels"][5], IGNORE_INDEX)
+        self.assertEqual(encoded["input_ids"][7], FakeTokenizer.eos_token_id)
+        self.assertEqual(encoded["labels"][7], FakeTokenizer.eos_token_id)
 
     def test_truncation_cannot_remove_all_targets(self):
-        with self.assertRaisesRegex(ValueError, "Truncation removed"):
+        with self.assertRaisesRegex(ValueError, "refusing to truncate"):
             encode_assistant_only(FakeTokenizer(), record("x")["messages"], 3)
 
     def test_transformers_mapping_chat_template_output(self):
@@ -101,6 +107,23 @@ class LogicTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Corrupted"):
                 validate_resume_checkpoint(directory)
 
+    def test_complete_checkpoint_and_run_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run = Path(directory) / "run"
+            checkpoint = run / "checkpoints" / "checkpoint-100"
+            checkpoint.mkdir(parents=True)
+            for name in ("optimizer.pt", "scheduler.pt", "rng_state.pth", "adapter_model.safetensors"):
+                (checkpoint / name).write_bytes(b"fixture")
+            (checkpoint / "trainer_state.json").write_text(
+                json.dumps({"global_step": 100, "stateful_callbacks": {"EarlyStoppingCallback": {"patience_counter": 1}}}),
+                encoding="utf-8",
+            )
+            self.assertEqual(validate_resume_checkpoint(checkpoint), checkpoint.resolve())
+            self.assertEqual(checkpoint_run_dir(checkpoint), run.resolve())
+            (checkpoint / "rng_state.pth").unlink()
+            with self.assertRaisesRegex(ValueError, "rng_state"):
+                validate_resume_checkpoint(checkpoint)
+
     def test_inference_adapter_loading_interface(self):
         from training.inference import load_model
         base = MagicMock()
@@ -111,8 +134,10 @@ class LogicTests(unittest.TestCase):
             "peft": MagicMock(),
         }
         modules["torch"].cuda.is_bf16_supported.return_value = False
+        modules["torch"].cuda.is_available.return_value = True
         modules["transformers"].AutoTokenizer.from_pretrained.return_value = tokenizer
         modules["transformers"].AutoModelForCausalLM.from_pretrained.return_value = base
+        modules["peft"].PeftConfig.from_pretrained.return_value.base_model_name_or_path = "Qwen/Qwen2.5-7B-Instruct"
         wrapped = modules["peft"].PeftModel.from_pretrained.return_value
         with patch.dict("sys.modules", modules):
             model, loaded_tokenizer = load_model("Qwen/Qwen2.5-7B-Instruct", "relative/adapter")

@@ -9,6 +9,8 @@ _CACHE = {}
 def load_model(base_model: str, adapter_path: str | None = None, quantized: bool = True):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+    if quantized and not torch.cuda.is_available():
+        raise RuntimeError("4-bit baseline/PEFT inference requires CUDA; pass quantized=False only for explicit CPU tests")
     quantization = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
                                      bnb_4bit_use_double_quant=True,
                                      bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16) if quantized else None
@@ -16,7 +18,11 @@ def load_model(base_model: str, adapter_path: str | None = None, quantized: bool
     model = AutoModelForCausalLM.from_pretrained(base_model, quantization_config=quantization,
                                                  device_map="auto", trust_remote_code=False)
     if adapter_path:
-        from peft import PeftModel
+        from peft import PeftConfig, PeftModel
+        adapter_config = PeftConfig.from_pretrained(adapter_path)
+        configured_base = getattr(adapter_config, "base_model_name_or_path", None)
+        if configured_base and configured_base != base_model:
+            raise ValueError(f"Adapter expects base model {configured_base}, not {base_model}")
         model = PeftModel.from_pretrained(model, adapter_path, is_trainable=False)
     model.eval()
     return model, tokenizer
@@ -33,10 +39,17 @@ def local_transformers_answer(messages, settings):
                 if torch.cuda.is_available(): torch.cuda.empty_cache()
             _CACHE[key] = load_model(*key[:2], quantized=key[2])
         model, tokenizer = _CACHE[key]
-        encoded = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt").to(model.device)
+        encoded = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True,
+                                                return_tensors="pt", return_dict=True)
+        if hasattr(encoded, "keys"):
+            model_inputs = {name: value.to(model.device) for name, value in encoded.items()}
+            prompt_length = model_inputs["input_ids"].shape[-1]
+        else:
+            model_inputs = {"input_ids": encoded.to(model.device)}
+            prompt_length = model_inputs["input_ids"].shape[-1]
         started = time.perf_counter()
         with torch.inference_mode():
-            output = model.generate(encoded, max_new_tokens=settings["num_predict"], temperature=settings.get("temperature", 0.0),
+            output = model.generate(**model_inputs, max_new_tokens=settings["num_predict"], temperature=settings.get("temperature", 0.0),
                                     do_sample=settings.get("temperature", 0.0) > 0)
-        answer = tokenizer.decode(output[0, encoded.shape[-1]:], skip_special_tokens=True).strip()
+        answer = tokenizer.decode(output[0, prompt_length:], skip_special_tokens=True).strip()
         return answer, {"provider": "local_transformers", "adapter_path": settings.get("adapter_path")}, time.perf_counter() - started

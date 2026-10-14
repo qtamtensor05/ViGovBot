@@ -8,6 +8,7 @@ from vigovbot.evaluation.multiturn import evaluate_multiturn, load_queries, vali
 from vigovbot.experiments import read_results
 from vigovbot.prompts.prompt_templates import build_messages, validate_history
 from vigovbot.rag.pipeline import answer_question
+from vigovbot.rag.routing import answer_schema
 
 
 class Tokenizer:
@@ -88,7 +89,7 @@ class MultiTurnTests(unittest.TestCase):
         self.assertEqual(result["prediction"], "OK")
         self.assertEqual(llm.call_args_list[1].args[0][1:3], history)
         self.assertEqual(result["action"], "answer")
-        self.assertEqual(llm.call_args_list[1].args[1]["response_format"], "json")
+        self.assertEqual(llm.call_args_list[1].args[1]["response_format"], answer_schema(False))
 
     def test_actual_v4_queries(self):
         path = Path(__file__).resolve().parents[1] / "Data/qa_test_v4/rag_tthc_v4_1/runner_queries.jsonl"

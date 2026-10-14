@@ -444,3 +444,21 @@
   baseline/fine-tuned evaluation, checkpoint/best adapter và plot/metric từ log thật.
   Preflight local xác nhận CUDA unavailable và không cho fallback CPU.
 
+# TASK-20261014-02 - Audit pre-GPU QLoRA
+
+- Audit source/config/test thực tế cho masking, NF4/PEFT, Trainer, resume,
+  evaluation, metrics, accounting, plots, portability và chatbot; không nạp weights.
+- Sửa assistant-only boundary theo generation prompt, supervise EOS và từ chối
+  truncation; thêm official Qwen cache-only test cho multi-turn/header/EOS.
+- Sửa resume tiếp tục run cũ, validate optimizer/scheduler/RNG/callback/
+  global-step/config/hash, restore callback state và từ chối checkpoint incomplete.
+- Sửa target-token loss/perplexity, corpus BLEU/chrF, comparable train-validation
+  gap, base/LoRA parameter accounting, measured footprint/VRAM/time và plot marker.
+- Sửa PEFT inference base-model compatibility; giữ single-model cache và API cũ.
+- Xác nhận JSON schema là contract runtime hiện hành; chỉ cập nhật test
+  cũ, không bỏ hỗ trợ JSON mode của provider.
+- Kiểm chứng: 136 test passed, 1 optional skipped; Ruff, compileall,
+  diff-check và validator 5.000 record official-tokenizer offline đều đạt.
+- Báo cáo `docs/qlora-pre-gpu-audit.md`; trạng thái partial vì CUDA,
+  bitsandbytes kernel, GPU smoke và resume thật chưa được chạy.
+

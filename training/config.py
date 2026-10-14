@@ -73,14 +73,30 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("model.max_seq_length must be positive")
     if not config["quantization"].get("load_in_4bit"):
         raise ValueError("QLoRA requires quantization.load_in_4bit=true; full fine-tuning is not an implicit fallback")
+    quantization = config["quantization"]
+    if quantization.get("bnb_4bit_quant_type") != "nf4":
+        raise ValueError("QLoRA audit requires NF4 quantization")
+    if quantization.get("bnb_4bit_use_double_quant") is not True:
+        raise ValueError("QLoRA audit requires double quantization")
+    if quantization.get("bnb_4bit_compute_dtype") not in {"bfloat16", "float16"}:
+        raise ValueError("bnb_4bit_compute_dtype must be bfloat16 or float16")
     targets = config["lora"].get("target_modules") or []
     if not targets or len(targets) != len(set(targets)):
         raise ValueError("lora.target_modules must be non-empty and unique")
+    expected_targets = {"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"}
+    if set(targets) != expected_targets:
+        raise ValueError(f"Qwen2.5 LoRA target_modules must equal {sorted(expected_targets)}")
+    if int(config["lora"]["r"]) <= 0 or int(config["lora"]["alpha"]) <= 0:
+        raise ValueError("LoRA r and alpha must be positive")
+    if not 0 <= float(config["lora"]["dropout"]) < 1:
+        raise ValueError("LoRA dropout must be in [0, 1)")
     training = config["training"]
     for key in ("per_device_train_batch_size", "gradient_accumulation_steps", "eval_steps", "save_steps"):
         if int(training[key]) <= 0:
             raise ValueError(f"training.{key} must be positive")
     if training["eval_strategy"] != training["save_strategy"] or training["eval_steps"] != training["save_steps"]:
         raise ValueError("Evaluation and checkpoint cadence must align for reliable best-checkpoint selection")
+    if training.get("optim") != "paged_adamw_8bit":
+        raise ValueError("The audited 4-bit path requires bitsandbytes paged_adamw_8bit")
     if config["early_stopping"].get("enabled") and not training.get("load_best_model_at_end"):
         raise ValueError("Early stopping requires load_best_model_at_end=true")

@@ -17,6 +17,16 @@ def count_parameters(model) -> dict[str, int | float]:
     }
 
 
+def validate_lora_trainability(model) -> list[str]:
+    trainable_names = [name for name, parameter in model.named_parameters() if parameter.requires_grad]
+    unexpected = [name for name in trainable_names if "lora_" not in name]
+    if not trainable_names:
+        raise ValueError("PEFT model has no trainable LoRA parameters")
+    if unexpected:
+        raise ValueError(f"Non-LoRA parameters are unexpectedly trainable: {unexpected[:10]}")
+    return trainable_names
+
+
 def directory_size(path: str | Path) -> int:
     root = Path(path)
     return sum(item.stat().st_size for item in root.rglob("*") if item.is_file()) if root.exists() else 0
