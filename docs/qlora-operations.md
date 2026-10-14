@@ -114,7 +114,7 @@ $score = ".\outputs\tthc_test_case_v1\scores_qwen_qlora.json"
 
 .\.venv-qlora\Scripts\python.exe -m vigovbot qa-v4 run `
   --dataset $dataset --split test --mode reference_history --concurrency 1 `
-  --batch-size 2 --verify-batch-equivalence 4 `
+  --batch-size 4 --verify-batch-equivalence 4 `
   --qlora-run-dir $runDir --out $pred
 
 .\.venv-qlora\Scripts\python.exe -m vigovbot qa-v4 score `
@@ -140,7 +140,7 @@ không retry và không suy đoán nhãn từ câu chữ. Các metric nội dung
 sánh trực tiếp được. Recall/MRR chỉ có ý nghĩa cho RAG và cũng được ghi unavailable
 cho QLoRA.
 
-`--batch-size 2` là batching GPU thật, không phải hai thread cùng gọi model. Trước
+`--batch-size 4` là batching GPU thật, không phải nhiều thread cùng gọi model. Trước
 khi tạo artifact, runner sinh đơn và sinh batch trên bốn mẫu rồi yêu cầu kết quả
-khớp tuyệt đối; nếu khác, lệnh dừng và yêu cầu quay về batch 1. Sau khi đo VRAM với
-batch 2, có thể thử batch 4 bằng một output path mới và vẫn giữ equivalence gate.
+khớp tuyệt đối; nếu khác, lệnh dừng và yêu cầu quay về batch 1. Smoke thật trên RTX
+5060 Ti đạt 4/4, không OOM và phần chạy chính nhanh hơn batch 2 khoảng 1,44 lần.

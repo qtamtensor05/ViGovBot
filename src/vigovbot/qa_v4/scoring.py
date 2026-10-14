@@ -7,6 +7,7 @@ import re
 import statistics
 import time
 import unicodedata
+from importlib.util import find_spec
 from importlib.metadata import version, PackageNotFoundError
 from .scoring_legacy import score as legacy_score
 from .retrieval_metrics import RETRIEVAL_KEYS, summarize_retrieval
@@ -60,6 +61,11 @@ def unpack_bert_score(result):
 
 def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert-base-multilingual-cased',device='cpu',batch_size=8,bert_cache=None,progress=False):
     started = time.perf_counter()
+    if bert and bert_cache is None and find_spec('bert_score') is None:
+        raise ModuleNotFoundError(
+            "BERTScore requested but bert-score is not installed. "
+            "Install the evaluation extra or pass --bert-cache."
+        )
     if progress:
         print(f'[Score] Chuẩn bị {len(cases)} case và {len(predictions)} prediction...', flush=True)
     if k<1: raise ValueError('k must be positive')
