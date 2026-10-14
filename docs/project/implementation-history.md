@@ -1,5 +1,24 @@
 # Lịch sử triển khai
 
+## TASK-20261014-09 — báo cáo phân tích triển khai QLoRA Qwen2.5-7B
+
+- Tạo tài liệu `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md` phân tích toàn bộ quá trình
+  triển khai QLoRA trên `Qwen/Qwen2.5-7B-Instruct` với dữ liệu thực nghiệm thật từ
+  run `outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d`.
+- Nội dung báo cáo phân tích:
+  + Cấu hình kiến trúc: 4-bit NormalFloat (NF4), double quantization, bfloat16 compute dtype,
+    LoRA rank r=16, alpha=32, target all 7 linear projections (q, k, v, o, gate, up, down).
+  + Thống kê tham số: 40.370.176 tham số LoRA có thể huấn luyện (0,919%), giảm 99,08% so với full fine-tuning.
+  + Diễn biến học tập: bảng chi tiết 13 mốc evaluation (mỗi 100 steps). Train loss giảm từ 2,117 xuống 0,1015;
+    Validation loss giảm từ 0,4077 và đạt điểm cực tiểu 0,24649 tại step 1.100 (Epoch 2.93, perplexity 1.2795).
+  + Cơ chế Early Stopping: kích hoạt tại step 1.300 do validation loss tăng lên 0,2585 (step 1200) và 0,2541 (step 1300),
+    patience=2, generalization gap 0,1450. Tự động phục hồi trọng số checkpoint-1100 thành best_adapter.
+  + Hiệu năng tài nguyên: VRAM đỉnh 12,86 GB / 16 GB RTX 5060 Ti; throughput 1,127 samples/s; tổng thời gian ~3h41m.
+  + Nêu rõ hiện tại chưa chạy inference evaluation trên 1.000 ca test độc lập (`test_sft.jsonl`) và sẽ bổ sung sau.
+- Cập nhật liên kết tài liệu trong `docs/README.md`.
+- Kiểm chứng: số liệu và đường dẫn đối chiếu khớp 100% với `config.yaml`, `parameter_report.json`,
+  `training_metrics.json`, `timing_report.json` và `training_log.csv`. Không có lỗi chính tả hay link hỏng.
+
 ## TASK-20261007-08 — tài liệu hóa so sánh RAG và Base trên tthc_test_case_v1
 
 - Tạo tài liệu báo cáo `docs/bao-cao-danh-gia-rag-vs-base-tthc-v1.md` tổng hợp và
@@ -554,4 +573,21 @@
   nên bỏ ép JSON/retry. Prediction giữ nội dung, đánh dấu action unavailable; scorer
   loại action metric thay vì tính sai bằng 0. Full suite sau sửa đạt 139 passed,
   2 skipped, 40 subtests.
+
+# TASK-20261014-08 - đánh giá full run và vẽ loss (completed)
+
+- Kiểm kê `outputs/qlora`: hai smoke run đã hoàn tất và một full run thực dừng
+  sớm ở step 1.300/1.875, epoch 3,4667, do validation-loss patience.
+- Full run giảm validation loss từ 0,407741 ở step 100 xuống mức tốt nhất
+  0,246493 ở step 1.100; step 1.200/1.300 tăng thành 0,258451/0,254082 trong khi
+  training loss tiếp tục giảm, nên có dấu hiệu overfit nhẹ sau step 1.100.
+- Xác minh `best_adapter/adapter_model.safetensors` có SHA-256 trùng đúng
+  checkpoint-1100 và khác checkpoint-1200/1300; best restore là artifact thật.
+- Chạy `env/Scripts/python.exe -m training.plot --run_dir <full-run>` thành công,
+  sinh 9 PNG và manifest; biểu đồ so sánh evaluation được ghi unavailable đúng
+  vì chưa có post-training test evaluation. Kiểm tra trực quan combined loss đạt.
+- Kiểm chứng: `tests.test_qlora_plot` đạt 1/1; `git diff --check` đạt. Không chạy
+  lại training hoặc thay đổi checkpoint/model.
+- Giới hạn: loss/perplexity chỉ chứng minh tối ưu hóa SFT; chưa có prediction và
+  metric test/QA-v4 nên chưa chứng minh độ đúng nội dung hay cải thiện so với baseline.
 

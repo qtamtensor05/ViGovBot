@@ -539,3 +539,16 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Kiểm chứng: 29 test QA-v4 và full suite 139 passed, 2 skipped, 40 subtests; Ruff,
   compileall và diff-check đạt.
 
+# ERR-20261014-20
+
+- Task: TASK-20261014-08.
+- Triệu chứng: lần gọi công cụ vẽ đầu tiên bằng
+  `.venv-qlora\Scripts\python.exe` bị PowerShell hiểu `.venv-qlora` là module;
+  đồng thời checkout hiện tại không có thư mục `.venv-qlora`.
+- Nguyên nhân: thiếu tiền tố đường dẫn tương đối `.\` và môi trường QLoRA từng
+  dùng trên máy tạo artifact không được chuyển vào checkout này.
+- Xử lý: kiểm tra các venv hiện có, dùng `.\env\Scripts\python.exe` đã có đủ
+  matplotlib/pandas để chạy `training.plot`; lệnh hoàn tất exit 0 và sinh đủ plot.
+- Phòng tránh: trên PowerShell luôn gọi executable tương đối bằng `.\`; kiểm tra
+  `Test-Path` trước và thay tên venv trong lệnh theo môi trường thực tế.
+

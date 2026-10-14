@@ -1,3 +1,29 @@
+# TASK-20261014-09 - completed
+
+- Đã tạo tài liệu báo cáo phân tích toàn diện quá trình huấn luyện QLoRA cho Qwen2.5-7B
+  tại `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`.
+- Báo cáo phân tích chi tiết:
+  + Cấu hình mô hình: Qwen2.5-7B, max length 2.048, NF4 double-quant, bfloat16.
+  + LoRA Adapter: r=16, alpha=32, target all 7 linear projections (q, k, v, o, gate, up, down).
+  + Tham số: 40.370.176 trainable parameters (chiếm 0,919% tổng số tham số), giảm 99,08% so với full fine-tuning.
+  + Diễn biến loss: train loss giảm từ 2,117 xuống 0,1015; validation loss cực tiểu 0,24649 tại step 1.100.
+  + Cơ chế dừng sớm: kích hoạt tại step 1.300 do validation loss tăng liên tiếp (patience=2), tự động phục hồi best adapter từ checkpoint-1100.
+  + Hiệu năng tài nguyên: Peak VRAM 12,86 GB / 16 GB RTX 5060 Ti; throughput 1,127 samples/s; tổng thời gian ~3h41m.
+- Đã liên kết tài liệu trong `docs/README.md`.
+- Ghi rõ: hiện chưa có kết quả suy luận trên 1.000 ca test độc lập và sẽ bổ sung sau.
+
+# TASK-20261014-08 - completed
+
+- Đã đánh giá full run `qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d`
+  từ event/log/metrics/checkpoint thật; không chạy lại training 7B.
+- Run dừng sớm ở step 1.300/1.875; validation loss tốt nhất 0,246493 tại step
+  1.100. Hai lần eval sau tăng lên 0,258451 và 0,254082, phù hợp dấu hiệu
+  overfit nhẹ và patience=2. Best adapter có SHA-256 trùng checkpoint-1100.
+- Đã chạy thành công `training.plot` bằng `env` và sinh 9 biểu đồ, gồm ba biểu
+  đồ loss; unit test plot và `git diff --check` đạt.
+- Giới hạn: chưa có post-training test evaluation hay prediction QA-v4, nên chưa
+  kết luận được chất lượng trả lời trên test.
+
 # TASK-20261007-08 — completed
 
 - Đã lập tài liệu báo cáo phân tích và so sánh RAG vs Base cho 1.000 ca kiểm thử
