@@ -56,6 +56,11 @@ class ChatApplication:
         settings = self.config.inference_settings()
         settings["model"] = model.model
         settings["api_key_env"] = model.api_key_env
+        if model.provider == "local_transformers":
+            adapter_path = getattr(model, "adapter_path", None)
+            settings["adapter_path"] = str(adapter_path) if adapter_path else None
+            settings["load_in_4bit"] = getattr(model, "load_in_4bit", True)
+            settings["allow_multiple_models"] = getattr(model, "allow_multiple_models", False)
         if model.provider == "ollama":
             settings["ollama_url"] = model.base_url
         else:

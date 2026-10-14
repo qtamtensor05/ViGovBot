@@ -383,3 +383,22 @@
   hoàn tất; test/lint đạt.
 - Trạng thái: completed; CLI score hiển thị phase, progress lexical/BERTScore,
   thời gian và đường dẫn artifact hoàn tất; metric/schema không đổi.
+## TASK-20261014-01
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: triển khai pipeline QLoRA production-ready cho
+  `Qwen/Qwen2.5-7B-Instruct` theo hướng local-first, sau đó có thể chuyển
+  nguyên repo/dữ liệu sang máy Linux GPU chưa biết phần cứng.
+- Phạm vi: validation/leakage/preprocessing JSONL, assistant-only loss,
+  config base/local/smoke/gpu, preflight GPU không tự áp setting, QLoRA train/resume,
+  evaluation baseline/adapter, metrics/plots/report/artifact, checkpoint logic, CLI,
+  interface nạp adapter cho chatbot, dependency/portable docs và unit test CPU.
+- Tiêu chí: không tải model 7B; chạy toàn bộ test không cần CUDA/model;
+  phân biệt local-tested, chờ GPU, chưa làm và giới hạn; không tuyên
+  bố training thành công khi chưa chạy thật.
+- Giả định: ba dataset hiện nằm trong
+  `Data/tthc_test_case_v1/data/`; output/model/checkpoint/dataset/token không được
+  Git theo dõi; hyperparameter thí nghiệm chỉ thay bằng config/CLI minh bạch.
+- Trạng thái: partial; toàn bộ hạ tầng local-first và portable GPU đã
+  triển khai, validator 5.000 record và test QLoRA/server liên quan đạt.
+  Training/evaluation model 7B, CUDA/bitsandbytes và artifact thật chờ máy GPU.

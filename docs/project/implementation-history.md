@@ -424,3 +424,23 @@
   thật concurrency 4 đạt 20/20 trong 21,08 giây; 20 case tương ứng ở run cũ có
   5 failure schema. Không ghi đè artifact baseline 1.000 ca cũ.
 
+# TASK-20261014-01 - QLoRA local-first và portable GPU
+
+- Thêm package `training` cho config merge/override, validation JSONL/leakage,
+  official chat-template token stats, assistant-only masking, early stop/checkpoint,
+  preflight, QLoRA train/resume, baseline-vs-adapter evaluation, metrics, plot/report
+  và artifact run. Import GPU/model là lazy; local validator không tải model 7B.
+- Thêm `configs/{base,local,smoke,gpu}.yaml`, requirements pin, `.env.example`,
+  ignore model/data/artifact và hướng dẫn Linux GPU/transfer SHA-256.
+- Chatbot giữ API cũ, bổ sung provider `local_transformers` nạp baseline hoặc
+  PEFT adapter; mặc định chỉ cache một model và không merge quantized weights.
+- Kiểm chứng thật local: validator official tokenizer offline đạt 5.000
+  record; report tại `outputs/qlora/dataset_report.json` (Git-ignore). Mẫu masking
+  thật có 150 token, 62 target và 88 `-100`.
+- Test: 15 test QLoRA/server/plot liên quan đạt; Ruff và `git diff --check`
+  đạt. Full suite: 124 đạt, 1 skipped, 1 failure không thuộc diff task
+  (test cũ mong JSON mode thay vì JSON schema).
+- Chưa kiểm chứng: CUDA/bitsandbytes, GPU smoke/full training, resume thật,
+  baseline/fine-tuned evaluation, checkpoint/best adapter và plot/metric từ log thật.
+  Preflight local xác nhận CUDA unavailable và không cho fallback CPU.
+

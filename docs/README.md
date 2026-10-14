@@ -30,3 +30,6 @@ Xem [nguồn skill](project/skill-sources.md) và [hướng dẫn agent](../AGEN
 - Tài liệu vận hành cung cấp lệnh thực thi hoàn chỉnh và điều kiện tiên quyết.
 - Báo cáo kiểm chứng ghi nhận kết quả tại một thời điểm, không đại diện cho trạng thái hiện thời.
 - README trong module chỉ mô tả trách nhiệm của module và dẫn chiếu về tài liệu trung tâm.
+# QLoRA fine-tuning
+
+- [Pipeline QLoRA Qwen2.5-7B local-first và GPU portable](qlora-training.md)

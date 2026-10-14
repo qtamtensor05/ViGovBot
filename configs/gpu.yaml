@@ -1,0 +1,5 @@
+extends: base.yaml
+# Review `python -m training.preflight` output, then pass --approve explicitly.
+# Override hardware-sensitive values with --set; suggestions are never applied silently.
+execution:
+  approved: false

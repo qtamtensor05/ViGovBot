@@ -327,3 +327,59 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Kết quả kiểm chứng: nguyên nhân xác nhận trực tiếp từ traceback; người dùng tự
   chạy lại job dài theo yêu cầu trước, chưa có artifact BERTScore hoàn tất.
 
+## ERR-20261014-01
+
+- Task: TASK-20261014-01.
+- Triệu chứng: test metric local lỗi `TypeError` vì `sentence_bleu()` không
+  nhận tham số `effective_order`; Ruff đồng thời báo ba import thừa.
+- Nguyên nhân: API SacreBLEU 2.6.0 dùng tên `use_effective_order` cho
+  helper function, khác tên constructor metric; import còn sót sau khi tách module.
+- Xử lý: đổi sang `use_effective_order=True`, xóa import thừa và chạy lại
+  cùng bộ test/lint.
+
+## ERR-20261014-02
+
+- Task: TASK-20261014-01.
+- Triệu chứng: validator 5.000 record không kết thúc sau hơn ba phút
+  trong giai đoạn near-duplicate; không có output lỗi và chưa ghi report.
+- Nguyên nhân: bucket theo 12 ký tự đầu gom quá nhiều câu hỏi hành chính
+  có cùng cụm mở đầu, tạo quá nhiều lần `SequenceMatcher`.
+- Xử lý: dừng đúng session, thay bằng chỉ mục character 5-gram, xếp
+  hạng và giới hạn 50 candidate/record trước so khớp chính xác; exact
+  duplicate vẫn kiểm tra toàn phần và báo cáo riêng.
+- Lần chạy lại vẫn quá hai phút do 50 candidate/record còn nặng; đã
+  dừng trước khi ghi artifact và giảm xuống top 10 kèm Jaccard token prefilter.
+
+## ERR-20261014-03
+
+- Task: TASK-20261014-01.
+- Triệu chứng: ba test server cũ mất trường `answer` do `_settings()` truy
+  cập trực tiếp thuộc tính adapter mới trên `SimpleNamespace` fixture cũ.
+- Nguyên nhân: thay đổi tích hợp không giữ tương thích với model config
+  duck-typed trong test/API nội bộ.
+- Xử lý: dùng `getattr` với default cho ba option mới, giữ nguyên hành vi
+  provider cũ; bổ sung test mock xác nhận adapter được bọc qua PEFT.
+
+## ERR-20261014-04
+
+- Task: TASK-20261014-01.
+- Triệu chứng: full suite có 1 failure/125 test tại
+  `test_multiturn.MultiTurnTests.test_rewrite_and_answer_receive_history`:
+  test mong `response_format == "json"`, runtime hiện trả JSON schema.
+- Phân loại: không phát sinh từ file QLoRA/provider/config đã sửa trong
+  task; 124 test còn lại đạt, 1 skipped. Không hạ contract schema hiện tại
+  xuống JSON mode chỉ để làm test cũ qua.
+- Bước sau: báo cáo là known limitation/pre-existing regression của nhánh;
+  test QLoRA và server integration liên quan vẫn phải đạt riêng.
+
+## ERR-20261014-05
+
+- Task: TASK-20261014-01.
+- Triệu chứng: validator official Qwen tokenizer offline chạy exit 0 nhưng
+  P50/P90/P95/P99/max đều bằng 2 cho mọi split, không hợp lý.
+- Nguyên nhân: Transformers 5.17 trong môi trường trả `BatchEncoding`/
+  mapping hai khóa từ `apply_chat_template`; code lấy `len(mapping)` thay vì
+  `len(input_ids)`. Cùng contract có thể làm sai masking.
+- Xử lý: thêm bộ chuẩn hóa output list/tensor/mapping/batch một mẫu,
+  dùng chung cho thống kê và assistant-only masking; thêm regression test.
+

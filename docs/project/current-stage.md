@@ -369,3 +369,26 @@
 - Artifact cũ `predictions_qwen_baseline_c4.jsonl` giữ nguyên; để benchmark chính
   cần chạy lại đủ 1.000 ca sang tên output mới.
 
+# TASK-20261014-01 - partial
+
+- Đang triển khai pipeline QLoRA local-first cho Qwen2.5-7B-Instruct; không
+  tải model 7B và không chạy full training trên máy local.
+- Đã xác nhận ba split SFT tại `Data/tthc_test_case_v1/data/`, repo dùng
+  `src/` layout, chatbot hiện phục vụ Ollama/OpenAI-compatible.
+- Giai đoạn hiện tại: tạo config, package `training`, CLI, adapter inference,
+  dependency/docs và unit test CPU; sau đó chạy validation/test/smoke synthetic.
+- Đã chạy 9 unit test QLoRA local: đạt; Ruff: đạt. Chuẩn bị chạy
+  `python -m training.validate_data --config configs/local.yaml` trên 5.000 record;
+  artifact đích `outputs/qlora/dataset_report.json`, không nạp tokenizer/model.
+- GPU preflight/training/evaluation thật sẽ chỉ được xác nhận trên máy GPU.
+- Đã xong local: 10 unit logic QLoRA + 5 server/plot integration đạt; Ruff
+  và diff-check đạt; official Qwen tokenizer từ cache xác nhận 150 token
+  với 62 target/88 masked trên một mẫu thật.
+- Dataset report: 3.000/1.000/1.000 record hợp lệ; không trùng exact
+  conversation/question giữa split; answer exact overlap lần lượt 93/99/57,
+  near-question 26/24/13 và procedure overlap được báo cáo, không tự xóa.
+- Token length official: train P50/P90/P95/P99/max = 180/709/884/1203/1619;
+  validation = 181/717/928/1133/1513; test = 179/696/892/1159/1539.
+- Full suite hiện có 124 đạt, 1 skipped, 1 failure cũ về JSON schema trong
+  `test_multiturn`; xem ERR-20261014-04. Không có full QLoRA run/checkpoint/metric GPU.
+
