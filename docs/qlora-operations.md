@@ -99,3 +99,48 @@ Trước tiên kiểm tra `ProcessState=EXITED` và `ExitCode=0`:
 CUDA OOM hoặc lỗi khác được giữ trong `stderr.log` và `exit_code.txt`. Worker không
 tự đổi batch/sequence/accumulation, không tự restart và không đánh dấu thành công
 khi exit code khác 0.
+
+## Đánh giá cùng benchmark Qwen base và RAG
+
+Backend `--qlora-run-dir` dùng đúng query/history và scorer QA-v4 của hai run cũ.
+Model không nhận reference answer, evidence hoặc nhãn hành vi trong prompt. QLoRA
+chạy tuần tự trên một GPU (`--concurrency 1`); output mới không ghi đè artifact cũ.
+
+```powershell
+$runDir = ".\outputs\qlora\qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d"
+$dataset = ".\Data\tthc_test_case_v1"
+$pred = ".\outputs\tthc_test_case_v1\predictions_qwen_qlora.jsonl"
+$score = ".\outputs\tthc_test_case_v1\scores_qwen_qlora.json"
+
+.\.venv-qlora\Scripts\python.exe -m vigovbot qa-v4 run `
+  --dataset $dataset --split test --mode reference_history --concurrency 1 `
+  --batch-size 2 --verify-batch-equivalence 4 `
+  --qlora-run-dir $runDir --out $pred
+
+.\.venv-qlora\Scripts\python.exe -m vigovbot qa-v4 score `
+  --dataset $dataset --split test --predictions $pred --lexical --bertscore `
+  --bert-device cuda --bert-batch-size 16 --out $score
+```
+
+So sánh paired trên đúng benchmark:
+
+```powershell
+.\.venv-qlora\Scripts\python.exe -m vigovbot.qa_v4.compare `
+  --left .\outputs\tthc_test_case_v1\scores_qwen_baseline_schema_c4.json `
+  --right $score --out .\outputs\tthc_test_case_v1\base_vs_qlora.json
+
+.\.venv-qlora\Scripts\python.exe -m vigovbot.qa_v4.compare `
+  --left .\outputs\tthc_test_case_v1\scores_c4_full.json `
+  --right $score --out .\outputs\tthc_test_case_v1\rag_vs_qlora.json
+```
+
+QLoRA được train để sinh câu trả lời assistant dạng văn bản, không sinh nhãn `action`.
+Evaluator giữ nguyên output này và ghi action metric là unavailable, không ép JSON,
+không retry và không suy đoán nhãn từ câu chữ. Các metric nội dung dùng chung vẫn so
+sánh trực tiếp được. Recall/MRR chỉ có ý nghĩa cho RAG và cũng được ghi unavailable
+cho QLoRA.
+
+`--batch-size 2` là batching GPU thật, không phải hai thread cùng gọi model. Trước
+khi tạo artifact, runner sinh đơn và sinh batch trên bốn mẫu rồi yêu cầu kết quả
+khớp tuyệt đối; nếu khác, lệnh dừng và yêu cầu quay về batch 1. Sau khi đo VRAM với
+batch 2, có thể thử batch 4 bằng một output path mới và vẫn giữ equivalence gate.

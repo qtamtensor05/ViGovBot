@@ -528,3 +528,30 @@
 - Kiểm chứng: `pytest -q` đạt 137 passed, 2 skipped, 40 subtests; compileall, Ruff và
   diff-check đạt. Không chạy full training hoặc tải model weights.
 
+# TASK-20261014-06 — đối chiếu test QLoRA với QA-v4
+
+- Kiểm tra bằng script chỉ đọc ba JSONL: 1.000 query, 1.000 gold case và 1.000 SFT
+  test; tập ID bằng nhau và không có message mismatch.
+- Xác nhận config snapshot của run đã trỏ tới `fintuning/test_sft.jsonl`, là biểu diễn
+  hội thoại loss/evaluation của cùng `rag/test_queries.jsonl` và `rag/test.jsonl`.
+- Không sửa pipeline, không tải model và không khởi chạy evaluation dài.
+
+# TASK-20261014-07 — đánh giá QLoRA bằng QA-v4
+
+- Thêm context manager `qlora_adapter`: đọc config snapshot/best adapter, chạy local
+  Transformers 4-bit và dùng cùng system prompt, action schema parser, một lần retry
+  như Qwen baseline; không đưa reference/evidence/action gold vào prompt.
+- CLI `qa-v4 run` nhận `--qlora-run-dir`, từ chối concurrency khác 1 trên GPU đơn,
+  ghi mode/adapter/config hash và giới hạn structured decoding vào provenance.
+- Dùng nguyên QA-v4 scorer để xuất action/coverage, EM/token PRF, BLEU/chrF++/TER,
+  ROUGE, BERTScore, latency và các breakdown. Retrieval metric vẫn unavailable cho
+  QLoRA/base; semantic metric chỉ có khi cung cấp judgments.
+- Tài liệu hóa run, score và paired bootstrap base-vs-QLoRA/RAG-vs-QLoRA trong
+  `docs/qlora-operations.md`.
+- Kiểm chứng: 138 passed, 2 skipped, 40 subtests; compileall và Ruff đạt. Không tải
+  model hoặc chạy 1.000 generation.
+- Điều chỉnh sau quan sát run thật: adapter SFT sinh plain answer đúng contract train,
+  nên bỏ ép JSON/retry. Prediction giữ nội dung, đánh dấu action unavailable; scorer
+  loại action metric thay vì tính sai bằng 0. Full suite sau sửa đạt 139 passed,
+  2 skipped, 40 subtests.
+

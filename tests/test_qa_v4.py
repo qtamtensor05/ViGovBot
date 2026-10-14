@@ -9,6 +9,7 @@ from vigovbot.qa_v4.adapter import (
     existing_rag,
     normalize_result,
     ollama_baseline,
+    qlora_adapter,
     structured_baseline_answer,
 )
 from vigovbot.qa_v4.io import read_jsonl
@@ -95,6 +96,22 @@ class QAV4Tests(unittest.TestCase):
         self.assertEqual(report["concurrency"], 4)
         self.assertEqual(report["effective_concurrency"], 4)
         self.assertEqual(report["scheduling_unit"], "question")
+
+    def test_true_batch_preserves_order_and_uses_one_batch_call(self):
+        queries = [dict(id=str(i), question=str(i), history=[]) for i in range(4)]
+        answer = MagicMock()
+        answer.answer_batch = MagicMock(side_effect=lambda requests: [
+            {"answer": "a" + item["question"], "action_status": "unavailable_model_not_trained_for_action_labels"}
+            for item in requests
+        ])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "batch.jsonl"
+            report = run_queries(queries, answer, path, batch_size=4)
+            rows = list(read_jsonl(path))
+        answer.assert_not_called()
+        answer.answer_batch.assert_called_once()
+        self.assertEqual([row["answer"] for row in rows], ["a0", "a1", "a2", "a3"])
+        self.assertEqual(report["batch_size"], 4)
 
     def test_parallel_free_running_schedules_conversations_not_turns(self):
         queries = [
@@ -248,6 +265,43 @@ class QAV4Tests(unittest.TestCase):
         self.assertEqual(result["telemetry"]["generation_seconds"], 0.5)
         self.assertEqual(result["telemetry"]["output_tokens"], 12)
         self.assertEqual(generate.call_count, 1)
+
+    def test_qlora_adapter_uses_same_structured_protocol_without_gold(self):
+        config = {
+            "model": {"name": "Qwen/Qwen2.5-7B-Instruct"},
+            "evaluation": {"generation": {"max_new_tokens": 64, "temperature": 0.0}},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "config.yaml").write_text("fixture", encoding="utf-8")
+            (root / "best_adapter").mkdir()
+            with (
+                patch("training.config.load_config", return_value=config),
+                patch("training.inference.local_transformers_answer",
+                      return_value=("Kết quả",
+                                    {"provider": "local_transformers"}, 0.25)) as generate,
+            ):
+                with qlora_adapter(root) as answer:
+                    result = answer("Câu hỏi?", history=[])
+        self.assertEqual(result["answer"], "Kết quả")
+        self.assertIsNone(result["action"])
+        self.assertEqual(result["action_status"], "unavailable_model_not_trained_for_action_labels")
+        self.assertEqual(result["evaluation_mode"], "qlora_adapter_no_retrieval")
+        self.assertEqual(result["retrieved_chunk_ids"], [])
+        messages = generate.call_args.args[0]
+        self.assertEqual(messages[-1], {"role": "user", "content": "Câu hỏi?"})
+        self.assertNotIn("reference_answer", str(messages))
+        self.assertEqual(Path(generate.call_args.args[1]["adapter_path"]).name, "best_adapter")
+
+    def test_plain_qlora_predictions_do_not_fabricate_action_metrics(self):
+        case = {"id": "1", "field_id": "f", "expected_action": "answer", "evidence": [],
+                "reference_answer": "kết quả", "conversation_id": None}
+        prediction = {"id": "1", "answer": "kết quả", "action": None,
+                      "action_status": "unavailable_model_not_trained_for_action_labels"}
+        report = evaluate([case], [prediction], [], lexical=False)
+        self.assertFalse(report["action_evaluation"]["available"])
+        self.assertIsNone(report["action_accuracy_all_expected"])
+        self.assertNotIn("action_accuracy", report["overall_available"])
 
     def test_report_does_not_claim_zero_recall_without_mapping(self):
         report = {

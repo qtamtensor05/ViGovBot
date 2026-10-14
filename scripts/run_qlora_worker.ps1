@@ -37,7 +37,11 @@ try {
     $state | Add-Member -NotePropertyName training_command -NotePropertyValue ($arguments -join " ") -Force
     Write-JsonAtomic $StatePath $state
     $child.WaitForExit()
+    $child.Refresh()
     $exitCode = $child.ExitCode
+    if ($null -eq $exitCode) {
+        throw "Training process exited but Windows did not expose an exit code. Inspect training_metrics.json and logs."
+    }
 } catch {
     $_ | Out-String | Add-Content -LiteralPath $stderr -Encoding utf8
     $exitCode = 1

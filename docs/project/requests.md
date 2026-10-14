@@ -479,3 +479,26 @@
 - Trạng thái: completed; đã bổ sung event log append-only, history epoch/checkpoint/
   resume, evaluation theo split, plot manifest, report availability và readiness
   gate. Readiness RTX trả READY; full training/model download không được khởi chạy.
+## TASK-20261014-06
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: xác định có thể đánh giá adapter QLoRA trên
+  `Data/tthc_test_case_v1/data/rag/test_queries.jsonl` mà không cần cấu hình thêm,
+  tương tự benchmark base model đã chạy hay không.
+- Phạm vi: đối chiếu schema/ID/nội dung giữa query, gold case và SFT test; không chạy
+  generation evaluation hoặc tải model.
+- Tiêu chí: nêu rõ lệnh dùng được ngay và khác biệt giữa evaluator QLoRA với QA-v4.
+- Trạng thái: completed; 1.000/1.000 ID và message/history/reference của SFT test khớp
+  chính xác phép ghép `rag/test_queries.jsonl` + `rag/test.jsonl`.
+
+## TASK-20261014-07
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: bổ sung đánh giá model QLoRA vừa train theo cùng benchmark đã dùng cho
+  Qwen base và RAG, xuất cùng hoặc nhiều metric hơn để so sánh ba model.
+- Phạm vi: backend inference adapter cho QA-v4, cùng query/history/gold/scorer,
+  artifact riêng và lệnh run/score/compare; không tự chạy evaluation 1.000 câu.
+- Tiêu chí: không đưa gold vào prompt; không gán giả metric/action/retrieval; mock
+  test và smoke CLI không tải model đạt; tài liệu nêu lệnh chính xác.
+- Trạng thái: completed; backend QLoRA QA-v4, lệnh run/score/paired compare, provenance,
+  tài liệu và mock test đã hoàn tất; không chạy evaluation 1.000 câu.

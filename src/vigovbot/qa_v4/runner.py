@@ -36,6 +36,20 @@ def _run_job(items, answer_fn, mode, oracle_contexts):
     expected_turn = 1
     broken_by = None
     results = []
+    if len(items) > 1 and mode == "reference_history" and hasattr(answer_fn, "answer_batch"):
+        tick = time.perf_counter()
+        requests = [{"question": q["question"], "history": q.get("history", [])} for _, q in items]
+        try:
+            predictions = answer_fn.answer_batch(requests)
+            if len(predictions) != len(items): raise ValueError("Batch answer count mismatch")
+        except Exception as exc:
+            predictions = [{"error": f"{type(exc).__name__}: {exc}", "error_kind": "batch_failed"} for _ in items]
+        per_item = (time.perf_counter() - tick) / len(items)
+        for (index, q), prediction in zip(items, predictions):
+            prediction.update(id=q["id"], question=q["question"], conversation_id=q.get("conversation_id"),
+                              turn_index=q.get("turn_index"), history_mode=mode, latency_seconds=per_item)
+            results.append((index, prediction))
+        return results
     for index, q in items:
         cv = q.get("conversation_id")
         tick = time.perf_counter()
@@ -80,9 +94,10 @@ def _run_job(items, answer_fn, mode, oracle_contexts):
     return results
 
 
-def _jobs(queries, mode):
+def _jobs(queries, mode, batch_size=1):
     if mode == "reference_history":
-        return [[item] for item in enumerate(queries)]
+        items = list(enumerate(queries))
+        return [items[index:index + batch_size] for index in range(0, len(items), batch_size)]
     grouped = OrderedDict()
     for item in enumerate(queries):
         q = item[1]
@@ -92,14 +107,18 @@ def _jobs(queries, mode):
 
 
 def run_queries(queries, answer_fn, output, mode="reference_history", *, oracle_contexts=None, provenance=None,
-                concurrency=1):
+                concurrency=1, batch_size=1):
     configure_console()
     if mode not in {"reference_history", "free_running"}:
         raise ValueError("Unknown history mode")
     if not isinstance(concurrency, int) or isinstance(concurrency, bool) or concurrency < 1:
         raise ValueError("concurrency must be a positive integer")
+    if not isinstance(batch_size, int) or isinstance(batch_size, bool) or batch_size < 1:
+        raise ValueError("batch_size must be a positive integer")
+    if batch_size > 1 and (mode != "reference_history" or not hasattr(answer_fn, "answer_batch")):
+        raise ValueError("batch_size > 1 requires a batch-capable answer function in reference_history mode")
     queries = list(queries)
-    jobs = _jobs(queries, mode)
+    jobs = _jobs(queries, mode, batch_size)
     effective_concurrency = min(concurrency, len(jobs)) if jobs else 0
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -149,6 +168,7 @@ def run_queries(queries, answer_fn, output, mode="reference_history", *, oracle_
               "eta_method": "elapsed wall time / completed questions * remaining questions",
               "successful_requests_per_second": successful / elapsed if elapsed else None,
               "concurrency": concurrency, "effective_concurrency": effective_concurrency,
+              "batch_size": batch_size,
               "scheduling_unit": "conversation" if mode == "free_running" else "question",
               "note": "Threaded batch throughput; requests within one free-running conversation remain sequential"}
     if provenance is not None: report['provenance'] = provenance

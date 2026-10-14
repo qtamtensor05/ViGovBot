@@ -59,6 +59,8 @@ def main(argv=None):
     connection = parser.add_mutually_exclusive_group()
     connection.add_argument("--config", default="rag_config.yaml")
     connection.add_argument("--endpoint", help="Existing RAG HTTP endpoint")
+    connection.add_argument("--qlora-run-dir", type=Path,
+                            help="Evaluate best_adapter from a completed QLoRA run without retrieval")
     parser.add_argument("--no-retrieval", action="store_true",
                         help="Run the configured Ollama model directly without corpus/FAISS")
     parser.add_argument('--oracle-evidence', action='store_true', help='Diagnostic evidence-only upper bound; run only')
@@ -70,6 +72,10 @@ def main(argv=None):
     parser.add_argument("--limit", type=int)
     parser.add_argument("--concurrency", type=int, default=1,
                         help="Parallel questions, or parallel conversations in free-running mode")
+    parser.add_argument("--batch-size", type=int, default=1,
+                        help="True generation batch size; supported only by local QLoRA reference-history runs")
+    parser.add_argument("--verify-batch-equivalence", type=int, default=4,
+                        help="Compare this many single and batched QLoRA answers before writing output")
     parser.add_argument("--mode", choices=["reference_history", "free_running"], default="reference_history")
     parser.add_argument("--out", type=Path)
     parser.add_argument("--predictions", type=Path)
@@ -85,10 +91,17 @@ def main(argv=None):
     args.dataset, args.view = resolve_dataset(args.dataset, args.view)
     if args.no_retrieval and args.endpoint:
         parser.error("--no-retrieval cannot be combined with --endpoint")
+    if args.no_retrieval and args.qlora_run_dir:
+        parser.error("--no-retrieval cannot be combined with --qlora-run-dir")
+    if args.qlora_run_dir and args.concurrency != 1:
+        parser.error("Local QLoRA evaluation requires --concurrency 1 on a single GPU")
     if args.oracle_evidence and (args.no_retrieval or args.endpoint or args.command != 'run'):
         parser.error('--oracle-evidence requires local run and cannot combine with baseline/HTTP')
-    if args.top_k < 1 or args.timeout <= 0 or args.concurrency < 1 or (args.limit is not None and args.limit < 1):
+    if (args.top_k < 1 or args.timeout <= 0 or args.concurrency < 1 or args.batch_size < 1
+            or args.verify_batch_equivalence < 0 or (args.limit is not None and args.limit < 1)):
         parser.error("top-k, timeout, concurrency and limit must be positive")
+    if args.batch_size > 1 and (not args.qlora_run_dir or args.mode != "reference_history"):
+        parser.error("--batch-size > 1 is supported only with --qlora-run-dir and --mode reference_history")
     if args.command == "ask" and not args.question:
         parser.error("--question is required")
     if args.command == "score":
@@ -152,7 +165,7 @@ def main(argv=None):
     if mapping is not None and (not isinstance(mapping, dict) or any(
             not isinstance(v, list) or any(not isinstance(uid, str) for uid in v) for v in mapping.values())):
         raise ValueError("During run, unit-map must map chunk IDs to lists of unit IDs; use reviewed schema at score time")
-    from .adapter import existing_rag, http_rag, ollama_baseline, ollama_oracle
+    from .adapter import existing_rag, http_rag, ollama_baseline, ollama_oracle, qlora_adapter
     oracle_contexts = None
     if args.oracle_evidence:
         ids = {q['id'] for q in queries}
@@ -160,6 +173,8 @@ def main(argv=None):
         oracle_contexts = {c['id']: c['evidence'] for c in read_jsonl(
             dataset_file(args.dataset, "cases", args.split)) if c['id'] in ids}
         session = ollama_oracle(args.config)
+    elif args.qlora_run_dir:
+        session = qlora_adapter(args.qlora_run_dir)
     elif args.no_retrieval:
         session = ollama_baseline(args.config)
     elif args.endpoint:
@@ -195,14 +210,28 @@ def main(argv=None):
         else:
             from .runner import run_queries
             from .audit import sha256
-            provenance = {'mode': 'oracle' if args.oracle_evidence else ('base' if args.no_retrieval else 'rag'),
+            if args.qlora_run_dir and args.batch_size > 1 and args.verify_batch_equivalence:
+                sample = queries[:min(args.verify_batch_equivalence, len(queries))]
+                singles = [answer(item["question"], history=item.get("history", []))["answer"] for item in sample]
+                batched = answer.answer_batch([{"question": item["question"], "history": item.get("history", [])}
+                                               for item in sample])
+                batch_answers = [item["answer"] for item in batched]
+                if singles != batch_answers:
+                    raise RuntimeError("Batch equivalence check failed; use --batch-size 1 for this model")
+                print(f"[QLoRA] Batch equivalence PASS on {len(sample)} samples.", flush=True)
+            provenance = {'mode': ('oracle' if args.oracle_evidence else
+                                   ('qlora' if args.qlora_run_dir else ('base' if args.no_retrieval else 'rag'))),
                           'inputs': {str(p): sha256(p) for p in
                               [dataset_file(args.dataset, "queries", args.split),
                                args.dataset / args.view if args.view else None] if p},
-                          'config_sha256': sha256(args.config) if not args.endpoint else None}
+                          'config_sha256': (sha256(args.qlora_run_dir / "config.yaml") if args.qlora_run_dir else
+                                            (sha256(args.config) if not args.endpoint else None)),
+                          'adapter_path': str(args.qlora_run_dir / "best_adapter") if args.qlora_run_dir else None,
+                          'output_contract': ('plain_assistant_answer_action_unavailable'
+                                              if args.qlora_run_dir else None)}
             report = run_queries(queries, answer, args.out or Path("outputs/qa_v4/predictions.jsonl"), args.mode,
                                  oracle_contexts=oracle_contexts, provenance=provenance,
-                                 concurrency=args.concurrency)
+                                 concurrency=args.concurrency, batch_size=args.batch_size)
             print(json.dumps(report, ensure_ascii=False, indent=2))
             return int(report["failed"] > 0)
     return 0

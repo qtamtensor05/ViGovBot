@@ -517,3 +517,25 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: gọi trực tiếp `C:\Program Files\Git\cmd\git.exe` cho `diff --check` và
   `status --short`; diff-check đạt. Không sửa PATH hệ thống.
 
+## ERR-20261014-18
+
+- Task: TASK-20261014-07.
+- Triệu chứng: mock test backend QLoRA thất bại khi so chuỗi đường dẫn temp tuyệt đối;
+  Windows trả một phía dạng tên dài và phía còn lại dạng 8.3 (`EZYCLO~1`).
+- Nguyên nhân: hai biểu diễn trỏ cùng thư mục nhưng chuỗi không bằng nhau.
+- Xử lý: assertion kiểm đúng tên artifact `best_adapter`, không giả định cách Windows
+  chuẩn hóa phần thư mục cha. Chạy lại full suite đạt.
+
+## ERR-20261014-19
+
+- Task: TASK-20261014-07.
+- Triệu chứng: run QLoRA QA-v4 đầu tiên có 9/9 failed; nội dung sinh hợp lệ nhưng
+  parser báo JSON decode và mỗi câu bị generate hai lần nên chậm.
+- Nguyên nhân: adapter được SFT bằng plain assistant answer, trong khi backend mới
+  áp contract JSON/action của baseline Ollama mà model không được train để sinh.
+- Xử lý: dùng đúng plain-answer contract, bỏ retry; ghi `action_status=unavailable`,
+  sửa scorer/paired compare không bịa action metric. Dùng output filename mới vì
+  artifact lỗi cũ được giữ lại, không ghi đè/xóa tự động.
+- Kiểm chứng: 29 test QA-v4 và full suite 139 passed, 2 skipped, 40 subtests; Ruff,
+  compileall và diff-check đạt.
+

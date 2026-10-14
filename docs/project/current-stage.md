@@ -505,3 +505,27 @@
 - Bằng chứng: readiness RTX `READY` và không load model/start train; `137 passed,
   2 skipped, 40 subtests`; compileall, Ruff và `git diff --check` đạt.
 
+# TASK-20261014-06 — completed
+
+- Đã xác minh `rag/test_queries.jsonl`, `rag/test.jsonl` và `fintuning/test_sft.jsonl`
+  đều có 1.000 ID giống nhau; SFT messages khớp tuyệt đối history + question +
+  reference answer của hai file RAG, không có mismatch.
+- Kết luận: `training.evaluate --split test` đã đánh giá đúng cùng tập câu hỏi mà
+  không cần cấu hình dataset mới. Evaluator này không đồng nhất hoàn toàn với QA-v4
+  schema/action scorer của baseline Ollama; muốn so trực tiếp artifact cũ cần adapter
+  QA-v4 riêng.
+- Không chạy generation hoặc tải model trong bước kiểm tra này.
+
+# TASK-20261014-07 — completed
+
+- Giai đoạn: backend QA-v4 cho QLoRA adapter đã hoàn tất và kiểm thử.
+- Mục tiêu: dùng đúng 1.000 query, reference history và scorer của baseline/RAG;
+  giữ metric retrieval/action unavailable nếu model không phát sinh bằng chứng thật.
+- Đã thêm `--qlora-run-dir`, bắt buộc concurrency 1, cùng structured prompt/parser/
+  retry, artifact/provenance riêng và lệnh score/compare pairwise.
+- Kiểm chứng: 138 passed, 2 skipped, 40 subtests; Ruff và compileall đạt.
+- Không chạy batch generation thật trong phiên này; bước tiếp theo là người dùng
+  chủ động chạy run → score → pairwise compare theo `docs/qlora-operations.md`.
+- Bổ sung theo yêu cầu hiệu năng: đang smoke batch 2 trên 4 câu với equivalence gate
+  4/4; artifact `outputs/tthc_test_case_v1/qlora_batch2_smoke4.jsonl`, không chạy full.
+

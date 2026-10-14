@@ -53,3 +53,38 @@ def local_transformers_answer(messages, settings):
                                     do_sample=settings.get("temperature", 0.0) > 0)
         answer = tokenizer.decode(output[0, prompt_length:], skip_special_tokens=True).strip()
         return answer, {"provider": "local_transformers", "adapter_path": settings.get("adapter_path")}, time.perf_counter() - started
+
+
+def local_transformers_batch_answer(messages_batch, settings):
+    """Greedy batched generation for independent conversations, preserving order."""
+    import time
+    import torch
+    key = (settings["model"], settings.get("adapter_path"), bool(settings.get("load_in_4bit", True)))
+    with _LOCK:
+        if key not in _CACHE:
+            if _CACHE and not settings.get("allow_multiple_models", False):
+                _CACHE.clear()
+                if torch.cuda.is_available(): torch.cuda.empty_cache()
+            _CACHE[key] = load_model(*key[:2], quantized=key[2])
+        model, tokenizer = _CACHE[key]
+    tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
+    tokenizer.padding_side = "left"
+    encoded = tokenizer.apply_chat_template(
+        messages_batch, tokenize=True, add_generation_prompt=True,
+        padding=True, return_tensors="pt", return_dict=True,
+    )
+    model_inputs = {name: value.to(model.device) for name, value in encoded.items()}
+    prompt_width = model_inputs["input_ids"].shape[-1]
+    started = time.perf_counter()
+    with torch.inference_mode():
+        output = model.generate(
+            **model_inputs, max_new_tokens=settings["num_predict"],
+            temperature=settings.get("temperature", 0.0),
+            do_sample=settings.get("temperature", 0.0) > 0,
+        )
+    answers = tokenizer.batch_decode(output[:, prompt_width:], skip_special_tokens=True)
+    elapsed = time.perf_counter() - started
+    return [answer.strip() for answer in answers], {
+        "provider": "local_transformers", "adapter_path": settings.get("adapter_path"),
+        "batch_size": len(messages_batch),
+    }, elapsed

@@ -21,27 +21,37 @@ $worker = if ($state.worker_pid) { Get-Process -Id $state.worker_pid -ErrorActio
 $training = if ($state.training_pid) { Get-Process -Id $state.training_pid -ErrorAction SilentlyContinue } else { $null }
 $livePath = Join-Path ([string]$state.run_dir) "live_status.json"
 $live = if (Test-Path -LiteralPath $livePath) { Get-Content -LiteralPath $livePath -Raw -Encoding utf8 | ConvertFrom-Json } else { $null }
-$exitCode = if (Test-Path -LiteralPath $state.exit_code_file) { (Get-Content -LiteralPath $state.exit_code_file -Raw).Trim() } else { $null }
+$metricsPath = Join-Path ([string]$state.run_dir) "training_metrics.json"
+$runMetrics = if (Test-Path -LiteralPath $metricsPath) { Get-Content -LiteralPath $metricsPath -Raw -Encoding utf8 | ConvertFrom-Json } else { $null }
+$exitCode = $null
+if (Test-Path -LiteralPath $state.exit_code_file) {
+    $exitCodeText = Get-Content -LiteralPath $state.exit_code_file -Raw -ErrorAction SilentlyContinue
+    if (-not [string]::IsNullOrWhiteSpace([string]$exitCodeText)) {
+        $exitCode = ([string]$exitCodeText).Trim()
+    }
+}
 $started = [DateTime]::Parse([string]$state.started_at_utc).ToUniversalTime()
 $elapsed = if ($live -and $live.elapsed_seconds -ne $null) { [double]$live.elapsed_seconds } else { ([DateTime]::UtcNow - $started).TotalSeconds }
 $step = if ($live) { [int]$live.global_step } else { [int]$state.resume_step }
 $total = if ($live -and $live.total_steps) { [int]$live.total_steps } else { [int]$state.expected_total_steps }
 $eta = if ($live -and $live.eta_seconds -ne $null) { [double]$live.eta_seconds } elseif ($step -gt 0) { $elapsed / $step * ($total - $step) } else { $null }
 $gpu = & nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader,nounits 2>$null
+$processState = if ($training) { "RUNNING" } elseif ($worker) { "WORKER_RUNNING" } elseif ($runMetrics -and $runMetrics.status) { "EXITED ($($runMetrics.status))" } else { "EXITED" }
+$exitCodeDisplay = if ($null -ne $exitCode) { $exitCode } else { "unavailable" }
 
 [pscustomobject]@{
     RunId = $RunId
     WorkerPID = $state.worker_pid
     TrainingPID = $state.training_pid
-    ProcessState = if ($training) { "RUNNING" } elseif ($worker) { "WORKER_RUNNING" } else { "EXITED" }
-    ExitCode = $exitCode
+    ProcessState = $processState
+    ExitCode = $exitCodeDisplay
     GlobalStep = "$step / $total"
     Epoch = if ($live) { $live.epoch } else { $null }
     TrainLoss = if ($live) { $live.loss } else { $null }
     ValidationLoss = if ($live) { $live.eval_loss } else { $null }
-    BestValidationLoss = if ($live -and $live.best_validation_loss -ne $null) { $live.best_validation_loss } elseif (Test-Path (Join-Path $state.run_dir "training_metrics.json")) { (Get-Content (Join-Path $state.run_dir "training_metrics.json") -Raw | ConvertFrom-Json).best_validation_loss } else { $null }
+    BestValidationLoss = if ($live -and $live.best_validation_loss -ne $null) { $live.best_validation_loss } elseif ($runMetrics) { $runMetrics.best_validation_loss } else { $null }
     Elapsed = [TimeSpan]::FromSeconds($elapsed).ToString("c")
-    ETA = if ($eta -ne $null -and $eta -ge 0) { [TimeSpan]::FromSeconds($eta).ToString("c") } else { "unavailable" }
+    ETA = if (-not $training) { "unavailable" } elseif ($eta -ne $null -and $eta -ge 0) { [TimeSpan]::FromSeconds($eta).ToString("c") } else { "unavailable" }
     GPU = $gpu
     Stdout = $state.stdout_log
     Stderr = $state.stderr_log
