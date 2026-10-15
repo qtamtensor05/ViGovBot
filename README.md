@@ -96,12 +96,19 @@ chỉ hoặc cổng bằng `--host` và `--port`. Chỉ nên dùng `--host 0.0.0
 cậy vì server cơ bản này chưa có xác thực người dùng.
 
 Các lựa chọn hiển thị trong UI được khai báo tại `web.models` trong file YAML.
-Cấu hình mặc định có `Qwen base` (`mode: base`, gọi model trực tiếp) và
-`Qwen + RAG` (`mode: rag`, truy hồi tài liệu trước khi sinh) để hiển thị hai câu
-trả lời cạnh nhau. Giao diện cũng cho phép cấu hình nhiều model. Hai provider được hỗ trợ là
-`ollama` và `openai_compatible`. Với API bên ngoài, đặt tên biến chứa khóa tại
+Cấu hình mặc định có `Qwen base` (`mode: base`, gọi model trực tiếp),
+`Qwen + RAG` (`mode: rag`, truy hồi tài liệu trước khi sinh) và `Qwen + QLoRA`
+(`mode: qlora`, nạp `best_adapter` bằng Transformers 4-bit) để hiển thị ba câu
+trả lời cạnh nhau. Ba provider được hỗ trợ là `ollama`, `openai_compatible` và
+`local_transformers`. Với API bên ngoài, đặt tên biến chứa khóa tại
 `api_key_env` và đặt giá trị biến đó trong môi trường chạy server; không ghi API key
 trực tiếp vào YAML hoặc trình duyệt. Xem ví dụ trong `configs/inference.yaml`.
+
+QLoRA cần môi trường đã cài dependency GPU trong `requirements/qlora-gpu.txt` và
+CUDA khả dụng. Cấu hình mặc định không giữ đồng thời model Ollama và local
+Transformers trên GPU: khi chuyển backend, server dỡ model trước rồi mới nạp model
+tiếp theo. Cách này phù hợp GPU 6 GB nhưng lần hỏi đầu sau mỗi lần chuyển sẽ chậm
+do phải nạp lại weights. Ba chế độ giữ lịch sử hội thoại riêng trên trình duyệt.
 
 Router RAG dùng JSON Schema theo nhánh và thử lại một lần nếu JSON sai; hai lần
 sai vẫn trả câu mặc định. UI hiển thị riêng fallback kỹ thuật và hỏi làm rõ thật.

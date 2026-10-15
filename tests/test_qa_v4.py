@@ -71,6 +71,17 @@ class QAV4Tests(unittest.TestCase):
             self.assertEqual(dataset_file(root, "cases", "test"), rag / "test.jsonl")
             self.assertEqual(dataset_file(root, "queries", "test"), rag / "test_queries.jsonl")
 
+    def test_flat_data_package_layout_without_view(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)
+            data = root / "data"
+            data.mkdir(parents=True)
+            (data / "test.jsonl").write_text("{}\n", encoding="utf-8")
+            (data / "test_queries.jsonl").write_text("{}\n", encoding="utf-8")
+            self.assertEqual(resolve_dataset(root), (root, None))
+            self.assertEqual(dataset_file(root, "cases", "test"), data / "test.jsonl")
+            self.assertEqual(dataset_file(root, "queries", "test"), data / "test_queries.jsonl")
+
     def test_parallel_reference_history_preserves_output_order(self):
         queries = [dict(id=str(i), question=str(i), history=[]) for i in range(4)]
         active = maximum = 0

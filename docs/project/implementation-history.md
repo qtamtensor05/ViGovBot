@@ -1,5 +1,23 @@
 # Lịch sử triển khai
 
+## TASK-20261015-02 — cập nhật kết quả benchmark test set vào báo cáo QLoRA
+
+- Cập nhật tài liệu `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md` với toàn bộ kết quả
+  chạy kiểm thử và chấm điểm 1.000 ca test `tthc_test_case_v1` từ artifact
+  `outputs/tthc_test_case_v1/scores_qwen_qlora_batch4.json` và run log.
+- Nội dung cập nhật chi tiết:
+  + Thay thế ghi chú "chưa có kết quả test" tại Mục 6 bằng phân tích chuyên sâu gồm:
+    * Bảng đối chiếu 3 chiều giữa Qwen Base, RAG và QLoRA trên cùng 1.000 ca test.
+    * Phân tích per-action breakdown cho 5 nhóm hành động: `answer` (600 ca), `partial` (140 ca),
+      `correct_premise` (70 ca), `abstain` (130 ca), `clarify` (60 ca).
+    * Phân tích tốc độ suy luận (latency, p50, max) và lợi ích của batch inference (batch_size=4).
+    * Tổng hợp ưu nhược điểm so sánh giữa QLoRA và RAG: QLoRA vượt trội về câu văn pháp lý chuẩn xác,
+      độ mượt ngữ nghĩa (Sentence BLEU 61,38 vs 31,15, ROUGE-L 0,7169 vs 0,5069, BERTScore 0,9514 vs 0,9041,
+      EM 26,30% vs 0%), đặc biệt là khả năng phát hiện tiền đề sai (BLEU 84,17).
+  + Cập nhật bảng tóm tắt kết quả tại Mục 7 (Kết luận & Đề xuất).
+- Kiểm chứng: số liệu khớp 100% với `scores_qwen_qlora_batch4.json`, `scores_c4_full.json`,
+  và `scores_qwen_baseline_schema_c4.json`.
+
 ## TASK-20261014-09 — báo cáo phân tích triển khai QLoRA Qwen2.5-7B
 
 - Tạo tài liệu `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md` phân tích toàn bộ quá trình
@@ -590,4 +608,74 @@
   lại training hoặc thay đổi checkpoint/model.
 - Giới hạn: loss/perplexity chỉ chứng minh tối ưu hóa SFT; chưa có prediction và
   metric test/QA-v4 nên chưa chứng minh độ đúng nội dung hay cải thiện so với baseline.
+
+# TASK-20261015-01 - đánh giá khả năng hoàn tất QLoRA evaluation (completed)
+
+- Đối chiếu artifact `environment.json` của full run: RTX 5060 Ti 16 GB, CUDA
+  13.0, BF16, bitsandbytes/NF4 và full training đã chạy thành công; đủ năng lực
+  cho BERTScore CUDA batch 16 và controlled 4-bit inference tuần tự.
+- Đọc implementation thực tế: `training.evaluate` nạp base 4-bit, chạy đủ test,
+  giải phóng rồi mới nạp adapter 4-bit; không giữ đồng thời hai model. Tuy nhiên
+  nó vừa teacher-forced loss vừa generate cho 1.000 mẫu mỗi model, tổng 2.000
+  generation, nên là bước dài nhất và không tái sử dụng prediction QA-v4 hiện có.
+- Lexical chạy CPU; BERTScore dùng xlm-roberta-large/CUDA; paired bootstrap và
+  plot/report nhẹ. Khuyến nghị chạy tuần tự và đóng process model cũ trước BERTScore.
+- Phiên kiểm tra trực tiếp hiện tại khác host tạo run: RTX 4050 Laptop 6 GB, không
+  có `.venv-qlora` và không có prediction batch4, nên không chạy tiếp thay người
+  dùng và không tuyên bố artifact score đã hoàn tất.
+- Hiệu chỉnh sau xác nhận của người dùng: RTX 4050 Laptop 6 GB là máy cần chạy
+  evaluation. Khuyến nghị BERTScore batch 4 thay vì 16; lexical/compare/plot/report
+  vẫn nhẹ. Controlled HF evaluation là rủi ro OOM/offload chậm với 6 GB VRAM và
+  khoảng 4,87 GiB RAM trống, nên phải smoke tách biệt trước; chưa được thực thi.
+- Kiểm tra live package index: Python 3.14 có `torch 2.14.0+cu130` và
+  `2.14.1+cu130`; chọn 2.14.0+cu130 để thay bản 2.14.0+cpu với ít drift nhất.
+  GPU compute 8.9 và driver 617.42 phù hợp; chưa thực hiện cài đặt.
+- Sau khi người dùng xác minh CUDA hoạt động, sửa `dataset_file` để chấp nhận cả
+  `data/rag/{split}.jsonl` và layout thực tế `data/{split}.jsonl`. Thêm regression
+  test layout phẳng; hai test resolver đạt và đường dẫn test/query thực tế được
+  phân giải đúng. Chưa chạy BERTScore dài.
+
+# TASK-20261015-03 - xác minh QLoRA tốt hơn Base và RAG
+
+- Đối chiếu provenance cho thấy cả ba run dùng cùng SHA-256 query
+  `f4e180b70af50fc69fd39f236ecc2f3e77a028de6e30dbe8d4991cc24b01d4f4` và
+  cùng chế độ `reference_history`; Base/QLoRA đủ 1.000 ca, RAG thành công 995 ca.
+- QLoRA được SFT trên 3.000 chuỗi `history + question + gold assistant answer`, chỉ
+  cập nhật adapter 40.370.176 tham số; checkpoint chọn bằng validation loss ở step
+  1.100. Base không train theo bộ này; RAG không train generator nhưng thêm top-5
+  context từ BGE-M3/FAISS ở inference.
+- Điểm QLoRA trên 810 ca có reference nội dung: EM 0,2630, sentence BLEU 61,3774,
+  ROUGE-L F1 0,7169, BERTScore F1 0,9514. Điểm tương ứng của RAG là BLEU 31,1504,
+  ROUGE-L 0,5069, BERTScore 0,9041; Base là 15,4110, 0,3188 và 0,8816.
+- Dataset split theo case/episode, không cô lập nguồn: 564/1.000 ca test (56,4%)
+  có document xuất hiện trong train; 571/1.000 có procedure family xuất hiện trong
+  train. Trên 810 ca similarity, QLoRA đạt BLEU 64,82 và EM 30% cho 493 ca document
+  đã gặp, so với BLEU 56,02 và EM 20% cho 317 ca chưa gặp.
+- QLoRA vẫn cải thiện ở nguồn chưa gặp, nhưng source overlap làm điểm tổng lạc quan
+  hơn đánh giá document-disjoint. Metric hiện chỉ chứng minh bám reference: QLoRA
+  không có action/retrieval và `generation_judged_cases=0`, nên chưa chứng minh
+  thắng RAG về factuality, faithfulness, cập nhật tri thức hay hành vi từ chối.
+- Kiểm chứng chỉ đọc artifact/dataset và phân tầng score; không chạy generation,
+  không tải model và không thay đổi checkpoint.
+
+# TASK-20261015-04 - tích hợp QLoRA vào web demo
+
+- Mở rộng `WebModelConfig.mode` thành `base|rag|qlora`; `qlora` bắt buộc dùng
+  provider `local_transformers` và có `adapter_path`, tránh cấu hình hợp lệ bề
+  ngoài nhưng chạy sai backend.
+- Thêm `qwen-qlora` vào `configs/inference.yaml`, dùng
+  `Qwen/Qwen2.5-7B-Instruct`, NF4 4-bit và `best_adapter` của full run; đường dẫn
+  tương đối được resolver chuẩn hóa thành artifact hiện có trong repository.
+- `ChatApplication` xử lý `qlora` như direct generation, không gọi retrieval;
+  response công khai có `mode=qlora`, `sources=[]`, lịch sử tách riêng theo ID.
+- UI hiển thị ba lựa chọn và mô tả QLoRA là adapter không truy hồi; cập nhật tiêu
+  đề và hướng dẫn README.
+- Thêm `release_local_transformers_models()` và chuyển backend tuần tự. Khi đổi
+  Ollama → QLoRA, server gửi `keep_alive: 0`; khi đổi QLoRA → Ollama, server xóa
+  cache model local, chạy GC và `torch.cuda.empty_cache()`. Dùng `RLock` để helper
+  an toàn khi được gọi từ nhánh cache hiện có.
+- Kiểm chứng: `unittest` 22/22 cho server, web UI, RAG config/CLI và QLoRA local;
+  Ruff, compileall, diff-check đạt. Parse config xác nhận ba model và adapter path
+  tuyệt đối đúng. Chưa chạy model thật hoặc browser QA, nên không coi là bằng
+  chứng runtime GPU/visual; không tải hay sửa checkpoint.
 

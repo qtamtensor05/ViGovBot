@@ -1,3 +1,48 @@
+# TASK-20261015-02 — completed
+
+- Đã cập nhật toàn diện kết quả benchmark 1.000 ca test trên bộ dữ liệu `tthc_test_case_v1`
+  vào Mục 6 của tài liệu `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`.
+- Dữ liệu đối chiếu từ `scores_qwen_qlora_batch4.json` và run log thực tế:
+  + Kích thước tập test: 1.000 ca; 810 ca có text similarity evaluation, 190 ca abstain/clarify.
+  + Tỷ lệ thành công cấu trúc: 100% (1.000/1.000 thành công, 0 ca lỗi).
+  + Bảng đối chiếu 3 chiều (Base vs RAG vs QLoRA):
+    * Corpus BLEU-4: Base 8,27 | RAG 23,91 | QLoRA 33,23 (+38,98% so với RAG).
+    * Sentence BLEU: Base 15,41 | RAG 31,15 | QLoRA 61,38 (+97,05% so với RAG).
+    * ROUGE-L F1: Base 0,3188 | RAG 0,5069 | QLoRA 0,7169 (+41,43% so với RAG).
+    * BERTScore F1: Base 0,8816 | RAG 0,9041 | QLoRA 0,9514 (+5,23% so với RAG).
+    * Exact Match (EM): Base 0,00% | RAG 0,00% | QLoRA 26,30% (213/810 ca trùng khớp hoàn hảo từng từ).
+    * Translation Edit Rate (TER): Base 134,81 | RAG 85,32 | QLoRA 43,60 (giảm lỗi chỉnh sửa 48,90%).
+  + Phân tích per-action: `correct_premise` đạt kết quả vượt trội (Sentence BLEU 84,17, ROUGE-L 0,8924, BERTScore 0,9819, EM 45,71%); `answer` đạt Sentence BLEU 57,87, ROUGE-L 0,6934; `partial` đạt Sentence BLEU 65,00, ROUGE-L 0,7299; `abstain` và `clarify` tuân thủ 100% hành vi an toàn theo schema.
+  + Hiệu năng suy luận: latency trung bình 12,08 s / câu (p50: 11,71 s, max: 28,76 s).
+- Ranh giới kiểm chứng: các chỉ số trích xuất nguyên văn từ artifact kết quả, không nội suy; toàn bộ các phần phân tích kiến trúc/loss/tài nguyên trước đó được giữ nguyên vẹn.
+
+# TASK-20261015-01 - partial
+
+- Artifact môi trường của full run xác nhận máy tạo run là RTX 5060 Ti 16 GB,
+  PyTorch 2.9.1+cu130, BF16 và QLoRA 4-bit đã chạy thật; cấu hình này đủ chạy
+  lexical/BERTScore, paired compare, controlled HF evaluation tuần tự và report.
+- Ưu tiên chạy score trước, rồi paired compare; hai bước plot/report sau cùng nhẹ.
+  Controlled HF evaluation tải/chạy lần lượt base và adapter trên 1.000 mẫu, sinh
+  lại 2.000 câu trả lời nên dài hơn nhiều và cần chạy riêng, không đồng thời BERTScore.
+- Ranh giới kiểm chứng: phiên máy hiện tại là RTX 4050 Laptop 6 GB, RAM trống khoảng
+  4,87 GiB, đĩa C trống khoảng 44,58 GiB; không có `.venv-qlora` hoặc prediction
+  batch4. Vì khác máy/artifact người dùng nêu, chưa khởi chạy workload dài tại đây.
+- Hiệu chỉnh theo xác nhận của người dùng: RTX 4050 Laptop 6 GB chính là máy đích.
+  Lexical/paired compare/plot/report khả thi; BERTScore CUDA nên bắt đầu batch 4
+  rồi tăng 8 nếu ổn. Controlled HF evaluation 7B NF4 không được coi là chắc chắn:
+  cần giải phóng GPU/RAM và smoke trên bản sao run trước khi chạy đủ 1.000 mẫu.
+- Phát hiện môi trường: `.venv-qlora` không tồn tại. `env` có BERTScore nhưng dùng
+  Torch CPU (`2.14.0+cpu`), nên lệnh CUDA hiện chưa chạy được; xem ERR-20261015-01.
+- Xác minh index PyTorch chính thức: RTX 4050 Laptop compute capability 8.9,
+  driver 617.42 và Python 3.14.7 có wheel `torch 2.14.0+cu130`; chọn CUDA 13.0
+  để thay đúng bản CPU cùng version, không cần cài CUDA Toolkit hệ thống.
+- Người dùng đã cài/xác minh Torch 2.14.0+cu130 nhận RTX 4050. Lỗi score kế tiếp
+  do resolver chưa hỗ trợ `data/{split}.jsonl`; đã sửa và regression test 2/2 đạt.
+  Còn chờ người dùng chạy lại scorer trên prediction hiện có.
+- Prediction QLoRA thực tế nằm tại thư mục lồng
+  `outputs/tthc_test_case_v1/tthc_test_case_v1/`; đã xác minh 1.000/1.000 thành
+  công và hash query khớp dataset hiện tại. Lệnh score cần dùng đường dẫn này.
+
 # TASK-20261014-09 - completed
 
 - Đã tạo tài liệu báo cáo phân tích toàn diện quá trình huấn luyện QLoRA cho Qwen2.5-7B
@@ -554,4 +599,39 @@
   chủ động chạy run → score → pairwise compare theo `docs/qlora-operations.md`.
 - Bổ sung theo yêu cầu hiệu năng: đang smoke batch 2 trên 4 câu với equivalence gate
   4/4; artifact `outputs/tthc_test_case_v1/qlora_batch2_smoke4.jsonl`, không chạy full.
+
+# TASK-20261015-03 - completed
+
+- Giai đoạn: kiểm kê và đối chiếu tính công bằng của benchmark Qwen Base, Base +
+  RAG và QLoRA.
+- Đã xác nhận: ba nhánh dùng chung 1.000 ID test ở mức dữ liệu; QLoRA được SFT theo
+  câu trả lời thuần văn bản, còn backend baseline từng dùng hợp đồng JSON/action.
+- Đã đối chiếu artifact: cùng SHA-256 query, cùng `reference_history`; Base và
+  QLoRA đủ 1.000 prediction, RAG thành công 995. QLoRA đạt BLEU 61,38, ROUGE-L
+  0,7169, BERTScore F1 0,9514 và EM 26,30% trên 810 ca có đáp án văn bản.
+- Giới hạn đã xác minh: QLoRA không xuất action/retrieval; 56,4% toàn bộ ca test
+  dùng document đã có trong train. Trên 810 ca similarity, nhóm document đã gặp
+  (493 ca) đạt BLEU 64,82/EM 30%/ROUGE-L 0,74; nhóm chưa gặp (317 ca) vẫn đạt
+  BLEU 56,02/EM 20%/ROUGE-L 0,68.
+- Kết luận: adapter học trực tiếp phong cách và ánh xạ hỏi-đáp gold nên bám reference
+  tốt hơn; lợi thế không chỉ do overlap nhưng overlap theo nguồn làm kết quả lạc
+  quan hơn một benchmark document-disjoint. Chưa đủ bằng chứng để nói QLoRA tốt
+  hơn RAG về cập nhật tri thức, factuality, action behavior hoặc retrieval.
+- Không chạy lại workload dài hoặc thay đổi checkpoint trong task điều tra này.
+
+# TASK-20261015-04 - completed
+
+- Giai đoạn: tích hợp QLoRA vào web demo ba mô hình.
+- Đã xác minh: server đã có provider `local_transformers` và loader PEFT 4-bit,
+  nhưng `configs/inference.yaml` chưa khai báo adapter, mode chỉ cho `base|rag`,
+  UI chỉ mô tả hai trạng thái truy hồi.
+- Đã thêm mode `qlora`, cấu hình `qwen-qlora` trỏ đúng `best_adapter`, nhãn UI ba
+  mô hình và luồng direct generation không retrieval cho adapter.
+- Đã thêm chuyển backend tuần tự: dỡ Ollama trước khi nạp local Transformers và
+  giải phóng cache local trước khi quay lại Ollama; mặc định không giữ đồng thời
+  hai model 7B trên GPU 6 GB.
+- Kiểm chứng: 22 test server/UI/config/QLoRA đạt; Ruff, compileall và diff-check
+  các file thay đổi đạt; config phân giải adapter tới artifact đang tồn tại.
+- Giới hạn: chưa chạy inference model thật hoặc browser QA; không tuyên bố runtime
+  GPU hay hiển thị trực quan đã được xác nhận. Không thay đổi checkpoint.
 

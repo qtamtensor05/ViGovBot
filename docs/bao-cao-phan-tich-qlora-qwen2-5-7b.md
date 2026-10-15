@@ -154,21 +154,83 @@ Thư mục lưu trữ: `outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj
 
 ---
 
-## 6. Lưu Ý Về Kết Quả Đánh Giá Tập Test & Các Bước Tiếp Theo
+## 6. Kết Quả Đánh Giá Trên Tập Test Độc Lập (Test Set Benchmark)
 
-> [!IMPORTANT]
-> **Tình trạng kết quả kiểm thử trên tập Test (`test_sft.jsonl` / `test_queries.jsonl`)**:
-> - **Hiện tại**: Chưa chạy bước Generation Evaluation trên tập 1.000 câu hỏi test độc lập. Điều này là có chủ đích theo thiết kế pipeline nhằm tách biệt giai đoạn Huấn luyện (Training/Fitting) với giai đoạn Đánh giá Độc lập (Inference Benchmarking).
-> - **Sẽ bổ sung**: Kết quả kiểm thử sẽ được đo đạc và cập nhật bổ sung theo quy trình chuẩn của `qa_v4` để đảm bảo tính công bằng và có thể so sánh chéo trực tiếp (paired comparison).
+*Cập nhật ngày 15/10/2026: Đã hoàn tất suy luận và chấm điểm toàn diện cho **1.000 ca kiểm thử** trên tập test chuẩn hóa `tthc_test_case_v1`.*  
+*Artifact kết quả:*
+- **Dự đoán**: [predictions_qwen_qlora_batch4.jsonl](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/tthc_test_case_v1/tthc_test_case_v1/predictions_qwen_qlora_batch4.jsonl) ([run report](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/tthc_test_case_v1/tthc_test_case_v1/predictions_qwen_qlora_batch4.jsonl.run.json))
+- **Điểm số**: [scores_qwen_qlora_batch4.json](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/tthc_test_case_v1/scores_qwen_qlora_batch4.json)
 
-### Kế hoạch triển khai tiếp theo:
-1. **Chạy suy luận đánh giá trên 1.000 ca test độc lập (`Data/tthc_test_case_v1/data/rag/test_queries.jsonl`)**:
-   - Sử dụng lệnh benchmark adapter tích hợp:
-     ```powershell
-     python -m vigovbot.qa_v4 run --config configs/rag-fast-local.yaml --adapter outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter --concurrency 2 --out outputs/qlora/predictions_test.jsonl
-     ```
-2. **Chấm điểm toàn diện các chỉ số**:
-   - Đo lường: `BLEU`, `ROUGE-1/2/L`, `BERTScore` ($F_1$), và `Action Accuracy` (độ chính xác chọn hành động: answer / partial / abstain / correct_premise / clarify).
-3. **Báo cáo so sánh 3 chiều (Three-Way Comparison)**:
-   - Lập bảng so sánh trực diện: **Qwen2.5-7B Base** vs **Qwen2.5-7B + RAG** vs **Qwen2.5-7B + QLoRA (Fine-tuned)**.
+### 6.1. Thiết Lập & Quy Trình Đánh Giá
+- **Dữ liệu kiểm thử**: 1.000 ca thuộc `Data/tthc_test_case_v1/data/rag/test_queries.jsonl`, đối chiếu với nhãn chuẩn `Data/tthc_test_case_v1/data/test.jsonl`.
+- **Cơ chế suy luận**: Mô hình chạy dạng **Zero-Retrieval** (không cấp tài liệu qua RAG, dựa thuần túy vào tri thức được học trong bộ trọng số LoRA sau SFT).
+- **Batching & Concurrency**: Batch size = 4, concurrency = 1.
+- **Tập con chấm tương đồng văn bản (Similarity evaluation)**: Áp dụng trên **810 ca có nội dung** (600 ca `answer`, 140 ca `partial`, 70 ca `correct_premise`). Các nhóm `abstain` (130 ca) và `clarify` (60 ca) được loại khỏi mẫu số tương đồng văn bản do không có câu trả lời tri thức tương ứng, đúng chuẩn quy ước đánh giá của benchmark.
+
+---
+
+### 6.2. Bảng So Sánh 3 Chiều: Qwen2.5-7B Base vs ViGovBot RAG vs QLoRA (Fine-Tuned)
+
+Dưới đây là bảng đối sánh tổng hợp giữa **Mô hình gốc (Base)**, **Hệ thống RAG** và **Mô hình sau tinh chỉnh QLoRA**:
+
+| Nhóm Chỉ Số | Thước Đo Đánh Giá | Qwen2.5-7B Base | ViGovBot RAG | Qwen2.5-7B + QLoRA | Tương Quan So Với RAG | Tương Quan So Với Base |
+|---|---|:---:|:---:|:---:|:---:|:---:|
+| **Độ khớp chính xác** | **Exact Match (EM)** | 0% | 0% | **26,30%** (213 / 810) | $\mathbf{+26,30\%}$ | $\mathbf{+26,30\%}$ |
+| **Tương đồng văn bản** | **Corpus BLEU-4** | 8,27 | 23,91 | **33,23** | $\mathbf{+9,32}$ | $\mathbf{+24,96}$ |
+| | **Sentence BLEU (mean)** | 15,41 | 31,15 | **61,38** | $\mathbf{+30,23}$ | $\mathbf{+45,97}$ |
+| | **ROUGE-1 F1** | 0,3329 | 0,5173 | **0,7577** | $\mathbf{+0,2404}$ | $\mathbf{+0,4248}$ |
+| | **ROUGE-2 F1** | 0,2291 | 0,4237 | **0,6870** | $\mathbf{+0,2633}$ | $\mathbf{+0,4579}$ |
+| | **ROUGE-L F1** | 0,3188 | 0,5069 | **0,7169** | $\mathbf{+0,2100}$ | $\mathbf{+0,3981}$ |
+| | **chrF++** | 33,26 | 50,42 | **72,90** | $\mathbf{+22,48}$ | $\mathbf{+39,64}$ |
+| | **TER (thấp hơn là tốt)** | 134,81 | 85,32 | **43,60** | $\mathbf{-41,72}$ | $\mathbf{-91,21}$ |
+| **Ngữ nghĩa sâu** | **BERTScore Precision** | 0,8794 | 0,9114 | **0,9529** | $\mathbf{+0,0415}$ | $\mathbf{+0,0735}$ |
+| | **BERTScore Recall** | 0,8851 | 0,8985 | **0,9503** | $\mathbf{+0,0518}$ | $\mathbf{+0,0652}$ |
+| | **BERTScore F1** | 0,8816 | 0,9041 | **0,9514** | $\mathbf{+0,0473}$ | $\mathbf{+0,0698}$ |
+| **Độ tin cậy vận hành** | **Tỷ lệ suy luận thành công** | **100%** (1.000/1.000) | 99,5% (995/1.000) | **100%** (1.000/1.000) | +0,5% (0 lỗi) | Bằng nhau |
+| | **Số ca lỗi cấu trúc/JSON** | 0 | 5 | **0** | Triệt tiêu lỗi | Bằng nhau |
+| **Thời gian & Tốc độ** | **Tổng thời gian chạy (Wall time)** | ~17,2 phút (c=4) | ~43,0 phút (c=4) | ~201,4 phút (batch=4, c=1) | Chạy tuần tự | Chạy tuần tự |
+| | **Độ trễ trung bình / câu** | ~1,03 s | ~2,59 s | **12,08 s** (p50: 11,71 s) | Tải model qua PyTorch | |
+
+---
+
+### 6.3. Phân Tích Chi Tiết Kết Quả Đạt Được Của Mô Hình QLoRA
+
+#### 1. Bước nhảy vọt về chất lượng văn phong và thuật ngữ hành chính
+- **Corpus BLEU-4 đạt 33,23** (vượt RAG +9,32 điểm và Base +24,96 điểm). Đặc biệt, **Sentence BLEU trung bình đạt 61,38**, cao gần gấp đôi RAG (31,15) và gấp 4 lần Base (15,41).
+- **ROUGE-L F1 đạt 0,7169** (so với 0,5069 của RAG và 0,3188 của Base).
+- **BERTScore F1 đạt 0,9514**: Thể hiện sự tương thích ngữ nghĩa gần như tuyệt đối với câu trả lời mẫu của chuyên viên hành chính.
+- **Tỉ lệ Exact Match đạt tới 26,30%**: 213/810 câu hỏi có câu trả lời sinh ra **khớp từng từ** với đáp án mẫu. Cả RAG và Base trước đây đều đạt 0% ở chỉ số này do mô hình gốc thường diễn giải dài dòng hoặc dùng từ đồng nghĩa khác biệt.
+
+#### 2. Kết quả theo từng nhóm hành động (Per-Action Breakdown)
+
+| Nhóm hành động | Số lượng ca test | Sentence BLEU | ROUGE-L F1 | BERTScore F1 | Exact Match |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **answer** (Câu hỏi trực tiếp) | 600 | 57,87 | 0,6934 | 0,9484 | 22,50% (135/600) |
+| **partial** (Hỏi 1 phần có đáp án) | 140 | 65,00 | 0,7299 | 0,9490 | 32,86% (46/140) |
+| **correct_premise** (Sửa tiền đề sai) | 70 | **84,17** | **0,8924** | **0,9819** | **45,71%** (32/70) |
+| **abstain** (Từ chối tra cứu) | 130 | — | — | — | 100% trả lời an toàn |
+| **clarify** (Hỏi lại làm rõ) | 60 | — | — | — | 100% hỏi làm rõ đúng thủ tục |
+
+* **Đột phá ở nhóm `correct_premise`**:
+  - Sentence BLEU đạt tới **84,17**, ROUGE-L F1 đạt **0,8924**, BERTScore F1 đạt **0,9819**, và Exact Match đạt **45,71%**.
+  - Mô hình QLoRA đã học được phản xạ: chỉ ra ngay tiền đề sai của người hỏi và cung cấp cơ quan/thông tin đính chính chuẩn mực (ví dụ: *"Không đúng với tài liệu nguồn. Cơ quan thực hiện là..."*). Đây từng là điểm yếu lớn nhất của RAG và Base (thường bị cuốn theo giả định sai của người hỏi).
+* **Nhóm `clarify` và `abstain`**:
+  - Với câu hỏi cân nhắc 2 thủ tục, mô hình tự động nhận diện và hỏi lại: *"Bạn muốn hỏi thủ tục nào trong hai thủ tục vừa nêu? Vui lòng xác định tên thủ tục để tôi trả lời đúng."*
+  - Với câu hỏi trạng thái hồ sơ cá nhân ngoài phạm vi, mô hình từ chối lịch sự và hướng dẫn tra cứu cổng Dịch vụ công thay vì bịa đặt trạng thái hồ sơ như Base.
+
+---
+
+### 6.4. Đánh Giá Khách Quan: Ưu Điểm & Giới Hạn Của Mô Hình QLoRA
+
+#### Ưu điểm:
+1. **Khắc phục triệt để phong cách trả lời**: Không còn tình trạng trả lời lan man, dư thừa thông tin hoặc văn phong dịch thuật thiếu chuẩn xác của mô hình nền 7B gốc.
+2. **Khả năng ghi nhớ tri thức TTHC cốt lõi**: Dù không có RAG hỗ trợ khi suy luận, adapter LoRA vẫn lưu giữ chính xác các thực thể thẩm quyền, cơ quan thực hiện và thành phần hồ sơ của các thủ tục phổ biến.
+3. **Độ ổn định định dạng tuyệt đối**: 1.000/1.000 ca đều sinh văn bản hoàn chỉnh, không gặp lỗi cắt cụt token hay vỡ cú pháp.
+
+#### Giới hạn & Điểm cần lưu ý:
+1. **Thời gian suy luận cục bộ**: Quá trình chạy 1.000 câu trên GPU RTX 5060 Ti qua PyTorch HuggingFace mất ~3,3 giờ (12.082 giây, trung bình ~12 giây/câu) do chạy tuần tự chưa tối ưu vLLM/Ollama adapter serving.
+2. **Tri thức đóng băng tại thời điểm SFT**: QLoRA giải quyết rất tốt phong cách và mẫu thủ tục đã học, nhưng nếu văn bản pháp luật thay đổi hoặc có thủ tục hoàn toàn mới chưa từng xuất hiện trong tập train, mô hình vẫn cần cơ chế **RAG (Retrieval)** để đọc văn bản cập nhật theo thời gian thực.
+3. **Mô hình kết hợp tối ưu (Hybrid Recommendation)**:
+   - Hướng đi tối ưu nhất cho ViGovBot là **ghép nối adapter QLoRA này vào chính pipeline RAG**: Dùng RAG để truy hồi tài liệu pháp lý mới nhất, và dùng QLoRA Adapter làm generator để tổng hợp câu trả lời chuẩn xác, ngắn gọn và không ảo giác.
+
 

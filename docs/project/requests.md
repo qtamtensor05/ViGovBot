@@ -533,3 +533,59 @@
 - Phạm vi: tạo tài liệu báo cáo `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md` dựa trên dữ liệu thực tế từ run `outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d`. Không bịa số liệu, không tự ý gán kết quả test khi chưa chạy.
 - Tiêu chí hoàn thành: báo cáo đầy đủ các mục yêu cầu, số liệu đối chiếu chuẩn xác với `training_metrics.json`, `config.yaml`, `parameter_report.json`, `timing_report.json` và `training_log.csv`.
 - Trạng thái: completed.
+## TASK-20261015-01
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: đánh giá cấu hình máy hiện tại có đủ khả năng chạy nốt các bước chấm
+  QLoRA còn thiếu hay không, sau khi đã sinh đủ 1.000/1.000 prediction.
+- Phạm vi: kiểm tra GPU/VRAM/RAM/đĩa, môi trường Python và tiến trình hiện tại;
+  kiểm kê prediction/run report, scorer và lệnh compare/evaluate/plot/report;
+  ước lượng tính khả thi, thứ tự chạy và rủi ro. Chưa tự khởi chạy workload dài.
+- Tiêu chí hoàn thành: kết luận rõ bước nào chạy được ngay, bước nào tốn VRAM/
+  thời gian hoặc thiếu dữ liệu/judgment; đưa lệnh an toàn dựa trên artifact thật.
+- Trạng thái: completed; máy tạo run RTX 5060 Ti 16 GB đủ chạy các bước còn lại
+  theo thứ tự, nhưng controlled HF evaluation là workload dài. Phiên kiểm tra hiện
+  tại là máy RTX 4050 6 GB và không có venv/prediction được nêu, nên không tự chạy.
+- Bổ sung người dùng: máy cần đánh giá chính là RTX 4050 Laptop 6 GB đang được
+  kiểm tra trực tiếp, không phải host RTX 5060 Ti được ghi trong artifact training.
+- Trạng thái hiệu chỉnh: partial; lexical/compare/plot/report chạy được, BERTScore
+  nên hạ batch và controlled HF evaluation cần smoke riêng vì VRAM/RAM hạn chế.
+
+## TASK-20261015-02
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: cập nhật báo cáo phân tích triển khai QLoRA sau khi đã có kết quả chạy kiểm thử và chấm điểm 1.000 ca test trên `tthc_test_case_v1` (`scores_qwen_qlora_batch4.json`).
+- Phạm vi: cập nhật `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`, bổ sung mục phân tích kết quả test thực tế (1.000 ca, N=810 ca tính độ tương đồng văn bản), bảng so sánh 3 chiều giữa Qwen Base vs RAG vs QLoRA, phân tích theo từng nhóm hành động (answer, partial, correct_premise, clarify, abstain) và hiệu năng suy luận (latency, throughput, batching).
+- Trạng thái: completed; đã đối chiếu toàn bộ số liệu benchmark từ `scores_qwen_qlora_batch4.json` và cập nhật Mục 6 cùng bảng so sánh 3 chiều vào `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`.
+
+## TASK-20261015-03
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: xác minh vì sao kết quả QLoRA tốt hơn Qwen Base và Base + RAG; làm rõ
+  khác biệt trong huấn luyện và đánh giá giữa ba cấu hình.
+- Phạm vi: đối chiếu artifact prediction/score/provenance, dữ liệu test, prompt và
+  hợp đồng đầu ra, scorer, cấu hình train QLoRA và pipeline RAG. Không chạy lại
+  generation/benchmark dài và không thay đổi model/checkpoint.
+- Tiêu chí hoàn thành: tách rõ nguyên nhân đã được bằng chứng xác nhận với giả
+  thuyết; xác định mức độ so sánh công bằng, các metric tạo ra kết luận và hạn
+  chế/rò rỉ dữ liệu nếu có; nêu khác biệt train/evaluate bằng ngôn ngữ dễ hiểu.
+- Trạng thái: completed; đã xác minh cùng query hash/reference history, đối chiếu
+  scorer và phân tầng test theo tài liệu đã/chưa xuất hiện trong train. Kết luận
+  QLoRA vượt trội về độ giống đáp án trong miền đã biết, nhưng chưa có action,
+  retrieval hay semantic judgment để khẳng định thắng toàn diện.
+
+## TASK-20261015-04
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: tích hợp model QLoRA đã huấn luyện vào web demo hỏi đáp hiện có để
+  người dùng có thể chọn và so sánh cùng Qwen Base và Qwen + RAG.
+- Phạm vi: thêm cấu hình/model mode QLoRA, luồng inference local adapter, nhãn UI,
+  quản lý chuyển backend phù hợp GPU 6 GB, kiểm thử server/UI/config và cập nhật
+  hướng dẫn vận hành. Không thay đổi hoặc huấn luyện lại adapter.
+- Tiêu chí hoàn thành: UI hiển thị ba lựa chọn Base/RAG/QLoRA; QLoRA không chạy
+  retrieval, dùng đúng `best_adapter`; lịch sử hội thoại tách theo model; chuyển
+  Ollama/Transformers không giữ đồng thời model trên GPU theo mặc định; test liên
+  quan đạt. Chỉ tuyên bố chạy model thật nếu có kiểm chứng trực tiếp.
+- Trạng thái: completed; UI/config/server đã có ba chế độ Base, RAG và QLoRA;
+  test liên quan đạt. Chưa chạy inference model thật hoặc browser QA trong task
+  này nên runtime GPU/hiển thị trực quan vẫn là giới hạn kiểm chứng.

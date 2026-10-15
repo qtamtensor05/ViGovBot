@@ -35,9 +35,9 @@ def dataset_file(dataset, kind, split=None):
         return direct
     package_split = split or "test"
     name = f"{package_split}.jsonl" if kind == "cases" else f"{package_split}_queries.jsonl"
-    packaged = dataset / "data" / "rag" / name
-    if packaged.is_file():
-        return packaged
+    for packaged in (dataset / "data" / "rag" / name, dataset / "data" / name):
+        if packaged.is_file():
+            return packaged
     raise FileNotFoundError(f"Cannot find {kind} for split {package_split!r} in {dataset}")
 
 

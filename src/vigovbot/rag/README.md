@@ -121,7 +121,9 @@ Kết quả cũ không được tiếp tục nếu các thông tin này không c
 - Router dùng JSON Schema theo nhánh và retry một lần khi JSON sai; hai lần sai
   trả `routing_fallback` và không truy hồi.
 - `mode: base` gọi provider trực tiếp; `mode: rag` chạy router, retrieval và xét
-  bằng chứng. Hai lựa chọn có history riêng ở client web.
+  bằng chứng; `mode: qlora` gọi local adapter trực tiếp, không retrieval. Mỗi lựa
+  chọn có history riêng ở client web. Khi đổi Ollama ↔ local Transformers, server
+  dỡ backend trước để không giữ đồng thời hai model trên GPU nhỏ.
 - `num_ctx` phải lớn hơn `num_predict + 256`.
 - `ask` không phụ thuộc bộ test; các lệnh đánh giá bắt buộc có bộ test.
 - `report` chỉ chạy trên kết quả có `run_manifest.json` tương thích.

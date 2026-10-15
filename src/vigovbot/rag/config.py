@@ -62,7 +62,7 @@ class WebModelConfig(StrictModel):
     model: str = Field(min_length=1)
     base_url: str = Field(min_length=1)
     api_key_env: str | None = None
-    mode: str = Field(default="rag", pattern=r"^(base|rag)$")
+    mode: str = Field(default="rag", pattern=r"^(base|rag|qlora)$")
     adapter_path: Path | None = None
     load_in_4bit: bool = True
     allow_multiple_models: bool = False
@@ -71,6 +71,10 @@ class WebModelConfig(StrictModel):
     def check_credentials(self):
         if self.api_key_env is not None and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.api_key_env):
             raise ValueError("api_key_env phải là tên biến môi trường hợp lệ")
+        if self.mode == "qlora" and self.provider != "local_transformers":
+            raise ValueError("mode qlora yêu cầu provider local_transformers")
+        if self.mode == "qlora" and self.adapter_path is None:
+            raise ValueError("mode qlora yêu cầu adapter_path")
         return self
 
 

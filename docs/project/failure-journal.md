@@ -552,3 +552,59 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Phòng tránh: trên PowerShell luôn gọi executable tương đối bằng `.\`; kiểm tra
   `Test-Path` trước và thay tên venv trong lệnh theo môi trường thực tế.
 
+# ERR-20261015-01
+
+- Task: TASK-20261015-01.
+- Triệu chứng: PowerShell không nhận
+  `.\.venv-qlora\Scripts\python.exe` khi chạy QA-v4 score.
+- Nguyên nhân xác nhận: checkout hiện tại không có `.venv-qlora`; terminal dùng
+  `env`. `env` có Python 3.14.7, `bert-score` 0.3.13 và package editable, nhưng
+  Torch là `2.14.0+cpu`, `torch.cuda.is_available()` trả false.
+- Xử lý: không chỉ thay đường dẫn rồi giữ `--bert-device cuda`, vì sẽ lỗi tiếp.
+  Có thể chạy CPU bằng interpreter `env`, hoặc cài Torch CUDA tương thích rồi
+  xác minh CUDA trước khi chạy scorer. Chưa tự thay dependency môi trường.
+
+# ERR-20261015-02
+
+- Task: TASK-20261015-01.
+- Triệu chứng: `qa-v4 score --dataset Data\tthc_test_case_v1 --split test` báo
+  không tìm thấy cases dù `data\test.jsonl` tồn tại.
+- Nguyên nhân: resolver chỉ hỗ trợ layout cũ `data\rag\test.jsonl`, chưa hỗ trợ
+  layout phẳng hiện tại `data\test.jsonl`.
+- Xử lý: bổ sung candidate layout phẳng sau candidate `data\rag`, thêm regression
+  test cho cả cases và queries. Lượt test đầu gọi nhầm Python hệ thống nên không
+  import được package; chạy lại bằng `env\Scripts\python.exe` đạt 2/2 test.
+- Kiểm chứng: resolver trả đúng `data\test.jsonl` và `data\test_queries.jsonl`.
+
+# ERR-20261015-03
+
+- Task: TASK-20261015-01.
+- Triệu chứng: sau khi sửa resolver dataset, scorer báo không tồn tại
+  `outputs\tthc_test_case_v1\predictions_qwen_qlora_batch4.jsonl`.
+- Nguyên nhân: artifact thực tế nằm lồng thêm một cấp tại
+  `outputs\tthc_test_case_v1\tthc_test_case_v1\...`.
+- Xử lý/kiểm chứng: file thực có 1.000 dòng; run report ghi 1.000 successful,
+  0 failed. SHA-256 của query hiện tại khớp provenance
+  `f4e180b70af50fc69fd39f236ecc2f3e77a028de6e30dbe8d4991cc24b01d4f4`.
+  Không di chuyển hoặc đổi tên artifact; dùng đúng đường dẫn lồng khi chấm.
+
+# ERR-20261015-04
+
+- Task: TASK-20261015-03.
+- Triệu chứng: phép kiểm tra overlap bằng hashtable PowerShell phát sinh nhiều lỗi
+  `Index operation failed; the array index evaluated to null`.
+- Nguyên nhân: các ca `clarify` hợp lệ có `document_id` và `procedure_family_id`
+  bằng null; lệnh đầu dùng trực tiếp hai giá trị này làm khóa hashtable.
+- Xử lý/kiểm chứng: lọc null trước khi tạo tập ID và đếm lại. Kết quả xác nhận
+  564/1.000 ca test trùng document với train và 571/1.000 trùng procedure family.
+
+# ERR-20261015-05
+
+- Task: TASK-20261015-04.
+- Triệu chứng: test chuyển backend đầu tiên gọi một request có danh sách model
+  `[local, qlora, local]` và bị từ chối với `Danh sách model bị trùng`.
+- Nguyên nhân: API chủ ý không cho cùng model ID xuất hiện hai lần trong một request;
+  test đã mô phỏng lần chuyển ngược không đúng hợp đồng API.
+- Xử lý/kiểm chứng: tách thành request đầu `local → qlora` và request kế tiếp
+  `local`; xác nhận Ollama unload một lần và cache Transformers release một lần.
+

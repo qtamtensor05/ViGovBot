@@ -2,8 +2,20 @@ from __future__ import annotations
 
 import threading
 
-_LOCK = threading.Lock()
+_LOCK = threading.RLock()
 _CACHE = {}
+
+
+def release_local_transformers_models():
+    """Release cached local models before handing a constrained GPU to another backend."""
+    import gc
+    import torch
+
+    with _LOCK:
+        _CACHE.clear()
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 
 def load_model(base_model: str, adapter_path: str | None = None, quantized: bool = True):
@@ -35,8 +47,7 @@ def local_transformers_answer(messages, settings):
     with _LOCK:
         if key not in _CACHE:
             if _CACHE and not settings.get("allow_multiple_models", False):
-                _CACHE.clear()
-                if torch.cuda.is_available(): torch.cuda.empty_cache()
+                release_local_transformers_models()
             _CACHE[key] = load_model(*key[:2], quantized=key[2])
         model, tokenizer = _CACHE[key]
         encoded = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True,
@@ -63,8 +74,7 @@ def local_transformers_batch_answer(messages_batch, settings):
     with _LOCK:
         if key not in _CACHE:
             if _CACHE and not settings.get("allow_multiple_models", False):
-                _CACHE.clear()
-                if torch.cuda.is_available(): torch.cuda.empty_cache()
+                release_local_transformers_models()
             _CACHE[key] = load_model(*key[:2], quantized=key[2])
         model, tokenizer = _CACHE[key]
     tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
