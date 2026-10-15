@@ -591,6 +591,10 @@
   nên bỏ ép JSON/retry. Prediction giữ nội dung, đánh dấu action unavailable; scorer
   loại action metric thay vì tính sai bằng 0. Full suite sau sửa đạt 139 passed,
   2 skipped, 40 subtests.
+- Thêm true batched generation với left padding, giữ thứ tự và batch telemetry;
+  CLI có equivalence gate single-vs-batch trước khi tạo artifact. Smoke RTX thật:
+  batch 2 đạt 4/4 trong 25,67 giây; batch 4 đạt 4/4 trong 17,85 giây (nhanh hơn
+  khoảng 1,44 lần), output gate khớp tuyệt đối và không OOM.
 
 # TASK-20261014-08 - đánh giá full run và vẽ loss (completed)
 

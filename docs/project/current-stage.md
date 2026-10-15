@@ -599,6 +599,8 @@
   chủ động chạy run → score → pairwise compare theo `docs/qlora-operations.md`.
 - Bổ sung theo yêu cầu hiệu năng: đang smoke batch 2 trên 4 câu với equivalence gate
   4/4; artifact `outputs/tthc_test_case_v1/qlora_batch2_smoke4.jsonl`, không chạy full.
+- Kết quả: batch 2 đạt 4/4 trong 25,67 giây; batch 4 đạt 4/4 trong 17,85 giây,
+  equivalence 4/4 và không OOM. Chọn batch 4 cho full evaluation; không chạy full.
 
 # TASK-20261015-03 - completed
 
