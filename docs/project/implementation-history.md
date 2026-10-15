@@ -1,5 +1,16 @@
 # Lịch sử triển khai
 
+## TASK-20261015-13 - cô lập CI khỏi dataset và artifact local
+
+- Tái hiện CI từ checkout chỉ chứa file Git và xác nhận ba test dựa vào
+  `Data/outputs` có sẵn trên máy phát triển.
+- Chuyển test `data stats` và readiness sang JSONL/output fixture tạm; giữ nguyên
+  hành vi trả lỗi của CLI khi dataset thật bị thiếu.
+- Link test vẫn kiểm tra tài liệu/source nhưng không yêu cầu artifact runtime
+  không version-control phải tồn tại trên runner.
+- Kiểm chứng: 10 targeted test và full suite sạch 164 pass, 1 optional skip;
+  Ruff, compileall và diff-check đạt. Không thay đổi workflow hoặc runtime.
+
 ## TASK-20261015-12 - Agent Skills RAG và tối ưu Codex
 
 - Xác minh OpenAI/Codex, Agent Skills spec, Anthropic, Vercel và các skill RAG

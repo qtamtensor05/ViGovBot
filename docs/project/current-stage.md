@@ -1,3 +1,13 @@
+# TASK-20261015-13 - completed
+
+- Giai đoạn: hoàn tất sửa test CI và verification trong checkout sạch.
+- `data stats` và QLoRA readiness dùng dataset/output fixture tạm, không còn phụ
+  thuộc `Data/` local; link test tiếp tục kiểm tra source docs nhưng bỏ qua target
+  artifact dưới `Data/outputs` vốn không được version-control.
+- Không sửa CLI runtime, config canonical, workflow matrix hoặc business logic.
+- Kiểm chứng: 10 targeted test, full suite 164 test trong checkout sạch, Ruff,
+  compileall và diff-check đều đạt; 1 optional test được skip.
+
 # TASK-20261015-12 - partial
 
 - Giai đoạn: Phase 7 hoàn tất triển khai; còn forward-test discovery phiên mới.

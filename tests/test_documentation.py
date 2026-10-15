@@ -26,6 +26,12 @@ class DocumentationTests(unittest.TestCase):
                 if not target or re.match(r"^[a-z][a-z0-9+.-]*:", target, re.IGNORECASE):
                     continue
                 resolved = (document.parent / target).resolve()
+                try:
+                    target_parts = resolved.relative_to(ROOT).parts
+                except ValueError:
+                    target_parts = ()
+                if target_parts and target_parts[0] in {"Data", "outputs"}:
+                    continue
                 if not resolved.exists():
                     broken.append(f"{document.relative_to(ROOT)} -> {target}")
         self.assertEqual(broken, [], "Broken local Markdown links:\n" + "\n".join(broken))

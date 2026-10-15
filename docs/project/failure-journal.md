@@ -2,6 +2,19 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261015-21
+
+- Task: TASK-20261015-13.
+- Triệu chứng: CI Ubuntu/Windows fail; checkout sạch tái hiện link docs hỏng,
+  `data stats` exit 2 và readiness `BLOCKED` khi thiếu dataset/artifact local.
+- Nguyên nhân: ba test dùng trạng thái máy phát triển làm fixture dù `Data/` và
+  `outputs/` chỉ theo dõi `.gitkeep`.
+- Xử lý: tạo dataset/output tạm trong test; bỏ qua việc tồn tại của link target
+  thuộc khu artifact runtime nhưng vẫn kiểm tra mọi link source/docs khác.
+- Kết quả: full suite trong checkout sạch đạt 164 test, 1 optional skip.
+- Phòng tránh: test CI phải tự tạo input; không dùng artifact ngoài Git làm
+  precondition trừ khi workflow tải artifact một cách tường minh.
+
 ## ERR-20261006-05
 
 - Task: TASK-20261006-03.

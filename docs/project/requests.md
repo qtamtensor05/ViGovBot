@@ -1,5 +1,18 @@
 # Yêu cầu dự án
 
+## TASK-20261015-13
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: sửa CI cơ bản đang fail khi checkout không có dataset/artifact local;
+  giữ thay đổi ngắn gọn và không vi phạm cấu trúc hoặc thiết kế hiện tại.
+- Phạm vi: tái hiện trong checkout sạch, cô lập test khỏi dữ liệu không được Git
+  theo dõi, cập nhật workflow/test tối thiểu nếu cần; không thay đổi dataset,
+  config canonical hoặc business logic runtime.
+- Tiêu chí hoàn thành: lỗi CI được tái hiện và xử lý đúng nguyên nhân; targeted
+  test, full suite trong checkout sạch và static checks đạt trên phạm vi khả dụng.
+- Trạng thái: completed; các test phụ thuộc dataset/artifact local đã dùng fixture
+  hoặc bỏ qua link artifact không version-control; checkout sạch và static gates đạt.
+
 ## TASK-20261015-12
 
 - Ngày tiếp nhận: 2026-10-15.

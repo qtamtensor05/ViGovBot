@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -38,13 +39,19 @@ class UnifiedCliTests(unittest.TestCase):
             self.assertIn(command, train_help.output)
 
     def test_doctor_and_data_stats_are_lightweight(self):
-        with patch.dict(os.environ, {"VIGOVBOT_PROJECT_ROOT": str(ROOT)}):
-            doctor = self.runner.invoke(app, ["doctor"])
-            stats = self.runner.invoke(app, ["data", "stats", "--config", "configs/training/base.yaml"])
+        with tempfile.TemporaryDirectory() as folder:
+            paths = {name: Path(folder) / f"{name}.jsonl" for name in ("train", "validation", "test")}
+            for path in paths.values():
+                path.write_text('{"messages": []}\n', encoding="utf-8")
+            with patch.dict(os.environ, {"VIGOVBOT_PROJECT_ROOT": str(ROOT)}), \
+                    patch("vigovbot.training.data.dataset_paths", return_value=paths):
+                doctor = self.runner.invoke(app, ["doctor"])
+                stats = self.runner.invoke(app, ["data", "stats", "--config", "configs/training/base.yaml"])
         self.assertEqual(doctor.exit_code, 0, doctor.output)
         self.assertIn('"status": "PASS"', doctor.output)
         self.assertEqual(stats.exit_code, 0, stats.output)
         self.assertIn('"train"', stats.output)
+        self.assertIn('"records": 1', stats.output)
 
     def test_legacy_dispatch_remains_available(self):
         with patch("vigovbot.cli.main._legacy", return_value=7) as legacy:
