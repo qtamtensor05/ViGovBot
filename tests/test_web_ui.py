@@ -10,12 +10,15 @@ class WebUITests(unittest.TestCase):
     def test_script_syntax_and_fallback_history(self):
         path = Path(__file__).resolve().parents[1] / "src/vigovbot/server/static/index.html"
         script = path.read_text(encoding="utf-8").split("<script>", 1)[1].split("</script>", 1)[0]
-        helpers = script[script.index("function routingStatus"):script.index("function addAnswers")]
+        helpers = script[script.index("function modeLabel"):script.index("function addAnswers")]
         javascript = """
 const vm=require('node:vm'),assert=require('node:assert/strict');
 const input=JSON.parse(require('node:fs').readFileSync(0,'utf8'));
 new vm.Script(input.script);
 vm.runInNewContext(input.helpers+`
+assert.equal(modeLabel('base'),'không truy hồi');
+assert.equal(modeLabel('rag'),'có truy hồi');
+assert.match(modeLabel('qlora'),/QLoRA/);
 const fallback={answer:'Bạn vui lòng nêu rõ thủ tục và nội dung cần tra cứu?',
   routing_diagnostics:{fallback_reason:'invalid_routing_after_retry',routing_attempts:2}};
 assert.match(routingStatus(fallback.routing_diagnostics),/Lỗi định dạng phân loại sau 2 lần/);

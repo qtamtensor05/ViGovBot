@@ -83,6 +83,58 @@ class WebChatTests(unittest.TestCase):
             {"top_k": 5, "model": "qwen", "api_key_env": None, "ollama_url": "http://localhost:11434"},
         )
 
+    def test_qlora_mode_calls_local_adapter_without_retrieval(self):
+        model = self.app.models["local"]
+        model.mode = "qlora"
+        model.provider = "local_transformers"
+        model.model = "Qwen/Qwen2.5-7B-Instruct"
+        model.adapter_path = "outputs/qlora/run/best_adapter"
+        model.load_in_4bit = True
+        model.allow_multiple_models = False
+        model.cpu_offload = False
+        model.gpu_memory_gib = None
+        model.cpu_memory_gib = None
+        model.force_single_gpu = True
+        answer_fn = unittest.mock.Mock(return_value=("Trả lời từ adapter", {}, 0.4))
+        with (
+            patch("vigovbot.server.app.answerer_for", return_value=answer_fn),
+            patch("vigovbot.server.app.answer_question") as rag_answer,
+        ):
+            response = self.app.chat({"question": "Hồ sơ gồm gì?", "models": ["local"]})
+        result = response["results"][0]
+        self.assertEqual(result["answer"], "Trả lời từ adapter")
+        self.assertEqual(result["mode"], "qlora")
+        self.assertEqual(result["sources"], [])
+        rag_answer.assert_not_called()
+        self.assertEqual(answer_fn.call_args.args[1]["adapter_path"], model.adapter_path)
+        self.assertTrue(answer_fn.call_args.args[1]["force_single_gpu"])
+
+    def test_switching_ollama_and_local_transformers_releases_previous_backend(self):
+        local = self.app.models["local"]
+        qlora = SimpleNamespace(
+            id="qlora", label="QLoRA", provider="local_transformers",
+            model="Qwen/Qwen2.5-7B-Instruct", base_url="local", api_key_env=None,
+            mode="qlora", adapter_path="best_adapter", load_in_4bit=True,
+            allow_multiple_models=False,
+            cpu_offload=False, gpu_memory_gib=None, cpu_memory_gib=None,
+            force_single_gpu=True,
+        )
+        self.app.models["qlora"] = qlora
+        with (
+            patch("vigovbot.server.app.answerer_for", return_value=unittest.mock.Mock(
+                return_value=("ok", {}, 0.1)
+            )),
+            patch("vigovbot.server.app.answer_question", return_value={
+                "prediction": "ok", "retrieved": [], "latency_s": 0.1,
+            }),
+            patch("vigovbot.llm.llm_client.unload_model") as unload,
+            patch("training.inference.release_local_transformers_models") as release,
+        ):
+            self.app.chat({"question": "x", "models": ["local", "qlora"]})
+            self.app.chat({"question": "y", "models": ["local"]})
+        unload.assert_called_once_with(local.base_url, local.model)
+        release.assert_called_once_with()
+
 
 if __name__ == "__main__":
     unittest.main()

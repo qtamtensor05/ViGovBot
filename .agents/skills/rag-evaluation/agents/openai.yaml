@@ -1,0 +1,4 @@
+interface:
+  display_name: "RAG Evaluation"
+  short_description: "Evaluate RAG with metric contracts"
+  default_prompt: "Use $rag-evaluation to evaluate a ViGovBot RAG run."

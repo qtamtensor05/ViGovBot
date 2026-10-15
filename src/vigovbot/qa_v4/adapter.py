@@ -94,6 +94,7 @@ def normalize_result(result, unit_mapping=None):
         "routing_attempts",
         "fallback_reason",
         "generation_diagnostics",
+        "action_status",
     ):
         if key in result:
             normalized[key] = result[key]
@@ -188,6 +189,78 @@ def ollama_baseline(config_path):
             unload_model(config.llm.ollama_url, config.llm.model)
         except Exception:
             pass
+
+
+@contextmanager
+def qlora_adapter(run_dir):
+    """Run a trained PEFT adapter with its native plain-answer SFT contract."""
+    from pathlib import Path
+
+    from vigovbot.training.config import load_config
+    from vigovbot.training.inference import local_transformers_answer, local_transformers_batch_answer
+    from vigovbot.prompts.prompt_templates import validate_history
+
+    root = Path(run_dir).resolve()
+    config_path = root / "config.yaml"
+    adapter_path = root / "best_adapter"
+    if not config_path.is_file():
+        raise FileNotFoundError(f"QLoRA run config not found: {config_path}")
+    if not adapter_path.is_dir():
+        raise FileNotFoundError(f"QLoRA best adapter not found: {adapter_path}")
+    config = load_config(config_path)
+    generation = config["evaluation"]["generation"]
+    settings = {
+        "model": config["model"]["name"],
+        "adapter_path": str(adapter_path),
+        "load_in_4bit": True,
+        "num_predict": generation["max_new_tokens"],
+        "temperature": generation["temperature"],
+    }
+
+    def answer(question, history=None):
+        if not isinstance(question, str) or not question.strip():
+            raise ValueError("Question must be nonempty")
+        messages = [*validate_history(history), {"role": "user", "content": question.strip()}]
+        prediction, raw, generation_s = local_transformers_answer(messages, settings)
+        if not prediction.strip():
+            raise ValueError("QLoRA generated an empty answer")
+        return normalize_result({
+            "evaluation_mode": "qlora_adapter_no_retrieval",
+            "prediction": prediction,
+            "action": None,
+            "action_status": "unavailable_model_not_trained_for_action_labels",
+            "retrieved": [],
+            "citations": [],
+            "context_used": [],
+            "retrieval_s": 0.0,
+            "generation_s": generation_s,
+            "raw_ollama": raw,
+            "generation_diagnostics": {"attempts": 1, "output_contract": "plain_assistant_answer"},
+        })
+
+    def answer_batch(requests):
+        messages_batch = [
+            [*validate_history(item.get("history")), {"role": "user", "content": item["question"].strip()}]
+            for item in requests
+        ]
+        predictions, raw, generation_s = local_transformers_batch_answer(messages_batch, settings)
+        results = []
+        for prediction in predictions:
+            if not prediction:
+                raise ValueError("QLoRA generated an empty answer")
+            results.append(normalize_result({
+                "evaluation_mode": "qlora_adapter_no_retrieval", "prediction": prediction,
+                "action": None, "action_status": "unavailable_model_not_trained_for_action_labels",
+                "retrieved": [], "citations": [], "context_used": [], "retrieval_s": 0.0,
+                "generation_s": generation_s / len(predictions), "raw_ollama": raw,
+                "generation_diagnostics": {"attempts": 1, "output_contract": "plain_assistant_answer",
+                                           "batch_size": len(predictions)},
+            }))
+        return results
+
+    answer.answer_batch = answer_batch
+
+    yield answer
 
 
 @contextmanager

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Token Budget Optimization"
+  short_description: "Optimize context without losing evidence"
+  default_prompt: "Use $token-budget-optimization to optimize the context budget."

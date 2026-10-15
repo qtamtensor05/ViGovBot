@@ -1,3 +1,179 @@
+# TASK-20261015-13 - completed
+
+- Giai đoạn: hoàn tất sửa test CI và verification trong checkout sạch.
+- `data stats` và QLoRA readiness dùng dataset/output fixture tạm, không còn phụ
+  thuộc `Data/` local; link test tiếp tục kiểm tra source docs nhưng bỏ qua target
+  artifact dưới `Data/outputs` vốn không được version-control.
+- Không sửa CLI runtime, config canonical, workflow matrix hoặc business logic.
+- Kiểm chứng: 10 targeted test, full suite 164 test trong checkout sạch, Ruff,
+  compileall và diff-check đều đạt; 1 optional test được skip.
+
+# TASK-20261015-12 - partial
+
+- Giai đoạn: Phase 7 hoàn tất triển khai; còn forward-test discovery phiên mới.
+- Đã nghiên cứu nguồn, audit repository và triển khai 15 skill custom ở layout
+  `.agents/skills/<name>`; thêm 3 script deterministic, references, UI metadata,
+  scenario test và tám tài liệu bàn giao trong `docs/agent-skills/`.
+- `AGENTS.md` đã có routing ngắn; không nạp đồng thời toàn bộ skill. Không thay
+  đổi business logic, artifact, dataset, model hoặc dependency dự án.
+- Kiểm chứng: 15/15 skill validator đạt; full suite 164 pass, 1 optional skip;
+  Ruff, compileall và diff-check đạt.
+- Còn lại: mở phiên Codex mới để xác nhận implicit discovery/trigger; trạng thái
+  này là NOT VERIFIED, không được suy ra từ validator.
+
+# TASK-20261015-11 - completed
+
+- Giai đoạn: hoàn tất skill, README và verification gate.
+- Đã xác nhận worktree sạch; cấu trúc canonical hiện có là `src/vigovbot`,
+  `configs/{ingestion,rag,training}` và `docs/{setup,architecture,guides,training,reports,project}`.
+- Đã tạo/validate `vigovbot-project-structure`, nối vào `AGENTS.md` và quy định
+  canonical layout cùng chính sách README/docs.
+- README gốc chỉ còn tổng quan, ba lệnh bắt đầu, cấu trúc cấp cao và link docs;
+  nội dung môi trường/vận hành chi tiết tiếp tục nằm trong `docs/`.
+- Kiểm chứng: 9 test documentation/CLI, Ruff, compileall và diff-check đạt;
+  skill validator trả `Skill is valid!` khi bật UTF-8 mode.
+- Ràng buộc: không sửa hành vi runtime, không di chuyển artifact/dataset và
+  không nhân đôi hướng dẫn chi tiết giữa README gốc với docs.
+
+# TASK-20261015-10 - completed
+
+- Giai đoạn: hoàn tất command tree và verification gate.
+- Đã xác nhận training/eval/report có lệnh `vigov`, nhưng web, ask, ingest,
+  embedding và RAG evaluation vẫn chỉ có entry point dài `python -m vigovbot`.
+- Đã thêm `web`, `ask`, `data ingest/embed` và nhóm
+  `rag prepare/smoke/evaluate/report/run`; wrapper dùng lại service hiện có và
+  resolve path từ project root.
+- Đã cập nhật README, guide RAG, mục lục docs và thêm tham chiếu CLI tập trung.
+- Kiểm chứng: routing mock, 9 leaf help và full suite 160 test đều đạt
+  (1 optional skip); Ruff, compileall và diff-check đạt.
+- Ràng buộc: không nhân đôi business logic; không chạy server, tải model,
+  embedding hay benchmark thật trong bước refactor CLI.
+
+# TASK-20261015-09 - completed
+
+- Giai đoạn: hoàn tất phân nhóm và verification gate.
+- Đã xác nhận nhánh `codex/ref-clean` có working tree sạch trước khi di chuyển.
+- Đã chuyển tài liệu sang `setup`, `architecture`, `guides`, `training`,
+  `reports`; roadmap vào `project`; gốc `docs/` chỉ còn `README.md`.
+- Đã cập nhật link toàn repository, thay file URL theo máy cá nhân bằng link
+  tương đối, sửa link dataset theo layout thật và thêm regression test link.
+- Kiểm chứng: 158 test pass, 1 optional skip; Ruff, compileall và diff-check đạt;
+  không còn link local hỏng hay tham chiếu hoạt động tới path docs cũ.
+- Ràng buộc: giữ nguyên `docs/project/` và lịch sử cũ; không sửa artifact,
+  dataset, checkpoint hoặc hành vi runtime.
+
+# TASK-20261015-08 - completed
+
+- Giai đoạn: hoàn tất migration và verification gate.
+- Đã xác nhận worktree đang chứa thay đổi refactor TASK-20261015-07 cần được
+  bảo toàn; chưa có thao tác xóa/move artifact, dataset hoặc checkpoint.
+- Đã chia YAML vào `configs/ingestion`, `configs/rag`, `configs/training`; cập
+  nhật source, script, notebook, test và tài liệu sang đường dẫn mới. Các file
+  cấu hình phẳng trùng vai trò đã được xóa; snapshot trong run cũ giữ nguyên.
+- Kiểm chứng: mọi loader canonical resolve đúng; `vigov doctor` và
+  `vigov data stats` chạy từ ngoài repository; 157 test pass, 1 optional skip;
+  Ruff, compileall và diff-check đạt.
+- Ràng buộc: giữ nguyên giá trị cấu hình và hành vi loader; không chạy training,
+  không tải model; cấu hình snapshot trong run lịch sử không bị thay đổi.
+
+# TASK-20261015-07 - completed
+
+- Giai đoạn: hoàn tất refactor và verification gate.
+- Đã xác nhận Git đang ở nhánh `codex/ref-clean`, working tree sạch tại thời điểm
+  bắt đầu; mã ứng dụng đã dùng src-layout nhưng training còn là package cấp gốc,
+  CLI công khai hiện là `vigovbot` dùng argparse và chưa có command tree yêu cầu.
+- Đã thêm console script `vigov`, command tree bắt buộc, compatibility dispatch
+  cho CLI cũ, config `environments/` và `experiments/`, logs command, dependency
+  groups và `docs/refactor-summary.md`. Profile RTX 5060 Ti canonical đã dùng
+  layout SFT thực tế hiện có; snapshot run lịch sử không đổi.
+- Kiểm chứng: editable install thành công; `vigov --help`, doctor và data stats
+  chạy thật; full suite 156 pass, 1 optional skip; Ruff, compileall, pip check,
+  diff-check và PowerShell AST đều đạt. Không chạy training/model download.
+- Ràng buộc: không chạy full QLoRA, không tải lại model, không di chuyển/xóa dữ
+  liệu, checkpoint, adapter, log hoặc report hiện có.
+- Lát cắt 2 đã chuyển toàn bộ implementation QLoRA vào `src/vigovbot/training`,
+  giữ alias package cũ cùng module object, thêm lifecycle Python đa nền tảng,
+  identity/duplicate/stop/resume gate và layout run phân khu. CI Windows/Ubuntu,
+  tài liệu development/GPU/training/evaluation đã được bổ sung.
+- Kiểm chứng cuối: full suite 156 pass, 1 optional skip; Ruff, compileall,
+  pip check, diff-check, PowerShell AST, editable install, help matrix, import
+  parity ngoài repo và smoke dry-run thật đều đạt.
+- Ranh giới: dry-run xác nhận RTX 4050/CUDA 13.0 và dataset, nhưng không chạy GPU
+  smoke/full training, không tải model và không tuyên bố tái kiểm chứng GPU.
+- Bước tiếp theo do người vận hành chủ động: chạy GPU smoke bằng run ID mới, xem
+  status/logs và acceptance artifact trước khi cân nhắc full experiment.
+
+# TASK-20261015-02 - completed
+
+- Đã cập nhật toàn diện kết quả benchmark 1.000 ca test trên bộ dữ liệu `tthc_test_case_v1`
+  vào Mục 6 của tài liệu `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`.
+- Dữ liệu đối chiếu từ `scores_qwen_qlora_batch4.json` và run log thực tế:
+  + Kích thước tập test: 1.000 ca; 810 ca có text similarity evaluation, 190 ca abstain/clarify.
+  + Tỷ lệ thành công cấu trúc: 100% (1.000/1.000 thành công, 0 ca lỗi).
+  + Bảng đối chiếu 3 chiều (Base vs RAG vs QLoRA):
+    * Corpus BLEU-4: Base 8,27 | RAG 23,91 | QLoRA 33,23 (+38,98% so với RAG).
+    * Sentence BLEU: Base 15,41 | RAG 31,15 | QLoRA 61,38 (+97,05% so với RAG).
+    * ROUGE-L F1: Base 0,3188 | RAG 0,5069 | QLoRA 0,7169 (+41,43% so với RAG).
+    * BERTScore F1: Base 0,8816 | RAG 0,9041 | QLoRA 0,9514 (+5,23% so với RAG).
+    * Exact Match (EM): Base 0,00% | RAG 0,00% | QLoRA 26,30% (213/810 ca trùng khớp hoàn hảo từng từ).
+    * Translation Edit Rate (TER): Base 134,81 | RAG 85,32 | QLoRA 43,60 (giảm lỗi chỉnh sửa 48,90%).
+  + Phân tích per-action: `correct_premise` đạt kết quả vượt trội (Sentence BLEU 84,17, ROUGE-L 0,8924, BERTScore 0,9819, EM 45,71%); `answer` đạt Sentence BLEU 57,87, ROUGE-L 0,6934; `partial` đạt Sentence BLEU 65,00, ROUGE-L 0,7299; `abstain` và `clarify` tuân thủ 100% hành vi an toàn theo schema.
+  + Hiệu năng suy luận: latency trung bình 12,08 s / câu (p50: 11,71 s, max: 28,76 s).
+- Ranh giới kiểm chứng: các chỉ số trích xuất nguyên văn từ artifact kết quả, không nội suy; toàn bộ các phần phân tích kiến trúc/loss/tài nguyên trước đó được giữ nguyên vẹn.
+
+# TASK-20261015-01 - partial
+
+- Artifact môi trường của full run xác nhận máy tạo run là RTX 5060 Ti 16 GB,
+  PyTorch 2.9.1+cu130, BF16 và QLoRA 4-bit đã chạy thật; cấu hình này đủ chạy
+  lexical/BERTScore, paired compare, controlled HF evaluation tuần tự và report.
+- Ưu tiên chạy score trước, rồi paired compare; hai bước plot/report sau cùng nhẹ.
+  Controlled HF evaluation tải/chạy lần lượt base và adapter trên 1.000 mẫu, sinh
+  lại 2.000 câu trả lời nên dài hơn nhiều và cần chạy riêng, không đồng thời BERTScore.
+- Ranh giới kiểm chứng: phiên máy hiện tại là RTX 4050 Laptop 6 GB, RAM trống khoảng
+  4,87 GiB, đĩa C trống khoảng 44,58 GiB; không có `.venv-qlora` hoặc prediction
+  batch4. Vì khác máy/artifact người dùng nêu, chưa khởi chạy workload dài tại đây.
+- Hiệu chỉnh theo xác nhận của người dùng: RTX 4050 Laptop 6 GB chính là máy đích.
+  Lexical/paired compare/plot/report khả thi; BERTScore CUDA nên bắt đầu batch 4
+  rồi tăng 8 nếu ổn. Controlled HF evaluation 7B NF4 không được coi là chắc chắn:
+  cần giải phóng GPU/RAM và smoke trên bản sao run trước khi chạy đủ 1.000 mẫu.
+- Phát hiện môi trường: `.venv-qlora` không tồn tại. `env` có BERTScore nhưng dùng
+  Torch CPU (`2.14.0+cpu`), nên lệnh CUDA hiện chưa chạy được; xem ERR-20261015-01.
+- Xác minh index PyTorch chính thức: RTX 4050 Laptop compute capability 8.9,
+  driver 617.42 và Python 3.14.7 có wheel `torch 2.14.0+cu130`; chọn CUDA 13.0
+  để thay đúng bản CPU cùng version, không cần cài CUDA Toolkit hệ thống.
+- Người dùng đã cài/xác minh Torch 2.14.0+cu130 nhận RTX 4050. Lỗi score kế tiếp
+  do resolver chưa hỗ trợ `data/{split}.jsonl`; đã sửa và regression test 2/2 đạt.
+  Còn chờ người dùng chạy lại scorer trên prediction hiện có.
+- Prediction QLoRA thực tế nằm tại thư mục lồng
+  `outputs/tthc_test_case_v1/tthc_test_case_v1/`; đã xác minh 1.000/1.000 thành
+  công và hash query khớp dataset hiện tại. Lệnh score cần dùng đường dẫn này.
+
+# TASK-20261014-09 - completed
+
+- Đã tạo tài liệu báo cáo phân tích toàn diện quá trình huấn luyện QLoRA cho Qwen2.5-7B
+  tại `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`.
+- Báo cáo phân tích chi tiết:
+  + Cấu hình mô hình: Qwen2.5-7B, max length 2.048, NF4 double-quant, bfloat16.
+  + LoRA Adapter: r=16, alpha=32, target all 7 linear projections (q, k, v, o, gate, up, down).
+  + Tham số: 40.370.176 trainable parameters (chiếm 0,919% tổng số tham số), giảm 99,08% so với full fine-tuning.
+  + Diễn biến loss: train loss giảm từ 2,117 xuống 0,1015; validation loss cực tiểu 0,24649 tại step 1.100.
+  + Cơ chế dừng sớm: kích hoạt tại step 1.300 do validation loss tăng liên tiếp (patience=2), tự động phục hồi best adapter từ checkpoint-1100.
+  + Hiệu năng tài nguyên: Peak VRAM 12,86 GB / 16 GB RTX 5060 Ti; throughput 1,127 samples/s; tổng thời gian ~3h41m.
+- Đã liên kết tài liệu trong `docs/README.md`.
+- Ghi rõ: hiện chưa có kết quả suy luận trên 1.000 ca test độc lập và sẽ bổ sung sau.
+
+# TASK-20261014-08 - completed
+
+- Đã đánh giá full run `qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d`
+  từ event/log/metrics/checkpoint thật; không chạy lại training 7B.
+- Run dừng sớm ở step 1.300/1.875; validation loss tốt nhất 0,246493 tại step
+  1.100. Hai lần eval sau tăng lên 0,258451 và 0,254082, phù hợp dấu hiệu
+  overfit nhẹ và patience=2. Best adapter có SHA-256 trùng checkpoint-1100.
+- Đã chạy thành công `training.plot` bằng `env` và sinh 9 biểu đồ, gồm ba biểu
+  đồ loss; unit test plot và `git diff --check` đạt.
+- Giới hạn: chưa có post-training test evaluation hay prediction QA-v4, nên chưa
+  kết luận được chất lượng trả lời trên test.
+
 # TASK-20261007-08 — completed
 
 - Đã lập tài liệu báo cáo phân tích và so sánh RAG vs Base cho 1.000 ca kiểm thử
@@ -368,4 +544,236 @@
   README baseline đã ghi rõ schema, retry và không đưa retrieval/gold vào prompt.
 - Artifact cũ `predictions_qwen_baseline_c4.jsonl` giữ nguyên; để benchmark chính
   cần chạy lại đủ 1.000 ca sang tên output mới.
+
+# TASK-20261014-01 - partial
+
+- Đang triển khai pipeline QLoRA local-first cho Qwen2.5-7B-Instruct; không
+  tải model 7B và không chạy full training trên máy local.
+- Đã xác nhận ba split SFT tại `Data/tthc_test_case_v1/data/`, repo dùng
+  `src/` layout, chatbot hiện phục vụ Ollama/OpenAI-compatible.
+- Giai đoạn hiện tại: tạo config, package `training`, CLI, adapter inference,
+  dependency/docs và unit test CPU; sau đó chạy validation/test/smoke synthetic.
+- Đã chạy 9 unit test QLoRA local: đạt; Ruff: đạt. Chuẩn bị chạy
+  `python -m training.validate_data --config configs/local.yaml` trên 5.000 record;
+  artifact đích `outputs/qlora/dataset_report.json`, không nạp tokenizer/model.
+- GPU preflight/training/evaluation thật sẽ chỉ được xác nhận trên máy GPU.
+- Đã xong local: 10 unit logic QLoRA + 5 server/plot integration đạt; Ruff
+  và diff-check đạt; official Qwen tokenizer từ cache xác nhận 150 token
+  với 62 target/88 masked trên một mẫu thật.
+- Dataset report: 3.000/1.000/1.000 record hợp lệ; không trùng exact
+  conversation/question giữa split; answer exact overlap lần lượt 93/99/57,
+  near-question 26/24/13 và procedure overlap được báo cáo, không tự xóa.
+- Token length official: train P50/P90/P95/P99/max = 180/709/884/1203/1619;
+  validation = 181/717/928/1133/1513; test = 179/696/892/1159/1539.
+- Full suite hiện có 124 đạt, 1 skipped, 1 failure cũ về JSON schema trong
+  `test_multiturn`; xem ERR-20261014-04. Không có full QLoRA run/checkpoint/metric GPU.
+
+# TASK-20261014-02 - partial
+
+- Đang audit pre-GPU implementation QLoRA hiện có; không nạp model weights
+  hoặc chạy training 7B.
+- Giai đoạn: đọc source/config/test thực tế, dựng test mô phỏng
+  masking/checkpoint/early stopping/metrics/plots, sau đó sửa critical findings.
+- Đầu ra bắt buộc: `docs/qlora-pre-gpu-audit.md`, test/static-check logs
+  tóm tắt và kết luận READY/NOT READY cho GPU smoke.
+- Findings đã sửa: assistant header bị tính loss; truncation cắt target;
+  resume sang run directory mới/thiếu kiểm optimizer-scheduler-RNG-callback;
+  loss evaluation trung bình theo example thay vì target token; corpus BLEU/chrF
+  bị thay bằng trung bình sentence; base parameter count và best-model metrics.
+- JSON schema failure được xác nhận là test cũ: runtime schema là contract
+  chủ ý, còn provider vẫn hỗ trợ JSON mode cũ. Đã sửa assertion test.
+- Nhóm audit hiện đạt 27 test (1 skipped) và Ruff. Chuẩn bị chạy
+  full suite `unittest discover` và validator 5.000 record với official tokenizer
+  cache-only; không tải model weights.
+- Kết quả cuối local: full suite 136 passed, 1 optional skipped, 0 failed;
+  Ruff/compileall/diff-check đạt; validator official tokenizer offline đạt
+  5.000/5.000 record. Báo cáo: `docs/qlora-pre-gpu-audit.md`.
+- Kết luận: READY có điều kiện cho GPU smoke, chưa READY cho full
+  training. Còn bắt buộc smoke NF4/CUDA/bitsandbytes và resume checkpoint thật.
+
+﻿# TASK-20261014-03 — completed
+
+- Đang kiểm kê Windows/RTX 5060 Ti, driver/CUDA, Python/venv, dung lượng đĩa,
+  Git, dataset và implementation QLoRA trước khi cài dependency.
+- Mục tiêu tiếp theo: chọn wheel PyTorch chính thức tương thích driver + SM 12.0,
+  tạo `.venv-qlora`, kiểm CUDA tensor rồi mới cài/test stack QLoRA.
+- Chưa chạy training hoặc tải trọng số 7B; chưa có kết luận readiness.
+- Kiểm kê host: RTX 5060 Ti 16.311 MiB, compute 12.0, driver 616.92 quảng bá
+  CUDA 13.4; VRAM trống 15.323 MiB; đĩa C trống 996,56 GiB. Git commit
+  `659bd9ec80595636f7346e9b41195e5a51224c96`.
+- Không có Python launcher/interpreter độc lập; chỉ có Store alias và Python 3.13
+  nhúng của Blender. Chuẩn bị cài Python 3.11 user-scope bằng winget rồi tạo
+  `.venv-qlora`.
+- Wheel đã chọn: PyTorch 2.9.1 CUDA 13.0 chính thức cho Windows, phù hợp pin repo,
+  driver 616.92 và SM 12.0. Lệnh dài bắt đầu: `winget install --id
+  Python.Python.3.11 --exact --scope user --silent ...`; artifact là interpreter
+  user-scope và `.venv-qlora` ở bước kế tiếp.
+- Python 3.11.9 user-scope và `.venv-qlora` đã tạo; pip 26.2.1, setuptools 84.0.0,
+  wheel 0.48.0. Chuẩn bị chạy lệnh dài cài `torch==2.9.1` từ index chính thức
+  `https://download.pytorch.org/whl/cu130`, sau đó kiểm CUDA tensor thật.
+- PyTorch 2.9.1+cu130 cài thành công; runtime CUDA 13.0 nhận RTX 5060 Ti,
+  compute (12, 0), BF16=true, arch list có `sm_120`; CUDA matmul 1024x1024 đạt.
+- Chuẩn bị lệnh dài cài `requirements/qlora-gpu.txt` cùng sentencepiece, evaluate,
+  scikit-learn, psutil, pytest, Ruff và package editable; sau đó chạy `pip check`
+  và test bitsandbytes kernel, không chỉ import.
+- Dependency cài thành công, `pip check` đạt. Diagnostic thật lưu tại
+  `outputs/qlora/gpu_environment_diagnostic.json`: NF4 BF16 forward/backward,
+  double quantization và PagedAdamW8bit state uint8 đều PASS.
+- Đã thêm config RTX 5060 Ti và smoke config kế thừa đúng schema/path dữ liệu,
+  cùng requirements Windows Blackwell. Dataset có đúng 3.000/1.000/1.000 record.
+- Chuẩn bị chạy validator official tokenizer; artifact đích
+  `outputs/qlora/dataset_report_rtx5060ti.json`, không tải model weights.
+- Validator official Qwen đạt 5.000/5.000; max token train/validation/test lần lượt
+  1.619/1.513/1.539, dưới 2.048; không có exact conversation/question overlap.
+  Preflight JSON đạt CUDA/config/Hub/tokenizer; 21 test QLoRA và Ruff đạt.
+- Chuẩn bị lệnh dài smoke thật: `.venv-qlora/Scripts/python.exe -m training.train
+  --config configs/smoke_rtx5060ti_16gb.yaml --approve --run-id
+  smoke-rtx5060ti-20261014`. Lần này tải Qwen weights khi cần; artifact đích
+  `outputs/qlora/smoke-rtx5060ti-20261014/`; yêu cầu checkpoint-2 và 4 step.
+- Smoke thật hoàn tất 4 step, loss hữu hạn 1,9367→1,3523, peak allocated/reserved
+  10,83/11,55 GiB, không OOM; checkpoint-2 và checkpoint-4 đủ state.
+- Phát hiện/cố định cảnh báo callback hậu kiểm ở ERR-20261014-11; đã chụp hash
+  checkpoint-4 không gián đoạn. Chuẩn bị resume thật từ checkpoint-2 trong cùng
+  run directory và đối chiếu continuity/hash; artifact report ở
+  `outputs/qlora/smoke-rtx5060ti-20261014/resume_verification_report.json`.
+- Resume thực thi đúng step 3–4, LR/loss/adapter/scheduler/RNG/callback khớp; chỉ
+  hash byte pickle optimizer khác (ERR-20261014-12). Chuẩn bị smoke uninterrupted
+  đối chứng cùng seed tại `outputs/qlora/smoke-rtx5060ti-reference-20261014/`, rồi
+  so nội dung tensor optimizer; chưa kết luận resume PASS trước đối chiếu này.
+- Đối chiếu cuối: optimizer step 2→4, scheduler/RNG/callback/adapter/loss/gradient
+  khớp; uint8 buffer optimizer không byte-identical nhưng không reset. Acceptance
+  7/7 PASS; 7 plot và báo cáo JSON/Markdown đã sinh.
+- Kiểm chứng cuối: 136 test đạt, 2 optional skip; pip check, Ruff, compileall và
+  diff-check đạt. Trạng thái máy: `READY WITH LIMITATIONS` cho full training có
+  giám sát; chưa chạy full training theo yêu cầu.
+
+﻿# TASK-20261014-04 — completed
+
+- Đang bổ sung cơ chế vận hành full QLoRA độc lập bằng PowerShell; không chạy full
+  training trong task này.
+- Pipeline hiện chưa ghi status live và KeyboardInterrupt không dùng được ổn định
+  giữa hai process Windows; sẽ dùng stop-request file được Trainer callback nhận
+  ở cuối optimizer step, yêu cầu save rồi dừng.
+- Artifact điều khiển dự kiến nằm trong từng run directory và active pointer tại
+  `outputs/qlora/control/`; stdout/stderr/exit code tách riêng, không ghi đè run.
+- Tiếp theo: triển khai callback/validator, bốn script + worker, README và dry-run
+  test; không thay hyperparameter trong config GPU.
+- Đã hoàn tất start/status/stop/TensorBoard + worker độc lập, live status/TensorBoard
+  GPU metrics, graceful checkpoint stop, resume validation và chống chạy trùng/
+  ghi đè. Mỗi attempt có log/metadata riêng; exit code được giữ.
+- Dry-run start xác nhận RTX 5060 Ti, ba split 3.000/1.000/1.000 và 1.875 step;
+  không tạo worker/run. PowerShell AST và TensorBoard dry-run đạt.
+- Kiểm chứng cuối: 138 test đạt, 2 optional skip; pip check, Ruff, compileall và
+  diff-check đạt. Không chạy full training theo yêu cầu.
+
+# TASK-20261014-05 — completed
+
+- Giai đoạn: audit và khắc phục logging/reporting QLoRA đã hoàn tất.
+- Đã xong: đối chiếu yêu cầu với callback, train artifact, evaluate, metrics, plot
+  và report; xác nhận TensorBoard có metric nhưng CSV cuối-run chưa phải log liên
+  tục và một số plot chưa có nguồn dữ liệu thực tương ứng.
+- Đã xong: event JSONL append-only/timing/checkpoint-resume metadata; evaluation
+  theo split và câu hỏi; manifest plot/report unavailable; readiness check và tài liệu.
+- Còn lại: measurement thực chỉ xuất hiện sau full training và post-training test
+  evaluation do người dùng chủ động chạy; đây không phải phần còn thiếu của tooling.
+- Trở ngại: không có.
+- Bước tiếp theo: người dùng chạy readiness, start full training, rồi evaluate → plot → report.
+- Bằng chứng: readiness RTX `READY` và không load model/start train; `137 passed,
+  2 skipped, 40 subtests`; compileall, Ruff và `git diff --check` đạt.
+
+# TASK-20261014-06 — completed
+
+- Đã xác minh `rag/test_queries.jsonl`, `rag/test.jsonl` và `fintuning/test_sft.jsonl`
+  đều có 1.000 ID giống nhau; SFT messages khớp tuyệt đối history + question +
+  reference answer của hai file RAG, không có mismatch.
+- Kết luận: `training.evaluate --split test` đã đánh giá đúng cùng tập câu hỏi mà
+  không cần cấu hình dataset mới. Evaluator này không đồng nhất hoàn toàn với QA-v4
+  schema/action scorer của baseline Ollama; muốn so trực tiếp artifact cũ cần adapter
+  QA-v4 riêng.
+- Không chạy generation hoặc tải model trong bước kiểm tra này.
+
+# TASK-20261014-07 — completed
+
+- Giai đoạn: backend QA-v4 cho QLoRA adapter đã hoàn tất và kiểm thử.
+- Mục tiêu: dùng đúng 1.000 query, reference history và scorer của baseline/RAG;
+  giữ metric retrieval/action unavailable nếu model không phát sinh bằng chứng thật.
+- Đã thêm `--qlora-run-dir`, bắt buộc concurrency 1, cùng structured prompt/parser/
+  retry, artifact/provenance riêng và lệnh score/compare pairwise.
+- Kiểm chứng: 138 passed, 2 skipped, 40 subtests; Ruff và compileall đạt.
+- Không chạy batch generation thật trong phiên này; bước tiếp theo là người dùng
+  chủ động chạy run → score → pairwise compare theo `docs/qlora-operations.md`.
+- Bổ sung theo yêu cầu hiệu năng: đang smoke batch 2 trên 4 câu với equivalence gate
+  4/4; artifact `outputs/tthc_test_case_v1/qlora_batch2_smoke4.jsonl`, không chạy full.
+- Kết quả: batch 2 đạt 4/4 trong 25,67 giây; batch 4 đạt 4/4 trong 17,85 giây,
+  equivalence 4/4 và không OOM. Chọn batch 4 cho full evaluation; không chạy full.
+
+# TASK-20261015-03 - completed
+
+- Giai đoạn: kiểm kê và đối chiếu tính công bằng của benchmark Qwen Base, Base +
+  RAG và QLoRA.
+- Đã xác nhận: ba nhánh dùng chung 1.000 ID test ở mức dữ liệu; QLoRA được SFT theo
+  câu trả lời thuần văn bản, còn backend baseline từng dùng hợp đồng JSON/action.
+- Đã đối chiếu artifact: cùng SHA-256 query, cùng `reference_history`; Base và
+  QLoRA đủ 1.000 prediction, RAG thành công 995. QLoRA đạt BLEU 61,38, ROUGE-L
+  0,7169, BERTScore F1 0,9514 và EM 26,30% trên 810 ca có đáp án văn bản.
+- Giới hạn đã xác minh: QLoRA không xuất action/retrieval; 56,4% toàn bộ ca test
+  dùng document đã có trong train. Trên 810 ca similarity, nhóm document đã gặp
+  (493 ca) đạt BLEU 64,82/EM 30%/ROUGE-L 0,74; nhóm chưa gặp (317 ca) vẫn đạt
+  BLEU 56,02/EM 20%/ROUGE-L 0,68.
+- Kết luận: adapter học trực tiếp phong cách và ánh xạ hỏi-đáp gold nên bám reference
+  tốt hơn; lợi thế không chỉ do overlap nhưng overlap theo nguồn làm kết quả lạc
+  quan hơn một benchmark document-disjoint. Chưa đủ bằng chứng để nói QLoRA tốt
+  hơn RAG về cập nhật tri thức, factuality, action behavior hoặc retrieval.
+- Không chạy lại workload dài hoặc thay đổi checkpoint trong task điều tra này.
+
+# TASK-20261015-04 - completed
+
+- Giai đoạn: tích hợp QLoRA vào web demo ba mô hình.
+- Đã xác minh: server đã có provider `local_transformers` và loader PEFT 4-bit,
+  nhưng `configs/inference.yaml` chưa khai báo adapter, mode chỉ cho `base|rag`,
+  UI chỉ mô tả hai trạng thái truy hồi.
+- Đã thêm mode `qlora`, cấu hình `qwen-qlora` trỏ đúng `best_adapter`, nhãn UI ba
+  mô hình và luồng direct generation không retrieval cho adapter.
+- Đã thêm chuyển backend tuần tự: dỡ Ollama trước khi nạp local Transformers và
+  giải phóng cache local trước khi quay lại Ollama; mặc định không giữ đồng thời
+  hai model 7B trên GPU 6 GB.
+- Kiểm chứng: 22 test server/UI/config/QLoRA đạt; Ruff, compileall và diff-check
+  các file thay đổi đạt; config phân giải adapter tới artifact đang tồn tại.
+- Giới hạn: chưa chạy inference model thật hoặc browser QA; không tuyên bố runtime
+  GPU hay hiển thị trực quan đã được xác nhận. Không thay đổi checkpoint.
+
+# TASK-20261015-05 - completed
+
+- Giai đoạn: sửa môi trường runtime web QLoRA.
+- Đã xác nhận web dùng `env\Scripts\python.exe`, Torch `2.14.0+cu130`, CUDA nhận
+  RTX 4050; môi trường thiếu đồng thời `accelerate`, `peft` và `bitsandbytes`.
+- Chuẩn bị cài riêng ba package đã ghim trong requirements, giữ nguyên Torch CUDA
+  và Transformers hiện có; sau đó chạy import, `pip check` và smoke loader.
+- Đã cài `accelerate 1.12.0`, `peft 0.18.0`, `bitsandbytes 0.49.0`; `pip check`,
+  import và NF4 CUDA forward nhỏ đạt. Chuẩn bị smoke nạp đúng base + `best_adapter`
+  và sinh tối đa 8 token; đây là lệnh dài, có thể dùng cache hoặc tải weights nếu thiếu.
+- Smoke `device_map=auto` xác nhận 6 GB không đủ để đặt toàn bộ module; thử CPU
+  offload lần lượt lộ lỗi tương thích Transformers 5.17/bitsandbytes và meta tensor.
+- Đã đưa Transformers về bản dự án ghim `4.57.3`, giữ Torch `2.14.0+cu130`, rồi
+  cấu hình `force_single_gpu: true` cho QLoRA thay vì auto-dispatch/offload.
+- Smoke thật PASS: nạp `Qwen/Qwen2.5-7B-Instruct` + đúng `best_adapter`, sinh 8
+  token trong 7,96 giây; CUDA allocated 5,35 GiB. Base weights đã cache cục bộ.
+- Kiểm chứng dependency: `pip check` sạch; import Accelerate/PEFT/bitsandbytes/
+  Transformers và NF4 CUDA forward đạt. Cần restart web server cũ để nạp stack mới.
+
+# TASK-20261015-06 - completed
+
+- Đã xác minh web lưu và gửi lại history QLoRA theo từng model; không có bằng
+  chứng mất ngữ cảnh giữa các lượt được nêu.
+- Chuỗi người dùng chỉ cung cấp chủ đề/tên/mã, chưa hỏi thông tin cần lấy như hồ
+  sơ, thời hạn, phí, cơ quan hoặc trình tự; câu clarify phù hợp contract SFT.
+- Mã `1.004696` không tồn tại trong dataset/corpus kiểm tra. Tên thủ tục tương ứng
+  có mã `1.009646` trong corpus, nhưng document này không xuất hiện ở bất kỳ split
+  SFT train/validation/test nào của adapter.
+- QLoRA web hiện là direct generation không retrieval nên không đọc được corpus
+  của thủ tục mới. Dùng RAG cho ca này, hoặc hỏi QLoRA về thủ tục đã học với thuộc
+  tính cụ thể; hướng kiến trúc sau là QLoRA + RAG, không phải thay đổi prompt đơn thuần.
+- Quan sát bổ sung: câu hỏi cụ thể về hồ sơ `1.009646` cho ra một mục
+  “Hồ sơ liên quan đến nội dung đề nghị điều chỉnh” (1 bản chính), không khớp
+  corpus. Nguồn thật có ba mục; kết luận factuality FAIL và completeness FAIL.
 

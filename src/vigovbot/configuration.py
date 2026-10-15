@@ -94,8 +94,9 @@ def read_yaml(path: Path) -> dict:
 
 def load_configuration(path: str | Path | None = None):
     """Return pipeline, ingestion and chunking settings; resolve relative paths."""
-    packaged = path is None and not Path("config.yaml").is_file()
-    path = Path(path).resolve() if path else (DEFAULTS / "pipeline.yaml" if packaged else Path("config.yaml").resolve())
+    project_config = Path("configs/ingestion/pipeline.yaml")
+    packaged = path is None and not project_config.is_file()
+    path = Path(path).resolve() if path else (DEFAULTS / "pipeline.yaml" if packaged else project_config.resolve())
     root = PipelineSettings(**read_yaml(path))
     for field in ("input", "output"):
         value = getattr(root, field)

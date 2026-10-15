@@ -1,0 +1,4 @@
+extends: ../environments/gpu.yaml
+# Scientific QLoRA experiment. Environment choice stays outside this file.
+execution:
+  artifact_label: qlora_7b

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Retrieval Debugging"
+  short_description: "Diagnose retrieval failures"
+  default_prompt: "Use $retrieval-debugging to diagnose a retrieval failure."

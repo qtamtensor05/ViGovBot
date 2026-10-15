@@ -72,4 +72,7 @@ def answerer_for(provider):
         return ollama_answer
     if provider == "openai_compatible":
         return openai_compatible_answer
+    if provider == "local_transformers":
+        from vigovbot.training.inference import local_transformers_answer
+        return local_transformers_answer
     raise ValueError(f"Provider không được hỗ trợ: {provider}")

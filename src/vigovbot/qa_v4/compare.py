@@ -20,6 +20,10 @@ def compare(left, right, samples=2000, seed=42):
               'metrics': {}, 'note': 'Diagnostic CIs; model/config comparability and held-out policy still require review.'}
     for metric in ['action_accuracy', 'bertscore_f1', 'rougeL_f1', 'correctness', 'completeness', 'faithfulness',
                    'citation_support', 'behavior_correct']:
+        if metric == 'action_accuracy' and (not left.get('action_evaluation', {'available': True})['available']
+                                            or not right.get('action_evaluation', {'available': True})['available']):
+            result['metrics'][metric] = {'available': False, 'reason': 'action labels unavailable for one model'}
+            continue
         keys_a = {cid for cid, r in a.items() if metric in r}
         keys_b = {cid for cid, r in b.items() if metric in r}
         if metric == 'action_accuracy': keys_a = keys_b = set(a)  # failures count as zero

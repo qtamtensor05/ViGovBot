@@ -24,4 +24,4 @@ Khóa SQLite `row_id` giữ đúng vị trí 0-based của metadata trong FAISS.
 - FAISS sử dụng inner product trên vector đã chuẩn hóa L2.
 - Cache chỉ được tái sử dụng khi identity, version, embedding và checksum khớp.
 
-[Đặc tả embedding](../../../EMBEDDING.md) · [Kiến trúc hệ thống](../../../docs/architecture.md)
+[Đặc tả embedding](../../../EMBEDDING.md) · [Kiến trúc hệ thống](../../../docs/architecture/architecture.md)

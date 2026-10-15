@@ -95,7 +95,7 @@ REPO_DIR = "/content/ViGovBot"  # @param {type:"string"}
 # @markdown **Input**
 INPUT_MODE = "Google Drive"  # @param ["Google Drive", "Upload"]
 INPUT_PATH = "/content/drive/MyDrive/ViGovBot/Data"  # @param {type:"string"}
-PIPELINE_CONFIG = "configs/pipeline.yaml"  # @param {type:"string"}
+PIPELINE_CONFIG = "configs/ingestion/pipeline.yaml"  # @param {type:"string"}
 
 # @markdown **Output**
 OUTPUT_DIR = "/content/ViGovBot_outputs"  # @param {type:"string"}
@@ -243,7 +243,7 @@ print("Output:", output)
         cell("code", '''
 import json
 import yaml
-config = yaml.safe_load((REPO_DIR / "configs/rag.yaml").read_text(encoding="utf-8"))
+config = yaml.safe_load((REPO_DIR / "configs/rag/evaluation.yaml").read_text(encoding="utf-8"))
 config["data"].update(unified_source=CORPUS_PATH, cache_dir=CACHE_DIR,
                       output_dir=str(output), dataset_path=None, dataset_zip=None)
 config["embedding"]["device"] = EMBEDDING_DEVICE

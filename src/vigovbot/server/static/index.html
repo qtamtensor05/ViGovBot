@@ -21,7 +21,7 @@
   </style>
 </head>
 <body><main>
-  <header><h1>ViGovBot Model Lab</h1><p>So sánh Qwen trực tiếp với Qwen được bổ sung ngữ cảnh RAG</p></header>
+  <header><h1>ViGovBot Model Lab</h1><p>So sánh Qwen Base, Qwen + RAG và Qwen đã tinh chỉnh QLoRA</p></header>
   <section id="models"><strong>Model:</strong><span>Đang tải…</span></section>
   <section id="chat"><div class="empty">Nhập câu hỏi để bắt đầu.</div></section>
   <form id="form"><textarea id="question" rows="1" placeholder="Ví dụ: Hồ sơ cấp bản sao hộ tịch gồm những gì?" required></textarea><button id="send">Gửi</button></form>
@@ -29,7 +29,8 @@
 const chat=document.querySelector('#chat'),modelsEl=document.querySelector('#models'),form=document.querySelector('#form'),input=document.querySelector('#question'),button=document.querySelector('#send');
 const histories={};let modelInfo={};
 function add(text,kind,meta=''){chat.querySelector('.empty')?.remove();const el=document.createElement('div');el.className='msg '+kind;el.textContent=text;if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;el.appendChild(m)}chat.appendChild(el);chat.scrollTop=chat.scrollHeight}
-async function loadModels(){try{const res=await fetch('/api/models'),data=await res.json();if(!res.ok)throw new Error(data.error);modelsEl.innerHTML='<strong>Chế độ:</strong>';for(const m of data.models){modelInfo[m.id]=m;histories[m.id]=[];const label=document.createElement('label');const box=document.createElement('input');box.type='checkbox';box.value=m.id;box.checked=true;label.append(box,document.createTextNode(m.label+' '));const p=document.createElement('span');p.className='provider';p.textContent=`(${m.mode==='base'?'không truy hồi':'có truy hồi'})`;label.append(p);modelsEl.append(label)}}catch(err){modelsEl.textContent='Không tải được chế độ: '+err.message}}
+function modeLabel(mode){return {base:'không truy hồi',rag:'có truy hồi',qlora:'adapter QLoRA · không truy hồi'}[mode]||mode}
+async function loadModels(){try{const res=await fetch('/api/models'),data=await res.json();if(!res.ok)throw new Error(data.error);modelsEl.innerHTML='<strong>Chế độ:</strong>';for(const m of data.models){modelInfo[m.id]=m;histories[m.id]=[];const label=document.createElement('label');const box=document.createElement('input');box.type='checkbox';box.value=m.id;box.checked=true;label.append(box,document.createTextNode(m.label+' '));const p=document.createElement('span');p.className='provider';p.textContent=`(${modeLabel(m.mode)})`;label.append(p);modelsEl.append(label)}}catch(err){modelsEl.textContent='Không tải được chế độ: '+err.message}}
 function routingStatus(d){if(!d)return '';if(d.fallback_reason)return `Lỗi định dạng phân loại sau ${d.routing_attempts} lần · trả câu mặc định`;const reasons={ambiguous_question:'Cần làm rõ câu hỏi',out_of_scope:'Ngoài phạm vi hỗ trợ',no_context:'Chưa có tài liệu để trả lời',evidence_assessment:'Đã xét bằng chứng tài liệu'};return [reasons[d.decision_reason]||'',d.relation?`Nhãn: ${d.relation}`:'',d.routing_attempts?`Phân loại: ${d.routing_attempts} lần`:''].filter(Boolean).join(' · ')}
 function historyAnswer(data){return data.routing_diagnostics?.fallback_reason?'Chưa có câu trả lời cho lượt này do lỗi xử lý của hệ thống; câu hỏi người dùng vẫn chưa được giải đáp.':data.answer}
 function addAnswers(results,question){

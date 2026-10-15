@@ -14,7 +14,7 @@ from probe_oil_spill_routing import QUESTION, EmptyRetriever
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     group = sys.argv[1]
-    config = load_config("configs/inference.yaml")
+    config = load_config("configs/rag/inference.yaml")
     model_info = check_model(config.llm.ollama_url, config.llm.model)
     tokenizer = AutoTokenizer.from_pretrained(config.llm.tokenizer, local_files_only=True)
     passport_history = [{"role": "user", "content": "Tôi muốn tìm hiểu thủ tục cấp hộ chiếu."},

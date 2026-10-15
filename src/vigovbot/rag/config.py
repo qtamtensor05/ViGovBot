@@ -58,16 +58,27 @@ class ConversationConfig(StrictModel):
 class WebModelConfig(StrictModel):
     id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")
     label: str = Field(min_length=1, max_length=100)
-    provider: str = Field(pattern=r"^(ollama|openai_compatible)$")
+    provider: str = Field(pattern=r"^(ollama|openai_compatible|local_transformers)$")
     model: str = Field(min_length=1)
     base_url: str = Field(min_length=1)
     api_key_env: str | None = None
-    mode: str = Field(default="rag", pattern=r"^(base|rag)$")
+    mode: str = Field(default="rag", pattern=r"^(base|rag|qlora)$")
+    adapter_path: Path | None = None
+    load_in_4bit: bool = True
+    allow_multiple_models: bool = False
+    cpu_offload: bool = False
+    gpu_memory_gib: float | None = Field(default=None, gt=0)
+    cpu_memory_gib: float | None = Field(default=None, gt=0)
+    force_single_gpu: bool = False
 
     @model_validator(mode="after")
     def check_credentials(self):
         if self.api_key_env is not None and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.api_key_env):
             raise ValueError("api_key_env phải là tên biến môi trường hợp lệ")
+        if self.mode == "qlora" and self.provider != "local_transformers":
+            raise ValueError("mode qlora yêu cầu provider local_transformers")
+        if self.mode == "qlora" and self.adapter_path is None:
+            raise ValueError("mode qlora yêu cầu adapter_path")
         return self
 
 
@@ -117,4 +128,7 @@ def load_config(path):
             setattr(config.data, key, (path.parent / value).resolve())
     if config.evaluation.baseline_summary_path is not None:
         config.evaluation.baseline_summary_path = (path.parent / config.evaluation.baseline_summary_path).resolve()
+    for model in config.web.models:
+        if model.adapter_path is not None:
+            model.adapter_path = (path.parent / model.adapter_path).resolve()
     return config

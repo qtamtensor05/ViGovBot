@@ -2,6 +2,19 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261015-21
+
+- Task: TASK-20261015-13.
+- Triệu chứng: CI Ubuntu/Windows fail; checkout sạch tái hiện link docs hỏng,
+  `data stats` exit 2 và readiness `BLOCKED` khi thiếu dataset/artifact local.
+- Nguyên nhân: ba test dùng trạng thái máy phát triển làm fixture dù `Data/` và
+  `outputs/` chỉ theo dõi `.gitkeep`.
+- Xử lý: tạo dataset/output tạm trong test; bỏ qua việc tồn tại của link target
+  thuộc khu artifact runtime nhưng vẫn kiểm tra mọi link source/docs khác.
+- Kết quả: full suite trong checkout sạch đạt 164 test, 1 optional skip.
+- Phòng tránh: test CI phải tự tạo input; không dùng artifact ngoài Git làm
+  precondition trừ khi workflow tải artifact một cách tường minh.
+
 ## ERR-20261006-05
 
 - Task: TASK-20261006-03.
@@ -326,4 +339,443 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   sau khi cache hoàn tất có thể dùng offline ở các lần sau.
 - Kết quả kiểm chứng: nguyên nhân xác nhận trực tiếp từ traceback; người dùng tự
   chạy lại job dài theo yêu cầu trước, chưa có artifact BERTScore hoàn tất.
+
+## ERR-20261014-01
+
+- Task: TASK-20261014-01.
+- Triệu chứng: test metric local lỗi `TypeError` vì `sentence_bleu()` không
+  nhận tham số `effective_order`; Ruff đồng thời báo ba import thừa.
+- Nguyên nhân: API SacreBLEU 2.6.0 dùng tên `use_effective_order` cho
+  helper function, khác tên constructor metric; import còn sót sau khi tách module.
+- Xử lý: đổi sang `use_effective_order=True`, xóa import thừa và chạy lại
+  cùng bộ test/lint.
+
+## ERR-20261014-02
+
+- Task: TASK-20261014-01.
+- Triệu chứng: validator 5.000 record không kết thúc sau hơn ba phút
+  trong giai đoạn near-duplicate; không có output lỗi và chưa ghi report.
+- Nguyên nhân: bucket theo 12 ký tự đầu gom quá nhiều câu hỏi hành chính
+  có cùng cụm mở đầu, tạo quá nhiều lần `SequenceMatcher`.
+- Xử lý: dừng đúng session, thay bằng chỉ mục character 5-gram, xếp
+  hạng và giới hạn 50 candidate/record trước so khớp chính xác; exact
+  duplicate vẫn kiểm tra toàn phần và báo cáo riêng.
+- Lần chạy lại vẫn quá hai phút do 50 candidate/record còn nặng; đã
+  dừng trước khi ghi artifact và giảm xuống top 10 kèm Jaccard token prefilter.
+
+## ERR-20261014-03
+
+- Task: TASK-20261014-01.
+- Triệu chứng: ba test server cũ mất trường `answer` do `_settings()` truy
+  cập trực tiếp thuộc tính adapter mới trên `SimpleNamespace` fixture cũ.
+- Nguyên nhân: thay đổi tích hợp không giữ tương thích với model config
+  duck-typed trong test/API nội bộ.
+- Xử lý: dùng `getattr` với default cho ba option mới, giữ nguyên hành vi
+  provider cũ; bổ sung test mock xác nhận adapter được bọc qua PEFT.
+
+## ERR-20261014-04
+
+- Task: TASK-20261014-01.
+- Triệu chứng: full suite có 1 failure/125 test tại
+  `test_multiturn.MultiTurnTests.test_rewrite_and_answer_receive_history`:
+  test mong `response_format == "json"`, runtime hiện trả JSON schema.
+- Phân loại: không phát sinh từ file QLoRA/provider/config đã sửa trong
+  task; 124 test còn lại đạt, 1 skipped. Không hạ contract schema hiện tại
+  xuống JSON mode chỉ để làm test cũ qua.
+- Bước sau: báo cáo là known limitation/pre-existing regression của nhánh;
+  test QLoRA và server integration liên quan vẫn phải đạt riêng.
+
+## ERR-20261014-05
+
+- Task: TASK-20261014-01.
+- Triệu chứng: validator official Qwen tokenizer offline chạy exit 0 nhưng
+  P50/P90/P95/P99/max đều bằng 2 cho mọi split, không hợp lý.
+- Nguyên nhân: Transformers 5.17 trong môi trường trả `BatchEncoding`/
+  mapping hai khóa từ `apply_chat_template`; code lấy `len(mapping)` thay vì
+  `len(input_ids)`. Cùng contract có thể làm sai masking.
+- Xử lý: thêm bộ chuẩn hóa output list/tensor/mapping/batch một mẫu,
+  dùng chung cho thống kê và assistant-only masking; thêm regression test.
+
+## ERR-20261014-06
+
+- Task: TASK-20261014-02.
+- Triệu chứng: official Qwen tokenizer cho thấy assistant header
+  `<|im_start|>assistant` đang có label khác `-100`; truncation chỉ từ chối
+  khi toàn bộ target biến mất, nên có thể cắt answer cuối.
+- Nguyên nhân: boundary assistant được suy ra từ end của prefix trước
+  thay vì end của generation prompt; truncation áp sau khi tạo label.
+- Xử lý: target bắt đầu sau `add_generation_prompt=True`, giữ assistant
+  content và `<|im_end|>`; từ chối toàn mẫu vượt max sequence.
+- Kiểm chứng: official tokenizer cache-only và regression multi-turn/EOS đạt.
+
+## ERR-20261014-07
+
+- Task: TASK-20261014-02.
+- Triệu chứng: resume tạo run directory mới; validator chỉ yêu cầu
+  adapter/trainer state, không chứng minh optimizer, scheduler, RNG, callback,
+  config hay dataset không đổi.
+- Nguyên nhân: checkpoint path chỉ được chuyển cho Trainer sau khi
+  artifact run mới đã tạo; callback restore dùng default false.
+- Xử lý: resume run directory gốc, validate đủ state/hash/config/global step,
+  bật callback restore, giữ data skip và full trainer checkpoint.
+- Kiểm chứng: simulated complete/corrupt/config-drift/dataset-drift checkpoint
+  tests đạt; resume thật vẫn chờ GPU smoke.
+
+## ERR-20261014-08
+
+- Task: TASK-20261014-02.
+- Triệu chứng: teacher-forced loss được trung bình theo example; BLEU/
+  chrF aggregate là trung bình sentence score; generalization gap trộn final
+  training log loss với validation evaluation loss.
+- Nguyên nhân: aggregation ban đầu không giữ denominator target token và
+  không tách corpus metric; hai loss lấy từ hai loại event Trainer.
+- Xử lý: weighted target-token loss/perplexity, corpus BLEU/chrF và evaluate
+  cả train/validation bằng best-restored model trước khi tính gap.
+- Kiểm chứng: metric fixture và reference-exclusion/token-weight test đạt.
+
+## ERR-20261014-09
+
+- Task: TASK-20261014-02.
+- Triệu chứng: `test_multiturn` mong `response_format == "json"` trong khi
+  structured answer runtime truyền `answer_schema(False)`.
+- Nguyên nhân xác nhận: expectation của test lỗi thời; schema là hành vi
+  chủ ý được các test routing/provider khác bảo vệ.
+- Xử lý: cập nhật assertion sang `answer_schema(False)`; không đổi runtime.
+  Provider vẫn xử lý chuỗi `json` cho caller cũ nên backward compatibility giữ nguyên.
+- Kiểm chứng: full suite 136 test đạt, 1 optional skip, 0 failure.
+
+## ERR-20261014-10
+
+- Task: TASK-20261014-02.
+- Triệu chứng: test threshold early stopping với improvement đúng bằng
+  0,01 bị reset patience do sai số floating-point.
+- Nguyên nhân: biểu thức `best_loss - loss > threshold` tạo giá trị nhỉnh
+  lớn hơn 0,01 trong binary float.
+- Xử lý: so sánh `loss < best_loss - threshold`; test patience/threshold/tie
+  và callback Transformers state transition đều đạt.
+
+## ERR-20261014-11
+
+- Task: TASK-20261014-03.
+- Triệu chứng: smoke train thành công nhưng hai phép evaluate cuối với prefix
+  `final_validation`/`final_training` khiến `EarlyStoppingCallback` cảnh báo thiếu
+  `eval_loss` và tự vô hiệu ở phase hậu kiểm.
+- Nguyên nhân: callback chỉ hiểu metric key của evaluation trong training, nhưng
+  vẫn còn gắn vào Trainer khi chạy audit loss với prefix riêng sau khi train xong.
+- Xử lý: tháo `EarlyStoppingCallback` sau khi đã chọn/restore best checkpoint và
+  trước hai final evaluation; không thay đổi callback state đã lưu trong checkpoint.
+- Kiểm chứng: sẽ chạy resume thật từ checkpoint-2 và kiểm state/hashes; test tĩnh
+  cùng smoke sau sửa được ghi ở implementation history khi hoàn tất.
+
+## ERR-20261014-12
+
+- Task: TASK-20261014-03.
+- Triệu chứng: sau resume từ checkpoint-2, adapter/scheduler/RNG hash, loss, gradient,
+  LR và best metric khớp run không gián đoạn, nhưng hash byte `optimizer.pt` khác.
+- Giả thuyết: Torch pickle có biểu diễn byte không ổn định dù state tensor giống nhau;
+  chỉ so hash toàn file là tiêu chí quá chặt và chưa chứng minh optimizer bị reset.
+- Xử lý: giữ kết quả ban đầu là FAIL, chạy thêm một smoke không gián đoạn cùng seed,
+  rồi so sánh đệ quy key/dtype/shape/value tensor của optimizer state; chỉ PASS nếu
+  state ngữ nghĩa và adapter cuối đều bằng nhau.
+
+## ERR-20261014-13
+
+- Task: TASK-20261014-03.
+- Triệu chứng: sau resume checkpoint-2→4, metric time/optimizer-step lấy runtime
+  của riêng invocation resume nhưng chia cho global step 4, làm thời gian bị thấp
+  hơn thực tế khoảng hai lần.
+- Nguyên nhân: code không lưu global step bắt đầu từ checkpoint.
+- Xử lý: đọc `trainer_state.json` đã validate, lưu `resume_start_global_step`,
+  tính số step thực thi trong invocation và dùng mẫu số đó cho timing.
+- Kiểm chứng: chạy lại resume thật và acceptance gate sau sửa.
+
+## ERR-20261014-14
+
+- Task: TASK-20261014-03.
+- Triệu chứng: full suite trong `.venv-qlora` chạy 116 test, 12 error/2 skip;
+  toàn bộ error do `ModuleNotFoundError: faiss`, trong khi 21 test QLoRA đã đạt.
+- Nguyên nhân: requirements QLoRA cố ý không kéo stack RAG, nhưng full suite có
+  test artifact/embedding/RAG cần dependency `faiss-cpu` thuộc extra test của repo.
+- Xử lý: cài package editable với extra `test` trong chính venv để kiểm toàn repo,
+  sau đó chạy lại `pip check` và full suite; lượt hai còn 1 error do
+  `sentence_transformers` thuộc extra `embedding`, nên cài thêm đúng extra này.
+  Không thay pin QLoRA production.
+
+## ERR-20261014-15
+
+- Task: TASK-20261014-04.
+- Triệu chứng: `start_qlora.ps1 -DryRun` lỗi parse trên Windows PowerShell 5.1;
+  chuỗi tiếng Việt UTF-8 không BOM bị giải mã theo ANSI, tạo ký tự phá cú pháp.
+- Nguyên nhân: Windows PowerShell 5.1 không mặc định đọc source `.ps1` UTF-8
+  không BOM, trong khi repository lưu text UTF-8 chuẩn.
+- Xử lý: giữ tài liệu tiếng Việt nhưng dùng chuỗi ASCII trong toàn bộ `.ps1`,
+  tương thích cả Windows PowerShell 5.1 và PowerShell 7; chạy lại AST/dry-run.
+
+## ERR-20261014-16
+
+- Task: TASK-20261014-04.
+- Triệu chứng: phép thử status mock bằng cách tạo rồi xóa đệ quy artifact tạm bị
+  policy công cụ chặn trước thực thi.
+- Nguyên nhân: command test chứa `Remove-Item -Recurse`; không phải lỗi script.
+- Xử lý: không retry/xóa bằng đường vòng; dùng AST parse, start/TensorBoard dry-run
+  read-only và unit mock callback/stop protocol. Không có artifact mock được tạo.
+
+## ERR-20261014-17
+
+- Task: TASK-20261014-05.
+- Triệu chứng: lệnh kiểm tra cuối gọi `git` theo PATH thất bại với
+  `CommandNotFoundException`; các lệnh test trước đó vẫn hoàn tất.
+- Nguyên nhân: Git đã cài nhưng thư mục executable không có trong PATH của PowerShell
+  hiện tại.
+- Xử lý: gọi trực tiếp `C:\Program Files\Git\cmd\git.exe` cho `diff --check` và
+  `status --short`; diff-check đạt. Không sửa PATH hệ thống.
+
+## ERR-20261014-18
+
+- Task: TASK-20261014-07.
+- Triệu chứng: mock test backend QLoRA thất bại khi so chuỗi đường dẫn temp tuyệt đối;
+  Windows trả một phía dạng tên dài và phía còn lại dạng 8.3 (`EZYCLO~1`).
+- Nguyên nhân: hai biểu diễn trỏ cùng thư mục nhưng chuỗi không bằng nhau.
+- Xử lý: assertion kiểm đúng tên artifact `best_adapter`, không giả định cách Windows
+  chuẩn hóa phần thư mục cha. Chạy lại full suite đạt.
+
+## ERR-20261014-19
+
+- Task: TASK-20261014-07.
+- Triệu chứng: run QLoRA QA-v4 đầu tiên có 9/9 failed; nội dung sinh hợp lệ nhưng
+  parser báo JSON decode và mỗi câu bị generate hai lần nên chậm.
+- Nguyên nhân: adapter được SFT bằng plain assistant answer, trong khi backend mới
+  áp contract JSON/action của baseline Ollama mà model không được train để sinh.
+- Xử lý: dùng đúng plain-answer contract, bỏ retry; ghi `action_status=unavailable`,
+  sửa scorer/paired compare không bịa action metric. Dùng output filename mới vì
+  artifact lỗi cũ được giữ lại, không ghi đè/xóa tự động.
+- Kiểm chứng: 29 test QA-v4 và full suite 139 passed, 2 skipped, 40 subtests; Ruff,
+  compileall và diff-check đạt.
+
+# ERR-20261014-20
+
+- Task: TASK-20261014-08.
+- Triệu chứng: lần gọi công cụ vẽ đầu tiên bằng
+  `.venv-qlora\Scripts\python.exe` bị PowerShell hiểu `.venv-qlora` là module;
+  đồng thời checkout hiện tại không có thư mục `.venv-qlora`.
+- Nguyên nhân: thiếu tiền tố đường dẫn tương đối `.\` và môi trường QLoRA từng
+  dùng trên máy tạo artifact không được chuyển vào checkout này.
+- Xử lý: kiểm tra các venv hiện có, dùng `.\env\Scripts\python.exe` đã có đủ
+  matplotlib/pandas để chạy `training.plot`; lệnh hoàn tất exit 0 và sinh đủ plot.
+- Phòng tránh: trên PowerShell luôn gọi executable tương đối bằng `.\`; kiểm tra
+  `Test-Path` trước và thay tên venv trong lệnh theo môi trường thực tế.
+
+# ERR-20261015-01
+
+- Task: TASK-20261015-01.
+- Triệu chứng: PowerShell không nhận
+  `.\.venv-qlora\Scripts\python.exe` khi chạy QA-v4 score.
+- Nguyên nhân xác nhận: checkout hiện tại không có `.venv-qlora`; terminal dùng
+  `env`. `env` có Python 3.14.7, `bert-score` 0.3.13 và package editable, nhưng
+  Torch là `2.14.0+cpu`, `torch.cuda.is_available()` trả false.
+- Xử lý: không chỉ thay đường dẫn rồi giữ `--bert-device cuda`, vì sẽ lỗi tiếp.
+  Có thể chạy CPU bằng interpreter `env`, hoặc cài Torch CUDA tương thích rồi
+  xác minh CUDA trước khi chạy scorer. Chưa tự thay dependency môi trường.
+
+# ERR-20261015-02
+
+- Task: TASK-20261015-01.
+- Triệu chứng: `qa-v4 score --dataset Data\tthc_test_case_v1 --split test` báo
+  không tìm thấy cases dù `data\test.jsonl` tồn tại.
+- Nguyên nhân: resolver chỉ hỗ trợ layout cũ `data\rag\test.jsonl`, chưa hỗ trợ
+  layout phẳng hiện tại `data\test.jsonl`.
+- Xử lý: bổ sung candidate layout phẳng sau candidate `data\rag`, thêm regression
+  test cho cả cases và queries. Lượt test đầu gọi nhầm Python hệ thống nên không
+  import được package; chạy lại bằng `env\Scripts\python.exe` đạt 2/2 test.
+- Kiểm chứng: resolver trả đúng `data\test.jsonl` và `data\test_queries.jsonl`.
+
+# ERR-20261015-03
+
+- Task: TASK-20261015-01.
+- Triệu chứng: sau khi sửa resolver dataset, scorer báo không tồn tại
+  `outputs\tthc_test_case_v1\predictions_qwen_qlora_batch4.jsonl`.
+- Nguyên nhân: artifact thực tế nằm lồng thêm một cấp tại
+  `outputs\tthc_test_case_v1\tthc_test_case_v1\...`.
+- Xử lý/kiểm chứng: file thực có 1.000 dòng; run report ghi 1.000 successful,
+  0 failed. SHA-256 của query hiện tại khớp provenance
+  `f4e180b70af50fc69fd39f236ecc2f3e77a028de6e30dbe8d4991cc24b01d4f4`.
+  Không di chuyển hoặc đổi tên artifact; dùng đúng đường dẫn lồng khi chấm.
+
+# ERR-20261015-04
+
+- Task: TASK-20261015-03.
+- Triệu chứng: phép kiểm tra overlap bằng hashtable PowerShell phát sinh nhiều lỗi
+  `Index operation failed; the array index evaluated to null`.
+- Nguyên nhân: các ca `clarify` hợp lệ có `document_id` và `procedure_family_id`
+  bằng null; lệnh đầu dùng trực tiếp hai giá trị này làm khóa hashtable.
+- Xử lý/kiểm chứng: lọc null trước khi tạo tập ID và đếm lại. Kết quả xác nhận
+  564/1.000 ca test trùng document với train và 571/1.000 trùng procedure family.
+
+# ERR-20261015-05
+
+- Task: TASK-20261015-04.
+- Triệu chứng: test chuyển backend đầu tiên gọi một request có danh sách model
+  `[local, qlora, local]` và bị từ chối với `Danh sách model bị trùng`.
+- Nguyên nhân: API chủ ý không cho cùng model ID xuất hiện hai lần trong một request;
+  test đã mô phỏng lần chuyển ngược không đúng hợp đồng API.
+- Xử lý/kiểm chứng: tách thành request đầu `local → qlora` và request kế tiếp
+  `local`; xác nhận Ollama unload một lần và cache Transformers release một lần.
+
+# ERR-20261015-06
+
+- Task: TASK-20261015-05.
+- Triệu chứng: lựa chọn QLoRA trên web trả lỗi `Using a device_map ... requires
+  accelerate` khi `AutoModelForCausalLM.from_pretrained(..., device_map="auto")`.
+- Nguyên nhân xác nhận: interpreter chạy web là `env\Scripts\python.exe` nhưng
+  không có `accelerate`; kiểm kê tiếp cho thấy cũng thiếu `peft` và `bitsandbytes`,
+  là hai dependency bắt buộc tiếp theo cho adapter PEFT/NF4.
+- Xử lý/kiểm chứng: cài đúng các phiên bản đã ghim vào `env`; import, `pip check`,
+  NF4 CUDA forward và smoke adapter thật sau các sửa tiếp theo đều đạt.
+
+# ERR-20261015-07
+
+- Task: TASK-20261015-05.
+- Triệu chứng: sau khi cài dependency, `device_map="auto"` báo một số module bị
+  dispatch sang CPU/disk vì không đủ VRAM 6 GB.
+- Nguyên nhân: model Qwen 7B NF4 cùng adapter/overhead vượt quyết định đặt tự động
+  trên khoảng 4,9 GiB VRAM đang trống.
+- Thử sửa chưa thành công: bật CPU offload và giới hạn 4,5 GiB GPU/3 GiB CPU.
+  Transformers 5.17.0 lỗi `Params4bit ... _is_hf_initialized`; bản 4.57.3 tiếp
+  tục lỗi `Tensor.item() cannot be called on meta tensors` trong Accelerate hook.
+- Xử lý cuối: không dùng CPU offload; ép NF4 lên GPU đơn bằng `device_map={"": 0}`.
+  Smoke thật PASS, allocated 5,35 GiB; cần đóng ứng dụng GPU khác để có biên nhớ.
+
+# ERR-20261015-08
+
+- Task: TASK-20261015-05.
+- Triệu chứng: stack ban đầu có Transformers 5.17.0, lệch với requirements và run
+  đã xác minh, gây lỗi hook bitsandbytes khi thử CPU offload.
+- Nguyên nhân: môi trường `env` phục vụ RAG/BERTScore đã nâng Transformers, trong
+  khi QLoRA artifact/tooling ghim `transformers==4.57.3`.
+- Xử lý/kiểm chứng: hạ riêng Transformers về 4.57.3 (hub 0.36.2, tokenizers
+  0.22.2), giữ Torch CUDA 2.14.0; `pip check`, import, test và smoke thật đạt.
+
+# ERR-20261015-09
+
+- Task: TASK-20261015-06.
+- Triệu chứng: lệnh `rg` dùng glob Windows trực tiếp
+  `Data/tthc_test_case_v1/data/*_sft.jsonl` báo filename syntax không hợp lệ.
+- Nguyên nhân: PowerShell/rg trên Windows không nhận glob đó như đường dẫn literal
+  ở vị trí file argument.
+- Xử lý: dùng các đường dẫn split cụ thể đã kiểm tra và corpus/meta trực tiếp;
+  không ảnh hưởng kết luận document `1.009646` không có trong SFT.
+
+# ERR-20261015-10
+
+- Task: TASK-20261015-07.
+- Triệu chứng: baseline readiness trả `BLOCKED`; full suite có 1 failure vì ba
+  file SFT dưới `data/fintuning` không tồn tại.
+- Nguyên nhân: profile RTX 5060 Ti giữ layout từ host tạo artifact, trong khi
+  checkout hiện tại lưu ba file SFT trực tiếp dưới `data/`.
+- Xử lý: profile canonical dùng layout thực tế; alias cũ kế thừa profile mới.
+  Không sửa snapshot config trong run lịch sử. Full suite sau sửa đạt 150 test,
+  1 optional skip.
+
+# ERR-20261015-11
+
+- Task: TASK-20261015-07.
+- Triệu chứng: lệnh kiểm tra AST PowerShell đầu tiên lỗi parser tại chuỗi
+  `"$script: $_"` trước khi chạy test.
+- Nguyên nhân: dấu hai chấm ngay sau tên biến làm PowerShell hiểu sai variable
+  reference trong chính lệnh kiểm chứng, không phải lỗi script dự án.
+- Xử lý: đổi thành `"${script}: $_"`; lần chạy lại 18 test tập trung, Ruff và AST
+  sáu script đều pass.
+
+# ERR-20261015-16
+
+- Task: TASK-20261015-11.
+- Triệu chứng: `quick_validate.py` lỗi `UnicodeDecodeError` khi đọc SKILL.md có
+  tiếng Việt trên Windows mặc định CP1252; các test dự án vẫn đạt.
+- Nguyên nhân đã xác nhận: validator dùng `Path.read_text()` không chỉ định
+  encoding và interpreter chưa bật UTF-8 mode.
+- Xử lý: chạy lại với `PYTHONUTF8=1`; validator trả `Skill is valid!`.
+- Phòng tránh: chạy các validator skill chứa Unicode với UTF-8 mode trên Windows.
+
+# ERR-20261015-15
+
+- Task: TASK-20261015-10.
+- Triệu chứng: `vigov ask --help` lỗi `UnicodeEncodeError` trên Windows CP1252
+  khi Rich render mô tả argument tiếng Việt; các help khác và routing test đạt.
+- Nguyên nhân đã xác nhận: console script Typer render help trước khi compatibility
+  entry point gọi `configure_console`, và CP1252 không mã hóa được ký tự tiếng Việt.
+- Xử lý: đổi mô tả argument mới sang English/ASCII nhất quán với command tree và
+  thêm test `--help` riêng cho web, ask, ingest, embed.
+- Phòng tránh: mọi command/leaf mới phải có test help trực tiếp trên Windows,
+  không chỉ kiểm tra help của group cha.
+
+# ERR-20261015-14
+
+- Task: TASK-20261015-09.
+- Triệu chứng: kiểm tra link mới ban đầu phát hiện 5 link chết sau khi tăng độ
+  sâu thư mục; hai lần thay đường dẫn dataset đầu chưa bỏ được đoạn `data/rag`.
+- Nguyên nhân đã xác nhận: liên kết tương đối vẫn tính từ gốc `docs/`; một số
+  đường dẫn dataset/artifact lịch sử vốn không còn tồn tại trong checkout, và
+  thứ tự thay thế trong hashtable PowerShell không được bảo đảm.
+- Xử lý: sửa link theo vị trí thật `Data/tthc_test_case_v1/data`, đổi artifact
+  vắng mặt thành ghi chú provenance không clickable, rồi thêm test link local.
+- Kết quả: test link và full suite đều đạt; không còn link local bị hỏng.
+- Phòng tránh: mọi lần di chuyển Markdown phải chạy `tests.test_documentation`;
+  khi nhiều replacement chồng nhau phải thay chuỗi cụ thể trước chuỗi chung.
+
+# ERR-20261015-13
+
+- Task: TASK-20261015-08.
+- Triệu chứng: lượt test tập trung đầu tiên có 2 error và 1 failure vì còn tìm
+  `configs/base.yaml` và `configs/experiments/smoke.yaml`; lệnh kiểm tra YAML
+  training riêng cũng lỗi cú pháp do escape quote trong PowerShell one-liner.
+- Nguyên nhân đã xác nhận: ba tham chiếu trong `doctor`/test chưa được thay ở
+  lượt tìm kiếm đầu; lỗi one-liner thuộc lệnh kiểm chứng, không thuộc loader.
+- Xử lý: cập nhật `doctor` và test sang `configs/training/...`; chạy lại kiểm tra
+  YAML bằng script ngắn không phụ thuộc escape lồng nhau.
+- Phòng tránh: sau migration đường dẫn phải tìm cả chuỗi dựng bằng `Path(...)`,
+  không chỉ tìm literal hoàn chỉnh có dấu gạch chéo.
+
+# ERR-20261015-12
+
+- Task: TASK-20261015-07.
+- Triệu chứng: session test tập trung từ lượt trước không còn tồn tại khi tiếp tục,
+  `write_stdin` trả `Unknown process id 71625`.
+- Nguyên nhân: handle công cụ đã hết hiệu lực qua ranh giới lượt; không có bằng
+  chứng process test còn sống và không phải lỗi mã nguồn.
+- Xử lý: chạy lại đúng gate tập trung một lần; 20 test và Ruff đều pass, sau đó
+  full suite cuối đạt 156 test, 1 optional skip.
+
+# ERR-20261015-20 - TASK-20261015-12
+
+- Triệu chứng: lần sửa assertion đầu vẫn fail với description hợp lệ dùng
+  `Use before` thay vì `Use for/when`.
+- Nguyên nhân: test tiếp tục kiểm tra wording cụ thể thay vì invariant là mô tả
+  phải có điều kiện sử dụng.
+- Khắc phục: kiểm tra marker trung lập `Use`, còn semantic boundaries được kiểm
+  qua positive/negative scenario trong báo cáo.
+
+# ERR-20261015-19 - TASK-20261015-12
+
+- Triệu chứng: test manifest đầu tiên fail vì assertion chỉ chấp nhận cụm
+  `Use for`, trong khi một description hợp lệ dùng `Use when`.
+- Bối cảnh: `python -m unittest tests.test_agent_skills tests.test_documentation`;
+  15 lần `quick_validate.py` trước đó đều đạt.
+- Nguyên nhân: test local hẹp hơn quy tắc mô tả skill thực tế, không phải lỗi
+  frontmatter hoặc discovery.
+- Khắc phục: assertion chấp nhận cả `Use for` và `Use when`; chạy lại toàn bộ gate.
+
+# ERR-20261015-18 - TASK-20261015-12
+
+- Triệu chứng: patch tạo docs bị hủy vì tìm tiêu đề `# Tài liệu ViGovBot`, trong
+  khi file hiện tại dùng `# Hệ thống tài liệu ViGovBot`; không có file partial.
+- Nguyên nhân: context patch không khớp nội dung UTF-8 thực tế.
+- Khắc phục: đọc lại heading, chia patch thành nhóm nhỏ và áp lại đúng context.
+
+# ERR-20261015-17 - TASK-20261015-12
+
+- Triệu chứng: lệnh PowerShell lấy metadata GitHub báo `An empty pipe element is
+  not allowed` tại pipeline ngay sau `foreach`.
+- Nguyên nhân: khối `foreach` chưa được bọc thành collection trước pipeline.
+- Khắc phục: bọc bằng `@(foreach (...){...})`, sau đó pipe collection sang JSON;
+  metadata bảy repository được lấy thành công.
 

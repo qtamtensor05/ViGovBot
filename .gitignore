@@ -10,6 +10,7 @@ credentials*.json
 env/
 venv/
 .venv/
+.venv-qlora/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -43,6 +44,9 @@ coverage/
 *.gguf
 *.pt
 *.pth
+*.bin
+adapter_config.json
+trainer_state.json
 .cache/
 .ipynb_checkpoints/
 

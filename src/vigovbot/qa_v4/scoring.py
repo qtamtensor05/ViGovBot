@@ -7,6 +7,7 @@ import re
 import statistics
 import time
 import unicodedata
+from importlib.util import find_spec
 from importlib.metadata import version, PackageNotFoundError
 from .scoring_legacy import score as legacy_score
 from .retrieval_metrics import RETRIEVAL_KEYS, summarize_retrieval
@@ -60,6 +61,11 @@ def unpack_bert_score(result):
 
 def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert-base-multilingual-cased',device='cpu',batch_size=8,bert_cache=None,progress=False):
     started = time.perf_counter()
+    if bert and bert_cache is None and find_spec('bert_score') is None:
+        raise ModuleNotFoundError(
+            "BERTScore requested but bert-score is not installed. "
+            "Install the evaluation extra or pass --bert-cache."
+        )
     if progress:
         print(f'[Score] Chuẩn bị {len(cases)} case và {len(predictions)} prediction...', flush=True)
     if k<1: raise ValueError('k must be positive')
@@ -67,6 +73,9 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
     validate_judgments(cases, predictions, judgments)
     if bert and bert_cache is not None: raise ValueError('Choose BERT computation or a validated cache, not both')
     valid=[p for p in predictions if p['id'] in cs and not p.get('error') and isinstance(p.get('answer'),str) and p['answer'].strip()]
+    action_available = bool(valid) and all(
+        p.get('action_status') != 'unavailable_model_not_trained_for_action_labels' for p in valid
+    )
     vp=unique(valid)
     output=legacy_score(cases,valid,judgments,k=k)
     rows=output['per_case']; rowmap={r['id']:r for r in rows}
@@ -87,7 +96,10 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
         from rouge_score.rouge_scorer import RougeScorer
         bleu=BLEU(tokenize='none',effective_order=True); chrf=CHRF(word_order=2); ter=TER()
         rouge=RougeScorer(['rouge1','rouge2','rougeL'],tokenizer=VietnameseTokenizer())
-    pairs=[]; metrics=['action_accuracy','correctness','completeness','faithfulness','citation_support','behavior_correct','exact_match','token_precision','token_recall','token_f1']
+    if not action_available:
+        for row in rows: row.pop('action_accuracy', None)
+    pairs=[]; metrics=['correctness','completeness','faithfulness','citation_support','behavior_correct','exact_match','token_precision','token_recall','token_f1']
+    if action_available: metrics.insert(0, 'action_accuracy')
     if retrieval_summary['available']:
         metrics += sorted(RETRIEVAL_KEYS - {'unjudged_retrieved_count'})
     case_iterator = cases
@@ -151,17 +163,24 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
     output['macro_fields']={m:{'mean':statistics.mean([v[m]['mean'] for v in output['per_field'].values() if m in v]),'n_fields':sum(m in v for v in output['per_field'].values())} for m in metrics if any(m in v for v in output['per_field'].values())}
     output['per_action']={a:aggregate([r for r in rows if r['expected_action']==a],metrics) for a in sorted({r['expected_action'] for r in rows})}
     actions=sorted({c['expected_action'] for c in cases}); output['action_classification']={}
-    for a in actions:
-        tp=sum(c['expected_action']==a and vp.get(c['id'],{}).get('action')==a for c in cases)
-        fp=sum(c['expected_action']!=a and vp.get(c['id'],{}).get('action')==a for c in cases)
-        fn=sum(c['expected_action']==a and vp.get(c['id'],{}).get('action')!=a for c in cases)
-        p=tp/(tp+fp) if tp+fp else 0; r=tp/(tp+fn) if tp+fn else 0
-        output['action_classification'][a]={'precision':p,'recall':r,'f1':2*p*r/(p+r) if p+r else 0,'support':tp+fn}
-    output['action_accuracy_all_expected']=sum(vp.get(c['id'],{}).get('action')==c['expected_action'] for c in cases)/len(cases) if cases else None
-    output['action_macro_f1'] = statistics.mean(v['f1'] for v in output['action_classification'].values()) if actions else None
-    output['action_confusion_matrix'] = {a: dict(collections.Counter(
-        vp.get(c['id'], {}).get('action', 'failed_or_missing') for c in cases if c['expected_action'] == a))
-        for a in actions}
+    output['action_evaluation'] = {'available': action_available,
+        'reason': None if action_available else 'QLoRA was trained for plain answers, not action labels; no label was inferred.'}
+    if action_available:
+        for a in actions:
+            tp=sum(c['expected_action']==a and vp.get(c['id'],{}).get('action')==a for c in cases)
+            fp=sum(c['expected_action']!=a and vp.get(c['id'],{}).get('action')==a for c in cases)
+            fn=sum(c['expected_action']==a and vp.get(c['id'],{}).get('action')!=a for c in cases)
+            p=tp/(tp+fp) if tp+fp else 0; r=tp/(tp+fn) if tp+fn else 0
+            output['action_classification'][a]={'precision':p,'recall':r,'f1':2*p*r/(p+r) if p+r else 0,'support':tp+fn}
+        output['action_accuracy_all_expected']=sum(vp.get(c['id'],{}).get('action')==c['expected_action'] for c in cases)/len(cases) if cases else None
+        output['action_macro_f1'] = statistics.mean(v['f1'] for v in output['action_classification'].values()) if actions else None
+        output['action_confusion_matrix'] = {a: dict(collections.Counter(
+            vp.get(c['id'], {}).get('action', 'failed_or_missing') for c in cases if c['expected_action'] == a))
+            for a in actions}
+    else:
+        output['action_accuracy_all_expected'] = None
+        output['action_macro_f1'] = None
+        output['action_confusion_matrix'] = None
     output['semantic_evaluation'] = {'judged_cases': len(judgments),
         'reviewer_kinds': dict(collections.Counter(j.get('reviewer_kind', 'unspecified') for j in judgments)),
         'sampling_labels': dict(collections.Counter(j.get('sampling', 'unspecified') for j in judgments)),

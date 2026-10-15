@@ -1,0 +1,4 @@
+interface:
+  display_name: "ViGovBot Project Structure"
+  short_description: "Keep ViGovBot files in the canonical layout"
+  default_prompt: "Use $vigovbot-project-structure to place this ViGovBot change in the canonical project structure."

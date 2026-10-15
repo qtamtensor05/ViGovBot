@@ -27,4 +27,4 @@ SQLite được mở read-only với khả năng dùng từ thread HTTP khác th
 `search()` và `close()` dùng khóa nội bộ để tuần tự hóa truy cập vào encoder,
 FAISS và SQLite dùng chung.
 
-[Kiến trúc hệ thống](../../../docs/architecture.md) · [Module RAG](../rag/README.md)
+[Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Module RAG](../rag/README.md)

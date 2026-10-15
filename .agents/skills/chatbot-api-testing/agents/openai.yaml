@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chatbot API Testing"
+  short_description: "Test chatbot API contracts"
+  default_prompt: "Use $chatbot-api-testing to test the local chatbot API."

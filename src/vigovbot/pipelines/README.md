@@ -30,4 +30,4 @@ CLI `ingest` gọi `indexing.main()` để xử lý một file hoặc tập PDF 
 - Cảnh báo từ bước trích xuất và chunking phải được bảo toàn trong báo cáo.
 - Pipeline không tạo embedding hoặc corpus FAISS.
 
-[Kiến trúc hệ thống](../../../docs/architecture.md) · [Module ingestion](../ingestion/README.md) · [Module chunking](../chunking/README.md)
+[Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Module ingestion](../ingestion/README.md) · [Module chunking](../chunking/README.md)

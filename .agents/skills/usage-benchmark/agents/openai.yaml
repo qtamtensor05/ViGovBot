@@ -1,0 +1,4 @@
+interface:
+  display_name: "Usage Benchmark"
+  short_description: "Benchmark Codex skill usage"
+  default_prompt: "Use $usage-benchmark to design a controlled skill benchmark."

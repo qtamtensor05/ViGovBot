@@ -3,7 +3,7 @@
 Mở `lqwen2_5_7B_rag.ipynb`, chọn GPU và chạy tuần tự.
 Đặt `GIT_REF` tới commit đã có trên GitHub. Notebook cài package từ checkout,
 thêm thư mục `src` vào đường dẫn import của kernel, mount Drive, tạo YAML riêng
-từ `configs/rag.yaml` và gọi `python -m vigovbot qa-v4 run/score`.
+từ `configs/rag/evaluation.yaml` và gọi `python -m vigovbot qa-v4 run/score`.
 
 Chuẩn bị corpus có đủ index, metadata và `corpus_manifest.json` tại
 `/content/drive/MyDrive/RAG_Data/unified.zip` (hoặc thư mục corpus).
@@ -33,6 +33,6 @@ thúc và tổng thời gian sau khi runner hoàn tất.
 Các thay đổi mã nguồn phải được commit/push lên GitHub trước khi Colab fetch.
 Đổi nhánh/commit khi đã import package cần khởi động lại runtime để tránh dùng module cũ.
 
-[Migration dữ liệu cũ](../../docs/migration.md) · [Kiến trúc](../../docs/architecture.md)
+[Migration dữ liệu cũ](../../docs/architecture/migration.md) · [Kiến trúc](../../docs/architecture/architecture.md)
 
 Sinh lại notebook: `python scripts/build_colab_notebooks.py`.

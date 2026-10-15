@@ -10,7 +10,8 @@ readme = "README.md"
 requires-python = ">=3.10,<3.15"
 license = "LicenseRef-Proprietary"
 license-files = ["LICENSE"]
-dependencies = ["pydantic>=2.10,<3", "PyYAML>=6,<7", "filelock>=3.16,<5"]
+dependencies = ["pydantic>=2.10,<3", "PyYAML>=6,<7", "filelock>=3.16,<5", "typer>=0.16,<1",
+                "psutil>=5.9,<8"]
 
 [project.optional-dependencies]
 pdf = ["pymupdf4llm==1.28.2", "python-dotenv==1.2.3"]
@@ -19,16 +20,22 @@ vector = ["numpy>=1.24,<3", "faiss-cpu>=1.8,<2", "ijson>=3.2,<4", "tqdm>=4.66,<5
 rag = ["numpy>=1.24,<3", "faiss-cpu>=1.8,<2", "ijson>=3.2,<4", "tqdm>=4.66,<5",
        "sentence-transformers>=3,<6", "torch>=2.2,<3", "requests>=2.31,<3", "transformers>=4.41,<6"]
 evaluation = ["pandas>=2,<4", "matplotlib>=3.8,<4", "nltk>=3.8,<4", "rouge-score>=0.1.2,<0.2", "bert-score>=0.3.13,<0.4", "sacrebleu>=2.4,<3"]
+training = ["numpy==2.3.5", "pandas==2.3.3", "matplotlib==3.10.8", "rouge-score==0.1.2",
+            "sacrebleu==2.6.0", "safetensors==0.7.0", "tensorboard==2.20.0"]
+gpu = ["torch==2.9.1", "transformers==4.57.3", "peft==0.18.0", "trl==0.26.2",
+       "accelerate==1.12.0", "bitsandbytes==0.49.0", "datasets==4.4.2"]
 test = ["numpy>=1.24,<3", "faiss-cpu>=1.8,<2", "ijson>=3.2,<4", "tqdm>=4.66,<5", "requests>=2.31,<3",
-        "pandas>=2,<4", "matplotlib>=3.8,<4", "nltk>=3.8,<4", "rouge-score>=0.1.2,<0.2"]
+        "pandas>=2,<4", "matplotlib>=3.8,<4", "nltk>=3.8,<4", "rouge-score>=0.1.2,<0.2",
+        "transformers==4.57.3"]
 dev = ["ruff==0.15.6"]
 
 [project.scripts]
+vigov = "vigovbot.cli.main:app"
 vigovbot = "vigovbot.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["vigovbot*"]
+include = ["vigovbot*", "training*"]
 
 [tool.setuptools.package-data]
 vigovbot = ["defaults/*.yaml", "server/static/*.html"]

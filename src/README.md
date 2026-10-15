@@ -7,4 +7,4 @@ namespace `vigovbot.*` và CLI `python -m vigovbot`.
 Module riêng cho bộ QA v4: [vigovbot.qa_v4](vigovbot/qa_v4/README.md),
 chạy chat và đánh giá bằng `python -m vigovbot qa-v4`.
 
-[Kiến trúc hệ thống](../docs/architecture.md) · [Giao diện CLI](../README.md) · [Migration](../docs/migration.md)
+[Kiến trúc hệ thống](../docs/architecture/architecture.md) · [Giao diện CLI](../README.md) · [Migration](../docs/architecture/migration.md)

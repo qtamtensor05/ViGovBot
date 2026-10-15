@@ -39,6 +39,7 @@ class ChatApplication:
                 base_url=config.llm.ollama_url,
             )
             self.models = {default.id: default}
+        self._active_provider = None
 
     def public_models(self):
         return [
@@ -56,11 +57,38 @@ class ChatApplication:
         settings = self.config.inference_settings()
         settings["model"] = model.model
         settings["api_key_env"] = model.api_key_env
+        if model.provider == "local_transformers":
+            adapter_path = getattr(model, "adapter_path", None)
+            settings["adapter_path"] = str(adapter_path) if adapter_path else None
+            settings["load_in_4bit"] = getattr(model, "load_in_4bit", True)
+            settings["allow_multiple_models"] = getattr(model, "allow_multiple_models", False)
+            settings["cpu_offload"] = getattr(model, "cpu_offload", False)
+            settings["gpu_memory_gib"] = getattr(model, "gpu_memory_gib", None)
+            settings["cpu_memory_gib"] = getattr(model, "cpu_memory_gib", None)
+            settings["force_single_gpu"] = getattr(model, "force_single_gpu", False)
         if model.provider == "ollama":
             settings["ollama_url"] = model.base_url
         else:
             settings["base_url"] = model.base_url
         return settings
+
+    def _switch_provider(self, model):
+        """Avoid retaining Ollama and local Transformers weights on one small GPU."""
+        provider = model.provider
+        if self._active_provider == "local_transformers" and provider == "ollama":
+            from vigovbot.training.inference import release_local_transformers_models
+
+            release_local_transformers_models()
+        elif self._active_provider == "ollama" and provider == "local_transformers":
+            from vigovbot.llm.llm_client import unload_model
+
+            seen = set()
+            for configured in self.models.values():
+                key = (configured.base_url, configured.model)
+                if configured.provider == "ollama" and key not in seen:
+                    unload_model(*key)
+                    seen.add(key)
+        self._active_provider = provider
 
     def chat(self, payload):
         if not isinstance(payload, dict):
@@ -85,9 +113,10 @@ class ChatApplication:
                 model = self.models[model_id]
                 try:
                     mode = getattr(model, "mode", "rag")
+                    self._switch_provider(model)
                     answer_fn = answerer_for(model.provider)
                     settings = self._settings(model)
-                    if mode == "base":
+                    if mode in {"base", "qlora"}:
                         started = time.perf_counter()
                         messages = [
                             *clean_histories[model_id],

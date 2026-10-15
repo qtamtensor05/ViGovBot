@@ -1,5 +1,94 @@
 # Yêu cầu dự án
 
+## TASK-20261015-13
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: sửa CI cơ bản đang fail khi checkout không có dataset/artifact local;
+  giữ thay đổi ngắn gọn và không vi phạm cấu trúc hoặc thiết kế hiện tại.
+- Phạm vi: tái hiện trong checkout sạch, cô lập test khỏi dữ liệu không được Git
+  theo dõi, cập nhật workflow/test tối thiểu nếu cần; không thay đổi dataset,
+  config canonical hoặc business logic runtime.
+- Tiêu chí hoàn thành: lỗi CI được tái hiện và xử lý đúng nguyên nhân; targeted
+  test, full suite trong checkout sạch và static checks đạt trên phạm vi khả dụng.
+- Trạng thái: completed; các test phụ thuộc dataset/artifact local đã dùng fixture
+  hoặc bỏ qua link artifact không version-control; checkout sạch và static gates đạt.
+
+## TASK-20261015-12
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: nghiên cứu, xác minh và triển khai hai bộ Agent Skills cho kỹ thuật
+  RAG/chatbot và tối ưu cách Codex làm việc trong repository; có script,
+  reference, kiểm thử, tài liệu nguồn và hướng dẫn Windows khi thực sự cần.
+- Phạm vi: kiểm tra nguồn chính thức/cộng đồng được chỉ định; audit ViGovBot;
+  thiết kế và triển khai 15 skill có ranh giới rõ; cập nhật `AGENTS.md`, mục lục
+  docs và bộ tài liệu `docs/agent-skills/`; không sửa business logic ứng dụng,
+  không chạy script bên thứ ba hoặc benchmark giả.
+- Tiêu chí hoàn thành: mọi skill có frontmatter hợp lệ và được Codex discovery
+  theo layout được hỗ trợ; có tình huống kiểm thử từng skill, script được test
+  với input hợp lệ/không hợp lệ, nguồn được phân loại có bằng chứng, báo cáo
+  phân biệt PASS/FAIL/SKIPPED/NOT VERIFIED và không ghi đè cấu hình hiện có.
+- Trạng thái: partial; 15 skill, script, test, source verification và tài liệu đã
+  hoàn tất; validator/full suite/static checks đạt. Implicit discovery/trigger
+  trong một phiên Codex mới chưa thể kiểm chứng từ phiên đang chạy.
+
+## TASK-20261015-11
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: cập nhật skill/agent để buộc tuân thủ cấu trúc dự án đã thiết lập và
+  rút gọn README gốc; hướng dẫn môi trường, câu lệnh và vận hành chi tiết phải
+  nằm trong `docs/`.
+- Phạm vi: tạo skill cấu trúc dự án, nối skill vào `AGENTS.md`, viết lại README
+  tổng quan và cập nhật tài liệu/link nếu cần; không thay đổi runtime.
+- Tiêu chí hoàn thành: skill hợp lệ và mô tả đúng ranh giới configs/docs/source;
+  README ngắn, không lặp tài liệu chi tiết; link test và static checks đạt.
+- Trạng thái: completed; skill cấu trúc đã được AGENTS kích hoạt và validator
+  xác nhận hợp lệ; README gốc đã rút gọn, chi tiết được dẫn về docs; test link,
+  CLI và static checks đạt.
+
+## TASK-20261015-10
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: bổ sung các lệnh `vigov` ngắn gọn còn thiếu cho web/chatbot, ingest,
+  embedding và vòng đời RAG/evaluation.
+- Phạm vi: mở rộng Typer command tree trên service/entry point hiện có; thêm
+  option rõ ràng và path portable; cập nhật test, README và guides; giữ CLI
+  `python -m vigovbot` tương thích.
+- Tiêu chí hoàn thành: có `vigov web`, `vigov ask`, `vigov data ingest/embed`,
+  `vigov rag prepare/smoke/evaluate/report/run`; help và routing test đạt; full
+  suite/static checks đạt; không khởi động model, web server hoặc benchmark thật.
+- Trạng thái: completed; toàn bộ lệnh ngắn yêu cầu đã có trong `vigov`, tài liệu
+  và compatibility entry point đã cập nhật; 160 test pass, 1 optional skip,
+  help matrix và static checks đạt.
+
+## TASK-20261015-09
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: gom nhóm và phân chia toàn bộ tài liệu trong `docs/` theo chức năng.
+- Phạm vi: thiết kế taxonomy tài liệu; di chuyển hướng dẫn setup, kiến trúc,
+  vận hành, QLoRA và báo cáo vào thư mục phù hợp; giữ hồ sơ dự án; cập nhật mọi
+  liên kết trong repository và mục lục tài liệu.
+- Tiêu chí hoàn thành: gốc `docs/` chỉ còn mục lục; không còn liên kết nội bộ
+  trỏ tới đường dẫn cũ; kiểm tra liên kết, test và static check đạt; không thay
+  đổi artifact, dataset hoặc hành vi runtime.
+- Trạng thái: completed; gốc `docs/` chỉ còn mục lục, tài liệu đã được chia vào
+  5 nhóm chức năng và roadmap nằm trong `project/`; toàn bộ link hoạt động đã
+  cập nhật. Full suite 158 pass, 1 optional skip; static checks đạt.
+
+## TASK-20261015-08
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: chia rõ các cấu hình theo thư mục chức năng và sửa toàn bộ vị trí
+  đang tham chiếu đến đường dẫn cấu hình cũ.
+- Phạm vi: kiểm kê YAML và người dùng của chúng; tổ chức lại cấu hình training,
+  ingestion và RAG; cập nhật code, script, notebook, test và tài liệu; giữ khả
+  năng đọc artifact/run lịch sử và không thay đổi nội dung khoa học của cấu hình.
+- Tiêu chí hoàn thành: không còn tham chiếu hoạt động tới đường dẫn YAML phẳng
+  cũ; các loader giải quyết đúng đường dẫn tương đối sau khi di chuyển; test và
+  static check đạt; không chạy training hoặc tải model.
+- Trạng thái: completed; cấu hình đã chia theo ingestion/RAG/training, toàn bộ
+  tham chiếu hoạt động đã chuyển sang đường dẫn mới; 157 test pass, 1 optional
+  skip và static checks đạt. Không chạy training hoặc tải model.
+
 ## TASK-20261007-08
 
 - Ngày: 2026-10-07 (Asia/Saigon).
@@ -383,3 +472,259 @@
   hoàn tất; test/lint đạt.
 - Trạng thái: completed; CLI score hiển thị phase, progress lexical/BERTScore,
   thời gian và đường dẫn artifact hoàn tất; metric/schema không đổi.
+## TASK-20261014-01
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: triển khai pipeline QLoRA production-ready cho
+  `Qwen/Qwen2.5-7B-Instruct` theo hướng local-first, sau đó có thể chuyển
+  nguyên repo/dữ liệu sang máy Linux GPU chưa biết phần cứng.
+- Phạm vi: validation/leakage/preprocessing JSONL, assistant-only loss,
+  config base/local/smoke/gpu, preflight GPU không tự áp setting, QLoRA train/resume,
+  evaluation baseline/adapter, metrics/plots/report/artifact, checkpoint logic, CLI,
+  interface nạp adapter cho chatbot, dependency/portable docs và unit test CPU.
+- Tiêu chí: không tải model 7B; chạy toàn bộ test không cần CUDA/model;
+  phân biệt local-tested, chờ GPU, chưa làm và giới hạn; không tuyên
+  bố training thành công khi chưa chạy thật.
+- Giả định: ba dataset hiện nằm trong
+  `Data/tthc_test_case_v1/data/`; output/model/checkpoint/dataset/token không được
+  Git theo dõi; hyperparameter thí nghiệm chỉ thay bằng config/CLI minh bạch.
+- Trạng thái: partial; toàn bộ hạ tầng local-first và portable GPU đã
+  triển khai, validator 5.000 record và test QLoRA/server liên quan đạt.
+  Training/evaluation model 7B, CUDA/bitsandbytes và artifact thật chờ máy GPU.
+## TASK-20261014-02
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: audit pre-GPU toàn diện implementation QLoRA local-first hiện
+  có, sửa trực tiếp lỗi nghiêm trọng, bổ sung test CPU/checkpoint/early
+  stopping, điều tra failure JSON mode so với JSON schema và lập báo cáo.
+- Phạm vi kiểm tra: Qwen multi-turn/masking/EOS/truncation; NF4/PEFT/
+  optimizer/checkpointing/precision; early stop/best restore/resume state; split
+  isolation và leakage; metrics/parameter/VRAM/timing/plots; Windows-Linux
+  portability; baseline so với PEFT chatbot.
+- Tiêu chí: không tải model weights, không chạy training 7B; test/static
+  checks được chạy thật; tạo `docs/qlora-pre-gpu-audit.md`; kết luận
+  minh bạch READY hoặc NOT READY cho GPU smoke.
+- Trạng thái: partial; audit local và các fix critical/high đã hoàn
+  tất, full suite/static/data validation đạt và báo cáo đã tạo. Dự
+  án READY có điều kiện cho GPU smoke; CUDA smoke/resume thật còn pending.
+
+## TASK-20261014-08
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: đánh giá các artifact QLoRA hiện có trong `outputs/qlora` và viết
+  lệnh vẽ các biểu đồ loss.
+- Phạm vi: kiểm kê run/checkpoint/trạng thái/metric và log history thực tế;
+  phân tích train/eval loss, xu hướng hội tụ, best checkpoint và dấu hiệu
+  overfit nếu dữ liệu cho phép; xác định cách gọi công cụ vẽ biểu đồ hiện có
+  hoặc bổ sung tối thiểu nếu còn thiếu. Không chạy lại training 7B.
+- Tiêu chí hoàn thành: kết luận dựa trên artifact thật, nêu rõ giới hạn đánh
+  giá; cung cấp lệnh PowerShell chạy được để sinh biểu đồ loss và kiểm chứng
+  lệnh/công cụ ở mức phù hợp mà không ghi đè artifact huấn luyện.
+- Giả định: `output/qlora` trong yêu cầu là thư mục thực tế `outputs/qlora` của
+  repository.
+- Trạng thái: completed; đã đánh giá full run bằng artifact thực, xác minh best
+  adapter/checkpoint, sinh 9 biểu đồ (gồm 3 biểu đồ loss) và kiểm thử công cụ vẽ.
+## TASK-20261014-03
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: trực tiếp thiết lập và kiểm chứng QLoRA cho
+  `Qwen/Qwen2.5-7B-Instruct` trên Windows 10, RTX 5060 Ti 16 GB (Blackwell),
+  gồm môi trường Python/PyTorch CUDA, dependency, bitsandbytes 4-bit, dữ liệu,
+  cấu hình phần cứng, preflight, smoke train thật, checkpoint/resume, metric,
+  báo cáo và acceptance gate.
+- Phạm vi: giữ nguyên pipeline hiện có trừ khi phát hiện lỗi tương thích/đúng đắn;
+  không chạy full training, không xóa dữ liệu/checkpoint, không tự cài toolkit CUDA,
+  WSL2, driver hoặc thay đổi hệ thống cần quyền quản trị/reboot.
+- Tiêu chí hoàn thành: CUDA tensor hoạt động trên SM 12.0; dependency nhất quán;
+  NF4/double-quant/BF16 và backward thật đạt; ba split/hash/tokenizer/format/loss
+  được kiểm chứng; smoke tối thiểu 3 optimizer step có checkpoint-2; resume giữ
+  optimizer/scheduler/RNG/callback và tăng đúng global step; acceptance report JSON
+  và Markdown phân loại PASS/FAIL/BLOCKED; kết luận READY/READY WITH LIMITATIONS/BLOCKED
+  dựa trên bằng chứng thực thi.
+- Giả định: có thể tạo `.venv-qlora`, cài package trong venv và tải model từ
+  Hugging Face khi đủ dung lượng/truy cập; mọi thay đổi cấp hệ điều hành sẽ dừng
+  để xin phê duyệt.
+- Trạng thái: completed; environment/CUDA/bitsandbytes/dataset/preflight/smoke 4
+  step/checkpoint-resume/metrics/plots/acceptance đã chạy thật và đạt. Kết luận
+  máy `READY WITH LIMITATIONS` cho full training có giám sát; không chạy full
+  training theo phạm vi task.
+## TASK-20261014-04
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: chuẩn bị bộ điều khiển PowerShell để người dùng tự chạy full QLoRA
+  độc lập với Codex/ChatGPT, gồm start/status/stop/TensorBoard/resume, log/PID/run
+  metadata, kiểm tra trước khi chạy, chống chạy trùng và dry-run/mock test.
+- Phạm vi: giữ pipeline/config RTX 5060 Ti đã smoke-test; bổ sung live status,
+  GPU TensorBoard metrics và graceful stop tại ranh giới optimizer step. Không
+  khởi chạy full training, không tự đổi hyperparameter, không tự restart OOM,
+  không xóa checkpoint hoặc tải lại model ngoài hành vi cache chuẩn của HF.
+- Tiêu chí hoàn thành: script PowerShell kiểm đúng venv/GPU/data/config/resume;
+  tiến trình worker độc lập có stdout/stderr/exit code/PID; status hiển thị step,
+  epoch, loss, elapsed/ETA/VRAM; stop chỉ tác động đúng run và xác minh checkpoint;
+  TensorBoard localhost:6006; README có lệnh chính xác; dry-run/mock và test/static
+  checks đạt mà không chạy full training.
+- Trạng thái: completed; đã tạo start/status/stop/TensorBoard/worker, live status,
+  graceful checkpoint stop, resume validation, log/PID/exit metadata, README và
+  kiểm thử dry-run/mock; không khởi chạy full training.
+
+## TASK-20261014-05
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: audit cuối pipeline ghi log, metric, trực quan hóa và báo cáo của thí
+  nghiệm QLoRA Qwen2.5-7B-Instruct; bảo đảm dữ liệu thực nghiệm đủ cho báo cáo kỹ
+  thuật/luận văn và dữ liệu đã đo được vẫn còn sau khi run bị gián đoạn.
+- Phạm vi: log có cấu trúc liên tục; loss/LR/gradient/timing/throughput/GPU/parameter;
+  cấu hình và provenance; token-weighted loss/perplexity; đánh giá baseline so với
+  adapter trên cùng test set; metric theo mẫu và tổng hợp; plot/report/status,
+  checkpoint/resume; readiness check nhẹ. Không chạy full training, không tự tải
+  model weights và không chạy generation evaluation trong validation loop.
+- Tiêu chí hoàn thành: ba CLI `training.plot`, `training.report`, `training.evaluate`
+  hoạt động theo contract; readiness check xác minh schema/thư mục/config và khả
+  năng tạo plot/report bằng artifact tổng hợp; metric thiếu được ghi rõ unavailable;
+  tạo `docs/qlora-experiment-readiness.md`; test liên quan đạt.
+- Trạng thái: completed; đã bổ sung event log append-only, history epoch/checkpoint/
+  resume, evaluation theo split, plot manifest, report availability và readiness
+  gate. Readiness RTX trả READY; full training/model download không được khởi chạy.
+## TASK-20261014-06
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: xác định có thể đánh giá adapter QLoRA trên
+  `Data/tthc_test_case_v1/data/rag/test_queries.jsonl` mà không cần cấu hình thêm,
+  tương tự benchmark base model đã chạy hay không.
+- Phạm vi: đối chiếu schema/ID/nội dung giữa query, gold case và SFT test; không chạy
+  generation evaluation hoặc tải model.
+- Tiêu chí: nêu rõ lệnh dùng được ngay và khác biệt giữa evaluator QLoRA với QA-v4.
+- Trạng thái: completed; 1.000/1.000 ID và message/history/reference của SFT test khớp
+  chính xác phép ghép `rag/test_queries.jsonl` + `rag/test.jsonl`.
+
+## TASK-20261014-07
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: bổ sung đánh giá model QLoRA vừa train theo cùng benchmark đã dùng cho
+  Qwen base và RAG, xuất cùng hoặc nhiều metric hơn để so sánh ba model.
+- Phạm vi: backend inference adapter cho QA-v4, cùng query/history/gold/scorer,
+  artifact riêng và lệnh run/score/compare; không tự chạy evaluation 1.000 câu.
+- Tiêu chí: không đưa gold vào prompt; không gán giả metric/action/retrieval; mock
+  test và smoke CLI không tải model đạt; tài liệu nêu lệnh chính xác.
+- Trạng thái: completed; backend QLoRA QA-v4, lệnh run/score/paired compare, provenance,
+  tài liệu và mock test đã hoàn tất; không chạy evaluation 1.000 câu.
+
+## TASK-20261014-08
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: đánh giá full run `qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d` từ event/log/metrics/checkpoint thật; chạy plot biểu đồ.
+- Trạng thái: completed.
+
+## TASK-20261014-09
+
+- Ngày: 2026-10-14 (Asia/Saigon).
+- Yêu cầu: viết báo cáo phân tích triển khai QLoRA của dự án, bao gồm cấu hình tham số, kiến trúc triển khai, kết quả phân tích train loss, val loss, các chỉ số đo đạc thực tế; nêu rõ hiện chưa có kết quả test và sẽ bổ sung sau.
+- Phạm vi: tạo tài liệu báo cáo `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md` dựa trên dữ liệu thực tế từ run `outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d`. Không bịa số liệu, không tự ý gán kết quả test khi chưa chạy.
+- Tiêu chí hoàn thành: báo cáo đầy đủ các mục yêu cầu, số liệu đối chiếu chuẩn xác với `training_metrics.json`, `config.yaml`, `parameter_report.json`, `timing_report.json` và `training_log.csv`.
+- Trạng thái: completed.
+## TASK-20261015-01
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: đánh giá cấu hình máy hiện tại có đủ khả năng chạy nốt các bước chấm
+  QLoRA còn thiếu hay không, sau khi đã sinh đủ 1.000/1.000 prediction.
+- Phạm vi: kiểm tra GPU/VRAM/RAM/đĩa, môi trường Python và tiến trình hiện tại;
+  kiểm kê prediction/run report, scorer và lệnh compare/evaluate/plot/report;
+  ước lượng tính khả thi, thứ tự chạy và rủi ro. Chưa tự khởi chạy workload dài.
+- Tiêu chí hoàn thành: kết luận rõ bước nào chạy được ngay, bước nào tốn VRAM/
+  thời gian hoặc thiếu dữ liệu/judgment; đưa lệnh an toàn dựa trên artifact thật.
+- Trạng thái: completed; máy tạo run RTX 5060 Ti 16 GB đủ chạy các bước còn lại
+  theo thứ tự, nhưng controlled HF evaluation là workload dài. Phiên kiểm tra hiện
+  tại là máy RTX 4050 6 GB và không có venv/prediction được nêu, nên không tự chạy.
+- Bổ sung người dùng: máy cần đánh giá chính là RTX 4050 Laptop 6 GB đang được
+  kiểm tra trực tiếp, không phải host RTX 5060 Ti được ghi trong artifact training.
+- Trạng thái hiệu chỉnh: partial; lexical/compare/plot/report chạy được, BERTScore
+  nên hạ batch và controlled HF evaluation cần smoke riêng vì VRAM/RAM hạn chế.
+
+## TASK-20261015-02
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: cập nhật báo cáo phân tích triển khai QLoRA sau khi đã có kết quả chạy kiểm thử và chấm điểm 1.000 ca test trên `tthc_test_case_v1` (`scores_qwen_qlora_batch4.json`).
+- Phạm vi: cập nhật `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`, bổ sung mục phân tích kết quả test thực tế (1.000 ca, N=810 ca tính độ tương đồng văn bản), bảng so sánh 3 chiều giữa Qwen Base vs RAG vs QLoRA, phân tích theo từng nhóm hành động (answer, partial, correct_premise, clarify, abstain) và hiệu năng suy luận (latency, throughput, batching).
+- Trạng thái: completed; đã đối chiếu toàn bộ số liệu benchmark từ `scores_qwen_qlora_batch4.json` và cập nhật Mục 6 cùng bảng so sánh 3 chiều vào `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`.
+
+## TASK-20261015-03
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: xác minh vì sao kết quả QLoRA tốt hơn Qwen Base và Base + RAG; làm rõ
+  khác biệt trong huấn luyện và đánh giá giữa ba cấu hình.
+- Phạm vi: đối chiếu artifact prediction/score/provenance, dữ liệu test, prompt và
+  hợp đồng đầu ra, scorer, cấu hình train QLoRA và pipeline RAG. Không chạy lại
+  generation/benchmark dài và không thay đổi model/checkpoint.
+- Tiêu chí hoàn thành: tách rõ nguyên nhân đã được bằng chứng xác nhận với giả
+  thuyết; xác định mức độ so sánh công bằng, các metric tạo ra kết luận và hạn
+  chế/rò rỉ dữ liệu nếu có; nêu khác biệt train/evaluate bằng ngôn ngữ dễ hiểu.
+- Trạng thái: completed; đã xác minh cùng query hash/reference history, đối chiếu
+  scorer và phân tầng test theo tài liệu đã/chưa xuất hiện trong train. Kết luận
+  QLoRA vượt trội về độ giống đáp án trong miền đã biết, nhưng chưa có action,
+  retrieval hay semantic judgment để khẳng định thắng toàn diện.
+
+## TASK-20261015-04
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: tích hợp model QLoRA đã huấn luyện vào web demo hỏi đáp hiện có để
+  người dùng có thể chọn và so sánh cùng Qwen Base và Qwen + RAG.
+- Phạm vi: thêm cấu hình/model mode QLoRA, luồng inference local adapter, nhãn UI,
+  quản lý chuyển backend phù hợp GPU 6 GB, kiểm thử server/UI/config và cập nhật
+  hướng dẫn vận hành. Không thay đổi hoặc huấn luyện lại adapter.
+- Tiêu chí hoàn thành: UI hiển thị ba lựa chọn Base/RAG/QLoRA; QLoRA không chạy
+  retrieval, dùng đúng `best_adapter`; lịch sử hội thoại tách theo model; chuyển
+  Ollama/Transformers không giữ đồng thời model trên GPU theo mặc định; test liên
+  quan đạt. Chỉ tuyên bố chạy model thật nếu có kiểm chứng trực tiếp.
+- Trạng thái: completed; UI/config/server đã có ba chế độ Base, RAG và QLoRA;
+  test liên quan đạt. Chưa chạy inference model thật hoặc browser QA trong task
+  này nên runtime GPU/hiển thị trực quan vẫn là giới hạn kiểm chứng.
+
+## TASK-20261015-05
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: khắc phục web demo QLoRA lỗi thiếu `accelerate` khi nạp model.
+- Phạm vi: xác minh đúng interpreter, bổ sung dependency runtime QLoRA còn thiếu,
+  kiểm tra tương thích môi trường và smoke loader; không thay checkpoint.
+- Tiêu chí hoàn thành: `accelerate`, `peft`, `bitsandbytes` import được trong
+  `env`; `pip check` đạt; lỗi dependency không còn. Chỉ xác nhận inference model
+  thật nếu loader/generation thực sự chạy thành công.
+- Trạng thái: completed; đã cài dependency thiếu, đưa Transformers về stack ghim
+  4.57.3 và cấu hình NF4 single-GPU. Smoke thật nạp đúng `best_adapter` và sinh
+  8 token thành công trên RTX 4050; cần restart web process đang chạy.
+
+## TASK-20261015-06
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: chẩn đoán QLoRA trên web liên tục yêu cầu nêu tên/mã/nội dung cụ thể
+  khi người dùng nhập tên hồ sơ, mã `1.004696` và tên thủ tục đầu tư.
+- Phạm vi: kiểm tra lịch sử web, dữ liệu SFT và corpus; không sửa model hoặc suy
+  diễn nội dung thủ tục khi chưa có câu hỏi cụ thể.
+- Tiêu chí hoàn thành: xác định đây là lỗi history, thiếu tri thức, sai mã hay hành
+  vi clarify đúng; nêu cách hỏi/chế độ phù hợp.
+- Trạng thái: completed; history được gửi đúng. Mã nhập sai so với corpus
+  (`1.009646`), thủ tục này không có trong SFT nhưng có trong corpus RAG, và các
+  lượt chỉ nêu định danh chưa hỏi thuộc tính cụ thể.
+- Bổ sung kết quả thực tế: khi hỏi đúng mã và thuộc tính hồ sơ, QLoRA sinh một
+  giấy tờ chung chung không có trong nguồn và bỏ sót danh sách ba mục. Kết quả
+  này được phân loại là sai/thiếu, không phải câu trả lời đúng dù diễn đạt trôi chảy.
+
+## TASK-20261015-07
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: refactor toàn bộ ViGovBot thành dự án Python sạch, dễ bảo trì với CLI
+  thống nhất `vigov`; có thể giữ nguyên mã hiện tại và tạo cấu trúc riêng rồi di
+  chuyển dần đến khi đồng bộ hoạt động.
+- Phạm vi: kiểm kê repository và baseline; lập ánh xạ đường dẫn; hợp nhất CLI và
+  cấu hình; tổ chức application/training/evaluation/reporting; quản lý tiến trình
+  training nền Windows/Linux; giữ tương thích chatbot, checkpoint và artifact;
+  bổ sung kiểm thử và tài liệu `docs/refactor-summary.md`.
+- Tiêu chí hoàn thành: các tiêu chí acceptance trong yêu cầu đính kèm, gồm CLI,
+  cấu hình, lifecycle, test/static check, tài liệu và lệnh GPU tiếp theo đều dựa
+  trên triển khai thực tế; không chạy full training hoặc tải lại model.
+- Giả định an toàn: triển khai tăng dần trên nhánh `codex/ref-clean`; không xóa,
+  đổi tên hoặc sao chép checkpoint/dataset/adapter/output lớn; giữ entry point cũ
+  trong giai đoạn tương thích cho đến khi test chứng minh đường mới tương đương.
+- Trạng thái: in_progress; đang kiểm kê mã nguồn và ghi baseline trước thay đổi.
+- Kết quả: completed; đã triển khai CLI `vigov`, cấu hình phân lớp, package
+  `vigovbot.training`, lifecycle nền Windows/Linux, run layout, compatibility,
+  CI và tài liệu. Full suite 156 pass, 1 optional skip; không chạy full training.
