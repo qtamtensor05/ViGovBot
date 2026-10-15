@@ -1,6 +1,6 @@
 # QLoRA experiment logging readiness
 
-Ngày audit: 2026-10-14. Cấu hình mục tiêu: `configs/gpu_rtx5060ti_16gb.yaml`.
+Ngày audit: 2026-10-14. Cấu hình mục tiêu: `configs/training/environments/rtx5060ti_16gb.yaml`.
 Audit này không chạy full training và không tải model weights. Trạng thái “verified”
 nghĩa là đường thu thập/schema đã được kiểm thử bằng fixture; giá trị thực chỉ xuất
 hiện sau training/evaluation và tuyệt đối không được suy diễn từ fixture.
@@ -34,7 +34,7 @@ ghi đè kết quả test.
 ## Lệnh
 
 ```powershell
-.\.venv-qlora\Scripts\python.exe -m training.readiness --config configs/gpu_rtx5060ti_16gb.yaml
+.\.venv-qlora\Scripts\python.exe -m training.readiness --config configs/training/environments/rtx5060ti_16gb.yaml
 .\.venv-qlora\Scripts\python.exe -m training.evaluate --run_dir <RUN_DIR> --split test
 .\.venv-qlora\Scripts\python.exe -m training.plot --run_dir <RUN_DIR>
 .\.venv-qlora\Scripts\python.exe -m training.report --run_dir <RUN_DIR>

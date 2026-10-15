@@ -1,4 +1,45 @@
-# TASK-20261015-02 — completed
+# TASK-20261015-08 - completed
+
+- Giai đoạn: hoàn tất migration và verification gate.
+- Đã xác nhận worktree đang chứa thay đổi refactor TASK-20261015-07 cần được
+  bảo toàn; chưa có thao tác xóa/move artifact, dataset hoặc checkpoint.
+- Đã chia YAML vào `configs/ingestion`, `configs/rag`, `configs/training`; cập
+  nhật source, script, notebook, test và tài liệu sang đường dẫn mới. Các file
+  cấu hình phẳng trùng vai trò đã được xóa; snapshot trong run cũ giữ nguyên.
+- Kiểm chứng: mọi loader canonical resolve đúng; `vigov doctor` và
+  `vigov data stats` chạy từ ngoài repository; 157 test pass, 1 optional skip;
+  Ruff, compileall và diff-check đạt.
+- Ràng buộc: giữ nguyên giá trị cấu hình và hành vi loader; không chạy training,
+  không tải model; cấu hình snapshot trong run lịch sử không bị thay đổi.
+
+# TASK-20261015-07 - completed
+
+- Giai đoạn: hoàn tất refactor và verification gate.
+- Đã xác nhận Git đang ở nhánh `codex/ref-clean`, working tree sạch tại thời điểm
+  bắt đầu; mã ứng dụng đã dùng src-layout nhưng training còn là package cấp gốc,
+  CLI công khai hiện là `vigovbot` dùng argparse và chưa có command tree yêu cầu.
+- Đã thêm console script `vigov`, command tree bắt buộc, compatibility dispatch
+  cho CLI cũ, config `environments/` và `experiments/`, logs command, dependency
+  groups và `docs/refactor-summary.md`. Profile RTX 5060 Ti canonical đã dùng
+  layout SFT thực tế hiện có; snapshot run lịch sử không đổi.
+- Kiểm chứng: editable install thành công; `vigov --help`, doctor và data stats
+  chạy thật; full suite 156 pass, 1 optional skip; Ruff, compileall, pip check,
+  diff-check và PowerShell AST đều đạt. Không chạy training/model download.
+- Ràng buộc: không chạy full QLoRA, không tải lại model, không di chuyển/xóa dữ
+  liệu, checkpoint, adapter, log hoặc report hiện có.
+- Lát cắt 2 đã chuyển toàn bộ implementation QLoRA vào `src/vigovbot/training`,
+  giữ alias package cũ cùng module object, thêm lifecycle Python đa nền tảng,
+  identity/duplicate/stop/resume gate và layout run phân khu. CI Windows/Ubuntu,
+  tài liệu development/GPU/training/evaluation đã được bổ sung.
+- Kiểm chứng cuối: full suite 156 pass, 1 optional skip; Ruff, compileall,
+  pip check, diff-check, PowerShell AST, editable install, help matrix, import
+  parity ngoài repo và smoke dry-run thật đều đạt.
+- Ranh giới: dry-run xác nhận RTX 4050/CUDA 13.0 và dataset, nhưng không chạy GPU
+  smoke/full training, không tải model và không tuyên bố tái kiểm chứng GPU.
+- Bước tiếp theo do người vận hành chủ động: chạy GPU smoke bằng run ID mới, xem
+  status/logs và acceptance artifact trước khi cân nhắc full experiment.
+
+# TASK-20261015-02 - completed
 
 - Đã cập nhật toàn diện kết quả benchmark 1.000 ca test trên bộ dữ liệu `tthc_test_case_v1`
   vào Mục 6 của tài liệu `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md`.

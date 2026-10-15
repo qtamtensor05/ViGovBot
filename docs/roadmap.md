@@ -30,7 +30,7 @@ thể kiểm chứng của repository tại thời điểm hiện tại.
 
 ## Dữ liệu và vận hành hiện tại
 
-- Cấu hình `configs/inference.yaml` yêu cầu corpus có đủ
+- Cấu hình `configs/rag/inference.yaml` yêu cầu corpus có đủ
   `tthc_unified.index`, `tthc_unified_metadata.json` và `corpus_manifest.json`.
 - Thư mục `Data/vector/unified/` hiện có đủ index, metadata và
   `corpus_manifest.json`; cấu hình inference mặc định yêu cầu và xác minh manifest.

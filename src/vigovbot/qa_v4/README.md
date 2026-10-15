@@ -11,7 +11,7 @@ câu trả lời riêng.
 nhưng các lượt trong cùng một `conversation_id` luôn tuần tự và dùng đúng câu trả
 lời vừa sinh. Output vẫn được ghi theo thứ tự view để so sánh và resume ổn định.
 
-Máy RTX 5060 Ti 16 GB đã có cấu hình [rag-fast-local.yaml](../../../configs/rag-fast-local.yaml):
+Máy RTX 5060 Ti 16 GB đã có cấu hình [evaluation-fast-local.yaml](../../../configs/rag/evaluation-fast-local.yaml):
 BGE-M3 và BERTScore dùng CUDA, BERTScore batch 16. Bắt đầu với concurrency 2;
 chỉ tăng 4 sau khi benchmark VRAM/503. Ollama trên Windows phải được khởi động lại
 sau khi đặt `OLLAMA_NUM_PARALLEL=2`, `OLLAMA_MAX_LOADED_MODELS=1`,
@@ -36,16 +36,16 @@ Chạy từ thư mục gốc, sau khi cài `python -m pip install -e ".[rag,eval
 Corpus và Ollama cần sẵn sàng theo cấu hình RAG hiện tại.
 
 ```powershell
-python -m vigovbot qa-v4 chat --config rag_config.yaml
-python -m vigovbot qa-v4 run --config rag_config.yaml --split test --limit 10 --out outputs/qa_v4/smoke.jsonl
+python -m vigovbot qa-v4 chat --config configs/rag/inference.yaml
+python -m vigovbot qa-v4 run --config configs/rag/inference.yaml --split test --limit 10 --out outputs/qa_v4/smoke.jsonl
 python -m vigovbot qa-v4 score --split test --limit 10 --predictions outputs/qa_v4/smoke.jsonl --out outputs/qa_v4/smoke_scores.json
 ```
 
 Ví dụ benchmark nhanh trên máy hiện tại:
 
 ```powershell
-.venv\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --config configs/rag-fast-local.yaml --split test --mode reference_history --concurrency 2 --out outputs/qa_v4/single_fast.jsonl
-.venv\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_tthc_three_1500 --view views_multi_1500.json --config configs/rag-fast-local.yaml --split test --mode free_running --concurrency 2 --out outputs/qa_v4/multi_fast.jsonl
+.venv\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --config configs/rag/evaluation-fast-local.yaml --split test --mode reference_history --concurrency 2 --out outputs/qa_v4/single_fast.jsonl
+.venv\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_tthc_three_1500 --view views_multi_1500.json --config configs/rag/evaluation-fast-local.yaml --split test --mode free_running --concurrency 2 --out outputs/qa_v4/multi_fast.jsonl
 .venv\Scripts\python.exe -m vigovbot qa-v4 score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --lexical --bertscore --bert-device cuda --bert-batch-size 16 --predictions outputs/qa_v4/single_fast.jsonl --out outputs/qa_v4/single_fast_scores.json
 ```
 
@@ -59,7 +59,7 @@ nạp encoder và không dùng FAISS. Có thể chạy chế độ này trong l�
 embedding (nếu tài nguyên CPU/GPU đủ). Không truyền đáp án tham chiếu vào model.
 
 ```powershell
-python -m vigovbot qa-v4 run --config configs/inference.yaml --no-retrieval --split test --limit 10 --out outputs/qa_v4/qwen7b_baseline_smoke.jsonl
+python -m vigovbot qa-v4 run --config configs/rag/inference.yaml --no-retrieval --split test --limit 10 --out outputs/qa_v4/qwen7b_baseline_smoke.jsonl
 python -m vigovbot qa-v4 score --split test --limit 10 --predictions outputs/qa_v4/qwen7b_baseline_smoke.jsonl --out outputs/qa_v4/qwen7b_baseline_smoke_scores.json
 ```
 
@@ -72,7 +72,7 @@ hoặc dữ liệu gold vào prompt.
 
 Adapter tái sử dụng `prepare`, `inference_session` và `answer_question` của
 `vigovbot.rag.pipeline`; dùng cùng corpus, embedding, FAISS, tokenizer, routing,
-prompt và model theo `rag_config.yaml`. Phiên suy luận được tải một lần cho
+prompt và model theo `configs/rag/inference.yaml`. Phiên suy luận được tải một lần cho
 toàn bộ batch.
 
 `ask --question "..."` gửi một câu hỏi; chat hỗ trợ `/reset` và `/exit`.
@@ -106,7 +106,7 @@ và coverage dùng `--mode reference_history`. Mỗi lượt chạy dùng output
 Chạy từ thư mục gốc bằng môi trường `env` trên Windows:
 
 ```powershell
-env\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_v4_small --config configs/inference.yaml --split test --mode free_running --out outputs/qa_v4/small_main.jsonl
+env\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_v4_small --config configs/rag/inference.yaml --split test --mode free_running --out outputs/qa_v4/small_main.jsonl
 env\Scripts\python.exe -m vigovbot qa-v4 score --dataset rag_v4_small --split test --lexical --predictions outputs/qa_v4/small_main.jsonl --out outputs/qa_v4/small_main_scores.json
 ```
 

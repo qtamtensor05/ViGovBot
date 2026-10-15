@@ -59,7 +59,7 @@ Trên Linux và macOS, sử dụng `.venv/bin/python` thay cho
 
 ## Vận hành RAG với corpus hiện có
 
-Cấu hình `configs/inference.yaml` sử dụng corpus tại `Data/vector/unified`.
+Cấu hình `configs/rag/inference.yaml` sử dụng corpus tại `Data/vector/unified`.
 Corpus hợp lệ phải có đủ ba artifact:
 
 - `tthc_unified.index`;
@@ -69,13 +69,13 @@ Corpus hợp lệ phải có đủ ba artifact:
 Khởi tạo cache truy vấn:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml prepare
+.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml prepare
 ```
 
 Thực hiện truy vấn:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml ask `
+.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml ask `
   --question "Hồ sơ cấp bản sao hộ tịch gồm những gì?"
 ```
 
@@ -87,7 +87,7 @@ chuyển đổi được quy định tại [tài liệu migration](docs/migratio
 Sau khi embedding hoàn tất, khởi động server bằng cấu hình inference:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml web
+.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml web
 ```
 
 Mở `http://127.0.0.1:8000` trong trình duyệt và nhấn `Ctrl+C` tại terminal để dừng.
@@ -102,7 +102,7 @@ Cấu hình mặc định có `Qwen base` (`mode: base`, gọi model trực ti�
 trả lời cạnh nhau. Ba provider được hỗ trợ là `ollama`, `openai_compatible` và
 `local_transformers`. Với API bên ngoài, đặt tên biến chứa khóa tại
 `api_key_env` và đặt giá trị biến đó trong môi trường chạy server; không ghi API key
-trực tiếp vào YAML hoặc trình duyệt. Xem ví dụ trong `configs/inference.yaml`.
+trực tiếp vào YAML hoặc trình duyệt. Xem ví dụ trong `configs/rag/inference.yaml`.
 
 QLoRA cần môi trường đã cài dependency GPU trong `requirements/qlora-gpu.txt` và
 CUDA khả dụng. Cấu hình mặc định không giữ đồng thời model Ollama và local
@@ -119,6 +119,36 @@ Provider OpenAI-compatible ở nhánh RAG cần hỗ trợ strict `json_schema`;
 chi tiết trong [tài liệu RAG nhiều lượt](docs/rag-multi-turn.md).
 
 ## Giao diện dòng lệnh
+
+CLI thống nhất được cài bằng `pip install -e .` và có tên `vigov`. Các entry
+point `vigovbot ingest|embed|rag|qa-v4` vẫn được giữ để tương thích trong giai
+đoạn di chuyển.
+
+```powershell
+vigov --help
+vigov doctor
+vigov data check --config configs/training/base.yaml
+vigov data stats --config configs/training/base.yaml
+vigov gpu check
+vigov train smoke --config configs/training/experiments/smoke.yaml --approve
+vigov train start --config configs/training/environments/rtx5060ti_16gb.yaml --dry-run
+vigov train status
+vigov train logs --lines 100
+vigov train stop
+vigov train resume <checkpoint> --config configs/training/environments/rtx5060ti_16gb.yaml
+vigov dashboard --run-id <run-id>
+vigov eval test --run-id <run-id>
+vigov report plots --run-id <run-id>
+vigov report build --run-id <run-id>
+```
+
+`--dry-run` không khởi động training. `smoke` chỉ chạy thật khi có `--approve`;
+không dùng test split để chọn model. Chi tiết migration và giới hạn hiện tại nằm
+tại [tóm tắt refactor](docs/refactor-summary.md).
+
+`train start/status/logs/stop/resume` dùng worker Python độc lập trên Windows và
+Linux. Metadata process lưu PID, thời điểm tạo process và command marker để tránh
+nhầm PID tái sử dụng; stop ưu tiên file yêu cầu graceful để callback lưu checkpoint.
 
 | Nhóm lệnh | Chức năng | Đầu vào chính | Đầu ra chính |
 |---|---|---|---|

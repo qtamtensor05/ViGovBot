@@ -652,3 +652,47 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: dùng các đường dẫn split cụ thể đã kiểm tra và corpus/meta trực tiếp;
   không ảnh hưởng kết luận document `1.009646` không có trong SFT.
 
+# ERR-20261015-10
+
+- Task: TASK-20261015-07.
+- Triệu chứng: baseline readiness trả `BLOCKED`; full suite có 1 failure vì ba
+  file SFT dưới `data/fintuning` không tồn tại.
+- Nguyên nhân: profile RTX 5060 Ti giữ layout từ host tạo artifact, trong khi
+  checkout hiện tại lưu ba file SFT trực tiếp dưới `data/`.
+- Xử lý: profile canonical dùng layout thực tế; alias cũ kế thừa profile mới.
+  Không sửa snapshot config trong run lịch sử. Full suite sau sửa đạt 150 test,
+  1 optional skip.
+
+# ERR-20261015-11
+
+- Task: TASK-20261015-07.
+- Triệu chứng: lệnh kiểm tra AST PowerShell đầu tiên lỗi parser tại chuỗi
+  `"$script: $_"` trước khi chạy test.
+- Nguyên nhân: dấu hai chấm ngay sau tên biến làm PowerShell hiểu sai variable
+  reference trong chính lệnh kiểm chứng, không phải lỗi script dự án.
+- Xử lý: đổi thành `"${script}: $_"`; lần chạy lại 18 test tập trung, Ruff và AST
+  sáu script đều pass.
+
+# ERR-20261015-13
+
+- Task: TASK-20261015-08.
+- Triệu chứng: lượt test tập trung đầu tiên có 2 error và 1 failure vì còn tìm
+  `configs/base.yaml` và `configs/experiments/smoke.yaml`; lệnh kiểm tra YAML
+  training riêng cũng lỗi cú pháp do escape quote trong PowerShell one-liner.
+- Nguyên nhân đã xác nhận: ba tham chiếu trong `doctor`/test chưa được thay ở
+  lượt tìm kiếm đầu; lỗi one-liner thuộc lệnh kiểm chứng, không thuộc loader.
+- Xử lý: cập nhật `doctor` và test sang `configs/training/...`; chạy lại kiểm tra
+  YAML bằng script ngắn không phụ thuộc escape lồng nhau.
+- Phòng tránh: sau migration đường dẫn phải tìm cả chuỗi dựng bằng `Path(...)`,
+  không chỉ tìm literal hoàn chỉnh có dấu gạch chéo.
+
+# ERR-20261015-12
+
+- Task: TASK-20261015-07.
+- Triệu chứng: session test tập trung từ lượt trước không còn tồn tại khi tiếp tục,
+  `write_stdin` trả `Unknown process id 71625`.
+- Nguyên nhân: handle công cụ đã hết hiệu lực qua ranh giới lượt; không có bằng
+  chứng process test còn sống và không phải lỗi mã nguồn.
+- Xử lý: chạy lại đúng gate tập trung một lần; 20 test và Ruff đều pass, sau đó
+  full suite cuối đạt 156 test, 1 optional skip.
+

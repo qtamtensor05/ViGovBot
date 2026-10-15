@@ -1,0 +1,6 @@
+extends: ../base.yaml
+# Local validation, reports and CPU tests. This profile never authorizes training.
+execution:
+  approved: false
+reporting:
+  tensorboard: false

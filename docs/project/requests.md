@@ -1,5 +1,20 @@
 # Yêu cầu dự án
 
+## TASK-20261015-08
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: chia rõ các cấu hình theo thư mục chức năng và sửa toàn bộ vị trí
+  đang tham chiếu đến đường dẫn cấu hình cũ.
+- Phạm vi: kiểm kê YAML và người dùng của chúng; tổ chức lại cấu hình training,
+  ingestion và RAG; cập nhật code, script, notebook, test và tài liệu; giữ khả
+  năng đọc artifact/run lịch sử và không thay đổi nội dung khoa học của cấu hình.
+- Tiêu chí hoàn thành: không còn tham chiếu hoạt động tới đường dẫn YAML phẳng
+  cũ; các loader giải quyết đúng đường dẫn tương đối sau khi di chuyển; test và
+  static check đạt; không chạy training hoặc tải model.
+- Trạng thái: completed; cấu hình đã chia theo ingestion/RAG/training, toàn bộ
+  tham chiếu hoạt động đã chuyển sang đường dẫn mới; 157 test pass, 1 optional
+  skip và static checks đạt. Không chạy training hoặc tải model.
+
 ## TASK-20261007-08
 
 - Ngày: 2026-10-07 (Asia/Saigon).
@@ -618,3 +633,24 @@
 - Bổ sung kết quả thực tế: khi hỏi đúng mã và thuộc tính hồ sơ, QLoRA sinh một
   giấy tờ chung chung không có trong nguồn và bỏ sót danh sách ba mục. Kết quả
   này được phân loại là sai/thiếu, không phải câu trả lời đúng dù diễn đạt trôi chảy.
+
+## TASK-20261015-07
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: refactor toàn bộ ViGovBot thành dự án Python sạch, dễ bảo trì với CLI
+  thống nhất `vigov`; có thể giữ nguyên mã hiện tại và tạo cấu trúc riêng rồi di
+  chuyển dần đến khi đồng bộ hoạt động.
+- Phạm vi: kiểm kê repository và baseline; lập ánh xạ đường dẫn; hợp nhất CLI và
+  cấu hình; tổ chức application/training/evaluation/reporting; quản lý tiến trình
+  training nền Windows/Linux; giữ tương thích chatbot, checkpoint và artifact;
+  bổ sung kiểm thử và tài liệu `docs/refactor-summary.md`.
+- Tiêu chí hoàn thành: các tiêu chí acceptance trong yêu cầu đính kèm, gồm CLI,
+  cấu hình, lifecycle, test/static check, tài liệu và lệnh GPU tiếp theo đều dựa
+  trên triển khai thực tế; không chạy full training hoặc tải lại model.
+- Giả định an toàn: triển khai tăng dần trên nhánh `codex/ref-clean`; không xóa,
+  đổi tên hoặc sao chép checkpoint/dataset/adapter/output lớn; giữ entry point cũ
+  trong giai đoạn tương thích cho đến khi test chứng minh đường mới tương đương.
+- Trạng thái: in_progress; đang kiểm kê mã nguồn và ghi baseline trước thay đổi.
+- Kết quả: completed; đã triển khai CLI `vigov`, cấu hình phân lớp, package
+  `vigovbot.training`, lifecycle nền Windows/Linux, run layout, compatibility,
+  CI và tài liệu. Full suite 156 pass, 1 optional skip; không chạy full training.

@@ -86,10 +86,10 @@ cho mỗi cấu hình. Embedding và FAISS không thay đổi.
 ## Chạy đánh giá
 
 Dùng môi trường đã cài `vigovbot[rag]`, Ollama và corpus tương thích với cấu hình
-`rag_config.yaml`. Từ thư mục gốc repository, chạy:
+`configs/rag/inference.yaml`. Từ thư mục gốc repository, chạy:
 
 ```powershell
-python -m vigovbot.evaluation.multiturn --config rag_config.yaml --view Data/qa_test_v4/rag_tthc_v4_1/views_balanced.json --split test --mode free_running --output-dir outputs/v4_free_running
+python -m vigovbot.evaluation.multiturn --config configs/rag/inference.yaml --view Data/qa_test_v4/rag_tthc_v4_1/views_balanced.json --split test --mode free_running --output-dir outputs/v4_free_running
 ```
 
 Mặc định đầu vào là `Data/qa_test_v4/rag_tthc_v4_1/runner_queries.jsonl`.
@@ -139,7 +139,7 @@ khi bổ sung ánh xạ bằng chứng đã kiểm duyệt.
 ## Hỏi nối tiếp ngoài đánh giá
 
 ```powershell
-python -m vigovbot.rag --config rag_config.yaml ask --question "Còn lệ phí thì sao?" --history history.json
+python -m vigovbot.rag --config configs/rag/inference.yaml ask --question "Còn lệ phí thì sao?" --history history.json
 ```
 
 `history.json` là mảng message user/assistant trước câu hỏi hiện tại. Python API:

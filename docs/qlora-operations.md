@@ -13,7 +13,7 @@ Mở PowerShell tại gốc repository:
 ```
 
 Trước khi chạy, script dùng `.venv-qlora`, validate
-`configs/gpu_rtx5060ti_16gb.yaml`, CUDA, ba split dữ liệu và config. Nó từ chối
+`configs/training/environments/rtx5060ti_16gb.yaml`, CUDA, ba split dữ liệu và config. Nó từ chối
 nếu phát hiện QLoRA run khác, tạo run ID duy nhất và lưu:
 
 - artifact Trainer: `outputs/qlora/<run-id>/`;

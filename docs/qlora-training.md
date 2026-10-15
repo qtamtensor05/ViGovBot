@@ -10,7 +10,7 @@ fallback ngầm từ QLoRA sang full fine-tuning.
 python -m venv .venv-qlora
 .venv-qlora\Scripts\python -m pip install -r requirements\qlora-base.txt
 .venv-qlora\Scripts\python -m unittest tests.test_qlora_local tests.test_qlora_plot -v
-.venv-qlora\Scripts\python -m training.validate_data --config configs/local.yaml
+.venv-qlora\Scripts\python -m training.validate_data --config configs/training/environments/local.yaml
 ```
 
 Mặc định validator không nạp tokenizer. `--with-tokenizer` nạp official Qwen
@@ -24,7 +24,7 @@ token vào Git. Chuyển ba JSONL qua kênh riêng, rồi so hash:
 
 ```bash
 sha256sum Data/tthc_test_case_v1/data/*_sft.jsonl
-python -m training.validate_data --config configs/gpu.yaml --with-tokenizer
+python -m training.validate_data --config configs/training/environments/gpu.yaml --with-tokenizer
 ```
 
 Trên Linux, tạo venv, cài PyTorch wheel theo CUDA/driver từ trang PyTorch,
@@ -32,10 +32,10 @@ sau đó `pip install -r requirements/qlora-gpu.txt`. File pin là chiến lư�
 tái lập; nên xuất thêm `pip freeze` của máy train và lưu cùng run.
 
 ```bash
-python -m training.preflight --config configs/gpu.yaml
-python -m training.train --config configs/smoke.yaml --approve --run-id smoke-HOST-DATE
-python -m training.train --config configs/gpu.yaml --approve --run-id experiment-001
-python -m training.train --config configs/gpu.yaml --approve --resume outputs/qlora/experiment-001/checkpoints/checkpoint-100
+python -m training.preflight --config configs/training/environments/gpu.yaml
+python -m training.train --config configs/training/experiments/smoke.yaml --approve --run-id smoke-HOST-DATE
+python -m training.train --config configs/training/environments/gpu.yaml --approve --run-id experiment-001
+python -m training.train --config configs/training/environments/gpu.yaml --approve --resume outputs/qlora/experiment-001/checkpoints/checkpoint-100
 python -m training.evaluate --run_dir outputs/qlora/experiment-001 --split validation
 python -m training.evaluate --run_dir outputs/qlora/experiment-001 --split test
 python -m training.plot --run_dir outputs/qlora/experiment-001
@@ -91,9 +91,9 @@ py -3.11 -m venv .venv-qlora
 .venv-qlora\Scripts\python -m training.gpu_diagnostics `
   --output outputs\qlora\gpu_environment_diagnostic.json
 .venv-qlora\Scripts\python -m training.validate_data `
-  --config configs\gpu_rtx5060ti_16gb.yaml --with-tokenizer
+  --config configs\training\environments\rtx5060ti_16gb.yaml --with-tokenizer
 .venv-qlora\Scripts\python -m training.preflight `
-  --config configs\gpu_rtx5060ti_16gb.yaml `
+  --config configs\training\environments\rtx5060ti_16gb.yaml `
   --output outputs\qlora\preflight_rtx5060ti.json
 ```
 
@@ -101,9 +101,9 @@ Smoke và resume dùng config riêng, không đổi hyperparameter full-training
 
 ```powershell
 .venv-qlora\Scripts\python -m training.train `
-  --config configs\smoke_rtx5060ti_16gb.yaml --approve --run-id smoke-HOST-DATE
+  --config configs\training\experiments\smoke_rtx5060ti_16gb.yaml --approve --run-id smoke-HOST-DATE
 .venv-qlora\Scripts\python -m training.train `
-  --config configs\smoke_rtx5060ti_16gb.yaml --approve `
+  --config configs\training\experiments\smoke_rtx5060ti_16gb.yaml --approve `
   --resume outputs\qlora\smoke-HOST-DATE\checkpoints\checkpoint-2
 .venv-qlora\Scripts\python -m training.gpu_acceptance `
   --run_dir outputs\qlora\smoke-HOST-DATE

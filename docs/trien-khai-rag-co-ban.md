@@ -61,7 +61,7 @@ flowchart TD
 
 ### 2.1. Trích xuất và chia chunk
 
-Lệnh `ingest` đọc PDF theo `configs/pipeline.yaml`, dùng cấu hình trích xuất tại `configs/ingestion.yaml` và cấu hình chia đoạn tại `configs/chunking.yaml`.
+Lệnh `ingest` đọc PDF theo `configs/ingestion/pipeline.yaml`, dùng cấu hình trích xuất tại `configs/ingestion/settings.yaml` và cấu hình chia đoạn tại `configs/ingestion/chunking.yaml`.
 
 - PDF đầu vào mặc định: `Data/pdf`; giới hạn kích thước mỗi PDF: 20 MB.
 - OCR được bật, ngôn ngữ `vie+eng`, DPI 300, chế độ `full: true`; cần Tesseract/tessdata tương ứng khi thực hiện OCR.
@@ -127,7 +127,7 @@ trong tài liệu. Chi tiết về luồng nhiều lượt và cách đánh giá
 
 ## 3. Tham số RAG đang dùng
 
-`configs/inference.yaml` dùng cho hỏi đáp; các tham số không khai báo lấy mặc định từ `src/vigovbot/rag/config.py`. `configs/rag.yaml` khai báo thêm dữ liệu và đầu ra đánh giá.
+`configs/rag/inference.yaml` dùng cho hỏi đáp; các tham số không khai báo lấy mặc định từ `src/vigovbot/rag/config.py`. `configs/rag/evaluation.yaml` khai báo thêm dữ liệu và đầu ra đánh giá.
 
 | Tham số | Giá trị mặc định / cấu hình hiện tại | Ý nghĩa |
 |---|---|---|
@@ -182,14 +182,14 @@ Ollama cần phục vụ tại địa chỉ cấu hình. Nếu dịch vụ chưa
 Đặt PDF vào `Data/pdf`, rồi chạy:
 
 ```powershell
-.venv\Scripts\python -m vigovbot ingest --config configs/pipeline.yaml
+.venv\Scripts\python -m vigovbot ingest --config configs/ingestion/pipeline.yaml
 ```
 
 Có thể xử lý nhiều PDF song song bằng `--workers`. Ví dụ với máy 18 luồng CPU và
 28 GB RAM, có thể bắt đầu với 6 worker khi OCR được bật:
 
 ```powershell
-.venv\Scripts\python -m vigovbot ingest --config configs/pipeline.yaml --workers 6
+.venv\Scripts\python -m vigovbot ingest --config configs/ingestion/pipeline.yaml --workers 6
 ```
 
 Giá trị mặc định là 1. File đã hoàn tất vẫn được giữ lại và được bỏ qua khi chạy
@@ -216,7 +216,7 @@ Tại thời điểm kiểm tra, `Data/vector/unified/` có đủ `tthc_unified.
 `allow_legacy_corpus: false` có thể xác minh corpus trước khi chuẩn bị cache.
 
 Nếu dùng một corpus cũ khác chưa có manifest, nên tạo lại theo bước 4.2. Chỉ khi
-cần tương thích tạm thời mới tạo file riêng `configs/inference-local.yaml`:
+cần tương thích tạm thời mới tạo file riêng `configs/rag/inference-local.yaml`:
 
 ```yaml
 data:
@@ -236,20 +236,20 @@ Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không
 
 ### 4.4. Chuẩn bị và hỏi đáp
 
-Với corpus mới đã cập nhật trong `configs/inference.yaml`:
+Với corpus mới đã cập nhật trong `configs/rag/inference.yaml`:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml prepare
-.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml ask --question "Cần những giấy tờ gì để cấp bản sao hộ tịch?"
+.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml prepare
+.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml ask --question "Cần những giấy tờ gì để cấp bản sao hộ tịch?"
 ```
 
-Nếu dùng corpus cũ theo bước 4.3, thay đường dẫn cấu hình trong cả hai lệnh bằng `configs/inference-local.yaml`. `prepare` chỉ chuẩn bị corpus/cache, chưa tải encoder hoặc gọi LLM; `ask` cũng tự chuẩn bị/kiểm tra cache trước khi truy vấn. Hỏi đáp không cần bộ câu hỏi đánh giá.
+Nếu dùng corpus cũ theo bước 4.3, thay đường dẫn cấu hình trong cả hai lệnh bằng `configs/rag/inference-local.yaml`. `prepare` chỉ chuẩn bị corpus/cache, chưa tải encoder hoặc gọi LLM; `ask` cũng tự chuẩn bị/kiểm tra cache trước khi truy vấn. Hỏi đáp không cần bộ câu hỏi đánh giá.
 
 Để hỏi nối tiếp, lưu các lượt trước vào một mảng JSON gồm message `user` và
 `assistant`, rồi truyền file bằng `--history`:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml ask `
+.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml ask `
   --question "Còn lệ phí thì sao?" --history history.json
 ```
 
@@ -279,7 +279,7 @@ Kết quả `ask` được in dưới dạng JSON:
 Sau khi corpus đã sẵn sàng, khởi động server HTTP cục bộ:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/inference.yaml web `
+.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml web `
   --host 127.0.0.1 --port 8000
 ```
 
@@ -290,7 +290,7 @@ không lưu phiên hội thoại. Các request chat được khóa và xử lý 
 thứ tự để dùng chung tài nguyên an toàn. Retriever mở SQLite ở chế độ read-only
 cho thread HTTP và có khóa nội bộ quanh encoder, FAISS, SQLite và thao tác đóng.
 
-`configs/inference.yaml` khai báo sẵn hai lựa chọn cùng dùng `qwen2.5:7b`:
+`configs/rag/inference.yaml` khai báo sẵn hai lựa chọn cùng dùng `qwen2.5:7b`:
 
 - `mode: base`: gửi câu hỏi và lịch sử thẳng tới Qwen, không gọi embedding,
   FAISS/SQLite hoặc prompt RAG; kết quả không có nguồn.
@@ -319,11 +319,11 @@ giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
 
 ## 5. Chạy đánh giá
 
-Chuẩn bị `Data/qa_test/dataset.jsonl` hoặc cấu hình `dataset_zip`. Kiểm tra `unified_source`, chế độ legacy nếu cần và chọn `output_dir` phù hợp trong `configs/rag.yaml`.
+Chuẩn bị `Data/qa_test/dataset.jsonl` hoặc cấu hình `dataset_zip`. Kiểm tra `unified_source`, chế độ legacy nếu cần và chọn `output_dir` phù hợp trong `configs/rag/evaluation.yaml`.
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/rag.yaml smoke
-.venv\Scripts\python -m vigovbot rag --config configs/rag.yaml run
+.venv\Scripts\python -m vigovbot rag --config configs/rag/evaluation.yaml smoke
+.venv\Scripts\python -m vigovbot rag --config configs/rag/evaluation.yaml run
 ```
 
 `smoke` thử tối đa 5 câu theo cấu hình hiện tại. `run` thực hiện chuẩn bị, smoke test, đánh giá rồi tạo báo cáo. Có thể dùng riêng `evaluate` để sinh kết quả và `report` để tính metric/tạo báo cáo. `max_cases: null` nghĩa là dùng toàn bộ bộ dữ liệu đã nạp; có thể đặt số nhỏ khi thử nghiệm.

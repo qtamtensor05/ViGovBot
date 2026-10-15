@@ -1,5 +1,20 @@
 # Lịch sử triển khai
 
+## TASK-20261015-08 - phân nhóm toàn bộ cấu hình theo chức năng
+
+- Chuyển cấu hình nguồn thành ba miền: `configs/ingestion/`, `configs/rag/` và
+  `configs/training/`; loại bỏ các YAML phẳng trùng vai trò ở gốc repository và
+  gốc `configs/`.
+- Sửa đường dẫn tương đối trong pipeline ingestion và RAG để tiếp tục resolve
+  đúng `Data/` và `outputs/`; giữ nguyên giá trị QLoRA cùng chuỗi `extends`.
+- Cập nhật default/path trong CLI, loader, PowerShell, Python script, notebook,
+  test, README và tài liệu vận hành. Snapshot `config.yaml` trong run lịch sử
+  không bị di chuyển hay sửa đổi.
+- Thêm `configs/README.md` và test khóa cấu trúc/đường dẫn mới; `vigov doctor`
+  cùng `vigov data stats` đã chạy thành công từ ngoài repository.
+- Kiểm chứng: 157 test pass, 1 optional skip; Ruff, compileall và
+  `git diff --check` đạt. Không chạy training, không tải model.
+
 ## TASK-20261015-02 — cập nhật kết quả benchmark test set vào báo cáo QLoRA
 
 - Cập nhật tài liệu `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md` với toàn bộ kết quả
@@ -721,4 +736,45 @@
   văn bản đề nghị điều chỉnh (Mẫu I.1.8, 1 bản chính), quyết định của nhà đầu tư
   đối với nhà đầu tư là tổ chức (1 bản sao), và giải trình/tài liệu liên quan theo
   khoản 1 Điều 31 nếu có (1 bản sao). Đánh giá câu QLoRA: sai nguồn và thiếu 2/3 mục.
+
+# TASK-20261015-07 - refactor sạch và CLI thống nhất (lát cắt 1)
+
+- Kiểm kê Git/tree/import/entry point/config/script/artifact và ghi baseline trước
+  sửa: 145 test, 143 pass, 1 skip, 1 readiness fail do profile dataset cũ trỏ
+  đến thư mục `fintuning` không có trên checkout hiện tại.
+- Thay module đơn `src/vigovbot/cli.py` bằng package `src/vigovbot/cli/`; thêm
+  Typer console script `vigov` với doctor, data, gpu, train, dashboard, eval và
+  report. `vigovbot` và bốn command cũ vẫn dispatch đến implementation cũ.
+- CLI lazy-import workload; `--config`/`--run-id` explicit; start/resume truyền
+  đúng active interpreter và config xuống worker. Thêm logs gần nhất/follow và
+  cho TensorBoard chọn run/port.
+- Tách cấu hình canonical thành `configs/environments/` và `configs/experiments/`;
+  YAML cũ trở thành alias qua `extends`. Sửa precedence để CLI `--set` thắng biến
+  môi trường. Không thay thuật toán QLoRA hoặc tự đổi hyperparameter.
+- Hợp nhất metadata/dependency group trong `pyproject.toml`; editable install
+  thành công mà không nâng Torch/CUDA. Không xóa file/script cũ và không động đến
+  Data/outputs/checkpoint/adapter.
+- Kiểm chứng cuối lát cắt: full suite 150 pass, 1 optional skip; Ruff, compileall,
+  pip check, diff-check, PowerShell AST và console `vigov --help` đều đạt.
+- Chưa kiểm chứng GPU trong task này. Lifecycle Linux và migration vật lý package
+  `training/` còn lại nên trạng thái task là partial, không tuyên bố refactor xong.
+
+## Lát cắt 2 - package training, lifecycle và run layout
+
+- Di chuyển implementation `training/*.py` vào `src/vigovbot/training/`; package
+  cũ trong checkout và package `src/training` đã cài đều alias cùng module object,
+  nên patch/import cũ không tạo bản logic thứ hai.
+- Thêm lifecycle Python đa nền tảng: worker tách process, PID + create-time +
+  command identity, duplicate prevention, state/stdout/stderr/exit persistence,
+  status classification, logs follow, graceful stop và TensorBoard độc lập.
+- Chuẩn hóa run mới với config/environment/dataset/state ở root và các thư mục
+  logs/checkpoints/best_adapter/metrics/predictions/plots/reports. Reader plot,
+  report, status và GPU acceptance fallback layout phẳng để đọc run lịch sử.
+- Thêm test lifecycle bằng mock cho dry-run, duplicate, identity mismatch, stop
+  safety và dashboard; dry-run CLI thật xác nhận 4 step, RTX 4050/CUDA 13.0 và
+  hash của ba split mà không tạo artifact.
+- Thêm CI Windows/Ubuntu, tài liệu canonical development, GPU setup, training và
+  evaluation. Editable install và compatibility import được kiểm tra từ cwd ngoài repo.
+- Gate cuối: 156 test pass, 1 optional skip; Ruff, compileall, pip check,
+  git diff --check, PowerShell AST và CLI help matrix pass. Không chạy model/GPU training.
 

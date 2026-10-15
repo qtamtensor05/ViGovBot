@@ -1,6 +1,0 @@
-extends: base.yaml
-# Local development: validation, reports and CPU unit tests only. No model download/training.
-execution:
-  approved: false
-reporting:
-  tensorboard: false

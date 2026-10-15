@@ -106,9 +106,9 @@ Context giữ pages/source_sha256 nếu corpus cung cấp. Adapter giữ thứ h
 Dùng cùng model, seed, temperature, ngân sách sinh, dataset/view và lịch sử; khóa cấu hình trước khi chạy. Oracle chỉ là thí nghiệm chẩn đoán, bỏ routing/retrieval và đưa quote của bằng chứng chuẩn, không truyền reference_answer hay nhãn hành vi. Context oracle vẫn chịu token budget; không coi là mức trần toán học.
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag.yaml --no-retrieval --out outputs/compare/base.jsonl
-env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag.yaml --out outputs/compare/rag.jsonl
-env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag.yaml --oracle-evidence --out outputs/compare/oracle.jsonl
+env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --no-retrieval --out outputs/compare/base.jsonl
+env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --out outputs/compare/rag.jsonl
+env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --oracle-evidence --out outputs/compare/oracle.jsonl
 ```
 
 Chấm từng run bằng cùng lệnh score/cấu hình metric. Oracle/base không dùng để báo chất lượng retriever. Nếu bật citations cho RAG/oracle thì nêu đây là thay đổi prompt/cấu hình so với lần chạy cũ; baseline không có nguồn để dẫn.

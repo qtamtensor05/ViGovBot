@@ -14,7 +14,7 @@ class ReadinessTests(unittest.TestCase):
         from training.readiness import check_readiness
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "readiness.json"
-            result = check_readiness("configs/gpu_rtx5060ti_16gb.yaml", output)
+            result = check_readiness("configs/training/environments/rtx5060ti_16gb.yaml", output)
             self.assertEqual(result["status"], "READY")
             self.assertFalse(result["model_weights_loaded"])
             self.assertFalse(result["full_training_started"])

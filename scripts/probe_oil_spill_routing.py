@@ -34,7 +34,7 @@ def schema(has_history=False):
 
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
-    config = load_config('configs/inference.yaml')
+    config = load_config('configs/rag/inference.yaml')
     settings = config.inference_settings()
     tokenizer = AutoTokenizer.from_pretrained(config.llm.tokenizer, local_files_only=True)
     with_history = '--with-history' in sys.argv

@@ -105,7 +105,7 @@ def main(argv=None):
     from vigovbot.console import configure_console
     configure_console()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="rag_config.yaml")
+    parser.add_argument("--config", default="configs/rag/inference.yaml")
     parser.add_argument("--queries", default="Data/qa_test_v4/rag_tthc_v4_1/runner_queries.jsonl")
     parser.add_argument("--view")
     parser.add_argument("--split", choices=["dev", "test"])
