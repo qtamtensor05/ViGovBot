@@ -656,3 +656,19 @@
 - Kiểm chứng dependency: `pip check` sạch; import Accelerate/PEFT/bitsandbytes/
   Transformers và NF4 CUDA forward đạt. Cần restart web server cũ để nạp stack mới.
 
+# TASK-20261015-06 - completed
+
+- Đã xác minh web lưu và gửi lại history QLoRA theo từng model; không có bằng
+  chứng mất ngữ cảnh giữa các lượt được nêu.
+- Chuỗi người dùng chỉ cung cấp chủ đề/tên/mã, chưa hỏi thông tin cần lấy như hồ
+  sơ, thời hạn, phí, cơ quan hoặc trình tự; câu clarify phù hợp contract SFT.
+- Mã `1.004696` không tồn tại trong dataset/corpus kiểm tra. Tên thủ tục tương ứng
+  có mã `1.009646` trong corpus, nhưng document này không xuất hiện ở bất kỳ split
+  SFT train/validation/test nào của adapter.
+- QLoRA web hiện là direct generation không retrieval nên không đọc được corpus
+  của thủ tục mới. Dùng RAG cho ca này, hoặc hỏi QLoRA về thủ tục đã học với thuộc
+  tính cụ thể; hướng kiến trúc sau là QLoRA + RAG, không phải thay đổi prompt đơn thuần.
+- Quan sát bổ sung: câu hỏi cụ thể về hồ sơ `1.009646` cho ra một mục
+  “Hồ sơ liên quan đến nội dung đề nghị điều chỉnh” (1 bản chính), không khớp
+  corpus. Nguồn thật có ba mục; kết luận factuality FAIL và completeness FAIL.
+

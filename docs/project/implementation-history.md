@@ -701,3 +701,24 @@
   7,96 giây, CUDA allocated 5,35 GiB. Không sửa checkpoint; weights base được cache.
 - Cần restart web process cũ để bỏ module Transformers đã import trước khi hạ bản.
 
+# TASK-20261015-06 - chẩn đoán QLoRA liên tục hỏi làm rõ
+
+- Kiểm tra client/server xác nhận `histories[model_id]` được gửi qua `/api/chat`,
+  validate và ghép trước câu hỏi hiện tại cho nhánh QLoRA; không phát hiện lỗi mất
+  history trong luồng nguồn.
+- Đối chiếu dữ liệu cho thấy mã người dùng nhập `1.004696` không tồn tại. Corpus
+  chứa đúng tên thủ tục dưới mã `1.009646` với 33 chunk, nhưng không có case mang
+  document/mã này trong train, validation hoặc test SFT.
+- Các lượt chỉ xác định chủ đề/thủ tục, chưa hỏi thuộc tính cụ thể. Adapter được
+  SFT theo cặp câu hỏi cụ thể → gold answer và chạy không retrieval, nên câu hỏi
+  làm rõ là phù hợp hơn việc tự chọn một nội dung để trả lời.
+- Không sửa prompt/model. Khuyến nghị dùng nhánh RAG cho tài liệu corpus chưa có
+  trong SFT; nếu cần chất lượng văn phong QLoRA cùng tri thức mới, triển khai nhánh
+  QLoRA + RAG riêng và đánh giá lại faithfulness.
+- Lượt thử bổ sung với câu hỏi “Thủ tục mã 1.009646 gồm những giấy tờ nào trong
+  trường hợp điều chỉnh chung?” chứng minh rủi ro thực tế: QLoRA trả một mục tổng
+  quát không có trong nguồn. Chunk `tthc_1_009646_sec_other_4_p1` quy định ba mục:
+  văn bản đề nghị điều chỉnh (Mẫu I.1.8, 1 bản chính), quyết định của nhà đầu tư
+  đối với nhà đầu tư là tổ chức (1 bản sao), và giải trình/tài liệu liên quan theo
+  khoản 1 Điều 31 nếu có (1 bản sao). Đánh giá câu QLoRA: sai nguồn và thiếu 2/3 mục.
+

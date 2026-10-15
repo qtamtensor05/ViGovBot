@@ -602,3 +602,19 @@
 - Trạng thái: completed; đã cài dependency thiếu, đưa Transformers về stack ghim
   4.57.3 và cấu hình NF4 single-GPU. Smoke thật nạp đúng `best_adapter` và sinh
   8 token thành công trên RTX 4050; cần restart web process đang chạy.
+
+## TASK-20261015-06
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: chẩn đoán QLoRA trên web liên tục yêu cầu nêu tên/mã/nội dung cụ thể
+  khi người dùng nhập tên hồ sơ, mã `1.004696` và tên thủ tục đầu tư.
+- Phạm vi: kiểm tra lịch sử web, dữ liệu SFT và corpus; không sửa model hoặc suy
+  diễn nội dung thủ tục khi chưa có câu hỏi cụ thể.
+- Tiêu chí hoàn thành: xác định đây là lỗi history, thiếu tri thức, sai mã hay hành
+  vi clarify đúng; nêu cách hỏi/chế độ phù hợp.
+- Trạng thái: completed; history được gửi đúng. Mã nhập sai so với corpus
+  (`1.009646`), thủ tục này không có trong SFT nhưng có trong corpus RAG, và các
+  lượt chỉ nêu định danh chưa hỏi thuộc tính cụ thể.
+- Bổ sung kết quả thực tế: khi hỏi đúng mã và thuộc tính hồ sơ, QLoRA sinh một
+  giấy tờ chung chung không có trong nguồn và bỏ sót danh sách ba mục. Kết quả
+  này được phân loại là sai/thiếu, không phải câu trả lời đúng dù diễn đạt trôi chảy.

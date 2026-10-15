@@ -642,3 +642,13 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý/kiểm chứng: hạ riêng Transformers về 4.57.3 (hub 0.36.2, tokenizers
   0.22.2), giữ Torch CUDA 2.14.0; `pip check`, import, test và smoke thật đạt.
 
+# ERR-20261015-09
+
+- Task: TASK-20261015-06.
+- Triệu chứng: lệnh `rg` dùng glob Windows trực tiếp
+  `Data/tthc_test_case_v1/data/*_sft.jsonl` báo filename syntax không hợp lệ.
+- Nguyên nhân: PowerShell/rg trên Windows không nhận glob đó như đường dẫn literal
+  ở vị trí file argument.
+- Xử lý: dùng các đường dẫn split cụ thể đã kiểm tra và corpus/meta trực tiếp;
+  không ảnh hưởng kết luận document `1.009646` không có trong SFT.
+
