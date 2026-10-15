@@ -5,22 +5,15 @@ description: Review RAG prompt injection, instruction-data separation, retrieval
 
 # RAG Security Review
 
-Threat-model và tạo test có thể chạy.
+Define actors, assets, data classification, authorization rules, and trust
+boundaries across documents, retrieval, prompt assembly, tools, sessions, and
+responses. Review direct and indirect prompt injection, instruction/data
+separation, document-level authorization, cross-tenant retrieval, history
+isolation, output disclosure, and tool escalation.
 
-## Hợp đồng
+For each finding, record evidence, preconditions, affected asset, impact,
+confidence, and a prioritized mitigation. Use synthetic documents, identities,
+and canaries for tests; classify outcomes as confirmed, potential, or not tested.
 
-- Input: Trust boundaries, data classification, access model, prompt/context assembly và API/session flow.
-- Output: Finding có evidence, attack precondition, impact, executable safe test và mitigation ưu tiên.
-
-## Quy trình
-
-+1. Xác định actor, asset, trust boundary và quyền thực tế.\n2. Kiểm tra direct/indirect prompt injection, context delimiting, cross-tenant retrieval và history isolation.\n3. Thiết kế canary/synthetic test không chứa dữ liệu thật.\n4. Phân loại confirmed/potential/not tested; không khai thác ngoài phạm vi.
-
-## Ví dụ
-
-Yêu cầu phù hợp: "review RAG security risks." Thực hiện quy trình trên và báo rõ bằng chứng.
-
-## Giới hạn và kiểm chứng
-
-Không exfiltrate dữ liệu, không thử production hoặc destructive payload khi chưa được phép. Kiểm chứng bằng scenario tương ứng trong
-`docs/agent-skills/TEST_REPORT.md`; nếu có script, chạy cả fixture hợp lệ và input lỗi.
+Do not exfiltrate real data, execute destructive payloads, probe production, or
+cross authorization boundaries without explicit scope and authority.

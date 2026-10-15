@@ -5,22 +5,11 @@ description: Create a concise, secret-safe handoff for continuing repository wor
 
 # Context Handoff
 
-Tóm tắt đủ để tiếp tục mà không lặp audit.
+Capture the current objective and latest scope, then separate completed,
+in-progress, failed, skipped, and not-run work. Include decisions and reasons,
+changed files, commands and observed results, open errors with minimal reproduction,
+artifact locations, blockers, and exact next actions.
 
-## Hợp đồng
-
-- Input: Mục tiêu, status, decisions, changed files, tests, errors, artifacts và next step.
-- Output: Handoff ngắn gồm verified facts, unverified boundaries, blockers, exact next actions và no secrets.
-
-## Quy trình
-
-+1. Nêu objective và latest user scope.\n2. Tách completed/in-progress/not-run; liệt kê file và command quan trọng.\n3. Ghi quyết định cùng lý do, lỗi còn mở và cách tái hiện tối thiểu.\n4. Loại API key, env value, PII và log thô.
-
-## Ví dụ
-
-Yêu cầu phù hợp: "prepare a handoff for the next session." Thực hiện quy trình trên và báo rõ bằng chứng.
-
-## Giới hạn và kiểm chứng
-
-Không dùng handoff thay project documentation khi task yêu cầu nhật ký bền vững. Không suy đoán trạng thái. Kiểm chứng bằng scenario tương ứng trong
-`docs/agent-skills/TEST_REPORT.md`; nếu có script, chạy cả fixture hợp lệ và input lỗi.
+Prefer verified facts over narrative and call out stale or unverified assumptions.
+Remove API keys, environment values, personal data, raw private prompts, and large
+logs. A handoff complements rather than replaces repository-required task history.

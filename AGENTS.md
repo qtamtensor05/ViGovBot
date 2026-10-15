@@ -8,8 +8,9 @@ không tự tải toàn bộ catalog. Nhóm và điều kiện kích hoạt nằ
 [`docs/agent-skills/SKILL_CATALOG.md`](docs/agent-skills/SKILL_CATALOG.md).
 
 - RAG/chatbot: architecture, ingestion, retrieval, evaluation, dataset, API và security.
-- Repository: navigation/context trước; planning cho task phức tạp; minimal diff
-  khi triển khai; verification trước bàn giao; handoff khi chuyển phiên.
+- Repository: dùng `context-navigation` khi chưa rõ vị trí hoặc task nhiều module;
+  planning cho task phức tạp; minimal diff khi triển khai; verification trước
+  bàn giao; handoff khi chuyển phiên.
 
 Không gửi dữ liệu nhạy cảm ra dịch vụ ngoài, không chạy production/load test,
 benchmark tốn phí hoặc script bên thứ ba khi chưa có phạm vi và quyền rõ ràng.

@@ -779,3 +779,18 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Khắc phục: bọc bằng `@(foreach (...){...})`, sau đó pipe collection sang JSON;
   metadata bảy repository được lấy thành công.
 
+# ERR-20261015-22 - TASK-20261015-14
+
+- Triệu chứng: `quick_validate.py` PASS 13 skill migration nhưng ném
+  `UnicodeDecodeError` khi đọc ba `SKILL.md` tiếng Việt thuộc workflow dự án.
+- Bối cảnh: Windows, Python 3.14; validator gọi `Path.read_text()` không chỉ định
+  encoding nên tiến trình mặc định CP1252.
+- Nguyên nhân xác nhận: cùng file đọc được bằng UTF-8 trong repository/test;
+  lỗi xuất hiện trước bước parse manifest và byte báo lỗi là UTF-8 hợp lệ.
+- Cách sửa/thử lại: chạy validator với biến tiến trình `PYTHONUTF8=1`, không đổi
+  nội dung skill hoặc encoding file.
+- Kết quả: chạy lại với `PYTHONUTF8=1` PASS 16/16 skill; đây là lỗi locale của
+  công cụ, không phải manifest không hợp lệ.
+- Tránh lặp: trên Windows bật UTF-8 mode khi chạy validator upstream chưa ghim
+  encoding.
+

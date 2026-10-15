@@ -5,22 +5,15 @@ description: Diagnose lexical, semantic, hybrid and reranked retrieval in ViGovB
 
 # Retrieval Debugging
 
-Phân biệt lỗi truy xuất với lỗi sinh.
+Reproduce the same query, index, filters, configuration, and top K, then preserve
+raw candidates with scores and metadata. Trace candidate generation through
+lexical, semantic, hybrid fusion, filters, and reranking as applicable.
 
-## Hợp đồng
+Verify document/chunk identity, embedding/query normalization, score direction,
+filter behavior, fusion weights, and reranker inputs. Compare the evidence needed
+for the expected answer with retrieved chunks. If sufficient evidence is present
+but the answer is wrong, classify the failure as generation rather than retrieval.
 
-- Input: Query, top-k chunks có score/metadata, retrieval config và expected evidence nếu có.
-- Output: Phân tích từng query: candidate generation, filter, rank/rerank, relevance, failure class và thử nghiệm kế tiếp.
-
-## Quy trình
-
-+1. Tái hiện cùng index/config/query và lưu top-k thô.\n2. Kiểm tra identity, filter, embedding normalization, lexical/semantic contribution và reranker.\n3. So evidence cần thiết với retrieved chunks; nếu context đủ nhưng answer sai, phân loại generation failure.\n4. Chỉ đổi một biến mỗi thử nghiệm và ghi metric trước/sau.
-
-## Ví dụ
-
-Yêu cầu phù hợp: "diagnose a retrieval failure." Thực hiện quy trình trên và báo rõ bằng chứng.
-
-## Giới hạn và kiểm chứng
-
-Không gọi thiếu evidence là generation failure. Không rebuild index hay tải model khi chưa được yêu cầu. Kiểm chứng bằng scenario tương ứng trong
-`docs/agent-skills/TEST_REPORT.md`; nếu có script, chạy cả fixture hợp lệ và input lỗi.
+Change one variable per experiment and compare the same labeled query set with
+appropriate retrieval metrics. Do not rebuild an index or download a model unless
+the requested diagnosis requires and authorizes it.

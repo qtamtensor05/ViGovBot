@@ -1,4 +1,0 @@
-interface:
-  display_name: "Repository Navigation"
-  short_description: "Navigate repository dependencies"
-  default_prompt: "Use $repository-navigation to locate the implementation and callers."

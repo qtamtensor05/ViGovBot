@@ -5,22 +5,23 @@ description: Evaluate retrieval, generation, RAG quality and performance with ex
 
 # RAG Evaluation
 
-Tính và diễn giải metric đúng điều kiện.
+Define the evaluation unit, sample identity, denominator, configuration, and
+available judgments before scoring. Read
+[metric contracts](references/metric-contracts.md) whenever choosing or
+interpreting metrics.
 
-## Hợp đồng
+Report retrieval, generation, groundedness, and performance separately:
 
-- Input: Prediction/reference records; retrieval judgments; timing/resource measurements; config và sample identity.
-- Output: Metric theo nhóm với sample size, dependency, provenance, unavailable values và giới hạn.
+- retrieval: Precision@K, Recall@K, MRR, and nDCG@K only with suitable relevance
+  judgments;
+- generation: normalized EM/token F1 and optional BLEU, ROUGE, or BERTScore when
+  their dependencies and valid references are available;
+- groundedness: evidence-supported claims or judge-based measures with the judge,
+  prompt, version, and provenance recorded;
+- performance: measured latency boundaries, throughput/concurrency, resource use,
+  token usage, and dated cost inputs.
 
-## Quy trình
-
-+1. Xác định unit và denominator trước khi tính.\n2. Retrieval: Recall/Precision/Hit/MRR/nDCG@K chỉ khi có relevance labels. Generation: EM/F1/BLEU/ROUGE/BERTScore theo input hợp lệ.\n3. Context Precision/Recall, Faithfulness, Answer Relevancy cần evaluator và provenance rõ.\n4. Latency/throughput/resource/token/cost chỉ báo khi đo được. Đọc `references/metric-contracts.md`.
-
-## Ví dụ
-
-Yêu cầu phù hợp: "evaluate a ViGovBot RAG run." Thực hiện quy trình trên và báo rõ bằng chứng.
-
-## Giới hạn và kiểm chứng
-
-Không gộp metric khác bản chất. Không gọi similarity là factual accuracy; không ước tính token bằng độ dài chuỗi. Kiểm chứng bằng scenario tương ứng trong
-`docs/agent-skills/TEST_REPORT.md`; nếu có script, chạy cả fixture hợp lệ và input lỗi.
+Keep single-turn, multi-turn, and no-answer/clarification cohorts identifiable.
+Use `null`/`unavailable` for missing inputs or dependencies, never zero or an
+estimate. Do not combine unrelated metrics into one score or treat similarity as
+factual accuracy.

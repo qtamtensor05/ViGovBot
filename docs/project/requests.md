@@ -728,3 +728,21 @@
 - Kết quả: completed; đã triển khai CLI `vigov`, cấu hình phân lớp, package
   `vigovbot.training`, lifecycle nền Windows/Linux, run layout, compatibility,
   CI và tài liệu. Full suite 156 pass, 1 optional skip; không chạy full training.
+
+## TASK-20261015-14
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: kiểm kê, nâng cấp, hợp nhất và kiểm thử hai bộ Agent Skills hiện có
+  theo `PROMPT_MIGRATE_BOTH_SKILL_SETS.md` và nguồn Codex chính thức mới nhất.
+- Phạm vi: `.agents/skills`, `AGENTS.md`, tài liệu `docs/agent-skills`, fixture và
+  test skill; giữ nguyên business logic, dataset, checkpoint và artifact runtime.
+- Tiêu chí hoàn thành: có ánh xạ migration; skill RAG giữ đủ coverage/metric;
+  workflow Codex hết chồng lấn không cần thiết; manifest, routing, script, test
+  repository và tài liệu bàn giao được kiểm chứng; phần không chạy phải ghi
+  `NOT VERIFIED`, không tạo số liệu benchmark giả.
+- Giả định an toàn: chỉ hợp nhất skill cũ sau khi caller/tài liệu/test đã chuyển
+  sang skill thay thế; không cài package, không gọi production, không chạy model,
+  GPU hoặc benchmark tốn phí.
+- Trạng thái: completed; migration và kiểm thử trong phạm vi môi trường hiện tại
+  đã hoàn tất. Phiên mới/benchmark thật được ghi NOT VERIFIED/NOT RUN thay vì
+  suy diễn compatibility hoặc savings.

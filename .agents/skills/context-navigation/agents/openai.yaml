@@ -1,0 +1,4 @@
+interface:
+  display_name: "Context Navigation"
+  short_description: "Find code and control repository context"
+  default_prompt: "Use $context-navigation to locate the relevant code and load only the context needed for this task."

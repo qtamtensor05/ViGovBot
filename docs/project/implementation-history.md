@@ -1,5 +1,25 @@
 # Lịch sử triển khai
 
+## TASK-20261015-14 - migration hai bộ Agent Skills theo Codex hiện hành
+
+- Đối chiếu bốn nguồn OpenAI được yêu cầu, Codex CLI 0.160.0, layout repo/global
+  và 15 skill hiện hữu; lập mapping trigger, resource, overlap và migration.
+- Hợp nhất `context-management`, `repository-navigation` và
+  `token-budget-optimization` thành `context-navigation`; cập nhật mọi caller,
+  catalog, ví dụ và test trước khi bỏ bản song song.
+- Rút gọn 12 skill còn lại, sửa chuỗi `\n` literal, mở rộng contract RAG cho
+  ingestion, retrieval, dataset, API, security, single/multi-turn, no-answer,
+  retrieval/generation/groundedness/performance metric và unavailable values.
+- Giữ ba script, references, UI metadata, implicit invocation, chính sách dự án
+  và toàn bộ application/data/model/artifact; không cài dependency hoặc chạy
+  service/model/GPU/benchmark tốn phí.
+- Bổ sung migration/source/catalog/test/benchmark docs và chuyển test khỏi
+  heading/wording sang invariant manifest, discovery, routing, metric, valid và
+  invalid fixture.
+- Kiểm chứng: validator 16/16 PASS với UTF-8 mode; targeted 7/7; full suite 166
+  PASS, 1 optional SKIP; Ruff, compileall và diff-check PASS. Phiên Codex mới và
+  usage benchmark thật được ghi NOT VERIFIED/NOT RUN, không suy diễn savings.
+
 ## TASK-20261015-13 - cô lập CI khỏi dataset và artifact local
 
 - Tái hiện CI từ checkout chỉ chứa file Git và xác nhận ba test dựa vào

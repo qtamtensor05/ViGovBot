@@ -1,26 +1,21 @@
 ---
 name: usage-benchmark
-description: Design and analyze controlled A/B benchmarks comparing Codex workflows with and without custom skills using provider telemetry. Use only when real comparable runs can be collected.
+description: Design and analyze controlled A/B benchmarks comparing Codex workflows with and without custom skills. Use only with real comparable runs and provider telemetry, never synthetic savings claims.
 ---
 
 # Usage Benchmark
 
-So sánh công bằng, không tạo số đo giả.
+Compare baseline and skills on the same task set, repository revision, model,
+reasoning effort, environment, tool permissions, and acceptance rubric. Randomize
+or counterbalance condition order and retain raw run records so invalid or rerun
+cases remain auditable.
 
-## Hợp đồng
+Collect provider-reported input, output, and cached tokens when available, plus
+elapsed time, turns, reruns/rework, test outcomes, and rubric completion. Use
+`scripts/summarize_benchmark.py` only after confirming runs are comparable.
 
-- Input: Cùng task set, environment/model/settings, telemetry thực và scoring rubric.
-- Output: Protocol, raw-run schema, matched-pair summary, uncertainty, invalid runs và conclusions bounded by data.
-
-## Quy trình
-
-+1. Khóa task set, model, effort, repo revision và tool permissions.\n2. Randomize/counterbalance condition order; giữ raw telemetry.\n3. Đo input/output/cached token khi provider cung cấp, elapsed time, turns, rework, tests và completion rubric.\n4. Dùng `scripts/summarize_benchmark.py`; không suy causal từ ít mẫu.
-
-## Ví dụ
-
-Yêu cầu phù hợp: "design a controlled skill benchmark." Thực hiện quy trình trên và báo rõ bằng chứng.
-
-## Giới hạn và kiểm chứng
-
-Không benchmark bằng text length, run giả hoặc điều kiện khác nhau. Không chạy workload tốn phí nếu chưa được phép. Kiểm chứng bằng scenario tương ứng trong
-`docs/agent-skills/TEST_REPORT.md`; nếu có script, chạy cả fixture hợp lệ và input lỗi.
+Do not replace token telemetry with text length, invent missing runs, or claim
+savings from a methodology document. Report sample size, paired differences,
+missing fields, invalid runs, uncertainty, and conclusions bounded by the data.
+Do not start paid or externally mutating benchmark runs without explicit scope
+and authority.

@@ -1,3 +1,17 @@
+# TASK-20261015-14 - completed
+
+- Giai đoạn: hoàn tất audit, migration, documentation và verification.
+- 15 skill của hai bộ cũ thành 13 skill phân biệt; ba workflow context/navigation/
+  token hợp nhất thành `context-navigation`, còn script/reference/UI metadata và
+  các workflow distinct được giữ.
+- RAG coverage và metric contract đã cập nhật; `AGENTS.md` chỉ đổi routing tối
+  thiểu; không sửa application, dataset, model, checkpoint hoặc output.
+- Kiểm chứng: validator repo-local 16/16; targeted 7/7; full suite 166 pass,
+  1 optional skip; Ruff, compileall và diff-check đạt.
+- NOT VERIFIED/NOT RUN: implicit routing tên mới trong phiên Codex mới hoàn toàn,
+  paired usage benchmark thật, production API, model/GPU và browser runtime.
+- Bằng chứng: `docs/agent-skills/{MIGRATION_REPORT,SOURCE_VERIFICATION,SKILL_CATALOG,TEST_REPORT,BENCHMARK_METHODOLOGY}.md`.
+
 # TASK-20261015-13 - completed
 
 - Giai đoạn: hoàn tất sửa test CI và verification trong checkout sạch.

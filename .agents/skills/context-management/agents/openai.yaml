@@ -1,4 +1,0 @@
-interface:
-  display_name: "Context Management"
-  short_description: "Load only relevant repository context"
-  default_prompt: "Use $context-management to scope context for this repository task."
