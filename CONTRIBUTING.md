@@ -12,7 +12,7 @@ khác cấu hình vào cùng một PR. Dùng tiền tố commit `feat:`, `fix:`,
 
 ## Điều kiện trước khi merge
 
-1. Chạy test offline, Ruff và `pip check` theo [hướng dẫn môi trường](docs/environments.md).
+1. Chạy test offline, Ruff và `pip check` theo [hướng dẫn môi trường](docs/setup/environments.md).
 2. Nếu sửa generator, sinh lại notebook và bảo đảm không lưu output/thông tin đăng nhập.
 3. Nếu sửa schema/artifact, tăng version phù hợp, kiểm thử dữ liệu lỗi và cập nhật migration.
 4. Nếu sửa retrieval/prompt/model, lưu benchmark cùng corpus/model revision và cấu hình.

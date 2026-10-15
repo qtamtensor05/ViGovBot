@@ -21,4 +21,4 @@ vigov train start --config configs/training/experiments/smoke.yaml --run-id smok
 ```
 
 Chỉ bỏ `--dry-run` hoặc dùng `vigov train smoke ... --approve` sau khi hai gate
-trên đạt. Xem [tài liệu QLoRA chi tiết](qlora-training.md) cho pin Windows/Linux.
+trên đạt. Xem [tài liệu QLoRA chi tiết](../training/qlora-training.md) cho pin Windows/Linux.

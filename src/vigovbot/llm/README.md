@@ -22,4 +22,4 @@ HTTP status lỗi được chuyển thành exception qua `raise_for_status()`. M
 được cài, phản hồi có trường `error` hoặc nội dung trả lời rỗng đều bị từ chối.
 Module không tự cài hoặc tự khởi động Ollama.
 
-[Kiến trúc hệ thống](../../../docs/architecture.md) · [Module RAG](../rag/README.md)
+[Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Module RAG](../rag/README.md)

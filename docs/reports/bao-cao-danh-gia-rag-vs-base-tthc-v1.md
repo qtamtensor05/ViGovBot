@@ -2,7 +2,7 @@
 
 ## 1. Tóm tắt điều hành (Executive Summary)
 
-Báo cáo này phân tích và so sánh kết quả thực nghiệm giữa hệ thống **ViGovBot RAG** (kết hợp Dense Retriever BGE-M3 và Qwen 2.5 7B) với **Mô hình gốc Baseline** (Qwen 2.5 7B trực tiếp, không sử dụng tài liệu truy hồi) trên tập dữ liệu chuẩn hóa 1.000 ca kiểm thử thuộc thủ tục hành chính công (TTHC) tại [Data/qa_test/tthc_test_case_v1](../Data/qa_test/tthc_test_case_v1).
+Báo cáo này phân tích và so sánh kết quả thực nghiệm giữa hệ thống **ViGovBot RAG** (kết hợp Dense Retriever BGE-M3 và Qwen 2.5 7B) với **Mô hình gốc Baseline** (Qwen 2.5 7B trực tiếp, không sử dụng tài liệu truy hồi) trên tập dữ liệu chuẩn hóa 1.000 ca kiểm thử thuộc thủ tục hành chính công (TTHC) tại [Data/qa_test/tthc_test_case_v1](../../Data/tthc_test_case_v1).
 
 ### Kết quả nổi bật
 
@@ -28,7 +28,7 @@ Báo cáo này phân tích và so sánh kết quả thực nghiệm giữa hệ 
 
 ### 2.2. Dữ liệu kiểm thử
 
-* **Đường dẫn**: [Data/qa_test/tthc_test_case_v1/data/rag/test.jsonl](../Data/qa_test/tthc_test_case_v1/data/rag/test.jsonl) và [test_queries.jsonl](../Data/qa_test/tthc_test_case_v1/data/rag/test_queries.jsonl).
+* **Đường dẫn**: [Data/qa_test/tthc_test_case_v1/data/rag/test.jsonl](../../Data/tthc_test_case_v1/data/test.jsonl) và [test_queries.jsonl](../../Data/tthc_test_case_v1/data/test_queries.jsonl).
 * **Quy mô**: Đúng 1.000 ca kiểm thử; trải dài trên 278 lĩnh vực/thủ tục (`field_id`).
 * **Chế độ đánh giá**: `reference_history` (sử dụng lịch sử hội thoại chuẩn của tập test để bảo đảm tính khách quan và hợp đồng dữ liệu).
 
@@ -36,10 +36,10 @@ Báo cáo này phân tích và so sánh kết quả thực nghiệm giữa hệ 
 
 | Phương án | Chi tiết cấu hình | Artifact Dự đoán (Predictions) | Artifact Điểm số (Scores) |
 |---|---|---|---|
-| **RAG** | Retrieval `top_k: 5` (BGE-M3 + FAISS IndexFlatIP) + `qwen2.5:7b` (cấu hình [evaluation-rtx3090.yaml](../configs/rag/evaluation-rtx3090.yaml)), Concurrency: 4 | [outputs/tthc_test_case_v1/predictions_c4_full.jsonl](../outputs/tthc_test_case_v1/predictions_c4_full.jsonl) ([run report](../outputs/tthc_test_case_v1/predictions_c4_full.jsonl.run.json)) | [outputs/tthc_test_case_v1/scores_c4_full.json](../outputs/tthc_test_case_v1/scores_c4_full.json) |
-| **BASE** | `qwen2.5:7b` trực tiếp (zero-retrieval), kèm JSON Schema và Retry Validation tối đa 1 lần, Concurrency: 4 | [outputs/tthc_test_case_v1/predictions_qwen_baseline_schema_c4.jsonl](../outputs/tthc_test_case_v1/predictions_qwen_baseline_schema_c4.jsonl) ([run report](../outputs/tthc_test_case_v1/predictions_qwen_baseline_schema_c4.jsonl.run.json)) | [outputs/tthc_test_case_v1/scores_qwen_baseline_schema_c4.json](../outputs/tthc_test_case_v1/scores_qwen_baseline_schema_c4.json) |
+| **RAG** | Retrieval `top_k: 5` (BGE-M3 + FAISS IndexFlatIP) + `qwen2.5:7b` (cấu hình [evaluation-rtx3090.yaml](../../configs/rag/evaluation-rtx3090.yaml)), Concurrency: 4 | [outputs/tthc_test_case_v1/predictions_c4_full.jsonl](../../outputs/tthc_test_case_v1/predictions_c4_full.jsonl) ([run report](../../outputs/tthc_test_case_v1/predictions_c4_full.jsonl.run.json)) | [outputs/tthc_test_case_v1/scores_c4_full.json](../../outputs/tthc_test_case_v1/scores_c4_full.json) |
+| **BASE** | `qwen2.5:7b` trực tiếp (zero-retrieval), kèm JSON Schema và Retry Validation tối đa 1 lần, Concurrency: 4 | [outputs/tthc_test_case_v1/predictions_qwen_baseline_schema_c4.jsonl](../../outputs/tthc_test_case_v1/predictions_qwen_baseline_schema_c4.jsonl) ([run report](../../outputs/tthc_test_case_v1/predictions_qwen_baseline_schema_c4.jsonl.run.json)) | [outputs/tthc_test_case_v1/scores_qwen_baseline_schema_c4.json](../../outputs/tthc_test_case_v1/scores_qwen_baseline_schema_c4.json) |
 
-*(Lưu ý về provenance: Bản chạy baseline ban đầu [predictions_qwen_baseline_c4.jsonl](../outputs/tthc_test_case_v1/predictions_qwen_baseline_c4.jsonl) chưa có schema ràng buộc gặp 118 lỗi cú pháp hành động; bản `predictions_qwen_baseline_schema_c4.jsonl` được chuẩn hóa để bảo đảm đối sánh khách quan nhất).*
+*(Lưu ý về provenance: Bản chạy baseline ban đầu [predictions_qwen_baseline_c4.jsonl](../../outputs/tthc_test_case_v1/predictions_qwen_baseline_c4.jsonl) chưa có schema ràng buộc gặp 118 lỗi cú pháp hành động; bản `predictions_qwen_baseline_schema_c4.jsonl` được chuẩn hóa để bảo đảm đối sánh khách quan nhất).*
 
 ---
 
@@ -60,7 +60,7 @@ Báo cáo này phân tích và so sánh kết quả thực nghiệm giữa hệ 
 
 ## 4. Bảng So sánh Điểm số Chất lượng Tổng thể (Overall Metrics)
 
-Công cụ tính toán: [evaluate.py](../Data/qa_test/tthc_test_case_v1/evaluation/evaluate.py).
+Công cụ tính toán: [evaluate.py](../../Data/tthc_test_case_v1/evaluation/evaluate.py).
 
 | Nhóm Metric | Chỉ số đánh giá | RAG | BASE | Chênh lệch ($\Delta$) | Ý nghĩa thực tế |
 |---|---|:---:|:---:|:---:|---|

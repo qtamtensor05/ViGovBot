@@ -33,6 +33,6 @@ thúc và tổng thời gian sau khi runner hoàn tất.
 Các thay đổi mã nguồn phải được commit/push lên GitHub trước khi Colab fetch.
 Đổi nhánh/commit khi đã import package cần khởi động lại runtime để tránh dùng module cũ.
 
-[Migration dữ liệu cũ](../../docs/migration.md) · [Kiến trúc](../../docs/architecture.md)
+[Migration dữ liệu cũ](../../docs/architecture/migration.md) · [Kiến trúc](../../docs/architecture/architecture.md)
 
 Sinh lại notebook: `python scripts/build_colab_notebooks.py`.

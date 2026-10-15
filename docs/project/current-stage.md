@@ -1,3 +1,30 @@
+# TASK-20261015-10 - completed
+
+- Giai đoạn: hoàn tất command tree và verification gate.
+- Đã xác nhận training/eval/report có lệnh `vigov`, nhưng web, ask, ingest,
+  embedding và RAG evaluation vẫn chỉ có entry point dài `python -m vigovbot`.
+- Đã thêm `web`, `ask`, `data ingest/embed` và nhóm
+  `rag prepare/smoke/evaluate/report/run`; wrapper dùng lại service hiện có và
+  resolve path từ project root.
+- Đã cập nhật README, guide RAG, mục lục docs và thêm tham chiếu CLI tập trung.
+- Kiểm chứng: routing mock, 9 leaf help và full suite 160 test đều đạt
+  (1 optional skip); Ruff, compileall và diff-check đạt.
+- Ràng buộc: không nhân đôi business logic; không chạy server, tải model,
+  embedding hay benchmark thật trong bước refactor CLI.
+
+# TASK-20261015-09 - completed
+
+- Giai đoạn: hoàn tất phân nhóm và verification gate.
+- Đã xác nhận nhánh `codex/ref-clean` có working tree sạch trước khi di chuyển.
+- Đã chuyển tài liệu sang `setup`, `architecture`, `guides`, `training`,
+  `reports`; roadmap vào `project`; gốc `docs/` chỉ còn `README.md`.
+- Đã cập nhật link toàn repository, thay file URL theo máy cá nhân bằng link
+  tương đối, sửa link dataset theo layout thật và thêm regression test link.
+- Kiểm chứng: 158 test pass, 1 optional skip; Ruff, compileall và diff-check đạt;
+  không còn link local hỏng hay tham chiếu hoạt động tới path docs cũ.
+- Ràng buộc: giữ nguyên `docs/project/` và lịch sử cũ; không sửa artifact,
+  dataset, checkpoint hoặc hành vi runtime.
+
 # TASK-20261015-08 - completed
 
 - Giai đoạn: hoàn tất migration và verification gate.

@@ -55,7 +55,7 @@ ollama pull qwen2.5:7b
 
 Trên Linux và macOS, sử dụng `.venv/bin/python` thay cho
 `.venv\Scripts\python`. Các nhóm dependency khác và quy trình cài đặt tái lập
-được mô tả trong [tài liệu môi trường](docs/environments.md).
+được mô tả trong [tài liệu môi trường](docs/setup/environments.md).
 
 ## Vận hành RAG với corpus hiện có
 
@@ -69,25 +69,24 @@ Corpus hợp lệ phải có đủ ba artifact:
 Khởi tạo cache truy vấn:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml prepare
+vigov rag prepare
 ```
 
 Thực hiện truy vấn:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml ask `
-  --question "Hồ sơ cấp bản sao hộ tịch gồm những gì?"
+vigov ask "Hồ sơ cấp bản sao hộ tịch gồm những gì?"
 ```
 
 Corpus cũ không có manifest không được chấp nhận theo cấu hình mặc định. Quy trình
-chuyển đổi được quy định tại [tài liệu migration](docs/migration.md).
+chuyển đổi được quy định tại [tài liệu migration](docs/architecture/migration.md).
 
 ### Giao diện web hỏi đáp
 
 Sau khi embedding hoàn tất, khởi động server bằng cấu hình inference:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml web
+vigov web
 ```
 
 Mở `http://127.0.0.1:8000` trong trình duyệt và nhấn `Ctrl+C` tại terminal để dừng.
@@ -116,7 +115,7 @@ Router RAG dùng JSON Schema theo nhánh và thử lại một lần nếu JSON 
 sai vẫn trả câu mặc định. UI hiển thị riêng fallback kỹ thuật và hỏi làm rõ thật.
 Đặt `web.debug_routing: true` rồi khởi động lại server để xem raw JSON router.
 Provider OpenAI-compatible ở nhánh RAG cần hỗ trợ strict `json_schema`;
-chi tiết trong [tài liệu RAG nhiều lượt](docs/rag-multi-turn.md).
+chi tiết trong [tài liệu RAG nhiều lượt](docs/guides/rag-multi-turn.md).
 
 ## Giao diện dòng lệnh
 
@@ -127,8 +126,17 @@ point `vigovbot ingest|embed|rag|qa-v4` vẫn được giữ để tương thíc
 ```powershell
 vigov --help
 vigov doctor
+vigov web
+vigov ask "Hồ sơ gồm những gì?"
+vigov data ingest
+vigov data embed outputs/metadata --output-dir Data/vector/unified-new
 vigov data check --config configs/training/base.yaml
 vigov data stats --config configs/training/base.yaml
+vigov rag prepare
+vigov rag smoke
+vigov rag evaluate
+vigov rag report
+vigov rag run
 vigov gpu check
 vigov train smoke --config configs/training/experiments/smoke.yaml --approve
 vigov train start --config configs/training/environments/rtx5060ti_16gb.yaml --dry-run
@@ -144,7 +152,7 @@ vigov report build --run-id <run-id>
 
 `--dry-run` không khởi động training. `smoke` chỉ chạy thật khi có `--approve`;
 không dùng test split để chọn model. Chi tiết migration và giới hạn hiện tại nằm
-tại [tóm tắt refactor](docs/refactor-summary.md).
+tại [tóm tắt refactor](docs/architecture/refactor-summary.md).
 
 `train start/status/logs/stop/resume` dùng worker Python độc lập trên Windows và
 Linux. Metadata process lưu PID, thời điểm tạo process và command marker để tránh
@@ -152,19 +160,23 @@ nhầm PID tái sử dụng; stop ưu tiên file yêu cầu graceful để callb
 
 | Nhóm lệnh | Chức năng | Đầu vào chính | Đầu ra chính |
 |---|---|---|---|
-| `vigovbot ingest` | Trích xuất và chia đoạn tài liệu | PDF, cấu hình ingestion/chunking | Metadata và báo cáo xử lý |
-| `vigovbot embed` | Tạo corpus BGE-M3/FAISS | Thư mục hoặc ZIP chứa chunk JSON | Index, metadata và corpus manifest |
-| `vigovbot rag` | Chuẩn bị cache, truy vấn và đánh giá | Corpus, cấu hình RAG, bộ test tùy lệnh | Câu trả lời hoặc báo cáo đánh giá |
+| `vigov data ingest` | Trích xuất và chia đoạn tài liệu | PDF, cấu hình ingestion/chunking | Metadata và báo cáo xử lý |
+| `vigov data embed` | Tạo corpus BGE-M3/FAISS | Thư mục hoặc ZIP chứa chunk JSON | Index, metadata và corpus manifest |
+| `vigov rag` | Chuẩn bị cache và đánh giá RAG | Corpus, cấu hình RAG, bộ test | Prediction, metric hoặc báo cáo |
+| `vigov ask` | Hỏi một câu qua RAG | Câu hỏi, history tùy chọn | Câu trả lời JSON và nguồn |
+| `vigov web` | Chạy web UI và API cục bộ | Cấu hình inference, host, port | Web UI và `/api/chat` |
 
 Trợ giúp của từng nhóm lệnh:
 
 ```powershell
-.venv\Scripts\python -m vigovbot --help
-.venv\Scripts\python -m vigovbot rag --help
+vigov --help
+vigov data --help
+vigov rag --help
 ```
 
-Quy trình tạo corpus từ PDF và chạy đánh giá được trình bày trong
-[hướng dẫn vận hành RAG](docs/trien-khai-rag-co-ban.md).
+Các entry point `python -m vigovbot ingest|embed|rag|qa-v4` vẫn được giữ để
+tương thích với script cũ. Quy trình tạo corpus từ PDF và chạy đánh giá được trình bày trong
+[hướng dẫn vận hành RAG](docs/guides/trien-khai-rag-co-ban.md).
 
 ## Cấu trúc repository
 

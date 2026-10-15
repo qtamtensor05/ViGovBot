@@ -673,6 +673,32 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: đổi thành `"${script}: $_"`; lần chạy lại 18 test tập trung, Ruff và AST
   sáu script đều pass.
 
+# ERR-20261015-15
+
+- Task: TASK-20261015-10.
+- Triệu chứng: `vigov ask --help` lỗi `UnicodeEncodeError` trên Windows CP1252
+  khi Rich render mô tả argument tiếng Việt; các help khác và routing test đạt.
+- Nguyên nhân đã xác nhận: console script Typer render help trước khi compatibility
+  entry point gọi `configure_console`, và CP1252 không mã hóa được ký tự tiếng Việt.
+- Xử lý: đổi mô tả argument mới sang English/ASCII nhất quán với command tree và
+  thêm test `--help` riêng cho web, ask, ingest, embed.
+- Phòng tránh: mọi command/leaf mới phải có test help trực tiếp trên Windows,
+  không chỉ kiểm tra help của group cha.
+
+# ERR-20261015-14
+
+- Task: TASK-20261015-09.
+- Triệu chứng: kiểm tra link mới ban đầu phát hiện 5 link chết sau khi tăng độ
+  sâu thư mục; hai lần thay đường dẫn dataset đầu chưa bỏ được đoạn `data/rag`.
+- Nguyên nhân đã xác nhận: liên kết tương đối vẫn tính từ gốc `docs/`; một số
+  đường dẫn dataset/artifact lịch sử vốn không còn tồn tại trong checkout, và
+  thứ tự thay thế trong hashtable PowerShell không được bảo đảm.
+- Xử lý: sửa link theo vị trí thật `Data/tthc_test_case_v1/data`, đổi artifact
+  vắng mặt thành ghi chú provenance không clickable, rồi thêm test link local.
+- Kết quả: test link và full suite đều đạt; không còn link local bị hỏng.
+- Phòng tránh: mọi lần di chuyển Markdown phải chạy `tests.test_documentation`;
+  khi nhiều replacement chồng nhau phải thay chuỗi cụ thể trước chuỗi chung.
+
 # ERR-20261015-13
 
 - Task: TASK-20261015-08.

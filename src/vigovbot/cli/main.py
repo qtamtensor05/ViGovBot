@@ -17,11 +17,13 @@ from vigovbot.console import configure_console
 
 app = typer.Typer(help="ViGovBot application, data, QLoRA and evaluation tools.", no_args_is_help=True)
 data_app = typer.Typer(help="Validate and inspect training datasets.", no_args_is_help=True)
+rag_app = typer.Typer(help="Prepare, test and evaluate the RAG pipeline.", no_args_is_help=True)
 gpu_app = typer.Typer(help="Inspect CUDA and the QLoRA GPU stack.", no_args_is_help=True)
 train_app = typer.Typer(help="Start and manage QLoRA experiments.", no_args_is_help=True)
 eval_app = typer.Typer(help="Evaluate persisted experiment artifacts.", no_args_is_help=True)
 report_app = typer.Typer(help="Build plots and experiment reports.", no_args_is_help=True)
 app.add_typer(data_app, name="data")
+app.add_typer(rag_app, name="rag")
 app.add_typer(gpu_app, name="gpu")
 app.add_typer(train_app, name="train")
 app.add_typer(eval_app, name="eval")
@@ -46,6 +48,11 @@ def _config(value: Path) -> Path:
     if not path.is_file():
         raise typer.BadParameter(f"Không tìm thấy cấu hình: {path}")
     return path.resolve()
+
+
+def _path(value: Path) -> Path:
+    """Resolve a user path from the project root when invoked elsewhere."""
+    return (value if value.is_absolute() else _root() / value).resolve()
 
 
 def _module(name: str, *args: str) -> None:
@@ -107,6 +114,101 @@ def data_stats(config: Path = typer.Option(Path("configs/training/base.yaml"), "
     typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
     if any(value.get("status") == "missing" for value in result.values()):
         raise typer.Exit(2)
+
+
+@data_app.command("ingest")
+def data_ingest(file: Optional[Path] = typer.Argument(None),
+                config: Path = typer.Option(Path("configs/ingestion/pipeline.yaml"), "--config"),
+                output_dir: Optional[Path] = typer.Option(None, "--output-dir"),
+                workers: int = typer.Option(1, "--workers", min=1),
+                overwrite: bool = typer.Option(False, "--overwrite"),
+                no_overwrite: bool = typer.Option(False, "--no-overwrite")) -> None:
+    """Parse one PDF or the configured input directory into normalized metadata."""
+    if overwrite and no_overwrite:
+        raise typer.BadParameter("Chỉ chọn một trong --overwrite hoặc --no-overwrite.")
+    args: list[str] = []
+    if file is not None:
+        args.append(str(_path(file)))
+    args += ["--config", str(_config(config)), "--workers", str(workers)]
+    if output_dir is not None:
+        args += ["--output-dir", str(_path(output_dir))]
+    if overwrite:
+        args.append("--overwrite")
+    if no_overwrite:
+        args.append("--no-overwrite")
+    _run_legacy(["ingest", *args])
+
+
+@data_app.command("embed")
+def data_embed(source: Path = typer.Argument(Path("outputs/metadata")),
+               output_dir: Path = typer.Option(Path("Data/vector/unified"), "--output-dir"),
+               batch_size: int = typer.Option(32, "--batch-size", min=1),
+               device: Optional[str] = typer.Option(None, "--device"),
+               revision: Optional[str] = typer.Option(None, "--revision"),
+               max_extract_gib: float = typer.Option(10.0, "--max-extract-gib", min=0.1)) -> None:
+    """Build the embedding corpus from normalized metadata or a ZIP archive."""
+    args = [str(_path(source)), "--output-dir", str(_path(output_dir)),
+            "--batch-size", str(batch_size), "--max-extract-gib", str(max_extract_gib)]
+    if device:
+        args += ["--device", device]
+    if revision:
+        args += ["--revision", revision]
+    _run_legacy(["embed", *args])
+
+
+@app.command()
+def web(config: Path = typer.Option(Path("configs/rag/inference.yaml"), "--config"),
+        host: str = typer.Option("127.0.0.1", "--host"),
+        port: int = typer.Option(8000, "--port", min=1, max=65535)) -> None:
+    """Start the local chatbot web UI and API."""
+    _run_legacy(["rag", "--config", str(_config(config)), "web", "--host", host, "--port", str(port)])
+
+
+@app.command()
+def ask(question: str = typer.Argument(..., help="Question sent to the RAG pipeline."),
+        config: Path = typer.Option(Path("configs/rag/inference.yaml"), "--config"),
+        history: Optional[Path] = typer.Option(None, "--history")) -> None:
+    """Ask one question through the configured RAG pipeline."""
+    if not question.strip():
+        raise typer.BadParameter("Câu hỏi không được để trống.")
+    args = ["rag", "--config", str(_config(config)), "ask", "--question", question]
+    if history is not None:
+        args += ["--history", str(_path(history))]
+    _run_legacy(args)
+
+
+def _rag(command: str, config: Path) -> None:
+    _run_legacy(["rag", "--config", str(_config(config)), command])
+
+
+@rag_app.command("prepare")
+def rag_prepare(config: Path = typer.Option(Path("configs/rag/inference.yaml"), "--config")) -> None:
+    """Validate and prepare the configured corpus/cache without asking a question."""
+    _rag("prepare", config)
+
+
+@rag_app.command("smoke")
+def rag_smoke(config: Path = typer.Option(Path("configs/rag/evaluation.yaml"), "--config")) -> None:
+    """Run the bounded RAG evaluation smoke set."""
+    _rag("smoke", config)
+
+
+@rag_app.command("evaluate")
+def rag_evaluate(config: Path = typer.Option(Path("configs/rag/evaluation.yaml"), "--config")) -> None:
+    """Evaluate predictions using the configured RAG evaluation dataset."""
+    _rag("evaluate", config)
+
+
+@rag_app.command("report")
+def rag_report(config: Path = typer.Option(Path("configs/rag/evaluation.yaml"), "--config")) -> None:
+    """Build the RAG evaluation report from persisted results."""
+    _rag("report", config)
+
+
+@rag_app.command("run")
+def rag_run(config: Path = typer.Option(Path("configs/rag/evaluation.yaml"), "--config")) -> None:
+    """Run the complete RAG evaluation workflow."""
+    _rag("run", config)
 
 
 @gpu_app.command("check")
@@ -258,6 +360,12 @@ def _legacy(argv: list[str]) -> int:
     else:
         from vigovbot.rag.__main__ import main as entry
     return entry(argv[1:]) or 0
+
+
+def _run_legacy(argv: list[str]) -> None:
+    code = _legacy(argv)
+    if code:
+        raise typer.Exit(code)
 
 
 def main(argv: Optional[list[str]] = None) -> int:

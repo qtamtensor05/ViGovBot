@@ -19,7 +19,7 @@ Dự án ViGovBot trước đây sử dụng mô hình gốc **Qwen2.5-7B-Instru
 
 ## 2. Cấu hình Tham số & Kiến trúc Triển khai
 
-Toàn bộ thông số huấn luyện được trích xuất từ [config.yaml](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/config.yaml) và [parameter_report.json](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/parameter_report.json):
+Toàn bộ thông số huấn luyện được trích xuất từ [config.yaml](../../outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/config.yaml) và [parameter_report.json](../../outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/parameter_report.json):
 
 ### 2.1. Cấu hình Mô hình Nền & Lượng tử hóa
 - **Base Model**: `Qwen/Qwen2.5-7B-Instruct`
@@ -158,8 +158,8 @@ Thư mục lưu trữ: `outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj
 
 *Cập nhật ngày 15/10/2026: Đã hoàn tất suy luận và chấm điểm toàn diện cho **1.000 ca kiểm thử** trên tập test chuẩn hóa `tthc_test_case_v1`.*  
 *Artifact kết quả:*
-- **Dự đoán**: [predictions_qwen_qlora_batch4.jsonl](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/tthc_test_case_v1/tthc_test_case_v1/predictions_qwen_qlora_batch4.jsonl) ([run report](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/tthc_test_case_v1/tthc_test_case_v1/predictions_qwen_qlora_batch4.jsonl.run.json))
-- **Điểm số**: [scores_qwen_qlora_batch4.json](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/tthc_test_case_v1/scores_qwen_qlora_batch4.json)
+- **Dự đoán**: [predictions_qwen_qlora_batch4.jsonl](../../outputs/tthc_test_case_v1/tthc_test_case_v1/predictions_qwen_qlora_batch4.jsonl) ([run report](../../outputs/tthc_test_case_v1/tthc_test_case_v1/predictions_qwen_qlora_batch4.jsonl.run.json))
+- **Điểm số**: [scores_qwen_qlora_batch4.json](../../outputs/tthc_test_case_v1/scores_qwen_qlora_batch4.json)
 
 ### 6.1. Thiết Lập & Quy Trình Đánh Giá
 - **Dữ liệu kiểm thử**: 1.000 ca thuộc `Data/tthc_test_case_v1/data/rag/test_queries.jsonl`, đối chiếu với nhãn chuẩn `Data/tthc_test_case_v1/data/test.jsonl`.

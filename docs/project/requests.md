@@ -1,5 +1,34 @@
 # Yêu cầu dự án
 
+## TASK-20261015-10
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: bổ sung các lệnh `vigov` ngắn gọn còn thiếu cho web/chatbot, ingest,
+  embedding và vòng đời RAG/evaluation.
+- Phạm vi: mở rộng Typer command tree trên service/entry point hiện có; thêm
+  option rõ ràng và path portable; cập nhật test, README và guides; giữ CLI
+  `python -m vigovbot` tương thích.
+- Tiêu chí hoàn thành: có `vigov web`, `vigov ask`, `vigov data ingest/embed`,
+  `vigov rag prepare/smoke/evaluate/report/run`; help và routing test đạt; full
+  suite/static checks đạt; không khởi động model, web server hoặc benchmark thật.
+- Trạng thái: completed; toàn bộ lệnh ngắn yêu cầu đã có trong `vigov`, tài liệu
+  và compatibility entry point đã cập nhật; 160 test pass, 1 optional skip,
+  help matrix và static checks đạt.
+
+## TASK-20261015-09
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: gom nhóm và phân chia toàn bộ tài liệu trong `docs/` theo chức năng.
+- Phạm vi: thiết kế taxonomy tài liệu; di chuyển hướng dẫn setup, kiến trúc,
+  vận hành, QLoRA và báo cáo vào thư mục phù hợp; giữ hồ sơ dự án; cập nhật mọi
+  liên kết trong repository và mục lục tài liệu.
+- Tiêu chí hoàn thành: gốc `docs/` chỉ còn mục lục; không còn liên kết nội bộ
+  trỏ tới đường dẫn cũ; kiểm tra liên kết, test và static check đạt; không thay
+  đổi artifact, dataset hoặc hành vi runtime.
+- Trạng thái: completed; gốc `docs/` chỉ còn mục lục, tài liệu đã được chia vào
+  5 nhóm chức năng và roadmap nằm trong `project/`; toàn bộ link hoạt động đã
+  cập nhật. Full suite 158 pass, 1 optional skip; static checks đạt.
+
 ## TASK-20261015-08
 
 - Ngày tiếp nhận: 2026-10-15.

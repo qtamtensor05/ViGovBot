@@ -1,4 +1,4 @@
-# Quy trình đánh giá RAG có kiểm chứng — QA v4.2
+# Quy trình đánh giá RAG có kiểm chứng - QA v4.2
 
 ## Phạm vi và trạng thái
 
@@ -121,4 +121,4 @@ Comparison từ chối khác dataset, tập ID, nhóm hoặc history mode; đi�
 
 ## Artifact triển khai hiện tại
 
-Xem [báo cáo triển khai và giới hạn](../outputs/result_qa/evaluation_upgrade/README.md). PDF/data và kết quả model gốc được giữ nguyên. Chưa có runtime Ollama hoạt động trong phiên triển khai, nên các kiểm thử adapter/oracle/citations là offline; chưa có ba lần chạy model thật để so sánh.
+Xem artifact `outputs/result_qa/evaluation_upgrade/README.md` (không có trong checkout hiện tại). PDF/data và kết quả model gốc được giữ nguyên. Chưa có runtime Ollama hoạt động trong phiên triển khai, nên các kiểm thử adapter/oracle/citations là offline; chưa có ba lần chạy model thật để so sánh.

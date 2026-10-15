@@ -21,4 +21,4 @@ phân biệt Ollama cục bộ với endpoint từ xa; endpoint từ xa không k
 hoặc khởi chạy tiến trình trên máy. Notebook là artifact sinh tự động và không
 được chứa output hoặc thông tin xác thực.
 
-[Kiến trúc hệ thống](../../../docs/architecture.md) · [Quy trình phát triển](../../../CONTRIBUTING.md)
+[Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Quy trình phát triển](../../../CONTRIBUTING.md)

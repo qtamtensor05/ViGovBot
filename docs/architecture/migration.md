@@ -22,7 +22,7 @@ cũ sang package `vigovbot` và hợp đồng artifact hiện hành.
 Các file cài thư viện trung gian ở thư mục gốc đã được bỏ. Cài trực tiếp nhóm
 trong `pyproject.toml`: `.[pdf]`, `.[embedding]`, `.[vector]`, `.[rag,evaluation]`
 hoặc `.[test,dev]`. Khi cần đúng phiên bản đã kiểm chứng, dùng file tương ứng
-trong `locks/` theo [hướng dẫn môi trường](environments.md).
+trong `locks/` theo [hướng dẫn môi trường](../setup/environments.md).
 
 ## Corpus không có manifest
 

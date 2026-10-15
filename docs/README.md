@@ -1,42 +1,57 @@
 # Hệ thống tài liệu ViGovBot
 
-Thư mục này chứa tài liệu kỹ thuật và tài liệu quản trị dự án. Tài liệu được phân
-loại theo mục đích để tránh lặp lại hướng dẫn vận hành trong các tài liệu kiến trúc.
+`docs/README.md` là mục lục duy nhất. Các tài liệu được nhóm theo mục đích để
+tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo cáo thực nghiệm.
 
-## Phân loại tài liệu
+## Bắt đầu và môi trường
 
-| Nhóm | Tài liệu | Phạm vi |
-|---|---|---|
-| Tổng quan | [README dự án](../README.md) | Trạng thái, yêu cầu, cài đặt và giao diện CLI |
-| Vận hành | [Triển khai RAG](trien-khai-rag-co-ban.md) | Tạo corpus, thực hiện truy vấn và chạy đánh giá |
-| Kiến trúc | [Kiến trúc hệ thống](architecture.md) | Thành phần, luồng dữ liệu, phụ thuộc và hợp đồng artifact |
-| Dữ liệu | [Embedding và corpus](../EMBEDDING.md) | Định dạng pack, revision mô hình, hợp nhất và giới hạn tài nguyên |
-| Môi trường | [Môi trường và khả năng tái lập](environments.md) | Dependency, lock file, nền tảng hỗ trợ và kiểm chứng |
-| Tương thích | [Hướng dẫn migration](migration.md) | Namespace cũ, cấu hình cũ và corpus không có manifest |
-| Quản trị | [Công việc và trạng thái hiện tại](roadmap.md) | Phạm vi đang duy trì, trạng thái thành phần và giới hạn đã ghi nhận |
-| Kiểm chứng | [Lịch sử triển khai](project/implementation-history.md) | Thay đổi, lệnh kiểm tra, kết quả và giới hạn đã ghi nhận theo task |
-| Benchmark | [Đánh giá RAG vs Base (tthc_v1)](bao-cao-danh-gia-rag-vs-base-tthc-v1.md) | Báo cáo chi tiết kết quả 1.000 ca test, so sánh RAG và Base trên RTX 3090 |
-| Huấn luyện | [Phân tích QLoRA Qwen2.5-7B](bao-cao-phan-tich-qlora-qwen2-5-7b.md) | Báo cáo cấu hình, tham số, tiến trình loss và tài nguyên huấn luyện QLoRA |
-| Phát triển | [Quy trình đóng góp](../CONTRIBUTING.md) | Yêu cầu đối với issue, commit và pull request |
-| Phát triển | [Thiết lập và gate phát triển](development.md) | Editable install, test, static check và CI đa nền tảng |
-| GPU | [Thiết lập GPU](gpu-setup.md) | Dependency, diagnostic, data gate và smoke dry-run |
-| Huấn luyện | [Vận hành QLoRA](training.md) | Start/status/logs/stop/resume và run layout |
-| Đánh giá | [Đánh giá và báo cáo](evaluation.md) | Test độc lập, prediction, metric, plot và report |
-| Migration | [Tóm tắt refactor](refactor-summary.md) | Cây thư mục, ánh xạ cũ-mới, tương thích và giới hạn |
+- [Thiết lập và gate phát triển](setup/development.md)
+- [Môi trường thực thi và khả năng tái lập](setup/environments.md)
+- [Thiết lập GPU cho QLoRA](setup/gpu-setup.md)
+- [Quy trình đóng góp](../CONTRIBUTING.md)
+
+## Kiến trúc và migration
+
+- [Kiến trúc hệ thống](architecture/architecture.md)
+- [Hướng dẫn migration và tương thích ngược](architecture/migration.md)
+- [Tóm tắt refactor](architecture/refactor-summary.md)
+- [Đặc tả embedding và corpus](../EMBEDDING.md)
+
+## Hướng dẫn sử dụng
+
+- [Tham chiếu CLI `vigov`](guides/cli.md)
+- [Vận hành pipeline RAG](guides/trien-khai-rag-co-ban.md)
+- [RAG nhiều lượt](guides/rag-multi-turn.md)
+- [Đánh giá QA/RAG](guides/qa-rag-evaluation.md)
+- [Vận hành huấn luyện](guides/training.md)
+- [Đánh giá, biểu đồ và báo cáo QLoRA](guides/evaluation.md)
+
+## Chuyên đề QLoRA
+
+- [Pipeline QLoRA local-first và GPU portable](training/qlora-training.md)
+- [Vận hành full QLoRA độc lập](training/qlora-operations.md)
+- [Audit pre-GPU](training/qlora-pre-gpu-audit.md)
+- [Experiment readiness](training/qlora-experiment-readiness.md)
+
+## Báo cáo kết quả
+
+- [Đánh giá RAG vs Base trên TTHC v1](reports/bao-cao-danh-gia-rag-vs-base-tthc-v1.md)
+- [Phân tích QLoRA Qwen2.5-7B](reports/bao-cao-phan-tich-qlora-qwen2-5-7b.md)
+
+## Quản trị dự án
+
+- [Roadmap và trạng thái thành phần](project/roadmap.md)
+- [Yêu cầu](project/requests.md)
+- [Trạng thái hiện tại](project/current-stage.md)
+- [Lịch sử triển khai](project/implementation-history.md)
+- [Nhật ký vấp ngã](project/failure-journal.md)
+- [Nguồn skill](project/skill-sources.md)
+- [Hướng dẫn agent](../AGENTS.md)
 
 ## Quy ước duy trì
 
-Hồ sơ task lớn nằm trong [yêu cầu](project/requests.md),
-[lịch sử triển khai](project/implementation-history.md),
-[current stage](project/current-stage.md) và [nhật ký vấp ngã](project/failure-journal.md).
-Xem [nguồn skill](project/skill-sources.md) và [hướng dẫn agent](../AGENTS.md).
-
-- `README.md` ở thư mục gốc là điểm vào duy nhất cho cài đặt và vận hành cơ bản.
-- Tài liệu kiến trúc mô tả ranh giới và hợp đồng, không sao chép hướng dẫn cài đặt.
-- Tài liệu vận hành cung cấp lệnh thực thi hoàn chỉnh và điều kiện tiên quyết.
-- Báo cáo kiểm chứng ghi nhận kết quả tại một thời điểm, không đại diện cho trạng thái hiện thời.
-- README trong module chỉ mô tả trách nhiệm của module và dẫn chiếu về tài liệu trung tâm.
-# QLoRA fine-tuning
-
-- [Pipeline QLoRA Qwen2.5-7B local-first và GPU portable](qlora-training.md)
-- [Audit pre-GPU QLoRA Qwen2.5-7B](qlora-pre-gpu-audit.md)
+- README gốc là điểm vào cho cài đặt và lệnh cơ bản; tài liệu chuyên sâu nằm tại đây.
+- Hướng dẫn cung cấp lệnh thực thi; kiến trúc mô tả ranh giới và hợp đồng.
+- Báo cáo ghi nhận kết quả tại một thời điểm, không đại diện trạng thái hiện thời.
+- Hồ sơ `project/` là lịch sử append-only; không sửa đường dẫn cũ chỉ vì tài liệu
+  hiện tại đã được di chuyển.

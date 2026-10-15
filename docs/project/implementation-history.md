@@ -1,5 +1,34 @@
 # Lịch sử triển khai
 
+## TASK-20261015-10 - hoàn thiện CLI ngắn cho web, dữ liệu và RAG
+
+- Bổ sung `vigov web`, `vigov ask`, `vigov data ingest`, `vigov data embed` và
+  nhóm `vigov rag prepare/smoke/evaluate/report/run`.
+- Các handler chỉ chuẩn hóa option/path rồi gọi lại entry point hiện có; không
+  sao chép business logic. Path tương đối được resolve từ project root nên lệnh
+  dùng được ngoài repository sau editable install.
+- Giữ nguyên compatibility CLI `python -m vigovbot ingest|embed|rag|qa-v4`.
+- Cập nhật README, guide vận hành RAG và thêm `docs/guides/cli.md` làm bảng lệnh
+  ngắn cho web, data, RAG, GPU, training, evaluation và reporting.
+- Kiểm chứng: routing mock và 9 leaf help đạt; full suite 160 test pass,
+  1 optional skip; Ruff, compileall và diff-check đạt. Không khởi động server,
+  model, embedding, benchmark hoặc training thật.
+
+## TASK-20261015-09 - phân nhóm tài liệu và kiểm tra liên kết
+
+- Chuyển tài liệu ở gốc `docs/` vào `setup/`, `architecture/`, `guides/`,
+  `training/`, `reports/`; chuyển roadmap vào `project/`. Gốc `docs/` chỉ còn
+  `README.md` làm mục lục duy nhất.
+- Viết lại mục lục theo luồng sử dụng và cập nhật tham chiếu trong README gốc,
+  CONTRIBUTING, requirements, notebook README và README các module.
+- Sửa liên kết tương đối sau khi tăng độ sâu thư mục; thay `file:///c:/Users/...`
+  trong báo cáo QLoRA bằng đường dẫn repository portable; sửa đường dẫn dataset
+  báo cáo theo layout thực tế.
+- Thêm `tests/test_documentation.py` để kiểm tra mọi local Markdown link trong
+  source/docs. Hồ sơ lịch sử `docs/project/` được giữ nguyên nội dung cũ.
+- Kiểm chứng: 158 test pass, 1 optional skip; Ruff, compileall và diff-check đạt;
+  không còn tham chiếu hoạt động tới đường dẫn tài liệu cũ.
+
 ## TASK-20261015-08 - phân nhóm toàn bộ cấu hình theo chức năng
 
 - Chuyển cấu hình nguồn thành ba miền: `configs/ingestion/`, `configs/rag/` và

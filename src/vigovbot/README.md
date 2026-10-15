@@ -18,4 +18,4 @@ README trong từng module mô tả trách nhiệm, luồng xử lý, đầu và
 ràng buộc cục bộ. Cài đặt và vận hành được quản lý ở tài liệu cấp repository để
 không lặp lại giữa các module.
 
-[Kiến trúc hệ thống](../../docs/architecture.md) · [Giao diện CLI](../../README.md)
+[Kiến trúc hệ thống](../../docs/architecture/architecture.md) · [Giao diện CLI](../../README.md)

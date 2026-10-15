@@ -21,8 +21,18 @@ class UnifiedCliTests(unittest.TestCase):
     def test_required_command_tree_is_visible(self):
         result = self.runner.invoke(app, ["--help"])
         self.assertEqual(result.exit_code, 0, result.output)
-        for command in ("doctor", "data", "gpu", "train", "dashboard", "eval", "report"):
+        for command in ("doctor", "web", "ask", "data", "rag", "gpu", "train", "dashboard", "eval", "report"):
             self.assertIn(command, result.output)
+        data_help = self.runner.invoke(app, ["data", "--help"])
+        for command in ("check", "stats", "ingest", "embed"):
+            self.assertIn(command, data_help.output)
+        rag_help = self.runner.invoke(app, ["rag", "--help"])
+        for command in ("prepare", "smoke", "evaluate", "report", "run"):
+            self.assertIn(command, rag_help.output)
+        for command in (["web", "--help"], ["ask", "--help"], ["data", "ingest", "--help"],
+                        ["data", "embed", "--help"]):
+            command_help = self.runner.invoke(app, command)
+            self.assertEqual(command_help.exit_code, 0, command_help.output)
         train_help = self.runner.invoke(app, ["train", "--help"])
         for command in ("smoke", "start", "status", "logs", "stop", "resume"):
             self.assertIn(command, train_help.output)
@@ -40,6 +50,34 @@ class UnifiedCliTests(unittest.TestCase):
         with patch("vigovbot.cli.main._legacy", return_value=7) as legacy:
             self.assertEqual(main(["rag", "--help"]), 7)
         legacy.assert_called_once_with(["rag", "--help"])
+
+    def test_short_application_commands_delegate_to_existing_services(self):
+        with patch("vigovbot.cli.main._legacy", return_value=0) as legacy:
+            result = self.runner.invoke(app, ["ask", "Hồ sơ gồm những gì?"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        args = legacy.call_args.args[0]
+        self.assertEqual(args[0], "rag")
+        self.assertIn("ask", args)
+        self.assertIn("Hồ sơ gồm những gì?", args)
+
+        with patch("vigovbot.cli.main._legacy", return_value=0) as legacy:
+            result = self.runner.invoke(app, ["rag", "evaluate"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual(legacy.call_args.args[0][0], "rag")
+        self.assertIn("evaluate", legacy.call_args.args[0])
+
+    def test_short_data_commands_delegate_with_project_rooted_paths(self):
+        with patch("vigovbot.cli.main._legacy", return_value=0) as legacy:
+            ingest = self.runner.invoke(app, ["data", "ingest", "--workers", "2"])
+            embed = self.runner.invoke(app, ["data", "embed"])
+        self.assertEqual(ingest.exit_code, 0, ingest.output)
+        self.assertEqual(embed.exit_code, 0, embed.output)
+        ingest_args = legacy.call_args_list[0].args[0]
+        embed_args = legacy.call_args_list[1].args[0]
+        self.assertEqual(ingest_args[0], "ingest")
+        self.assertIn(str((ROOT / "configs" / "ingestion" / "pipeline.yaml").resolve()), ingest_args)
+        self.assertEqual(embed_args[0], "embed")
+        self.assertIn(str((ROOT / "outputs" / "metadata").resolve()), embed_args)
 
     def test_cli_override_wins_over_environment(self):
         key = "VIGOVBOT_QLORA__TRAINING__LEARNING_RATE"

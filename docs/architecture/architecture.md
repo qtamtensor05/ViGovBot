@@ -85,4 +85,4 @@ lượt chat; SQLite mở read-only để truy hồi từ thread request. Lịch
 trình duyệt và được gửi lại theo từng model/chế độ. Chưa có lưu phiên phía server,
 quản lý người dùng, xác thực/TLS hoặc pipeline fine-tuning QLoRA.
 Các nội dung liên quan được quy định tại [migration](migration.md),
-[môi trường](environments.md) và [quy trình phát triển](../CONTRIBUTING.md).
+[môi trường](../setup/environments.md) và [quy trình phát triển](../../CONTRIBUTING.md).

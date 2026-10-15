@@ -166,7 +166,7 @@ python -m venv .venv
 .venv\Scripts\python -m vigovbot --help
 ```
 
-Linux/macOS thay `.venv\Scripts\python` bằng `.venv/bin/python`. Cách dùng dependency lock theo nền tảng được mô tả trong [Môi trường và tái lập](environments.md).
+Linux/macOS thay `.venv\Scripts\python` bằng `.venv/bin/python`. Cách dùng dependency lock theo nền tảng được mô tả trong [Môi trường và tái lập](../setup/environments.md).
 
 Cài Ollama và tải model bằng lệnh:
 
@@ -182,14 +182,14 @@ Ollama cần phục vụ tại địa chỉ cấu hình. Nếu dịch vụ chưa
 Đặt PDF vào `Data/pdf`, rồi chạy:
 
 ```powershell
-.venv\Scripts\python -m vigovbot ingest --config configs/ingestion/pipeline.yaml
+vigov data ingest
 ```
 
 Có thể xử lý nhiều PDF song song bằng `--workers`. Ví dụ với máy 18 luồng CPU và
 28 GB RAM, có thể bắt đầu với 6 worker khi OCR được bật:
 
 ```powershell
-.venv\Scripts\python -m vigovbot ingest --config configs/ingestion/pipeline.yaml --workers 6
+vigov data ingest --workers 6
 ```
 
 Giá trị mặc định là 1. File đã hoàn tất vẫn được giữ lại và được bỏ qua khi chạy
@@ -200,7 +200,7 @@ trực tiếp thư mục này hoặc một ZIP chỉ chứa các JSON chunk đã
 `reports/` và `review/` vào nguồn embedding.
 
 ```powershell
-.venv\Scripts\python -m vigovbot embed outputs/metadata --output-dir Data/vector/unified-new
+vigov data embed outputs/metadata --output-dir Data/vector/unified-new
 ```
 
 Ví dụ sử dụng `unified-new` vì pipeline từ chối ghi đè corpus đã tồn tại. Với dữ
@@ -232,15 +232,15 @@ llm:
   ollama_url: http://localhost:11434
 ```
 
-Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không xác minh được model/revision đã tạo vector tài liệu. Khi thiếu manifest, `revision: null` không thể tự khôi phục revision gốc. Chi tiết tại [Migration dữ liệu cũ](migration.md).
+Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không xác minh được model/revision đã tạo vector tài liệu. Khi thiếu manifest, `revision: null` không thể tự khôi phục revision gốc. Chi tiết tại [Migration dữ liệu cũ](../architecture/migration.md).
 
 ### 4.4. Chuẩn bị và hỏi đáp
 
 Với corpus mới đã cập nhật trong `configs/rag/inference.yaml`:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml prepare
-.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml ask --question "Cần những giấy tờ gì để cấp bản sao hộ tịch?"
+vigov rag prepare
+vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?"
 ```
 
 Nếu dùng corpus cũ theo bước 4.3, thay đường dẫn cấu hình trong cả hai lệnh bằng `configs/rag/inference-local.yaml`. `prepare` chỉ chuẩn bị corpus/cache, chưa tải encoder hoặc gọi LLM; `ask` cũng tự chuẩn bị/kiểm tra cache trước khi truy vấn. Hỏi đáp không cần bộ câu hỏi đánh giá.
@@ -249,8 +249,7 @@ Nếu dùng corpus cũ theo bước 4.3, thay đường dẫn cấu hình trong 
 `assistant`, rồi truyền file bằng `--history`:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml ask `
-  --question "Còn lệ phí thì sao?" --history history.json
+vigov ask "Còn lệ phí thì sao?" --history history.json
 ```
 
 CLI không tự lưu lịch sử giữa hai lần chạy; ứng dụng gọi phải giữ và gửi lại đúng
@@ -279,8 +278,7 @@ Kết quả `ask` được in dưới dạng JSON:
 Sau khi corpus đã sẵn sàng, khởi động server HTTP cục bộ:
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/rag/inference.yaml web `
-  --host 127.0.0.1 --port 8000
+vigov web --host 127.0.0.1 --port 8000
 ```
 
 Mở `http://127.0.0.1:8000`. Server nạp encoder, tokenizer, FAISS và SQLite một
@@ -322,8 +320,8 @@ giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
 Chuẩn bị `Data/qa_test/dataset.jsonl` hoặc cấu hình `dataset_zip`. Kiểm tra `unified_source`, chế độ legacy nếu cần và chọn `output_dir` phù hợp trong `configs/rag/evaluation.yaml`.
 
 ```powershell
-.venv\Scripts\python -m vigovbot rag --config configs/rag/evaluation.yaml smoke
-.venv\Scripts\python -m vigovbot rag --config configs/rag/evaluation.yaml run
+vigov rag smoke
+vigov rag run
 ```
 
 `smoke` thử tối đa 5 câu theo cấu hình hiện tại. `run` thực hiện chuẩn bị, smoke test, đánh giá rồi tạo báo cáo. Có thể dùng riêng `evaluate` để sinh kết quả và `report` để tính metric/tạo báo cáo. `max_cases: null` nghĩa là dùng toàn bộ bộ dữ liệu đã nạp; có thể đặt số nhỏ khi thử nghiệm.
@@ -354,16 +352,16 @@ Các điểm cần tính đến khi sử dụng:
 
 | Nội dung | File chính |
 |---|---|
-| Entry point CLI | [cli.py](../src/vigovbot/cli.py) |
-| Trích xuất và xuất JSON | [indexing.py](../src/vigovbot/pipelines/indexing.py) |
-| Chunking theo cấu trúc | [markdown.py](../src/vigovbot/chunking/markdown.py) |
-| Tạo embedding và corpus FAISS | [corpus_builder.py](../src/vigovbot/embeddings/corpus_builder.py) |
-| Cache SQLite | [vector_store.py](../src/vigovbot/vectordb/vector_store.py) |
-| Truy hồi | [retriever.py](../src/vigovbot/retrieval/retriever.py) |
-| Prompt và ngân sách token | [prompt_templates.py](../src/vigovbot/prompts/prompt_templates.py) |
-| Gọi Ollama | [llm_client.py](../src/vigovbot/llm/llm_client.py) |
-| Định tuyến hội thoại và kiểm tra JSON | [routing.py](../src/vigovbot/rag/routing.py) |
-| Điều phối RAG | [pipeline.py](../src/vigovbot/rag/pipeline.py) |
-| Giá trị cấu hình mặc định | [config.py](../src/vigovbot/rag/config.py) |
-| Web server và API cục bộ | [app.py](../src/vigovbot/server/app.py) |
-| Adapter Ollama/OpenAI-compatible | [providers.py](../src/vigovbot/server/providers.py) |
+| Entry point CLI | [main.py](../../src/vigovbot/cli/main.py) |
+| Trích xuất và xuất JSON | [indexing.py](../../src/vigovbot/pipelines/indexing.py) |
+| Chunking theo cấu trúc | [markdown.py](../../src/vigovbot/chunking/markdown.py) |
+| Tạo embedding và corpus FAISS | [corpus_builder.py](../../src/vigovbot/embeddings/corpus_builder.py) |
+| Cache SQLite | [vector_store.py](../../src/vigovbot/vectordb/vector_store.py) |
+| Truy hồi | [retriever.py](../../src/vigovbot/retrieval/retriever.py) |
+| Prompt và ngân sách token | [prompt_templates.py](../../src/vigovbot/prompts/prompt_templates.py) |
+| Gọi Ollama | [llm_client.py](../../src/vigovbot/llm/llm_client.py) |
+| Định tuyến hội thoại và kiểm tra JSON | [routing.py](../../src/vigovbot/rag/routing.py) |
+| Điều phối RAG | [pipeline.py](../../src/vigovbot/rag/pipeline.py) |
+| Giá trị cấu hình mặc định | [config.py](../../src/vigovbot/rag/config.py) |
+| Web server và API cục bộ | [app.py](../../src/vigovbot/server/app.py) |
+| Adapter Ollama/OpenAI-compatible | [providers.py](../../src/vigovbot/server/providers.py) |

@@ -28,4 +28,4 @@ manifest bị từ chối, trừ khi caller bật `allow_legacy`. Module chỉ x
 toàn vẹn và nguồn gốc kỹ thuật được khai báo; không chứng minh độ tin cậy của nội
 dung tài liệu.
 
-[Kiến trúc hệ thống](../../../docs/architecture.md) · [Hướng dẫn vận hành](../../../docs/trien-khai-rag-co-ban.md)
+[Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Hướng dẫn vận hành](../../../docs/guides/trien-khai-rag-co-ban.md)
