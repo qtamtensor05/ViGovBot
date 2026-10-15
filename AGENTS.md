@@ -1,5 +1,28 @@
 # Hướng dẫn agent cho ViGovBot
 
+## Chọn skill theo nhiệm vụ
+
+Các skill nằm trực tiếp trong `.agents/skills/` để Codex discovery. Chọn một
+skill chính theo outcome; chỉ thêm skill hỗ trợ khi trách nhiệm khác biệt rõ,
+không tự tải toàn bộ catalog. Nhóm và điều kiện kích hoạt nằm tại
+[`docs/agent-skills/SKILL_CATALOG.md`](docs/agent-skills/SKILL_CATALOG.md).
+
+- RAG/chatbot: architecture, ingestion, retrieval, evaluation, dataset, API và security.
+- Repository: navigation/context trước; planning cho task phức tạp; minimal diff
+  khi triển khai; verification trước bàn giao; handoff khi chuyển phiên.
+
+Không gửi dữ liệu nhạy cảm ra dịch vụ ngoài, không chạy production/load test,
+benchmark tốn phí hoặc script bên thứ ba khi chưa có phạm vi và quyền rõ ràng.
+
+## Cấu trúc dự án
+
+Khi thêm, di chuyển, đổi tên hoặc hợp nhất source, cấu hình, tài liệu, CLI hay
+package, đọc và áp dụng
+[vigovbot-project-structure](.agents/skills/vigovbot-project-structure/SKILL.md).
+Không tạo cây song song ngoài cấu trúc canonical. README gốc chỉ giữ tổng quan
+và quick start tối thiểu; hướng dẫn môi trường, câu lệnh đầy đủ, vận hành,
+training/evaluation và troubleshooting phải nằm trong `docs/`.
+
 ## Task lớn và bộ nhớ dự án
 
 Với task nhiều bước, thay đổi hành vi/kiến trúc/cấu hình/dữ liệu, điều tra lỗi hoặc

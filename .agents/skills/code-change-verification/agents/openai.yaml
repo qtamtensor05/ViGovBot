@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Change Verification"
+  short_description: "Verify changes with relevant gates"
+  default_prompt: "Use $code-change-verification to verify these code changes."

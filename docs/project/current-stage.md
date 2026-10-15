@@ -1,3 +1,30 @@
+# TASK-20261015-12 - partial
+
+- Giai đoạn: Phase 7 hoàn tất triển khai; còn forward-test discovery phiên mới.
+- Đã nghiên cứu nguồn, audit repository và triển khai 15 skill custom ở layout
+  `.agents/skills/<name>`; thêm 3 script deterministic, references, UI metadata,
+  scenario test và tám tài liệu bàn giao trong `docs/agent-skills/`.
+- `AGENTS.md` đã có routing ngắn; không nạp đồng thời toàn bộ skill. Không thay
+  đổi business logic, artifact, dataset, model hoặc dependency dự án.
+- Kiểm chứng: 15/15 skill validator đạt; full suite 164 pass, 1 optional skip;
+  Ruff, compileall và diff-check đạt.
+- Còn lại: mở phiên Codex mới để xác nhận implicit discovery/trigger; trạng thái
+  này là NOT VERIFIED, không được suy ra từ validator.
+
+# TASK-20261015-11 - completed
+
+- Giai đoạn: hoàn tất skill, README và verification gate.
+- Đã xác nhận worktree sạch; cấu trúc canonical hiện có là `src/vigovbot`,
+  `configs/{ingestion,rag,training}` và `docs/{setup,architecture,guides,training,reports,project}`.
+- Đã tạo/validate `vigovbot-project-structure`, nối vào `AGENTS.md` và quy định
+  canonical layout cùng chính sách README/docs.
+- README gốc chỉ còn tổng quan, ba lệnh bắt đầu, cấu trúc cấp cao và link docs;
+  nội dung môi trường/vận hành chi tiết tiếp tục nằm trong `docs/`.
+- Kiểm chứng: 9 test documentation/CLI, Ruff, compileall và diff-check đạt;
+  skill validator trả `Skill is valid!` khi bật UTF-8 mode.
+- Ràng buộc: không sửa hành vi runtime, không di chuyển artifact/dataset và
+  không nhân đôi hướng dẫn chi tiết giữa README gốc với docs.
+
 # TASK-20261015-10 - completed
 
 - Giai đoạn: hoàn tất command tree và verification gate.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Document Ingestion Validation"
+  short_description: "Validate ingestion and chunk quality"
+  default_prompt: "Use $document-ingestion-validation to validate a document ingestion run."

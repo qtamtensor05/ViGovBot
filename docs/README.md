@@ -1,5 +1,7 @@
 # Hệ thống tài liệu ViGovBot
 
+- [Agent Skills cho RAG/chatbot và tối ưu Codex](agent-skills/README.md)
+
 `docs/README.md` là mục lục duy nhất. Các tài liệu được nhóm theo mục đích để
 tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo cáo thực nghiệm.
 

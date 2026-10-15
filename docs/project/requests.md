@@ -1,5 +1,37 @@
 # Yêu cầu dự án
 
+## TASK-20261015-12
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: nghiên cứu, xác minh và triển khai hai bộ Agent Skills cho kỹ thuật
+  RAG/chatbot và tối ưu cách Codex làm việc trong repository; có script,
+  reference, kiểm thử, tài liệu nguồn và hướng dẫn Windows khi thực sự cần.
+- Phạm vi: kiểm tra nguồn chính thức/cộng đồng được chỉ định; audit ViGovBot;
+  thiết kế và triển khai 15 skill có ranh giới rõ; cập nhật `AGENTS.md`, mục lục
+  docs và bộ tài liệu `docs/agent-skills/`; không sửa business logic ứng dụng,
+  không chạy script bên thứ ba hoặc benchmark giả.
+- Tiêu chí hoàn thành: mọi skill có frontmatter hợp lệ và được Codex discovery
+  theo layout được hỗ trợ; có tình huống kiểm thử từng skill, script được test
+  với input hợp lệ/không hợp lệ, nguồn được phân loại có bằng chứng, báo cáo
+  phân biệt PASS/FAIL/SKIPPED/NOT VERIFIED và không ghi đè cấu hình hiện có.
+- Trạng thái: partial; 15 skill, script, test, source verification và tài liệu đã
+  hoàn tất; validator/full suite/static checks đạt. Implicit discovery/trigger
+  trong một phiên Codex mới chưa thể kiểm chứng từ phiên đang chạy.
+
+## TASK-20261015-11
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: cập nhật skill/agent để buộc tuân thủ cấu trúc dự án đã thiết lập và
+  rút gọn README gốc; hướng dẫn môi trường, câu lệnh và vận hành chi tiết phải
+  nằm trong `docs/`.
+- Phạm vi: tạo skill cấu trúc dự án, nối skill vào `AGENTS.md`, viết lại README
+  tổng quan và cập nhật tài liệu/link nếu cần; không thay đổi runtime.
+- Tiêu chí hoàn thành: skill hợp lệ và mô tả đúng ranh giới configs/docs/source;
+  README ngắn, không lặp tài liệu chi tiết; link test và static checks đạt.
+- Trạng thái: completed; skill cấu trúc đã được AGENTS kích hoạt và validator
+  xác nhận hợp lệ; README gốc đã rút gọn, chi tiết được dẫn về docs; test link,
+  CLI và static checks đạt.
+
 ## TASK-20261015-10
 
 - Ngày tiếp nhận: 2026-10-15.

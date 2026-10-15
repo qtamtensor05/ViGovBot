@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task Planning"
+  short_description: "Plan verifiable project work"
+  default_prompt: "Use $task-planning to plan this complex repository task."

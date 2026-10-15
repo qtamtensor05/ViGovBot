@@ -673,6 +673,16 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: đổi thành `"${script}: $_"`; lần chạy lại 18 test tập trung, Ruff và AST
   sáu script đều pass.
 
+# ERR-20261015-16
+
+- Task: TASK-20261015-11.
+- Triệu chứng: `quick_validate.py` lỗi `UnicodeDecodeError` khi đọc SKILL.md có
+  tiếng Việt trên Windows mặc định CP1252; các test dự án vẫn đạt.
+- Nguyên nhân đã xác nhận: validator dùng `Path.read_text()` không chỉ định
+  encoding và interpreter chưa bật UTF-8 mode.
+- Xử lý: chạy lại với `PYTHONUTF8=1`; validator trả `Skill is valid!`.
+- Phòng tránh: chạy các validator skill chứa Unicode với UTF-8 mode trên Windows.
+
 # ERR-20261015-15
 
 - Task: TASK-20261015-10.
@@ -721,4 +731,38 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   chứng process test còn sống và không phải lỗi mã nguồn.
 - Xử lý: chạy lại đúng gate tập trung một lần; 20 test và Ruff đều pass, sau đó
   full suite cuối đạt 156 test, 1 optional skip.
+
+# ERR-20261015-20 - TASK-20261015-12
+
+- Triệu chứng: lần sửa assertion đầu vẫn fail với description hợp lệ dùng
+  `Use before` thay vì `Use for/when`.
+- Nguyên nhân: test tiếp tục kiểm tra wording cụ thể thay vì invariant là mô tả
+  phải có điều kiện sử dụng.
+- Khắc phục: kiểm tra marker trung lập `Use`, còn semantic boundaries được kiểm
+  qua positive/negative scenario trong báo cáo.
+
+# ERR-20261015-19 - TASK-20261015-12
+
+- Triệu chứng: test manifest đầu tiên fail vì assertion chỉ chấp nhận cụm
+  `Use for`, trong khi một description hợp lệ dùng `Use when`.
+- Bối cảnh: `python -m unittest tests.test_agent_skills tests.test_documentation`;
+  15 lần `quick_validate.py` trước đó đều đạt.
+- Nguyên nhân: test local hẹp hơn quy tắc mô tả skill thực tế, không phải lỗi
+  frontmatter hoặc discovery.
+- Khắc phục: assertion chấp nhận cả `Use for` và `Use when`; chạy lại toàn bộ gate.
+
+# ERR-20261015-18 - TASK-20261015-12
+
+- Triệu chứng: patch tạo docs bị hủy vì tìm tiêu đề `# Tài liệu ViGovBot`, trong
+  khi file hiện tại dùng `# Hệ thống tài liệu ViGovBot`; không có file partial.
+- Nguyên nhân: context patch không khớp nội dung UTF-8 thực tế.
+- Khắc phục: đọc lại heading, chia patch thành nhóm nhỏ và áp lại đúng context.
+
+# ERR-20261015-17 - TASK-20261015-12
+
+- Triệu chứng: lệnh PowerShell lấy metadata GitHub báo `An empty pipe element is
+  not allowed` tại pipeline ngay sau `foreach`.
+- Nguyên nhân: khối `foreach` chưa được bọc thành collection trước pipeline.
+- Khắc phục: bọc bằng `@(foreach (...){...})`, sau đó pipe collection sang JSON;
+  metadata bảy repository được lấy thành công.
 

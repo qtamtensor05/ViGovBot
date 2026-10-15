@@ -1,5 +1,33 @@
 # Lịch sử triển khai
 
+## TASK-20261015-12 - Agent Skills RAG và tối ưu Codex
+
+- Xác minh OpenAI/Codex, Agent Skills spec, Anthropic, Vercel và các skill RAG
+  cộng đồng; phân loại OFFICIAL, COMMUNITY_VERIFIED, CUSTOM_REQUIRED, REJECTED.
+- Tạo 7 skill RAG/chatbot và 8 skill tối ưu Codex ở cấp trực tiếp dưới
+  `.agents/skills/` để phù hợp discovery, mỗi skill có contract, workflow, ví dụ,
+  negative boundary và `agents/openai.yaml`.
+- Thêm script standard-library cho ingestion JSONL, dataset leakage và benchmark
+  summary; thêm metric/quality references theo progressive disclosure.
+- Thêm `docs/agent-skills/`, test manifest/discovery/script, mục lục docs và
+  routing ngắn trong `AGENTS.md`; không thay đổi application business logic.
+- Kiểm chứng: 15 validator PASS; full suite 164 PASS, 1 optional SKIP; Ruff,
+  compileall và diff-check PASS. Implicit trigger ở phiên Codex mới chưa được
+  kiểm chứng nên task giữ trạng thái partial thay vì completed.
+
+## TASK-20261015-11 - skill cấu trúc và README tổng quan
+
+- Tạo skill `vigovbot-project-structure` quy định vị trí canonical cho source,
+  CLI, configs, docs và artifact; quy định migration path, link validation và
+  ranh giới kiểm chứng runtime.
+- Cập nhật `AGENTS.md` để bắt buộc dùng skill khi thêm, di chuyển, đổi tên hoặc
+  hợp nhất cấu trúc. Task journal tiếp tục chỉ quản lý hồ sơ triển khai.
+- Viết lại README gốc thành trang tổng quan ngắn: khả năng chính, ba lệnh quick
+  start, cấu trúc cấp cao và liên kết tới docs; bỏ giải thích dài về môi trường,
+  RAG, GPU, lifecycle và command options khỏi README.
+- Kiểm chứng: skill validator đạt với UTF-8 mode; 9 test documentation/CLI,
+  Ruff, compileall và diff-check đạt. Không thay đổi hoặc chạy runtime.
+
 ## TASK-20261015-10 - hoàn thiện CLI ngắn cho web, dữ liệu và RAG
 
 - Bổ sung `vigov web`, `vigov ask`, `vigov data ingest`, `vigov data embed` và

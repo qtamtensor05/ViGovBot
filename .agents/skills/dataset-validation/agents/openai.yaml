@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dataset Validation"
+  short_description: "Validate dataset integrity"
+  default_prompt: "Use $dataset-validation to validate this QA dataset."
