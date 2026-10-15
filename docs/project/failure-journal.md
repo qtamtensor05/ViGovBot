@@ -608,3 +608,37 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý/kiểm chứng: tách thành request đầu `local → qlora` và request kế tiếp
   `local`; xác nhận Ollama unload một lần và cache Transformers release một lần.
 
+# ERR-20261015-06
+
+- Task: TASK-20261015-05.
+- Triệu chứng: lựa chọn QLoRA trên web trả lỗi `Using a device_map ... requires
+  accelerate` khi `AutoModelForCausalLM.from_pretrained(..., device_map="auto")`.
+- Nguyên nhân xác nhận: interpreter chạy web là `env\Scripts\python.exe` nhưng
+  không có `accelerate`; kiểm kê tiếp cho thấy cũng thiếu `peft` và `bitsandbytes`,
+  là hai dependency bắt buộc tiếp theo cho adapter PEFT/NF4.
+- Xử lý/kiểm chứng: cài đúng các phiên bản đã ghim vào `env`; import, `pip check`,
+  NF4 CUDA forward và smoke adapter thật sau các sửa tiếp theo đều đạt.
+
+# ERR-20261015-07
+
+- Task: TASK-20261015-05.
+- Triệu chứng: sau khi cài dependency, `device_map="auto"` báo một số module bị
+  dispatch sang CPU/disk vì không đủ VRAM 6 GB.
+- Nguyên nhân: model Qwen 7B NF4 cùng adapter/overhead vượt quyết định đặt tự động
+  trên khoảng 4,9 GiB VRAM đang trống.
+- Thử sửa chưa thành công: bật CPU offload và giới hạn 4,5 GiB GPU/3 GiB CPU.
+  Transformers 5.17.0 lỗi `Params4bit ... _is_hf_initialized`; bản 4.57.3 tiếp
+  tục lỗi `Tensor.item() cannot be called on meta tensors` trong Accelerate hook.
+- Xử lý cuối: không dùng CPU offload; ép NF4 lên GPU đơn bằng `device_map={"": 0}`.
+  Smoke thật PASS, allocated 5,35 GiB; cần đóng ứng dụng GPU khác để có biên nhớ.
+
+# ERR-20261015-08
+
+- Task: TASK-20261015-05.
+- Triệu chứng: stack ban đầu có Transformers 5.17.0, lệch với requirements và run
+  đã xác minh, gây lỗi hook bitsandbytes khi thử CPU offload.
+- Nguyên nhân: môi trường `env` phục vụ RAG/BERTScore đã nâng Transformers, trong
+  khi QLoRA artifact/tooling ghim `transformers==4.57.3`.
+- Xử lý/kiểm chứng: hạ riêng Transformers về 4.57.3 (hub 0.36.2, tokenizers
+  0.22.2), giữ Torch CUDA 2.14.0; `pip check`, import, test và smoke thật đạt.
+

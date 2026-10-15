@@ -108,7 +108,9 @@ QLoRA cần môi trường đã cài dependency GPU trong `requirements/qlora-gp
 CUDA khả dụng. Cấu hình mặc định không giữ đồng thời model Ollama và local
 Transformers trên GPU: khi chuyển backend, server dỡ model trước rồi mới nạp model
 tiếp theo. Cách này phù hợp GPU 6 GB nhưng lần hỏi đầu sau mỗi lần chuyển sẽ chậm
-do phải nạp lại weights. Ba chế độ giữ lịch sử hội thoại riêng trên trình duyệt.
+do phải nạp lại weights. Cấu hình RTX 4050 ép model NF4 lên một GPU để tránh
+Accelerate tự tách module 4-bit sang CPU; cần đóng ứng dụng dùng GPU trước khi
+khởi động. Ba chế độ giữ lịch sử hội thoại riêng trên trình duyệt.
 
 Router RAG dùng JSON Schema theo nhánh và thử lại một lần nếu JSON sai; hai lần
 sai vẫn trả câu mặc định. UI hiển thị riêng fallback kỹ thuật và hỏi làm rõ thật.

@@ -33,6 +33,8 @@ web:
       adapter_path: ../outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter
       load_in_4bit: true
       allow_multiple_models: false
+      cpu_offload: false
+      force_single_gpu: true
     # Ví dụ API chuẩn OpenAI-compatible:
     # - id: model-api
     #   label: Model qua API

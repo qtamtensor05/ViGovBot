@@ -66,6 +66,10 @@ class WebModelConfig(StrictModel):
     adapter_path: Path | None = None
     load_in_4bit: bool = True
     allow_multiple_models: bool = False
+    cpu_offload: bool = False
+    gpu_memory_gib: float | None = Field(default=None, gt=0)
+    cpu_memory_gib: float | None = Field(default=None, gt=0)
+    force_single_gpu: bool = False
 
     @model_validator(mode="after")
     def check_credentials(self):

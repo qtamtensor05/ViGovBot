@@ -637,3 +637,22 @@
 - Giới hạn: chưa chạy inference model thật hoặc browser QA; không tuyên bố runtime
   GPU hay hiển thị trực quan đã được xác nhận. Không thay đổi checkpoint.
 
+# TASK-20261015-05 - completed
+
+- Giai đoạn: sửa môi trường runtime web QLoRA.
+- Đã xác nhận web dùng `env\Scripts\python.exe`, Torch `2.14.0+cu130`, CUDA nhận
+  RTX 4050; môi trường thiếu đồng thời `accelerate`, `peft` và `bitsandbytes`.
+- Chuẩn bị cài riêng ba package đã ghim trong requirements, giữ nguyên Torch CUDA
+  và Transformers hiện có; sau đó chạy import, `pip check` và smoke loader.
+- Đã cài `accelerate 1.12.0`, `peft 0.18.0`, `bitsandbytes 0.49.0`; `pip check`,
+  import và NF4 CUDA forward nhỏ đạt. Chuẩn bị smoke nạp đúng base + `best_adapter`
+  và sinh tối đa 8 token; đây là lệnh dài, có thể dùng cache hoặc tải weights nếu thiếu.
+- Smoke `device_map=auto` xác nhận 6 GB không đủ để đặt toàn bộ module; thử CPU
+  offload lần lượt lộ lỗi tương thích Transformers 5.17/bitsandbytes và meta tensor.
+- Đã đưa Transformers về bản dự án ghim `4.57.3`, giữ Torch `2.14.0+cu130`, rồi
+  cấu hình `force_single_gpu: true` cho QLoRA thay vì auto-dispatch/offload.
+- Smoke thật PASS: nạp `Qwen/Qwen2.5-7B-Instruct` + đúng `best_adapter`, sinh 8
+  token trong 7,96 giây; CUDA allocated 5,35 GiB. Base weights đã cache cục bộ.
+- Kiểm chứng dependency: `pip check` sạch; import Accelerate/PEFT/bitsandbytes/
+  Transformers và NF4 CUDA forward đạt. Cần restart web server cũ để nạp stack mới.
+

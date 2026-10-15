@@ -18,17 +18,29 @@ def release_local_transformers_models():
             torch.cuda.empty_cache()
 
 
-def load_model(base_model: str, adapter_path: str | None = None, quantized: bool = True):
+def load_model(base_model: str, adapter_path: str | None = None, quantized: bool = True,
+               cpu_offload: bool = False, gpu_memory_gib: float | None = None,
+               cpu_memory_gib: float | None = None, force_single_gpu: bool = False):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
     if quantized and not torch.cuda.is_available():
         raise RuntimeError("4-bit baseline/PEFT inference requires CUDA; pass quantized=False only for explicit CPU tests")
     quantization = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
                                      bnb_4bit_use_double_quant=True,
-                                     bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16) if quantized else None
+                                     bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
+                                     llm_int8_enable_fp32_cpu_offload=cpu_offload) if quantized else None
+    max_memory = None
+    if gpu_memory_gib is not None or cpu_memory_gib is not None:
+        max_memory = {}
+        if gpu_memory_gib is not None:
+            max_memory[0] = f"{gpu_memory_gib}GiB"
+        if cpu_memory_gib is not None:
+            max_memory["cpu"] = f"{cpu_memory_gib}GiB"
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=False)
+    device_map = {"": 0} if force_single_gpu else "auto"
     model = AutoModelForCausalLM.from_pretrained(base_model, quantization_config=quantization,
-                                                 device_map="auto", trust_remote_code=False)
+                                                 device_map=device_map, max_memory=max_memory,
+                                                 trust_remote_code=False)
     if adapter_path:
         from peft import PeftConfig, PeftModel
         adapter_config = PeftConfig.from_pretrained(adapter_path)
@@ -43,12 +55,16 @@ def load_model(base_model: str, adapter_path: str | None = None, quantized: bool
 def local_transformers_answer(messages, settings):
     import time
     import torch
-    key = (settings["model"], settings.get("adapter_path"), bool(settings.get("load_in_4bit", True)))
+    key = (settings["model"], settings.get("adapter_path"), bool(settings.get("load_in_4bit", True)),
+           bool(settings.get("cpu_offload", False)), settings.get("gpu_memory_gib"),
+           settings.get("cpu_memory_gib"), bool(settings.get("force_single_gpu", False)))
     with _LOCK:
         if key not in _CACHE:
             if _CACHE and not settings.get("allow_multiple_models", False):
                 release_local_transformers_models()
-            _CACHE[key] = load_model(*key[:2], quantized=key[2])
+            _CACHE[key] = load_model(*key[:2], quantized=key[2], cpu_offload=key[3],
+                                     gpu_memory_gib=key[4], cpu_memory_gib=key[5],
+                                     force_single_gpu=key[6])
         model, tokenizer = _CACHE[key]
         encoded = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True,
                                                 return_tensors="pt", return_dict=True)
@@ -70,12 +86,16 @@ def local_transformers_batch_answer(messages_batch, settings):
     """Greedy batched generation for independent conversations, preserving order."""
     import time
     import torch
-    key = (settings["model"], settings.get("adapter_path"), bool(settings.get("load_in_4bit", True)))
+    key = (settings["model"], settings.get("adapter_path"), bool(settings.get("load_in_4bit", True)),
+           bool(settings.get("cpu_offload", False)), settings.get("gpu_memory_gib"),
+           settings.get("cpu_memory_gib"), bool(settings.get("force_single_gpu", False)))
     with _LOCK:
         if key not in _CACHE:
             if _CACHE and not settings.get("allow_multiple_models", False):
                 release_local_transformers_models()
-            _CACHE[key] = load_model(*key[:2], quantized=key[2])
+            _CACHE[key] = load_model(*key[:2], quantized=key[2], cpu_offload=key[3],
+                                     gpu_memory_gib=key[4], cpu_memory_gib=key[5],
+                                     force_single_gpu=key[6])
         model, tokenizer = _CACHE[key]
     tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
     tokenizer.padding_side = "left"

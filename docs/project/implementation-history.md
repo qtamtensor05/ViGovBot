@@ -683,3 +683,21 @@
   tuyệt đối đúng. Chưa chạy model thật hoặc browser QA, nên không coi là bằng
   chứng runtime GPU/visual; không tải hay sửa checkpoint.
 
+# TASK-20261015-05 - sửa runtime QLoRA trên web
+
+- Xác nhận web dùng `env\Scripts\python.exe`; lỗi đầu do thiếu `accelerate`. Audit
+  dependency cho thấy thiếu cả `peft` và `bitsandbytes`, nên cài các bản dự án đã
+  ghim: Accelerate 1.12.0, PEFT 0.18.0 và bitsandbytes 0.49.0.
+- `pip check`, import và phép NF4 CUDA forward nhỏ đạt. Lần smoke đầu tải đủ bốn
+  shard Qwen vào Hugging Face cache nhưng `device_map=auto` báo một số module phải
+  rơi xuống CPU vì RTX 4050 chỉ có 6 GB.
+- CPU offload không được giữ làm giải pháp: Transformers 5.17.0 không tương thích
+  bitsandbytes 0.49.0 ở hook `_is_hf_initialized`; sau khi hạ về bản dự án ghim
+  4.57.3, auto CPU dispatch vẫn lỗi thao tác `Tensor.item()` trên meta tensor.
+- Loader bổ sung tùy chọn `force_single_gpu`; cấu hình web QLoRA dùng NF4 toàn bộ
+  trên GPU đơn, không CPU offload. Các tùy chọn offload/memory vẫn explicit và
+  mặc định tắt, không được tuyên bố đã kiểm chứng trên stack này.
+- Smoke thật cuối PASS: đúng base Qwen2.5-7B + `best_adapter`, 8 token, generation
+  7,96 giây, CUDA allocated 5,35 GiB. Không sửa checkpoint; weights base được cache.
+- Cần restart web process cũ để bỏ module Transformers đã import trước khi hạ bản.
+

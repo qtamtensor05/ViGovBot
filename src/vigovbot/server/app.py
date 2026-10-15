@@ -62,6 +62,10 @@ class ChatApplication:
             settings["adapter_path"] = str(adapter_path) if adapter_path else None
             settings["load_in_4bit"] = getattr(model, "load_in_4bit", True)
             settings["allow_multiple_models"] = getattr(model, "allow_multiple_models", False)
+            settings["cpu_offload"] = getattr(model, "cpu_offload", False)
+            settings["gpu_memory_gib"] = getattr(model, "gpu_memory_gib", None)
+            settings["cpu_memory_gib"] = getattr(model, "cpu_memory_gib", None)
+            settings["force_single_gpu"] = getattr(model, "force_single_gpu", False)
         if model.provider == "ollama":
             settings["ollama_url"] = model.base_url
         else:

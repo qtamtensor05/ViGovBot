@@ -91,6 +91,10 @@ class WebChatTests(unittest.TestCase):
         model.adapter_path = "outputs/qlora/run/best_adapter"
         model.load_in_4bit = True
         model.allow_multiple_models = False
+        model.cpu_offload = False
+        model.gpu_memory_gib = None
+        model.cpu_memory_gib = None
+        model.force_single_gpu = True
         answer_fn = unittest.mock.Mock(return_value=("Trả lời từ adapter", {}, 0.4))
         with (
             patch("vigovbot.server.app.answerer_for", return_value=answer_fn),
@@ -103,6 +107,7 @@ class WebChatTests(unittest.TestCase):
         self.assertEqual(result["sources"], [])
         rag_answer.assert_not_called()
         self.assertEqual(answer_fn.call_args.args[1]["adapter_path"], model.adapter_path)
+        self.assertTrue(answer_fn.call_args.args[1]["force_single_gpu"])
 
     def test_switching_ollama_and_local_transformers_releases_previous_backend(self):
         local = self.app.models["local"]
@@ -111,6 +116,8 @@ class WebChatTests(unittest.TestCase):
             model="Qwen/Qwen2.5-7B-Instruct", base_url="local", api_key_env=None,
             mode="qlora", adapter_path="best_adapter", load_in_4bit=True,
             allow_multiple_models=False,
+            cpu_offload=False, gpu_memory_gib=None, cpu_memory_gib=None,
+            force_single_gpu=True,
         )
         self.app.models["qlora"] = qlora
         with (

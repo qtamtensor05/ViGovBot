@@ -589,3 +589,16 @@
 - Trạng thái: completed; UI/config/server đã có ba chế độ Base, RAG và QLoRA;
   test liên quan đạt. Chưa chạy inference model thật hoặc browser QA trong task
   này nên runtime GPU/hiển thị trực quan vẫn là giới hạn kiểm chứng.
+
+## TASK-20261015-05
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: khắc phục web demo QLoRA lỗi thiếu `accelerate` khi nạp model.
+- Phạm vi: xác minh đúng interpreter, bổ sung dependency runtime QLoRA còn thiếu,
+  kiểm tra tương thích môi trường và smoke loader; không thay checkpoint.
+- Tiêu chí hoàn thành: `accelerate`, `peft`, `bitsandbytes` import được trong
+  `env`; `pip check` đạt; lỗi dependency không còn. Chỉ xác nhận inference model
+  thật nếu loader/generation thực sự chạy thành công.
+- Trạng thái: completed; đã cài dependency thiếu, đưa Transformers về stack ghim
+  4.57.3 và cấu hình NF4 single-GPU. Smoke thật nạp đúng `best_adapter` và sinh
+  8 token thành công trên RTX 4050; cần restart web process đang chạy.
