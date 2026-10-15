@@ -1,0 +1,12 @@
+extends: qlora_7b.yaml
+# Bounded integration smoke; it is never a full experiment result.
+training:
+  num_train_epochs: 1
+  eval_steps: 2
+  save_steps: 2
+  logging_steps: 1
+execution:
+  approved: false
+  max_samples: 8
+  max_steps: 4
+  artifact_label: gpu_smoke_test

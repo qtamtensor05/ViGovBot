@@ -1,5 +1,5 @@
 -r qlora-base.txt
-# Install the PyTorch wheel matching the GPU driver/CUDA platform first; see docs/qlora-training.md.
+# Install the PyTorch wheel matching the GPU driver/CUDA platform first; see docs/training/qlora-training.md.
 torch==2.9.1
 transformers==4.57.3
 peft==0.18.0

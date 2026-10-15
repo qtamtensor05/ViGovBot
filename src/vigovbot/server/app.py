@@ -76,7 +76,7 @@ class ChatApplication:
         """Avoid retaining Ollama and local Transformers weights on one small GPU."""
         provider = model.provider
         if self._active_provider == "local_transformers" and provider == "ollama":
-            from training.inference import release_local_transformers_models
+            from vigovbot.training.inference import release_local_transformers_models
 
             release_local_transformers_models()
         elif self._active_provider == "ollama" and provider == "local_transformers":

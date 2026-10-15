@@ -21,7 +21,20 @@ class PlotTests(unittest.TestCase):
             outputs = generate_plots(root)
             self.assertTrue(outputs)
             self.assertTrue(all(path.stat().st_size > 0 for path in outputs))
-            self.assertTrue((root / "plot_manifest.json").is_file())
+            self.assertTrue((root / "plots" / "plot_manifest.json").is_file())
+
+    def test_report_reads_canonical_layout_and_writes_reports_section(self):
+        from training.report import build_report
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "metrics").mkdir()
+            (root / "metrics" / "training_metrics.json").write_text(
+                '{"status":"completed","best_validation_loss":0.25}', encoding="utf-8")
+            output = build_report(root)
+            self.assertEqual(output, root / "reports" / "summary_report.md")
+            self.assertTrue((root / "reports" / "experiment_report.json").is_file())
+            self.assertIn("0.25", output.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__": unittest.main()

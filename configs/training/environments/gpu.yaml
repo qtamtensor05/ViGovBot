@@ -1,0 +1,4 @@
+extends: ../base.yaml
+# Generic GPU environment. Hardware-sensitive values require explicit overrides.
+execution:
+  approved: false

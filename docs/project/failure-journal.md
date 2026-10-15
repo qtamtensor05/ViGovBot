@@ -2,6 +2,19 @@
 
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
+## ERR-20261015-21
+
+- Task: TASK-20261015-13.
+- Triệu chứng: CI Ubuntu/Windows fail; checkout sạch tái hiện link docs hỏng,
+  `data stats` exit 2 và readiness `BLOCKED` khi thiếu dataset/artifact local.
+- Nguyên nhân: ba test dùng trạng thái máy phát triển làm fixture dù `Data/` và
+  `outputs/` chỉ theo dõi `.gitkeep`.
+- Xử lý: tạo dataset/output tạm trong test; bỏ qua việc tồn tại của link target
+  thuộc khu artifact runtime nhưng vẫn kiểm tra mọi link source/docs khác.
+- Kết quả: full suite trong checkout sạch đạt 164 test, 1 optional skip.
+- Phòng tránh: test CI phải tự tạo input; không dùng artifact ngoài Git làm
+  precondition trừ khi workflow tải artifact một cách tường minh.
+
 ## ERR-20261006-05
 
 - Task: TASK-20261006-03.
@@ -651,4 +664,118 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   ở vị trí file argument.
 - Xử lý: dùng các đường dẫn split cụ thể đã kiểm tra và corpus/meta trực tiếp;
   không ảnh hưởng kết luận document `1.009646` không có trong SFT.
+
+# ERR-20261015-10
+
+- Task: TASK-20261015-07.
+- Triệu chứng: baseline readiness trả `BLOCKED`; full suite có 1 failure vì ba
+  file SFT dưới `data/fintuning` không tồn tại.
+- Nguyên nhân: profile RTX 5060 Ti giữ layout từ host tạo artifact, trong khi
+  checkout hiện tại lưu ba file SFT trực tiếp dưới `data/`.
+- Xử lý: profile canonical dùng layout thực tế; alias cũ kế thừa profile mới.
+  Không sửa snapshot config trong run lịch sử. Full suite sau sửa đạt 150 test,
+  1 optional skip.
+
+# ERR-20261015-11
+
+- Task: TASK-20261015-07.
+- Triệu chứng: lệnh kiểm tra AST PowerShell đầu tiên lỗi parser tại chuỗi
+  `"$script: $_"` trước khi chạy test.
+- Nguyên nhân: dấu hai chấm ngay sau tên biến làm PowerShell hiểu sai variable
+  reference trong chính lệnh kiểm chứng, không phải lỗi script dự án.
+- Xử lý: đổi thành `"${script}: $_"`; lần chạy lại 18 test tập trung, Ruff và AST
+  sáu script đều pass.
+
+# ERR-20261015-16
+
+- Task: TASK-20261015-11.
+- Triệu chứng: `quick_validate.py` lỗi `UnicodeDecodeError` khi đọc SKILL.md có
+  tiếng Việt trên Windows mặc định CP1252; các test dự án vẫn đạt.
+- Nguyên nhân đã xác nhận: validator dùng `Path.read_text()` không chỉ định
+  encoding và interpreter chưa bật UTF-8 mode.
+- Xử lý: chạy lại với `PYTHONUTF8=1`; validator trả `Skill is valid!`.
+- Phòng tránh: chạy các validator skill chứa Unicode với UTF-8 mode trên Windows.
+
+# ERR-20261015-15
+
+- Task: TASK-20261015-10.
+- Triệu chứng: `vigov ask --help` lỗi `UnicodeEncodeError` trên Windows CP1252
+  khi Rich render mô tả argument tiếng Việt; các help khác và routing test đạt.
+- Nguyên nhân đã xác nhận: console script Typer render help trước khi compatibility
+  entry point gọi `configure_console`, và CP1252 không mã hóa được ký tự tiếng Việt.
+- Xử lý: đổi mô tả argument mới sang English/ASCII nhất quán với command tree và
+  thêm test `--help` riêng cho web, ask, ingest, embed.
+- Phòng tránh: mọi command/leaf mới phải có test help trực tiếp trên Windows,
+  không chỉ kiểm tra help của group cha.
+
+# ERR-20261015-14
+
+- Task: TASK-20261015-09.
+- Triệu chứng: kiểm tra link mới ban đầu phát hiện 5 link chết sau khi tăng độ
+  sâu thư mục; hai lần thay đường dẫn dataset đầu chưa bỏ được đoạn `data/rag`.
+- Nguyên nhân đã xác nhận: liên kết tương đối vẫn tính từ gốc `docs/`; một số
+  đường dẫn dataset/artifact lịch sử vốn không còn tồn tại trong checkout, và
+  thứ tự thay thế trong hashtable PowerShell không được bảo đảm.
+- Xử lý: sửa link theo vị trí thật `Data/tthc_test_case_v1/data`, đổi artifact
+  vắng mặt thành ghi chú provenance không clickable, rồi thêm test link local.
+- Kết quả: test link và full suite đều đạt; không còn link local bị hỏng.
+- Phòng tránh: mọi lần di chuyển Markdown phải chạy `tests.test_documentation`;
+  khi nhiều replacement chồng nhau phải thay chuỗi cụ thể trước chuỗi chung.
+
+# ERR-20261015-13
+
+- Task: TASK-20261015-08.
+- Triệu chứng: lượt test tập trung đầu tiên có 2 error và 1 failure vì còn tìm
+  `configs/base.yaml` và `configs/experiments/smoke.yaml`; lệnh kiểm tra YAML
+  training riêng cũng lỗi cú pháp do escape quote trong PowerShell one-liner.
+- Nguyên nhân đã xác nhận: ba tham chiếu trong `doctor`/test chưa được thay ở
+  lượt tìm kiếm đầu; lỗi one-liner thuộc lệnh kiểm chứng, không thuộc loader.
+- Xử lý: cập nhật `doctor` và test sang `configs/training/...`; chạy lại kiểm tra
+  YAML bằng script ngắn không phụ thuộc escape lồng nhau.
+- Phòng tránh: sau migration đường dẫn phải tìm cả chuỗi dựng bằng `Path(...)`,
+  không chỉ tìm literal hoàn chỉnh có dấu gạch chéo.
+
+# ERR-20261015-12
+
+- Task: TASK-20261015-07.
+- Triệu chứng: session test tập trung từ lượt trước không còn tồn tại khi tiếp tục,
+  `write_stdin` trả `Unknown process id 71625`.
+- Nguyên nhân: handle công cụ đã hết hiệu lực qua ranh giới lượt; không có bằng
+  chứng process test còn sống và không phải lỗi mã nguồn.
+- Xử lý: chạy lại đúng gate tập trung một lần; 20 test và Ruff đều pass, sau đó
+  full suite cuối đạt 156 test, 1 optional skip.
+
+# ERR-20261015-20 - TASK-20261015-12
+
+- Triệu chứng: lần sửa assertion đầu vẫn fail với description hợp lệ dùng
+  `Use before` thay vì `Use for/when`.
+- Nguyên nhân: test tiếp tục kiểm tra wording cụ thể thay vì invariant là mô tả
+  phải có điều kiện sử dụng.
+- Khắc phục: kiểm tra marker trung lập `Use`, còn semantic boundaries được kiểm
+  qua positive/negative scenario trong báo cáo.
+
+# ERR-20261015-19 - TASK-20261015-12
+
+- Triệu chứng: test manifest đầu tiên fail vì assertion chỉ chấp nhận cụm
+  `Use for`, trong khi một description hợp lệ dùng `Use when`.
+- Bối cảnh: `python -m unittest tests.test_agent_skills tests.test_documentation`;
+  15 lần `quick_validate.py` trước đó đều đạt.
+- Nguyên nhân: test local hẹp hơn quy tắc mô tả skill thực tế, không phải lỗi
+  frontmatter hoặc discovery.
+- Khắc phục: assertion chấp nhận cả `Use for` và `Use when`; chạy lại toàn bộ gate.
+
+# ERR-20261015-18 - TASK-20261015-12
+
+- Triệu chứng: patch tạo docs bị hủy vì tìm tiêu đề `# Tài liệu ViGovBot`, trong
+  khi file hiện tại dùng `# Hệ thống tài liệu ViGovBot`; không có file partial.
+- Nguyên nhân: context patch không khớp nội dung UTF-8 thực tế.
+- Khắc phục: đọc lại heading, chia patch thành nhóm nhỏ và áp lại đúng context.
+
+# ERR-20261015-17 - TASK-20261015-12
+
+- Triệu chứng: lệnh PowerShell lấy metadata GitHub báo `An empty pipe element is
+  not allowed` tại pipeline ngay sau `foreach`.
+- Nguyên nhân: khối `foreach` chưa được bọc thành collection trước pipeline.
+- Khắc phục: bọc bằng `@(foreach (...){...})`, sau đó pipe collection sang JSON;
+  metadata bảy repository được lấy thành công.
 

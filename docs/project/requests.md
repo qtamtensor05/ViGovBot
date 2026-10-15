@@ -1,5 +1,94 @@
 # Yêu cầu dự án
 
+## TASK-20261015-13
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: sửa CI cơ bản đang fail khi checkout không có dataset/artifact local;
+  giữ thay đổi ngắn gọn và không vi phạm cấu trúc hoặc thiết kế hiện tại.
+- Phạm vi: tái hiện trong checkout sạch, cô lập test khỏi dữ liệu không được Git
+  theo dõi, cập nhật workflow/test tối thiểu nếu cần; không thay đổi dataset,
+  config canonical hoặc business logic runtime.
+- Tiêu chí hoàn thành: lỗi CI được tái hiện và xử lý đúng nguyên nhân; targeted
+  test, full suite trong checkout sạch và static checks đạt trên phạm vi khả dụng.
+- Trạng thái: completed; các test phụ thuộc dataset/artifact local đã dùng fixture
+  hoặc bỏ qua link artifact không version-control; checkout sạch và static gates đạt.
+
+## TASK-20261015-12
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: nghiên cứu, xác minh và triển khai hai bộ Agent Skills cho kỹ thuật
+  RAG/chatbot và tối ưu cách Codex làm việc trong repository; có script,
+  reference, kiểm thử, tài liệu nguồn và hướng dẫn Windows khi thực sự cần.
+- Phạm vi: kiểm tra nguồn chính thức/cộng đồng được chỉ định; audit ViGovBot;
+  thiết kế và triển khai 15 skill có ranh giới rõ; cập nhật `AGENTS.md`, mục lục
+  docs và bộ tài liệu `docs/agent-skills/`; không sửa business logic ứng dụng,
+  không chạy script bên thứ ba hoặc benchmark giả.
+- Tiêu chí hoàn thành: mọi skill có frontmatter hợp lệ và được Codex discovery
+  theo layout được hỗ trợ; có tình huống kiểm thử từng skill, script được test
+  với input hợp lệ/không hợp lệ, nguồn được phân loại có bằng chứng, báo cáo
+  phân biệt PASS/FAIL/SKIPPED/NOT VERIFIED và không ghi đè cấu hình hiện có.
+- Trạng thái: partial; 15 skill, script, test, source verification và tài liệu đã
+  hoàn tất; validator/full suite/static checks đạt. Implicit discovery/trigger
+  trong một phiên Codex mới chưa thể kiểm chứng từ phiên đang chạy.
+
+## TASK-20261015-11
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: cập nhật skill/agent để buộc tuân thủ cấu trúc dự án đã thiết lập và
+  rút gọn README gốc; hướng dẫn môi trường, câu lệnh và vận hành chi tiết phải
+  nằm trong `docs/`.
+- Phạm vi: tạo skill cấu trúc dự án, nối skill vào `AGENTS.md`, viết lại README
+  tổng quan và cập nhật tài liệu/link nếu cần; không thay đổi runtime.
+- Tiêu chí hoàn thành: skill hợp lệ và mô tả đúng ranh giới configs/docs/source;
+  README ngắn, không lặp tài liệu chi tiết; link test và static checks đạt.
+- Trạng thái: completed; skill cấu trúc đã được AGENTS kích hoạt và validator
+  xác nhận hợp lệ; README gốc đã rút gọn, chi tiết được dẫn về docs; test link,
+  CLI và static checks đạt.
+
+## TASK-20261015-10
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: bổ sung các lệnh `vigov` ngắn gọn còn thiếu cho web/chatbot, ingest,
+  embedding và vòng đời RAG/evaluation.
+- Phạm vi: mở rộng Typer command tree trên service/entry point hiện có; thêm
+  option rõ ràng và path portable; cập nhật test, README và guides; giữ CLI
+  `python -m vigovbot` tương thích.
+- Tiêu chí hoàn thành: có `vigov web`, `vigov ask`, `vigov data ingest/embed`,
+  `vigov rag prepare/smoke/evaluate/report/run`; help và routing test đạt; full
+  suite/static checks đạt; không khởi động model, web server hoặc benchmark thật.
+- Trạng thái: completed; toàn bộ lệnh ngắn yêu cầu đã có trong `vigov`, tài liệu
+  và compatibility entry point đã cập nhật; 160 test pass, 1 optional skip,
+  help matrix và static checks đạt.
+
+## TASK-20261015-09
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: gom nhóm và phân chia toàn bộ tài liệu trong `docs/` theo chức năng.
+- Phạm vi: thiết kế taxonomy tài liệu; di chuyển hướng dẫn setup, kiến trúc,
+  vận hành, QLoRA và báo cáo vào thư mục phù hợp; giữ hồ sơ dự án; cập nhật mọi
+  liên kết trong repository và mục lục tài liệu.
+- Tiêu chí hoàn thành: gốc `docs/` chỉ còn mục lục; không còn liên kết nội bộ
+  trỏ tới đường dẫn cũ; kiểm tra liên kết, test và static check đạt; không thay
+  đổi artifact, dataset hoặc hành vi runtime.
+- Trạng thái: completed; gốc `docs/` chỉ còn mục lục, tài liệu đã được chia vào
+  5 nhóm chức năng và roadmap nằm trong `project/`; toàn bộ link hoạt động đã
+  cập nhật. Full suite 158 pass, 1 optional skip; static checks đạt.
+
+## TASK-20261015-08
+
+- Ngày tiếp nhận: 2026-10-15.
+- Yêu cầu: chia rõ các cấu hình theo thư mục chức năng và sửa toàn bộ vị trí
+  đang tham chiếu đến đường dẫn cấu hình cũ.
+- Phạm vi: kiểm kê YAML và người dùng của chúng; tổ chức lại cấu hình training,
+  ingestion và RAG; cập nhật code, script, notebook, test và tài liệu; giữ khả
+  năng đọc artifact/run lịch sử và không thay đổi nội dung khoa học của cấu hình.
+- Tiêu chí hoàn thành: không còn tham chiếu hoạt động tới đường dẫn YAML phẳng
+  cũ; các loader giải quyết đúng đường dẫn tương đối sau khi di chuyển; test và
+  static check đạt; không chạy training hoặc tải model.
+- Trạng thái: completed; cấu hình đã chia theo ingestion/RAG/training, toàn bộ
+  tham chiếu hoạt động đã chuyển sang đường dẫn mới; 157 test pass, 1 optional
+  skip và static checks đạt. Không chạy training hoặc tải model.
+
 ## TASK-20261007-08
 
 - Ngày: 2026-10-07 (Asia/Saigon).
@@ -618,3 +707,24 @@
 - Bổ sung kết quả thực tế: khi hỏi đúng mã và thuộc tính hồ sơ, QLoRA sinh một
   giấy tờ chung chung không có trong nguồn và bỏ sót danh sách ba mục. Kết quả
   này được phân loại là sai/thiếu, không phải câu trả lời đúng dù diễn đạt trôi chảy.
+
+## TASK-20261015-07
+
+- Ngày: 2026-10-15 (Asia/Saigon).
+- Yêu cầu: refactor toàn bộ ViGovBot thành dự án Python sạch, dễ bảo trì với CLI
+  thống nhất `vigov`; có thể giữ nguyên mã hiện tại và tạo cấu trúc riêng rồi di
+  chuyển dần đến khi đồng bộ hoạt động.
+- Phạm vi: kiểm kê repository và baseline; lập ánh xạ đường dẫn; hợp nhất CLI và
+  cấu hình; tổ chức application/training/evaluation/reporting; quản lý tiến trình
+  training nền Windows/Linux; giữ tương thích chatbot, checkpoint và artifact;
+  bổ sung kiểm thử và tài liệu `docs/refactor-summary.md`.
+- Tiêu chí hoàn thành: các tiêu chí acceptance trong yêu cầu đính kèm, gồm CLI,
+  cấu hình, lifecycle, test/static check, tài liệu và lệnh GPU tiếp theo đều dựa
+  trên triển khai thực tế; không chạy full training hoặc tải lại model.
+- Giả định an toàn: triển khai tăng dần trên nhánh `codex/ref-clean`; không xóa,
+  đổi tên hoặc sao chép checkpoint/dataset/adapter/output lớn; giữ entry point cũ
+  trong giai đoạn tương thích cho đến khi test chứng minh đường mới tương đương.
+- Trạng thái: in_progress; đang kiểm kê mã nguồn và ghi baseline trước thay đổi.
+- Kết quả: completed; đã triển khai CLI `vigov`, cấu hình phân lớp, package
+  `vigovbot.training`, lifecycle nền Windows/Linux, run layout, compatibility,
+  CI và tài liệu. Full suite 156 pass, 1 optional skip; không chạy full training.

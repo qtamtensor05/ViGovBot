@@ -1,4 +1,4 @@
-"""python -m vigovbot rag --config configs/rag.yaml run"""
+"""python -m vigovbot rag --config configs/rag/evaluation.yaml run"""
 
 import argparse
 import json
@@ -12,7 +12,7 @@ from vigovbot.console import configure_console
 def main(argv=None):
     configure_console()
     parser = argparse.ArgumentParser(description="Qwen + RAG: unified/SQLite/FAISS và đánh giá qa_test")
-    parser.add_argument("--config", default="rag_config.yaml", help="Đường dẫn cấu hình YAML")
+    parser.add_argument("--config", default="configs/rag/inference.yaml", help="Đường dẫn cấu hình YAML")
     parser.add_argument(
         "command", choices=["prepare", "ask", "web", "smoke", "evaluate", "report", "run"], nargs="?", default="run"
     )

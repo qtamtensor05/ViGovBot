@@ -1,0 +1,4 @@
+interface:
+  display_name: "RAG Architecture Review"
+  short_description: "Review ViGovBot RAG architecture"
+  default_prompt: "Use $rag-architecture-review to review the current RAG architecture."

@@ -2,6 +2,8 @@ param(
     [Parameter(Mandatory = $true)][string]$ProjectRoot,
     [Parameter(Mandatory = $true)][string]$RunId,
     [Parameter(Mandatory = $true)][string]$StatePath,
+    [Parameter(Mandatory = $true)][string]$PythonPath,
+    [Parameter(Mandatory = $true)][string]$Config,
     [string]$Resume = ""
 )
 
@@ -14,13 +16,13 @@ function Write-JsonAtomic([string]$Path, [object]$Value) {
 }
 
 Set-Location -LiteralPath $ProjectRoot
-$python = Join-Path $ProjectRoot ".venv-qlora\Scripts\python.exe"
-$config = Join-Path $ProjectRoot "configs\gpu_rtx5060ti_16gb.yaml"
+$python = [System.IO.Path]::GetFullPath($PythonPath)
+$config = [System.IO.Path]::GetFullPath($Config)
 $state = Get-Content -LiteralPath $StatePath -Raw -Encoding utf8 | ConvertFrom-Json
 $stdout = [string]$state.stdout_log
 $stderr = [string]$state.stderr_log
 $exitPath = [string]$state.exit_code_file
-$arguments = @("-u", "-m", "training.train", "--config", $config, "--approve")
+$arguments = @("-u", "-m", "vigovbot.training.train", "--config", $config, "--approve")
 if ($Resume) {
     $arguments += @("--resume", $Resume)
 } else {

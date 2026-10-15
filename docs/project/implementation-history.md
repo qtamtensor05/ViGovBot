@@ -1,5 +1,88 @@
 # Lịch sử triển khai
 
+## TASK-20261015-13 - cô lập CI khỏi dataset và artifact local
+
+- Tái hiện CI từ checkout chỉ chứa file Git và xác nhận ba test dựa vào
+  `Data/outputs` có sẵn trên máy phát triển.
+- Chuyển test `data stats` và readiness sang JSONL/output fixture tạm; giữ nguyên
+  hành vi trả lỗi của CLI khi dataset thật bị thiếu.
+- Link test vẫn kiểm tra tài liệu/source nhưng không yêu cầu artifact runtime
+  không version-control phải tồn tại trên runner.
+- Kiểm chứng: 10 targeted test và full suite sạch 164 pass, 1 optional skip;
+  Ruff, compileall và diff-check đạt. Không thay đổi workflow hoặc runtime.
+
+## TASK-20261015-12 - Agent Skills RAG và tối ưu Codex
+
+- Xác minh OpenAI/Codex, Agent Skills spec, Anthropic, Vercel và các skill RAG
+  cộng đồng; phân loại OFFICIAL, COMMUNITY_VERIFIED, CUSTOM_REQUIRED, REJECTED.
+- Tạo 7 skill RAG/chatbot và 8 skill tối ưu Codex ở cấp trực tiếp dưới
+  `.agents/skills/` để phù hợp discovery, mỗi skill có contract, workflow, ví dụ,
+  negative boundary và `agents/openai.yaml`.
+- Thêm script standard-library cho ingestion JSONL, dataset leakage và benchmark
+  summary; thêm metric/quality references theo progressive disclosure.
+- Thêm `docs/agent-skills/`, test manifest/discovery/script, mục lục docs và
+  routing ngắn trong `AGENTS.md`; không thay đổi application business logic.
+- Kiểm chứng: 15 validator PASS; full suite 164 PASS, 1 optional SKIP; Ruff,
+  compileall và diff-check PASS. Implicit trigger ở phiên Codex mới chưa được
+  kiểm chứng nên task giữ trạng thái partial thay vì completed.
+
+## TASK-20261015-11 - skill cấu trúc và README tổng quan
+
+- Tạo skill `vigovbot-project-structure` quy định vị trí canonical cho source,
+  CLI, configs, docs và artifact; quy định migration path, link validation và
+  ranh giới kiểm chứng runtime.
+- Cập nhật `AGENTS.md` để bắt buộc dùng skill khi thêm, di chuyển, đổi tên hoặc
+  hợp nhất cấu trúc. Task journal tiếp tục chỉ quản lý hồ sơ triển khai.
+- Viết lại README gốc thành trang tổng quan ngắn: khả năng chính, ba lệnh quick
+  start, cấu trúc cấp cao và liên kết tới docs; bỏ giải thích dài về môi trường,
+  RAG, GPU, lifecycle và command options khỏi README.
+- Kiểm chứng: skill validator đạt với UTF-8 mode; 9 test documentation/CLI,
+  Ruff, compileall và diff-check đạt. Không thay đổi hoặc chạy runtime.
+
+## TASK-20261015-10 - hoàn thiện CLI ngắn cho web, dữ liệu và RAG
+
+- Bổ sung `vigov web`, `vigov ask`, `vigov data ingest`, `vigov data embed` và
+  nhóm `vigov rag prepare/smoke/evaluate/report/run`.
+- Các handler chỉ chuẩn hóa option/path rồi gọi lại entry point hiện có; không
+  sao chép business logic. Path tương đối được resolve từ project root nên lệnh
+  dùng được ngoài repository sau editable install.
+- Giữ nguyên compatibility CLI `python -m vigovbot ingest|embed|rag|qa-v4`.
+- Cập nhật README, guide vận hành RAG và thêm `docs/guides/cli.md` làm bảng lệnh
+  ngắn cho web, data, RAG, GPU, training, evaluation và reporting.
+- Kiểm chứng: routing mock và 9 leaf help đạt; full suite 160 test pass,
+  1 optional skip; Ruff, compileall và diff-check đạt. Không khởi động server,
+  model, embedding, benchmark hoặc training thật.
+
+## TASK-20261015-09 - phân nhóm tài liệu và kiểm tra liên kết
+
+- Chuyển tài liệu ở gốc `docs/` vào `setup/`, `architecture/`, `guides/`,
+  `training/`, `reports/`; chuyển roadmap vào `project/`. Gốc `docs/` chỉ còn
+  `README.md` làm mục lục duy nhất.
+- Viết lại mục lục theo luồng sử dụng và cập nhật tham chiếu trong README gốc,
+  CONTRIBUTING, requirements, notebook README và README các module.
+- Sửa liên kết tương đối sau khi tăng độ sâu thư mục; thay `file:///c:/Users/...`
+  trong báo cáo QLoRA bằng đường dẫn repository portable; sửa đường dẫn dataset
+  báo cáo theo layout thực tế.
+- Thêm `tests/test_documentation.py` để kiểm tra mọi local Markdown link trong
+  source/docs. Hồ sơ lịch sử `docs/project/` được giữ nguyên nội dung cũ.
+- Kiểm chứng: 158 test pass, 1 optional skip; Ruff, compileall và diff-check đạt;
+  không còn tham chiếu hoạt động tới đường dẫn tài liệu cũ.
+
+## TASK-20261015-08 - phân nhóm toàn bộ cấu hình theo chức năng
+
+- Chuyển cấu hình nguồn thành ba miền: `configs/ingestion/`, `configs/rag/` và
+  `configs/training/`; loại bỏ các YAML phẳng trùng vai trò ở gốc repository và
+  gốc `configs/`.
+- Sửa đường dẫn tương đối trong pipeline ingestion và RAG để tiếp tục resolve
+  đúng `Data/` và `outputs/`; giữ nguyên giá trị QLoRA cùng chuỗi `extends`.
+- Cập nhật default/path trong CLI, loader, PowerShell, Python script, notebook,
+  test, README và tài liệu vận hành. Snapshot `config.yaml` trong run lịch sử
+  không bị di chuyển hay sửa đổi.
+- Thêm `configs/README.md` và test khóa cấu trúc/đường dẫn mới; `vigov doctor`
+  cùng `vigov data stats` đã chạy thành công từ ngoài repository.
+- Kiểm chứng: 157 test pass, 1 optional skip; Ruff, compileall và
+  `git diff --check` đạt. Không chạy training, không tải model.
+
 ## TASK-20261015-02 — cập nhật kết quả benchmark test set vào báo cáo QLoRA
 
 - Cập nhật tài liệu `docs/bao-cao-phan-tich-qlora-qwen2-5-7b.md` với toàn bộ kết quả
@@ -721,4 +804,45 @@
   văn bản đề nghị điều chỉnh (Mẫu I.1.8, 1 bản chính), quyết định của nhà đầu tư
   đối với nhà đầu tư là tổ chức (1 bản sao), và giải trình/tài liệu liên quan theo
   khoản 1 Điều 31 nếu có (1 bản sao). Đánh giá câu QLoRA: sai nguồn và thiếu 2/3 mục.
+
+# TASK-20261015-07 - refactor sạch và CLI thống nhất (lát cắt 1)
+
+- Kiểm kê Git/tree/import/entry point/config/script/artifact và ghi baseline trước
+  sửa: 145 test, 143 pass, 1 skip, 1 readiness fail do profile dataset cũ trỏ
+  đến thư mục `fintuning` không có trên checkout hiện tại.
+- Thay module đơn `src/vigovbot/cli.py` bằng package `src/vigovbot/cli/`; thêm
+  Typer console script `vigov` với doctor, data, gpu, train, dashboard, eval và
+  report. `vigovbot` và bốn command cũ vẫn dispatch đến implementation cũ.
+- CLI lazy-import workload; `--config`/`--run-id` explicit; start/resume truyền
+  đúng active interpreter và config xuống worker. Thêm logs gần nhất/follow và
+  cho TensorBoard chọn run/port.
+- Tách cấu hình canonical thành `configs/environments/` và `configs/experiments/`;
+  YAML cũ trở thành alias qua `extends`. Sửa precedence để CLI `--set` thắng biến
+  môi trường. Không thay thuật toán QLoRA hoặc tự đổi hyperparameter.
+- Hợp nhất metadata/dependency group trong `pyproject.toml`; editable install
+  thành công mà không nâng Torch/CUDA. Không xóa file/script cũ và không động đến
+  Data/outputs/checkpoint/adapter.
+- Kiểm chứng cuối lát cắt: full suite 150 pass, 1 optional skip; Ruff, compileall,
+  pip check, diff-check, PowerShell AST và console `vigov --help` đều đạt.
+- Chưa kiểm chứng GPU trong task này. Lifecycle Linux và migration vật lý package
+  `training/` còn lại nên trạng thái task là partial, không tuyên bố refactor xong.
+
+## Lát cắt 2 - package training, lifecycle và run layout
+
+- Di chuyển implementation `training/*.py` vào `src/vigovbot/training/`; package
+  cũ trong checkout và package `src/training` đã cài đều alias cùng module object,
+  nên patch/import cũ không tạo bản logic thứ hai.
+- Thêm lifecycle Python đa nền tảng: worker tách process, PID + create-time +
+  command identity, duplicate prevention, state/stdout/stderr/exit persistence,
+  status classification, logs follow, graceful stop và TensorBoard độc lập.
+- Chuẩn hóa run mới với config/environment/dataset/state ở root và các thư mục
+  logs/checkpoints/best_adapter/metrics/predictions/plots/reports. Reader plot,
+  report, status và GPU acceptance fallback layout phẳng để đọc run lịch sử.
+- Thêm test lifecycle bằng mock cho dry-run, duplicate, identity mismatch, stop
+  safety và dashboard; dry-run CLI thật xác nhận 4 step, RTX 4050/CUDA 13.0 và
+  hash của ba split mà không tạo artifact.
+- Thêm CI Windows/Ubuntu, tài liệu canonical development, GPU setup, training và
+  evaluation. Editable install và compatibility import được kiểm tra từ cwd ngoài repo.
+- Gate cuối: 156 test pass, 1 optional skip; Ruff, compileall, pip check,
+  git diff --check, PowerShell AST và CLI help matrix pass. Không chạy model/GPU training.
 

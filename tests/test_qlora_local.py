@@ -79,7 +79,12 @@ class MaskingTests(unittest.TestCase):
 
 class LogicTests(unittest.TestCase):
     def test_config_and_early_stopping(self):
-        for path in ("configs/base.yaml", "configs/local.yaml", "configs/smoke.yaml", "configs/gpu.yaml"):
+        for path in (
+            "configs/training/base.yaml",
+            "configs/training/environments/local.yaml",
+            "configs/training/experiments/smoke.yaml",
+            "configs/training/environments/gpu.yaml",
+        ):
             config = load_config(path)
             self.assertEqual(config["model"]["name"], "Qwen/Qwen2.5-7B-Instruct")
         state = EarlyStoppingState(2, .01)

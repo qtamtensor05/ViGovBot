@@ -16,6 +16,10 @@ class ArtifactSafetyTests(unittest.TestCase):
             config = {"_project_root": str(root), "data": {"output_dir": "outputs"}}
             first = create_run_dir(config, "fixed")
             self.assertTrue(first.is_dir())
+            self.assertEqual(
+                {"logs", "checkpoints", "best_adapter", "metrics", "predictions", "plots", "reports"},
+                {path.name for path in first.iterdir() if path.is_dir()},
+            )
             with self.assertRaisesRegex(FileExistsError, "Refusing to overwrite"):
                 create_run_dir(config, "fixed")
 
@@ -37,11 +41,12 @@ class ControlCallbackTests(unittest.TestCase):
                     {"loss": 1.5, "eval_loss": 1.7, "learning_rate": 2e-4, "grad_norm": 0.8},
                 )
             live = json.loads((root / "live_status.json").read_text(encoding="utf-8"))
+            self.assertEqual(json.loads((root / "state.json").read_text(encoding="utf-8")), live)
             self.assertEqual(live["global_step"], 7)
             self.assertEqual(live["loss"], 1.5)
             self.assertEqual(live["best_validation_loss"], 1.7)
             self.assertGreater(live["eta_seconds"], 0)
-            event = json.loads((root / "training_events.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+            event = json.loads((root / "logs" / "training_events.jsonl").read_text(encoding="utf-8").splitlines()[-1])
             self.assertEqual(event["global_step"], 7)
             self.assertEqual(event["loss"], 1.5)
             self.assertIn("timestamp_utc", event)

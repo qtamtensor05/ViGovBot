@@ -1,0 +1,4 @@
+interface:
+  display_name: "Minimal Diff Development"
+  short_description: "Keep code changes scoped"
+  default_prompt: "Use $minimal-diff-development to implement this change with a minimal diff."

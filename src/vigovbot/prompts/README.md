@@ -26,4 +26,4 @@ sách. Khi hit tiếp theo không thể thêm, quá trình dừng và không vư
 `num_ctx` phải lớn hơn `num_predict + 256`; `max_chunk_tokens` phải dương. Câu hỏi
 quá dài để chứa trong ngân sách phát sinh lỗi thay vì âm thầm cắt câu hỏi.
 
-[Kiến trúc hệ thống](../../../docs/architecture.md) · [Module RAG](../rag/README.md)
+[Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Module RAG](../rag/README.md)

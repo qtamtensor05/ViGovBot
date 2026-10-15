@@ -1,0 +1,4 @@
+interface:
+  display_name: "RAG Security Review"
+  short_description: "Review RAG security boundaries"
+  default_prompt: "Use $rag-security-review to review RAG security risks."

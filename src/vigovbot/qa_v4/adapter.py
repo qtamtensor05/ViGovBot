@@ -196,8 +196,8 @@ def qlora_adapter(run_dir):
     """Run a trained PEFT adapter with its native plain-answer SFT contract."""
     from pathlib import Path
 
-    from training.config import load_config
-    from training.inference import local_transformers_answer, local_transformers_batch_answer
+    from vigovbot.training.config import load_config
+    from vigovbot.training.inference import local_transformers_answer, local_transformers_batch_answer
     from vigovbot.prompts.prompt_templates import validate_history
 
     root = Path(run_dir).resolve()

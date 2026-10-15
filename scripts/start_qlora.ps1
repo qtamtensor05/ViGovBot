@@ -1,12 +1,15 @@
 param(
     [string]$Resume = "",
+    [string]$Config = "",
+    [string]$PythonPath = "",
+    [string]$RunId = "",
     [switch]$DryRun
 )
 
 $ErrorActionPreference = "Stop"
 $projectRoot = (Split-Path -Parent $PSScriptRoot)
-$python = Join-Path $projectRoot ".venv-qlora\Scripts\python.exe"
-$config = Join-Path $projectRoot "configs\gpu_rtx5060ti_16gb.yaml"
+$python = if ($PythonPath) { [System.IO.Path]::GetFullPath($PythonPath) } else { Join-Path $projectRoot ".venv-qlora\Scripts\python.exe" }
+$config = if ($Config) { [System.IO.Path]::GetFullPath($Config) } else { Join-Path $projectRoot "configs\training\environments\rtx5060ti_16gb.yaml" }
 $worker = Join-Path $projectRoot "scripts\run_qlora_worker.ps1"
 $outputRoot = Join-Path $projectRoot "outputs\qlora"
 $controlRoot = Join-Path $outputRoot "control"
@@ -24,14 +27,14 @@ if (Test-Path -LiteralPath $activePath -PathType Leaf) {
 }
 
 $otherTraining = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-    $_.CommandLine -like "*training.train*" -and $_.CommandLine -like "*ViGovBot*"
+    $_.CommandLine -like "*vigovbot.training.train*" -and $_.CommandLine -like "*ViGovBot*"
 }
 if ($otherTraining) {
     $details = ($otherTraining | ForEach-Object { "PID=$($_.ProcessId)" }) -join ", "
     throw "Another ViGovBot training.train process was found ($details). Refusing a second run."
 }
 
-$validateArgs = @("-m", "training.control_cli", "--config", $config)
+$validateArgs = @("-m", "vigovbot.training.control_cli", "--config", $config)
 if ($Resume) {
     $Resume = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $Resume))
     $validateArgs += @("--resume", $Resume)
@@ -44,10 +47,15 @@ if ($Resume) {
     $runDir = [string]$validation.run_dir
     $runId = Split-Path -Leaf $runDir
 } else {
-    $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $hostName = $env:COMPUTERNAME.ToLowerInvariant()
-    $suffix = [Guid]::NewGuid().ToString("N").Substring(0, 8)
-    $runId = "qlora-full-$stamp-$hostName-$suffix"
+    if ($RunId) {
+        if ($RunId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$') { throw "Invalid run ID: $RunId" }
+        $runId = $RunId
+    } else {
+        $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $hostName = $env:COMPUTERNAME.ToLowerInvariant()
+        $suffix = [Guid]::NewGuid().ToString("N").Substring(0, 8)
+        $runId = "qlora-full-$stamp-$hostName-$suffix"
+    }
     $runDir = Join-Path $outputRoot $runId
     if (Test-Path -LiteralPath $runDir) { throw "Run directory already exists: $runDir" }
 }
@@ -87,7 +95,7 @@ if ($DryRun) {
         dataset_records = $validation.dataset_records
         expected_total_steps = $validation.total_steps
         resume_step = $validation.resume_step
-        command = "$python -u -m training.train --config $config --approve " + $(if ($Resume) { "--resume $Resume" } else { "--run-id $runId" })
+        command = "$python -u -m vigovbot.training.train --config $config --approve " + $(if ($Resume) { "--resume $Resume" } else { "--run-id $runId" })
     } | ConvertTo-Json -Depth 8
     exit 0
 }
@@ -96,7 +104,8 @@ New-Item -ItemType Directory -Path $orchestrationDir -Force | Out-Null
 $state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statePath -Encoding utf8
 $arguments = @(
     "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $worker,
-    "-ProjectRoot", $projectRoot, "-RunId", $runId, "-StatePath", $statePath
+    "-ProjectRoot", $projectRoot, "-RunId", $runId, "-StatePath", $statePath,
+    "-PythonPath", $python, "-Config", $config
 )
 if ($Resume) { $arguments += @("-Resume", $Resume) }
 $process = Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -WorkingDirectory $projectRoot `

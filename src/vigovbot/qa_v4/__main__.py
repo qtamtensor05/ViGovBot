@@ -57,7 +57,7 @@ def main(argv=None):
                         help="Dataset directory or alias: rag_v4_small, rag_tthc_three_1500, rag_tthc_v4_1")
     parser.add_argument("--question")
     connection = parser.add_mutually_exclusive_group()
-    connection.add_argument("--config", default="rag_config.yaml")
+    connection.add_argument("--config", default="configs/rag/inference.yaml")
     connection.add_argument("--endpoint", help="Existing RAG HTTP endpoint")
     connection.add_argument("--qlora-run-dir", type=Path,
                             help="Evaluate best_adapter from a completed QLoRA run without retrieval")

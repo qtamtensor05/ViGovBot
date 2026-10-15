@@ -29,4 +29,4 @@ giản hơn khi chỉ cần danh sách đoạn văn bản.
 - Nội dung rỗng hoặc cấu trúc không thể xử lý phát sinh `TTHCChunkingError`.
 - Module không đọc PDF và không ghi artifact; trách nhiệm đó thuộc pipeline indexing.
 
-[Kiến trúc hệ thống](../../../docs/architecture.md) · [Hướng dẫn vận hành](../../../docs/trien-khai-rag-co-ban.md)
+[Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Hướng dẫn vận hành](../../../docs/guides/trien-khai-rag-co-ban.md)

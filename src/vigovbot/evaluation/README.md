@@ -39,4 +39,4 @@ Resume chỉ hợp lệ khi manifest lượt chạy không thay đổi. ID đã 
 được chạy lại. Ground truth chỉ được gắn vào bản ghi sau khi `answer_fn` trả kết
 quả. Báo cáo yêu cầu ít nhất một prediction hợp lệ và sử dụng khóa khi ghi file.
 
-[Kiến trúc hệ thống](../../../docs/architecture.md) · [Module RAG](../rag/README.md)
+[Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Module RAG](../rag/README.md)

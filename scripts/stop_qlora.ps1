@@ -15,7 +15,7 @@ if (-not $trainingInfo) {
     Write-Host "Training process has already exited. Exit code: $($state.exit_code)"
     exit 0
 }
-if ($trainingInfo.CommandLine -notlike "*training.train*" -or $trainingInfo.CommandLine -notlike "*$($active.run_id)*") {
+if ($trainingInfo.CommandLine -notlike "*vigovbot.training.train*" -or $trainingInfo.CommandLine -notlike "*$($active.run_id)*") {
     if (-not $state.resume_checkpoint -or $trainingInfo.CommandLine -notlike "*$($state.resume_checkpoint)*") {
         throw "PID $($state.training_pid) does not match this QLoRA run; refusing to stop it."
     }
@@ -42,7 +42,7 @@ if ($stillRunning) {
         exit 2
     }
     $verified = Get-CimInstance Win32_Process -Filter "ProcessId = $($state.training_pid)" -ErrorAction SilentlyContinue
-    if (-not $verified -or $verified.CommandLine -notlike "*training.train*") { throw "PID identity changed; refusing force-kill." }
+    if (-not $verified -or $verified.CommandLine -notlike "*vigovbot.training.train*") { throw "PID identity changed; refusing force-kill." }
     Stop-Process -Id $state.training_pid
     Write-Warning "The verified training PID was force-killed; no new checkpoint is claimed."
     exit 3
