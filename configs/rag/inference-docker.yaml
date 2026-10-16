@@ -1,0 +1,37 @@
+data:
+  unified_source: ../../Data/vector/unified
+  cache_dir: ../../outputs/rag_cache
+  allow_legacy_corpus: false
+embedding:
+  model: BAAI/bge-m3
+  revision: null
+  device: cpu
+llm:
+  model: qwen2.5:7b
+  ollama_url: http://ollama:11434
+web:
+  debug_routing: false
+  models:
+    - id: qwen-base
+      label: Qwen 2.5 7B - Base (không RAG)
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: http://ollama:11434
+      mode: base
+    - id: qwen-rag
+      label: Qwen 2.5 7B + RAG
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: http://ollama:11434
+      mode: rag
+    - id: qwen-qlora
+      label: Qwen 2.5 7B + QLoRA
+      provider: local_transformers
+      model: Qwen/Qwen2.5-7B-Instruct
+      base_url: local
+      mode: qlora
+      adapter_path: ../../outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter
+      load_in_4bit: true
+      allow_multiple_models: false
+      cpu_offload: false
+      force_single_gpu: true

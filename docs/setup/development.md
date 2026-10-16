@@ -1,5 +1,9 @@
 # Phát triển ViGovBot
 
+> Đây là môi trường tùy chọn dành cho sửa code và chạy test, không phải runtime
+> web hiện hành. Dùng [Docker Compose](docker.md) cho web, Base/RAG/QLoRA và
+> Ollama; chỉ tạo lại `.venv` khi cần phát triển hoặc chạy test trên host.
+
 ## Thiết lập
 
 ```powershell

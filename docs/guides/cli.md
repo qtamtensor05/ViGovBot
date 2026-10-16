@@ -1,68 +1,60 @@
 # Tham chiếu CLI `vigov`
 
-Cài editable một lần bằng `python -m pip install -e .`, sau đó có thể gọi
-`vigov` từ bất kỳ thư mục làm việc nào. Dùng `vigov <nhóm> --help` để xem option.
+## Runtime Docker hiện hành
 
-## Web và hỏi đáp
-
-```powershell
-vigov web
-vigov web --host 127.0.0.1 --port 8000
-vigov ask "Hồ sơ gồm những gì?"
-vigov ask "Còn lệ phí?" --history history.json
-```
-
-## Dữ liệu và corpus
+Web, Base/RAG/QLoRA và Ollama chạy bằng Docker Compose. Không cần cài package
+Python, tạo virtual environment hoặc cài Ollama trên Windows. Khởi động stack:
 
 ```powershell
-vigov data ingest
-vigov data ingest one.pdf --workers 1
-vigov data embed
-vigov data embed outputs/metadata --output-dir Data/vector/unified-new
-vigov data check
-vigov data stats
+docker compose up -d
+docker compose ps
 ```
 
-`data embed` mặc định đọc `outputs/metadata` và ghi `Data/vector/unified`. Lệnh
-từ chối ghi đè corpus hiện có theo logic embedding hiện hành.
+Lần đầu hoặc sau khi đổi dependency/source dùng `docker compose up --build -d`.
+Container `web` đã chạy web server ở <http://localhost:8000>; không gọi thêm
+`vigov web` trong container.
 
-## RAG
+## Kiểm tra và hỏi đáp
 
 ```powershell
-vigov rag prepare
-vigov rag smoke
-vigov rag evaluate
-vigov rag report
-vigov rag run
+docker compose exec -T web vigov doctor
+docker compose exec -T web vigov --help
+docker compose exec -T ollama ollama list
+docker compose exec -T web vigov ask "Hồ sơ gồm những gì?" --config configs/rag/inference-docker.yaml
+docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker.yaml
 ```
 
-`prepare` dùng cấu hình inference; bốn lệnh đánh giá dùng
-`configs/rag/evaluation.yaml` mặc định. Truyền `--config` để chọn profile khác.
+Cấu hình Docker phải là `configs/rag/inference-docker.yaml`; file này gọi Ollama
+qua `http://ollama:11434`. Không dùng cấu hình local trỏ tới `localhost:11434`
+từ container.
 
-## GPU và QLoRA
+## Quản lý stack
 
 ```powershell
-vigov gpu check
-vigov train smoke --approve
-vigov train start --config configs/training/environments/rtx5060ti_16gb.yaml --dry-run
-vigov train status
-vigov train logs --lines 100
-vigov train logs --follow
-vigov train stop
-vigov train resume <checkpoint> --config <same-config>
-vigov dashboard --run-id <run-id>
+docker compose logs --tail 100 web ollama ollama-model-init
+docker compose restart web ollama
+docker compose down
 ```
 
-`--dry-run` không tạo training process. GPU smoke chỉ chạy thật khi có
-`--approve`.
+`docker compose down` giữ các named volume. `docker compose down --volumes` xóa
+model Ollama và các cache Docker, vì vậy chỉ dùng khi thực sự muốn tải/tạo lại.
 
-## Đánh giá và báo cáo QLoRA
+## Các nhóm lệnh chưa thuộc runtime Compose
 
-```powershell
-vigov eval test --run-id <run-id>
-vigov report plots --run-id <run-id>
-vigov report build --run-id <run-id>
-```
+Compose hiện tại được đóng gói cho inference và web, không phải môi trường đầy
+đủ để ingest PDF, tạo corpus mới, training hoặc evaluation. Các nhóm sau cần
+môi trường chuyên biệt, dependency tương ứng và bind mount input/output rõ ràng:
 
-Các entry point `python -m vigovbot ingest|embed|rag|qa-v4` vẫn tồn tại để chạy
-script cũ, nhưng luồng vận hành thông thường nên dùng `vigov`.
+- `vigov data ingest|embed|check|stats`
+- `vigov rag smoke|evaluate|report|run`
+- `vigov gpu`, `vigov train`, `vigov dashboard`
+- `vigov eval`, `vigov report`
+
+Không chạy các lệnh này bằng `docker compose exec web` với Compose hiện tại vì
+artifact ghi trong filesystem container có thể mất và nhiều dataset/output chưa
+được mount. Khi cần phát triển hoặc chạy pipeline, tạo lại môi trường theo
+[Thiết lập phát triển](../setup/development.md), [Môi trường và tái lập](../setup/environments.md),
+[Huấn luyện](training.md) hoặc [Đánh giá](evaluation.md).
+
+Các entry point `python -m vigovbot ingest|embed|rag|qa-v4` chỉ được giữ để
+tương thích script lịch sử, không phải lệnh runtime Docker thường ngày.

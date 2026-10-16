@@ -1,5 +1,9 @@
 # Môi trường thực thi và khả năng tái lập
 
+> Tài liệu này dành cho môi trường phát triển/training/evaluation chuyên biệt.
+> Runtime web và hỏi đáp thông thường dùng [Docker Compose](docker.md), không
+> yêu cầu virtual environment hay Ollama trên Windows.
+
 Tài liệu quy định các nhóm dependency, nền tảng hỗ trợ, lock file và quy trình
 kiểm chứng môi trường.
 

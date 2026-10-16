@@ -746,3 +746,45 @@
 - Trạng thái: completed; migration và kiểm thử trong phạm vi môi trường hiện tại
   đã hoàn tất. Phiên mới/benchmark thật được ghi NOT VERIFIED/NOT RUN thay vì
   suy diễn compatibility hoặc savings.
+
+## TASK-20261016-01
+
+- Ngày: 2026-10-16 (Asia/Saigon).
+- Yêu cầu: chuyển web ViGovBot và Ollama sang Docker Compose để không cần
+  cài/chạy Ollama Desktop trên Windows.
+- Phạm vi: thêm `Dockerfile`, `compose.yaml`, volume model Ollama và RAG cache,
+  GPU reservation, healthcheck, bước tải `qwen2.5:7b`, cấu hình RAG riêng cho
+  Docker dùng `http://ollama:11434` và hướng dẫn vận hành.
+- Tiêu chí hoàn thành: Compose validate; image web build được; Ollama healthy,
+  model có trong volume; web sẵn sàng tại cổng 8000 và gọi Ollama bằng tên
+  service. Không thay checkpoint, dataset hay cấu hình Windows hiện hành.
+- Giả định an toàn: dùng Docker Desktop WSL2 đã xác minh GPU; chỉ một
+  workload model 7B dùng GPU tại một thời điểm trên RTX 4050 6 GB.
+- Trạng thái: completed; Compose đã build/chạy thật, Ollama và web healthy,
+  model `qwen2.5:7b` có trong volume, HTTP web 200 và request Base qua Ollama
+  container trả lời thành công. QLoRA container và browser visual QA chưa chạy.
+
+## TASK-20261016-03
+
+- Ngày: 2026-10-16 (Asia/Saigon).
+- Yêu cầu: cập nhật hướng dẫn chạy và câu lệnh sau khi đã gỡ runtime Python và
+  Ollama khỏi Windows; Docker Compose là runtime bắt buộc cho web, CLI hỏi đáp
+  và Ollama.
+- Phạm vi: README, hướng dẫn Docker, tham chiếu CLI, hướng dẫn vận hành RAG và
+  ghi chú phân biệt runtime Docker với môi trường phát triển/training chuyên biệt.
+- Tiêu chí hoàn thành: quick start không còn yêu cầu `pip install`, `vigov web`
+  hoặc `ollama serve` trên host; các lệnh runtime dùng `docker compose`.
+- Trạng thái: completed; tài liệu runtime đã chuyển sang Docker-first, lệnh
+  Compose được kiểm chứng và các workflow ngoài phạm vi Compose đã được ghi rõ.
+
+## TASK-20261016-02
+
+- Ngày: 2026-10-16 (Asia/Saigon).
+- Yêu cầu: dọn mức an toàn sau khi chuyển web/Ollama sang Docker.
+- Phạm vi: gỡ Ollama Desktop Windows; xóa kho model local
+  `C:\Users\quangTam\.ollama`, `env` và `outputs/rag_cache` local. Không xóa
+  `Data/vector/unified`, adapter QLoRA, cache Hugging Face dùng chung hay Docker volume.
+- Tiêu chí hoàn thành: các target local không còn; Docker web/Ollama vẫn
+  healthy, HTTP web 200, model Ollama trong volume vẫn tồn tại.
+- Trạng thái: completed; Ollama Desktop đã gỡ, ba thư mục local đã
+  xóa; Docker web/Ollama vẫn healthy, HTTP 200, model và CLI container còn hoạt động.

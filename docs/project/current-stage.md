@@ -791,3 +791,51 @@
   “Hồ sơ liên quan đến nội dung đề nghị điều chỉnh” (1 bản chính), không khớp
   corpus. Nguồn thật có ba mục; kết luận factuality FAIL và completeness FAIL.
 
+# TASK-20261016-01 - completed
+
+- Giai đoạn: Docker Compose cho web ViGovBot và Ollama đã hoàn tất và
+  đang chạy trên Docker Desktop WSL2.
+- Đã xác minh Docker Desktop WSL2 nhận RTX 4050 qua container CUDA; repository
+  chưa có Dockerfile/Compose và cấu hình local vẫn trỏ `localhost:11434`.
+- Đã thêm `Dockerfile`, `.dockerignore`, `compose.yaml`, cấu hình
+  `configs/rag/inference-docker.yaml`, ba named volume và hướng dẫn Docker.
+- Runtime PASS: `ollama` và `web` healthy; `ollama-model-init` exit 0;
+  `qwen2.5:7b` 4,7 GB tồn tại trong volume; web HTTP 200; cả hai container
+  nhận RTX 4050; web gọi `http://ollama:11434` HTTP 200.
+- E2E Base PASS: POST `/api/chat` qua cổng 8000 trả "2 cộng 2 bằng 4",
+  latency 77,93 giây trong lần nạp model đầu.
+- Seed RAG cache hoàn chỉnh từ artifact local cùng corpus vào named volume;
+  healthcheck cho phép 10 phút warm-up lần đầu. Không xóa cache local.
+- Kiểm chứng source: 11 test documentation/config/server PASS; Ruff,
+  compileall, `docker compose config --quiet` và `git diff --check` PASS.
+- Chưa kiểm chứng: inference QLoRA thật trong web container và browser visual QA.
+- Lệnh dài bắt đầu 2026-10-16 (Asia/Saigon): `docker compose up --build -d`;
+  artifact là image `vigovbot-web`, volume `ollama-models`, `rag-cache`,
+  `huggingface-cache` và các service Compose.
+
+# TASK-20261016-03 - completed
+
+- Giai đoạn: đã chuẩn hóa tài liệu theo runtime Docker bắt buộc sau khi gỡ môi
+  trường Python và Ollama local.
+- README, hướng dẫn Docker, CLI và vận hành RAG dùng lệnh `docker compose` cho
+  web, hỏi đáp, kiểm tra Ollama và chuẩn bị cache.
+- Tài liệu phát triển/môi trường ghi rõ chỉ tạo lại `.venv` cho workflow chuyên
+  biệt. Ingestion, training và evaluation không được tuyên bố chạy được trong
+  Compose inference hiện tại.
+- Kiểm chứng PASS: Compose config, service web/Ollama healthy, `vigov doctor`,
+  `vigov rag prepare`, test documentation và `git diff --check`.
+
+# TASK-20261016-02 - completed
+
+- Giai đoạn: dọn runtime local đã được Docker thay thế.
+- Target được phép: Ollama Desktop Windows, `.ollama`, `env` và
+  `outputs/rag_cache` local; dự kiến giải phóng khoảng 9,1 GiB.
+- Giữ nguyên corpus, adapter QLoRA, cache Hugging Face và tất cả Docker volume.
+- Đã gỡ Ollama Desktop 0.34.4 và xóa trực tiếp `.ollama` 4,36 GiB,
+  `env` 3,97 GiB, `outputs/rag_cache` 0,77 GiB; tổng ước tính 9,1 GiB.
+- Hậu kiểm PASS: ba path không còn; corpus, adapter và cache Hugging Face
+  còn nguyên; Ollama/web Docker healthy; model `qwen2.5:7b` 4,7 GB còn trong
+  volume; `vigov --help` trong web container chạy được; HTTP web 200.
+- Nội dung xóa không nằm trong Recycle Bin; muốn chạy native Windows trở lại
+  phải cài/tạo/tải lại. Không xóa bất kỳ Docker volume nào.
+

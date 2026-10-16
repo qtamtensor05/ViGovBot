@@ -866,3 +866,49 @@
 - Gate cuối: 156 test pass, 1 optional skip; Ruff, compileall, pip check,
   git diff --check, PowerShell AST và CLI help matrix pass. Không chạy model/GPU training.
 
+# TASK-20261016-01 - Docker web và Ollama
+
+- Thêm image Python 3.12 cho web, cài nhóm `rag,gpu` để giữ lựa chọn
+  QLoRA, bind cổng 8000 và healthcheck HTTP có warm-up 10 phút.
+- Thêm Compose ba service: Ollama GPU, job idempotent tải `qwen2.5:7b`, web
+  GPU phụ thuộc health/model-init. Dùng volume riêng cho Ollama, RAG cache và
+  Hugging Face; corpus/adapter được bind mount, không sao chép vào image.
+- Giữ cấu hình Windows cũ; Docker dùng file riêng với endpoint service
+  `http://ollama:11434`. Ollama giới hạn một model và parallel 1 cho GPU 6 GB.
+- Build và runtime thật PASS: model-init exit 0, Ollama/web healthy, HTTP 200,
+  CUDA nhận RTX 4050 trong web, web gọi Ollama nội bộ và request Base E2E
+  trả lời đúng sau 77,93 giây warm-up.
+- Lần tạo RAG cache trống vượt ba phút; seed cache hoàn chỉnh cùng
+  corpus từ host vào named volume, không xóa artifact local. Ghi lỗi và
+  nâng `start_period` lên 10 phút.
+- Kiểm chứng: 11 test documentation/config/server, Ruff, compileall, Compose
+  config và diff-check PASS. Chưa chạy QLoRA thật trong container hay browser QA.
+
+# TASK-20261016-02 - dọn runtime local sau Docker hóa
+
+- Preflight xác nhận ba target là thư mục thật với path tuyệt đối,
+  không phải symlink; Docker web/Ollama healthy và ba volume tồn tại.
+- Gỡ Ollama Desktop Windows 0.34.4 bằng winget. Xóa `.ollama`, `env` và
+  `outputs/rag_cache` local, giải phóng ước tính 9,1 GiB. Thao tác xóa
+  trực tiếp, không thể khôi phục qua Recycle Bin.
+- Giữ nguyên `Data/vector/unified`, adapter QLoRA, cache Hugging Face dùng
+  chung, image/container/network và toàn bộ Docker volume.
+- Hậu kiểm: winget không còn package Ollama; ba path đã xóa không
+  còn; Docker web/Ollama healthy, HTTP 200, model Ollama còn, CLI `vigov --help`
+  trong container PASS. Test Python local không chạy lại vì `env` là target đã xóa.
+
+# TASK-20261016-03 - chuẩn hóa hướng dẫn runtime Docker
+
+- Chuyển quick start ở README từ cài package/chạy `vigov` local sang
+  `docker compose up --build -d` và kiểm tra trạng thái service.
+- Bổ sung hướng dẫn khởi động lần đầu, chạy hằng ngày, doctor, Ollama list,
+  hỏi đáp, chuẩn bị RAG cache, log, restart, dừng stack và bảo toàn volume.
+- Viết lại tham chiếu CLI theo container và chuyển hướng dẫn vận hành RAG sang
+  `configs/rag/inference-docker.yaml` với endpoint nội bộ Ollama.
+- Ghi rõ corpus/adapter vẫn cần trên host; `env`, `.ollama` và cache RAG local
+  không cần. Ingestion, training và evaluation là workflow chuyên biệt, chưa
+  thuộc Compose inference hiện tại.
+- Kiểm chứng thực tế: `docker compose config --quiet`, web/Ollama healthy,
+  `vigov doctor`, `vigov rag prepare` với 117871 vector, test documentation và
+  `git diff --check` đều PASS.
+

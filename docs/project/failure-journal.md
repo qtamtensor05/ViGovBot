@@ -794,3 +794,39 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Tránh lặp: trên Windows bật UTF-8 mode khi chạy validator upstream chưa ghim
   encoding.
 
+# ERR-20261016-01
+
+- Task: `TASK-20261016-01`.
+- Triệu chứng: container `web` chuyển sang `unhealthy` sau ba phút; HTTP cổng
+  8000 chưa bind, trong khi process Python vẫn chạy và dùng CPU/I/O.
+- Bối cảnh: lần khởi động Docker đầu tiên với volume `rag-cache` trống.
+- Nguyên nhân xác nhận: `prepare_corpus()` đang sao chép index và xây metadata
+  cache; volume đã có 688 MB và file `metadata_*.partial`. `start_period=180s`
+  ngắn hơn thời gian khởi tạo thực tế, không có exception ứng dụng.
+- Xử lý: tăng healthcheck `start_period` lên 10 phút; giữ nguyên process
+  hiện tại để hoàn tất cache, không xóa volume hay khởi động job trùng.
+- Phòng tránh: phân biệt thời gian warm-up volume trống với readiness của
+  các lần chạy sau; chỉ đọc log/artifact sau khi mốc health bị vượt.
+
+# ERR-20261016-02
+
+- Task: `TASK-20261016-01`.
+- Triệu chứng: lệnh unittest targeted báo `ModuleNotFoundError` cho
+  `tests.test_rag_config`; bảy test còn lại PASS.
+- Nguyên nhân: gọi nhầm tên module; file thực tế là
+  `tests/test_rag_config_cli.py`.
+- Xử lý: chạy lại với `tests.test_rag_config_cli` và giữ kết quả lần
+  sai là FAIL công cụ, không ghi thành lỗi sản phẩm.
+- Phòng tránh: liệt kê `rg --files tests` và dùng đúng basename trước
+  khi ghép lệnh unittest targeted.
+
+# ERR-20261016-03
+
+- Task: `TASK-20261016-02`.
+- Triệu chứng: công cụ chặn lệnh PowerShell gộp uninstall Ollama và xóa ba
+  thư mục trước khi process được tạo.
+- Nguyên nhân: một lệnh gộp nhiều thao tác destructive và biến target bị
+  policy an toàn từ chối dù các path đã được preflight.
+- Xử lý: chưa có thay đổi; tách uninstall và từng lệnh xóa với path
+  tuyệt đối đã xác minh.
+- Phòng tránh: không gộp uninstall với recursive delete trong cùng process.

@@ -14,14 +14,19 @@ cục bộ, xử lý tài liệu, huấn luyện nền, đánh giá và báo cá
 
 ## Bắt đầu nhanh
 
+Runtime web, RAG và Ollama hiện chạy bằng Docker Desktop; không cần cài Python,
+virtual environment hoặc Ollama trên Windows.
+
 ```powershell
-python -m pip install -e .
-vigov doctor
-vigov web
+docker compose up --build -d
+docker compose ps
 ```
 
-Xem toàn bộ lệnh tại [tham chiếu CLI](docs/guides/cli.md). Thiết lập môi trường,
-GPU và dependency nằm trong [tài liệu setup](docs/README.md#bắt-đầu-và-môi-trường).
+Khi service `web` báo `healthy`, mở <http://localhost:8000>. Xem
+[hướng dẫn Docker](docs/setup/docker.md) để vận hành và
+[tham chiếu CLI](docs/guides/cli.md) để chạy lệnh bên trong container. Các môi
+trường phát triển, training và evaluation chuyên biệt nằm trong
+[tài liệu setup](docs/README.md#bắt-đầu-và-môi-trường).
 
 ## Cấu trúc chính
 

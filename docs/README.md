@@ -10,6 +10,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [Thiết lập và gate phát triển](setup/development.md)
 - [Môi trường thực thi và khả năng tái lập](setup/environments.md)
 - [Thiết lập GPU cho QLoRA](setup/gpu-setup.md)
+- [Chạy ViGovBot bằng Docker Desktop](setup/docker.md)
 - [Quy trình đóng góp](../CONTRIBUTING.md)
 
 ## Kiến trúc và migration

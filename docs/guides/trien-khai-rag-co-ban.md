@@ -154,30 +154,29 @@ thay vì bị cắt âm thầm. Chunk có thể bị cắt ngắn hoặc không 
 chỗ. `max_chunk_tokens` tính bằng **token**, khác với tham số chunking tính bằng
 **ký tự**.
 
-## 4. Triển khai trên máy cục bộ
+## 4. Triển khai runtime bằng Docker
 
-### 4.1. Chuẩn bị môi trường
+### 4.1. Chuẩn bị và khởi động
 
-Repository khai báo Python 3.10–3.14. Ví dụ sau dùng PowerShell và gọi trực tiếp Python trong venv, không cần kích hoạt môi trường:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\python -m pip install -e ".[pdf,embedding,vector,rag,evaluation]"
-.venv\Scripts\python -m vigovbot --help
-```
-
-Linux/macOS thay `.venv\Scripts\python` bằng `.venv/bin/python`. Cách dùng dependency lock theo nền tảng được mô tả trong [Môi trường và tái lập](../setup/environments.md).
-
-Cài Ollama và tải model bằng lệnh:
+Runtime hiện hành không cần Python, virtual environment hoặc Ollama trên
+Windows. Cần Docker Desktop dùng WSL2 backend, NVIDIA GPU hoạt động trong
+container và corpus `Data/vector/unified`. Từ PowerShell tại gốc repository:
 
 ```powershell
-ollama pull qwen2.5:7b
-ollama list
+docker compose up --build -d
+docker compose ps
+docker compose exec -T ollama ollama list
 ```
 
-Ollama cần phục vụ tại địa chỉ cấu hình. Nếu dịch vụ chưa chạy, mở terminal riêng và chạy `ollama serve`. Lần đầu chạy pipeline cần mạng để tải BGE-M3, tokenizer Qwen và, nếu tạo báo cáo đánh giá, model BERTScore. OCR cần cài riêng Tesseract cùng dữ liệu ngôn ngữ Việt/Anh.
+Service `ollama-model-init` tự tải `qwen2.5:7b` vào Docker volume. Không chạy
+`ollama serve` trên host. Lần sau chỉ cần `docker compose up -d`. Xem đầy đủ tại
+[Chạy ViGovBot bằng Docker Desktop](../setup/docker.md).
 
 ### 4.2. Tạo corpus từ PDF
+
+> Workflow này chưa được đóng gói trong Compose inference hiện tại. Chỉ thực
+> hiện sau khi tạo môi trường ingestion chuyên biệt và cấu hình bind mount
+> input/output; không chạy các lệnh dưới đây bằng container `web` hiện tại.
 
 Đặt PDF vào `Data/pdf`, rồi chạy:
 
@@ -234,22 +233,25 @@ llm:
 
 Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không xác minh được model/revision đã tạo vector tài liệu. Khi thiếu manifest, `revision: null` không thể tự khôi phục revision gốc. Chi tiết tại [Migration dữ liệu cũ](../architecture/migration.md).
 
-### 4.4. Chuẩn bị và hỏi đáp
+### 4.4. Chuẩn bị và hỏi đáp trong container
 
-Với corpus mới đã cập nhật trong `configs/rag/inference.yaml`:
+Với corpus đã có trên host và được mount vào container:
 
 ```powershell
-vigov rag prepare
-vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?"
+docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker.yaml
+docker compose exec -T web vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?" --config configs/rag/inference-docker.yaml
 ```
 
-Nếu dùng corpus cũ theo bước 4.3, thay đường dẫn cấu hình trong cả hai lệnh bằng `configs/rag/inference-local.yaml`. `prepare` chỉ chuẩn bị corpus/cache, chưa tải encoder hoặc gọi LLM; `ask` cũng tự chuẩn bị/kiểm tra cache trước khi truy vấn. Hỏi đáp không cần bộ câu hỏi đánh giá.
+`prepare` chỉ chuẩn bị corpus/cache, chưa gọi LLM; `ask` cũng tự kiểm tra cache
+trước khi truy vấn. Cấu hình Docker gọi Ollama bằng tên service
+`http://ollama:11434`, không dùng cấu hình local trỏ tới `localhost`.
 
 Để hỏi nối tiếp, lưu các lượt trước vào một mảng JSON gồm message `user` và
 `assistant`, rồi truyền file bằng `--history`:
 
 ```powershell
-vigov ask "Còn lệ phí thì sao?" --history history.json
+docker compose cp history.json web:/tmp/history.json
+docker compose exec -T web vigov ask "Còn lệ phí thì sao?" --history /tmp/history.json --config configs/rag/inference-docker.yaml
 ```
 
 CLI không tự lưu lịch sử giữa hai lần chạy; ứng dụng gọi phải giữ và gửi lại đúng
@@ -275,13 +277,14 @@ Kết quả `ask` được in dưới dạng JSON:
 
 ### 4.5. Chạy giao diện web
 
-Sau khi corpus đã sẵn sàng, khởi động server HTTP cục bộ:
+Container `web` đã khởi động server HTTP cùng stack. Không chạy thêm `vigov web`:
 
 ```powershell
-vigov web --host 127.0.0.1 --port 8000
+docker compose up -d
+docker compose ps
 ```
 
-Mở `http://127.0.0.1:8000`. Server nạp encoder, tokenizer, FAISS và SQLite một
+Mở `http://localhost:8000`. Server nạp encoder, tokenizer, FAISS và SQLite một
 lần, cung cấp `GET /api/health`, `GET /api/models` và `POST /api/chat`. UI giữ
 lịch sử riêng cho từng model trong trình duyệt và gửi lại qua mỗi request; server
 không lưu phiên hội thoại. Các request chat được khóa và xử lý model đã chọn theo
@@ -316,6 +319,11 @@ không âm thầm bỏ schema. Ollama cục bộ đã được kiểm chứng v�
 giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
 
 ## 5. Chạy đánh giá
+
+> Evaluation đầy đủ không thuộc Compose inference hiện tại vì dataset, output
+> và dependency đánh giá chưa được mount/đóng gói đầy đủ. Tạo môi trường chuyên
+> biệt theo [Môi trường và tái lập](../setup/environments.md) trước khi chạy các
+> lệnh trong phần này; không chạy chúng bằng container `web` hiện tại.
 
 Chuẩn bị `Data/qa_test/dataset.jsonl` hoặc cấu hình `dataset_zip`. Kiểm tra `unified_source`, chế độ legacy nếu cần và chọn `output_dir` phù hợp trong `configs/rag/evaluation.yaml`.
 
