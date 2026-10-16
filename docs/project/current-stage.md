@@ -1,3 +1,20 @@
+# TASK-20261016-05 - completed
+
+- Giai đoạn: hoàn tất hợp nhất package và verification ngày 2026-10-17.
+- Source đích duy nhất: `src/vigovbot/training`.
+- Đã xác nhận: `training/` và `src/training/` mỗi cây có 22 wrapper; source
+  canonical có 24 module. Test và tài liệu training vẫn còn dùng namespace cũ.
+- Đã xong: caller dùng `vigovbot.training`, package discovery chỉ nhận `vigovbot*`,
+  hai cây wrapper và cache cục bộ đã xóa; tài liệu/skill cấu trúc đã cập nhật.
+- Verification: full suite 166 pass, 3 optional skip; Ruff, compileall, pip check,
+  documentation link test và diff-check đạt. Wheel có 24 file canonical, 0 file
+  namespace cũ. Image web build lại, runtime không resolve được `training` và
+  service web/Ollama healthy.
+- Hai lỗi môi trường/công cụ đã được ghi ở ERR-20261016-04..06; targeted lần đầu
+  thiếu `rouge-score`, sau khi cài extra test thì full suite đạt.
+- Không chạy training, model generation, benchmark hoặc thay đổi artifact.
+- Ranh giới: không thay đổi thuật toán training, config, dataset hoặc artifact.
+
 # TASK-20261016-04 - completed
 
 - Giai đoạn: đã gỡ CI và hoàn tất hậu kiểm Docker sau `docker builder prune -a`.

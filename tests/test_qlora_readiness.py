@@ -13,7 +13,7 @@ class ReadinessTests(unittest.TestCase):
             import pandas  # noqa: F401
         except ImportError:
             self.skipTest("Optional plotting dependencies unavailable")
-        from training.readiness import check_readiness
+        from vigovbot.training.readiness import check_readiness
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             paths = {name: root / f"{name}.jsonl" for name in ("train", "validation", "test")}

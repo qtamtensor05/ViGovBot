@@ -4,13 +4,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from training.checkpoints import checkpoint_run_dir, validate_resume_checkpoint
-from training.config import load_config
-from training.data import analyze_splits, read_jsonl, validate_conversation
-from training.early_stopping import EarlyStoppingState, select_best_checkpoint
-from training.masking import IGNORE_INDEX, encode_assistant_only
-from training.metrics import generation_metrics, normalize_vietnamese, perplexity
-from training.parameters import count_parameters
+from vigovbot.training.checkpoints import checkpoint_run_dir, validate_resume_checkpoint
+from vigovbot.training.config import load_config
+from vigovbot.training.data import analyze_splits, read_jsonl, validate_conversation
+from vigovbot.training.early_stopping import EarlyStoppingState, select_best_checkpoint
+from vigovbot.training.masking import IGNORE_INDEX, encode_assistant_only
+from vigovbot.training.metrics import generation_metrics, normalize_vietnamese, perplexity
+from vigovbot.training.parameters import count_parameters
 
 
 class FakeTokenizer:
@@ -130,7 +130,7 @@ class LogicTests(unittest.TestCase):
                 validate_resume_checkpoint(checkpoint)
 
     def test_inference_adapter_loading_interface(self):
-        from training.inference import load_model
+        from vigovbot.training.inference import load_model
         base = MagicMock()
         tokenizer = MagicMock()
         modules = {

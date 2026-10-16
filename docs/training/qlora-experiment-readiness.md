@@ -28,16 +28,16 @@ hiện sau training/evaluation và tuyệt đối không được suy diễn t�
 
 Training chỉ tính validation teacher-forced theo cadence cấu hình. Baseline-versus-
 fine-tuned generation không nằm trong callback validation và chỉ chạy khi người dùng
-gọi `training.evaluate` sau training. Mỗi split có tên artifact riêng, tránh validation
+gọi `vigovbot.training.evaluate` sau training. Mỗi split có tên artifact riêng, tránh validation
 ghi đè kết quả test.
 
 ## Lệnh
 
 ```powershell
-.\.venv-qlora\Scripts\python.exe -m training.readiness --config configs/training/environments/rtx5060ti_16gb.yaml
-.\.venv-qlora\Scripts\python.exe -m training.evaluate --run_dir <RUN_DIR> --split test
-.\.venv-qlora\Scripts\python.exe -m training.plot --run_dir <RUN_DIR>
-.\.venv-qlora\Scripts\python.exe -m training.report --run_dir <RUN_DIR>
+.\.venv-qlora\Scripts\python.exe -m vigovbot.training.readiness --config configs/training/environments/rtx5060ti_16gb.yaml
+.\.venv-qlora\Scripts\python.exe -m vigovbot.training.evaluate --run_dir <RUN_DIR> --split test
+.\.venv-qlora\Scripts\python.exe -m vigovbot.training.plot --run_dir <RUN_DIR>
+.\.venv-qlora\Scripts\python.exe -m vigovbot.training.report --run_dir <RUN_DIR>
 ```
 
 Thứ tự hậu kỳ khuyến nghị là evaluate → plot → report. Nếu evaluation chưa chạy,

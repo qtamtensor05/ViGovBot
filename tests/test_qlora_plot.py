@@ -10,7 +10,7 @@ class PlotTests(unittest.TestCase):
             import pandas  # noqa: F401
         except ImportError:
             self.skipTest("Optional local plotting dependencies are unavailable")
-        from training.plot import generate_plots
+        from vigovbot.training.plot import generate_plots
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             # Synthetic test data only; it is never written to an experiment output directory.
@@ -24,7 +24,7 @@ class PlotTests(unittest.TestCase):
             self.assertTrue((root / "plots" / "plot_manifest.json").is_file())
 
     def test_report_reads_canonical_layout_and_writes_reports_section(self):
-        from training.report import build_report
+        from vigovbot.training.report import build_report
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

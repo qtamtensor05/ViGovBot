@@ -35,7 +35,7 @@ vigovbot = "vigovbot.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["vigovbot*", "training*"]
+include = ["vigovbot*"]
 
 [tool.setuptools.package-data]
 vigovbot = ["defaults/*.yaml", "server/static/*.html"]

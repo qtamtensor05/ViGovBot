@@ -830,3 +830,42 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: chưa có thay đổi; tách uninstall và từng lệnh xóa với path
   tuyệt đối đã xác minh.
 - Phòng tránh: không gộp uninstall với recursive delete trong cùng process.
+
+# ERR-20261016-04
+
+- Task: `TASK-20261016-05`.
+- Triệu chứng: hai lệnh PowerShell `Remove-Item -Recurse` để dọn `__pycache__`
+  dưới hai cây shim bị policy công cụ từ chối trước khi tạo process.
+- Nguyên nhân: thao tác recursive delete bị chặn dù target đã được giới hạn trong
+  workspace; source được track trước đó đã xóa thành công bằng patch.
+- Xử lý: dùng `git clean -ndX -- training src/training` để xem trước đúng hai cache,
+  sau đó `git clean -fdX` cho đúng hai path và xóa hai thư mục rỗng không recursive.
+- Kết quả: `training/` và `src/training/` không còn trên filesystem; không có
+  file ngoài hai cache ignored bị xóa.
+
+# ERR-20261016-05
+
+- Task: `TASK-20261016-05`.
+- Triệu chứng: targeted test trong image inference chạy 59 ca với 1 fail tại
+  assertion ROUGE-L, 55 pass và 3 optional skip.
+- Lệnh: `docker run --rm --gpus all -v "${PWD}:/workspace" ... vigovbot-web
+  python -m unittest ...`.
+- Nguyên nhân xác nhận: image `vigovbot-web` cài extra `rag,gpu`, không cài
+  `rouge-score`; `generation_metrics()` trả `rouge_l=None`. Không phải lỗi import
+  sau migration namespace.
+- Xử lý: giữ nguyên metric contract và image inference; chạy verification migration
+  không phụ thuộc dependency tùy chọn, đồng thời ghi full suite là chưa đạt trong
+  môi trường image inference hiện tại.
+- Phòng tránh: không dùng image inference để tuyên bố full test PASS khi chưa cài
+  extra `test`/`evaluation`; phân biệt dependency thiếu với regression source.
+
+# ERR-20261016-06
+
+- Task: `TASK-20261016-05`.
+- Triệu chứng: lệnh `docker run ... /bin/sh -lc` gộp install, test và wheel kết
+  thúc ngay với `Syntax error: Unterminated quoted string`.
+- Nguyên nhân: chuỗi PowerShell, shell Linux và Python `-c` lồng ba tầng quote.
+  Container kiểm thử chưa chạy và source không bị thay đổi.
+- Xử lý: tách thành container tạm chạy nền và từng lệnh `docker exec` độc lập để
+  giữ quoting/exit code rõ ràng; xóa container sau kiểm chứng.
+- Phòng tránh: không gộp Python inline có quote phức tạp vào `sh -lc` qua PowerShell.

@@ -188,20 +188,20 @@ thuộc pipeline QLoRA SFT hiện tại.
 
    ```bash
    sha256sum Data/tthc_test_case_v1/data/*_sft.jsonl
-   python -m training.validate_data --config configs/training/environments/gpu.yaml --with-tokenizer
+   python -m vigovbot.training.validate_data --config configs/training/environments/gpu.yaml --with-tokenizer
    ```
 
 3. Chạy preflight; xem gợi ý nhưng không tự áp dụng:
 
    ```bash
-   python -m training.preflight --config configs/training/environments/gpu.yaml
+   python -m vigovbot.training.preflight --config configs/training/environments/gpu.yaml
    ```
 
 4. Chạy smoke 4 step vào run ID ghi rõ `smoke`; lần này mới tải/nạp
    model weights sau khi người dùng duyệt:
 
    ```bash
-   python -m training.train --config configs/training/experiments/smoke.yaml --approve --run-id smoke-HOST-DATE
+   python -m vigovbot.training.train --config configs/training/experiments/smoke.yaml --approve --run-id smoke-HOST-DATE
    ```
 
 5. Xác nhận `environment.json`, `training_log.csv`, best checkpoint, optimizer,
@@ -209,7 +209,7 @@ thuộc pipeline QLoRA SFT hiện tại.
    chính checkpoint smoke và xác nhận global step/LR/patience liên tục:
 
    ```bash
-   python -m training.train --config configs/training/experiments/smoke.yaml --approve \
+   python -m vigovbot.training.train --config configs/training/experiments/smoke.yaml --approve \
      --resume outputs/qlora/smoke-HOST-DATE/checkpoints/checkpoint-2
    ```
 
@@ -217,10 +217,10 @@ thuộc pipeline QLoRA SFT hiện tại.
    Evaluation test chỉ chạy sau khi checkpoint selection kết thúc:
 
    ```bash
-   python -m training.train --config configs/training/environments/gpu.yaml --approve --run-id experiment-001
-   python -m training.evaluate --run_dir outputs/qlora/experiment-001 --split validation
-   python -m training.evaluate --run_dir outputs/qlora/experiment-001 --split test
-   python -m training.plot --run_dir outputs/qlora/experiment-001
-   python -m training.report --run_dir outputs/qlora/experiment-001
+   python -m vigovbot.training.train --config configs/training/environments/gpu.yaml --approve --run-id experiment-001
+   python -m vigovbot.training.evaluate --run_dir outputs/qlora/experiment-001 --split validation
+   python -m vigovbot.training.evaluate --run_dir outputs/qlora/experiment-001 --split test
+   python -m vigovbot.training.plot --run_dir outputs/qlora/experiment-001
+   python -m vigovbot.training.report --run_dir outputs/qlora/experiment-001
    ```
 

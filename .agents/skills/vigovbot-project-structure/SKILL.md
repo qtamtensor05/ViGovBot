@@ -11,8 +11,8 @@ và các artifact cần giữ tương thích.
 
 ## Vị trí canonical
 
-- Mã Python thuộc `src/vigovbot/`. `training/` và `src/training/` chỉ là lớp
-  tương thích cho import cũ; implementation mới đặt tại `src/vigovbot/training/`.
+- Mã Python thuộc `src/vigovbot/`. QLoRA chỉ có một package tại
+  `src/vigovbot/training/`; không tạo lại `training/` hoặc `src/training/`.
 - CLI công khai thuộc `src/vigovbot/cli/` và dùng console command `vigov`.
   Handler CLI chỉ điều phối service hiện có, không sao chép business logic.
 - Cấu hình nguồn thuộc đúng miền:

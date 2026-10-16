@@ -91,9 +91,9 @@ Trước tiên kiểm tra `ProcessState=EXITED` và `ExitCode=0`:
 
 ```powershell
 .\scripts\status_qlora.ps1 -RunId "<run-id>"
-.\.venv-qlora\Scripts\python.exe -m training.evaluate --run_dir ".\outputs\qlora\<run-id>" --split test
-.\.venv-qlora\Scripts\python.exe -m training.plot --run_dir ".\outputs\qlora\<run-id>"
-.\.venv-qlora\Scripts\python.exe -m training.report --run_dir ".\outputs\qlora\<run-id>"
+.\.venv-qlora\Scripts\python.exe -m vigovbot.training.evaluate --run_dir ".\outputs\qlora\<run-id>" --split test
+.\.venv-qlora\Scripts\python.exe -m vigovbot.training.plot --run_dir ".\outputs\qlora\<run-id>"
+.\.venv-qlora\Scripts\python.exe -m vigovbot.training.report --run_dir ".\outputs\qlora\<run-id>"
 ```
 
 CUDA OOM hoặc lỗi khác được giữ trong `stderr.log` và `exit_code.txt`. Worker không

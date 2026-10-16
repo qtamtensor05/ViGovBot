@@ -2,10 +2,10 @@
 
 ## Chiến lược
 
-Refactor dùng phương án tăng dần: giữ nguyên package `training/` đã được kiểm
-chứng bằng GPU và các artifact trong `outputs/`, đồng thời dựng CLI/cấu hình sạch
-trong namespace `vigovbot`. Chỉ di chuyển implementation sau khi có test tương
-thích; không đổi tên, sao chép hoặc xóa checkpoint, adapter và dataset hiện có.
+Refactor ban đầu dùng các shim chuyển tiếp để di chuyển tăng dần. Sau khi caller
+đã chuyển đổi, source training được thống nhất hoàn toàn trong namespace
+`vigovbot.training`; không đổi tên, sao chép hoặc xóa checkpoint, adapter và
+dataset hiện có.
 
 ## Cấu trúc cuối
 
@@ -19,8 +19,6 @@ ViGovBot/
 │   ├── rag/                 # điều phối RAG
 │   ├── evaluation/          # đánh giá RAG
 │   └── ...
-├── src/training/            # alias được đóng gói cho import cũ ngoài repository
-├── training/                # alias tương thích cho lệnh/import cũ trong checkout
 ├── configs/
 │   ├── ingestion/           # pipeline, OCR/parser và chunking
 │   ├── rag/                 # inference web và các profile đánh giá
@@ -48,14 +46,14 @@ ViGovBot/
 | `configs/base.yaml` | `configs/training/base.yaml` | Đã chuyển cấu hình QLoRA nền |
 | `configs/local.yaml`, `configs/gpu*.yaml` | `configs/training/environments/` | Đã nhóm profile môi trường/phần cứng |
 | `configs/smoke*.yaml` | `configs/training/experiments/` | Đã nhóm profile thí nghiệm |
-| `training/*.py` | `src/vigovbot/training/` | Đã chuyển implementation; file cũ chỉ alias cùng module object |
+| `training/*.py`, `src/training/*.py` | `src/vigovbot/training/` | Đã chuyển caller và xóa hai cây alias cũ |
 | `scripts/start_qlora.ps1` | `vigov train start` | CLI dùng lifecycle Python; script cũ còn tương thích |
 | `scripts/status_qlora.ps1` | `vigov train status` | CLI dùng lifecycle Python đa nền tảng |
 | `scripts/stop_qlora.ps1` | `vigov train stop` | CLI xác minh PID, create-time và command trước khi dừng |
 | không có | `vigov train logs` | CLI đọc log persisted và hỗ trợ `--follow` |
 
-Business logic trùng lặp trong `training/*.py` đã được loại bỏ: implementation
-chỉ còn tại `src/vigovbot/training/`; hai namespace cũ là alias cùng module object.
+Implementation training chỉ còn tại `src/vigovbot/training/`; hai namespace alias
+cũ đã được xóa sau khi test, script và tài liệu chuyển sang `vigovbot.training`.
 Các YAML nguồn cũ đã được hợp nhất theo miền; chuỗi `extends` trong training giữ
 giá trị dùng chung mà không nhân đôi. Snapshot `config.yaml` trong run lịch sử
 không bị di chuyển. Script PowerShell cũ chưa xóa vì còn là compatibility entry point.
@@ -69,8 +67,9 @@ Transformers hoặc model khi chỉ xem help/status.
 Thứ tự cấu hình QLoRA là: giá trị base qua chuỗi `extends` → environment →
 experiment → biến môi trường `VIGOVBOT_QLORA__...` → `--set` CLI. Giá trị CLI
 luôn thắng biến môi trường. Cấu hình resolved tiếp tục được snapshot vào run bởi
-`training.artifacts.snapshot_config`; các invariant NF4, double quant, LoRA,
-batch/cadence, optimizer và Early Stopping được `training.config` kiểm tra.
+`vigovbot.training.artifacts.snapshot_config`; các invariant NF4, double quant,
+LoRA, batch/cadence, optimizer và Early Stopping được
+`vigovbot.training.config` kiểm tra.
 
 ## Baseline và kiểm chứng
 
@@ -82,7 +81,7 @@ batch/cadence, optimizer và Early Stopping được `training.config` kiểm tr
   sáu script PowerShell lifecycle đều pass.
 - `vigov --help`, help matrix, `vigov doctor`, `vigov data stats` và smoke
   `train start --dry-run` đã chạy bằng interpreter `env`, kể cả từ cwd ngoài repo.
-  Editable install và alias import cũ-mới đều được kiểm chứng. Không chạy full
+  Editable install và namespace canonical đều được kiểm chứng. Không chạy full
   training và không tải model.
 
 ## Tương thích và giới hạn

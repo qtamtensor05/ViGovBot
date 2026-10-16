@@ -287,8 +287,8 @@ class QAV4Tests(unittest.TestCase):
             (root / "config.yaml").write_text("fixture", encoding="utf-8")
             (root / "best_adapter").mkdir()
             with (
-                patch("training.config.load_config", return_value=config),
-                patch("training.inference.local_transformers_answer",
+                patch("vigovbot.training.config.load_config", return_value=config),
+                patch("vigovbot.training.inference.local_transformers_answer",
                       return_value=("Kết quả",
                                     {"provider": "local_transformers"}, 0.25)) as generate,
             ):

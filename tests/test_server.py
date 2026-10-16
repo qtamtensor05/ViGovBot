@@ -128,7 +128,7 @@ class WebChatTests(unittest.TestCase):
                 "prediction": "ok", "retrieved": [], "latency_s": 0.1,
             }),
             patch("vigovbot.llm.llm_client.unload_model") as unload,
-            patch("training.inference.release_local_transformers_models") as release,
+            patch("vigovbot.training.inference.release_local_transformers_models") as release,
         ):
             self.app.chat({"question": "x", "models": ["local", "qlora"]})
             self.app.chat({"question": "y", "models": ["local"]})

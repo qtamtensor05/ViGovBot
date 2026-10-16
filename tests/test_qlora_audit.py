@@ -4,13 +4,13 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from training.checkpoints import validate_resume_checkpoint
-from training.early_stopping import EarlyStoppingState, select_best_checkpoint
-from training.evaluate import _evaluate_model
-from training.masking import IGNORE_INDEX, encode_assistant_only
-from training.metrics import aggregate_generation_metrics, generation_metrics, perplexity
-from training.parameters import validate_lora_trainability
-from training.train import _precision
+from vigovbot.training.checkpoints import validate_resume_checkpoint
+from vigovbot.training.early_stopping import EarlyStoppingState, select_best_checkpoint
+from vigovbot.training.evaluate import _evaluate_model
+from vigovbot.training.masking import IGNORE_INDEX, encode_assistant_only
+from vigovbot.training.metrics import aggregate_generation_metrics, generation_metrics, perplexity
+from vigovbot.training.parameters import validate_lora_trainability
+from vigovbot.training.train import _precision
 
 
 class OfficialTemplateTests(unittest.TestCase):

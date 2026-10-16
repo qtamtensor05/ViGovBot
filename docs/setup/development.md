@@ -21,7 +21,7 @@ package đã cài, nên có thể gọi ngoài thư mục repository. Có thể 
 ```powershell
 .venv\Scripts\python -m unittest discover -s tests -v
 .venv\Scripts\python -m ruff check .
-.venv\Scripts\python -m compileall -q src training tests
+.venv\Scripts\python -m compileall -q src tests
 .venv\Scripts\python -m pip check
 git diff --check
 ```
@@ -29,6 +29,6 @@ git diff --check
 Repository không còn workflow CI tự động. Trước khi bàn giao thay đổi, chạy thủ
 công các gate ở trên; test GPU phải được ghi riêng như artifact thực nghiệm.
 
-Implementation canonical nằm trong `src/vigovbot`. Namespace `training.*`, YAML
-cấp gốc và PowerShell lifecycle cũ chỉ là compatibility layer; không thêm business
-logic mới vào các shim này.
+Implementation canonical nằm trong `src/vigovbot`; QLoRA chỉ dùng namespace
+`vigovbot.training`. PowerShell lifecycle cũ chỉ là compatibility entry point và
+không chứa business logic training.

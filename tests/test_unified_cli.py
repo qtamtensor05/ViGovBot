@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from training.config import load_config
+from vigovbot.training.config import load_config
 from vigovbot.cli.main import app, main
 from vigovbot.configuration import load_configuration
 from vigovbot.rag.config import load_config as load_rag_config

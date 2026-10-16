@@ -5,8 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from training.artifacts import create_run_dir
-from training.control import QLoRAControlCallback
+from vigovbot.training.artifacts import create_run_dir
+from vigovbot.training.control import QLoRAControlCallback
 
 
 class ArtifactSafetyTests(unittest.TestCase):

@@ -806,3 +806,22 @@
   gate thủ công. Docker Desktop được khởi động lại; Compose validate và build
   sạch thành công; web/Ollama healthy, HTTP nội bộ/host 200, model cùng volume
   còn nguyên và container nhận RTX 4050.
+
+## TASK-20261016-05
+
+- Ngày: 2026-10-16 (Asia/Saigon).
+- Yêu cầu: thống nhất phần training về một lớp duy nhất, không giữ nhiều cây
+  package/wrapper cho cùng một implementation.
+- Phạm vi: giữ `src/vigovbot/training` làm source canonical; chuyển import, lệnh,
+  test, script và tài liệu đang hoạt động sang `vigovbot.training`; xóa `training/`
+  và `src/training/`; thu hẹp package discovery; cập nhật quy tắc cấu trúc.
+- Tiêu chí hoàn thành: repository chỉ còn một cây source training; không còn
+  caller đang hoạt động dùng namespace `training.*`; package/build, CLI và test
+  liên quan vượt qua kiểm chứng tương xứng.
+- Giả định an toàn: chấp nhận bỏ compatibility namespace cũ theo yêu cầu người
+  dùng; giữ nguyên `configs/training`, dataset, checkpoint, adapter và output;
+  không chạy training/model download/benchmark.
+- Trạng thái: completed ngày 2026-10-17; chỉ còn `src/vigovbot/training`, 44
+  wrapper và cache cục bộ đã xóa, caller/package/docs đã chuyển sang namespace
+  canonical. Full suite 166 pass, 3 optional skip; wheel và Docker runtime đều
+  xác nhận không còn package `training` cũ.

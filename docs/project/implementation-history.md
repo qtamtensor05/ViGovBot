@@ -927,3 +927,17 @@
   NVIDIA GeForce RTX 4050 Laptop GPU (6141 MiB tổng theo `nvidia-smi`).
 - Kiểm chứng: `docker compose config --quiet`, build web, `vigov --help`, health,
   HTTP và `git diff --check` đều PASS. Không chạy generation E2E hoặc browser QA.
+## TASK-20261016-05 - Hợp nhất package training
+
+- Giữ duy nhất implementation tại `src/vigovbot/training`; xóa 22 wrapper root
+  `training/` và 22 wrapper `src/training/`, kể cả cache ignored còn sót.
+- Chuyển test, mock target và lệnh tài liệu từ `training.*` sang
+  `vigovbot.training.*`; package discovery trong `pyproject.toml` chỉ còn
+  `vigovbot*`. Cập nhật tài liệu kiến trúc, development và skill cấu trúc để
+  không tái tạo namespace song song.
+- Kiểm chứng trong container tạm có `.[test,dev]`: 166 test pass, 3 optional skip;
+  Ruff, compileall và pip check PASS. Wheel có 24 file dưới
+  `vigovbot/training/` và 0 file dưới `training/`.
+- Rebuild/recreate image web thành công. Runtime mới resolve
+  `vigovbot.training` từ site-packages, `find_spec('training')` trả `None`; web
+  và Ollama healthy. Không chạy training/model generation/benchmark.

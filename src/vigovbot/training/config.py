@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-# Canonical implementation; the top-level training package is a compatibility shim.
-
 import copy
 import os
 from pathlib import Path
