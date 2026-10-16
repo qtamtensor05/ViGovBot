@@ -212,8 +212,8 @@ from google.colab import drive
 drive.mount("/content/drive")
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "sacrebleu>=2,<3"], check=True)
 from vigovbot.evaluation.multiturn import load_queries, validate_sequence
-from vigovbot.qa_v4.io import read_jsonl
-from vigovbot.qa_v4.__main__ import select_rows
+from vigovbot.evaluation.io import read_jsonl
+from vigovbot.evaluation.__main__ import select_rows
 
 dataset = Path(DATASET_DIR)
 if LIMIT < 0 or TOP_K < 1:
@@ -268,7 +268,7 @@ ensure_ollama(config["llm"]["model"], config["llm"]["ollama_url"])
 selection = ["--dataset", str(dataset), "--view", VIEW, "--split", SPLIT]
 if LIMIT:
     selection += ["--limit", str(LIMIT)]
-command = [sys.executable, "-m", "vigovbot", "qa-v4", "run", *selection,
+command = [sys.executable, "-m", "vigovbot", "eva", "run", *selection,
            "--config", str(CONFIG_PATH), "--mode", MODE, "--out", str(PREDICTIONS)]
 if NO_RETRIEVAL:
     command.append("--no-retrieval")
@@ -305,7 +305,7 @@ if RUN_REPORT.exists():
 '''),
         cell("markdown", "## 8. Chấm điểm offline với cùng view/split/limit"),
         cell("code", '''
-command = [sys.executable, "-m", "vigovbot", "qa-v4", "score", *selection,
+command = [sys.executable, "-m", "vigovbot", "eva", "score", *selection,
            "--top-k", str(TOP_K), "--predictions", str(PREDICTIONS), "--out", str(SCORES)]
 if LEXICAL:
     command.append("--lexical")

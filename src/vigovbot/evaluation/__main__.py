@@ -51,11 +51,12 @@ def select_rows(rows, dataset, view, split, limit=None):
 
 def main(argv=None):
     configure_console()
-    parser = argparse.ArgumentParser(description="Send QA v4 to the existing RAG and evaluate responses")
-    parser.add_argument("command", choices=["ask", "chat", "run", "score"])
+    parser = argparse.ArgumentParser(description="Run unified ViGovBot evaluation workflows")
+    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test"])
     parser.add_argument("--dataset", type=Path, default=Path("Data/qa_test_v4/rag_tthc_v4_1"),
                         help="Dataset directory or alias: rag_v4_small, rag_tthc_three_1500, rag_tthc_v4_1")
     parser.add_argument("--question")
+    parser.add_argument("--run-id", help="Completed QLoRA run ID for the test command")
     connection = parser.add_mutually_exclusive_group()
     connection.add_argument("--config", default="configs/rag/inference.yaml")
     connection.add_argument("--endpoint", help="Existing RAG HTTP endpoint")
@@ -88,6 +89,13 @@ def main(argv=None):
     parser.add_argument('--bert-device', default='cpu')
     parser.add_argument('--bert-batch-size', type=int, default=1)
     args = parser.parse_args(argv)
+    if args.command == "test":
+        if not args.run_id:
+            parser.error("--run-id is required for test")
+        from vigovbot.training.evaluate import evaluate
+        result = evaluate(Path("outputs/qlora") / args.run_id, split=args.split or "test", limit=args.limit)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
     args.dataset, args.view = resolve_dataset(args.dataset, args.view)
     if args.no_retrieval and args.endpoint:
         parser.error("--no-retrieval cannot be combined with --endpoint")
@@ -141,7 +149,7 @@ def main(argv=None):
         report['case_groups'] = {c['id']: c.get('conversation_id') or c.get('procedure_family_id')
                                  or c.get('document_id') or c['id'] for c in cases}
         report["history_mode"] = next(iter(modes), None)
-        from .report import finalize_report
+        from .benchmark_report import finalize_report
         report = finalize_report(report, predictions, {c["id"] for c in cases}, args.predictions)
         out = args.out or Path("outputs/qa_v4/scores.json")
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -208,7 +216,7 @@ def main(argv=None):
                 print("Nguồn: " + json.dumps(result["citations"], ensure_ascii=False))
                 history += [{"role": "user", "content": question}, {"role": "assistant", "content": result["answer"]}]
         else:
-            from .runner import run_queries
+            from .benchmark_runner import run_queries
             from .audit import sha256
             if args.qlora_run_dir and args.batch_size > 1 and args.verify_batch_equivalence:
                 sample = queries[:min(args.verify_batch_equivalence, len(queries))]

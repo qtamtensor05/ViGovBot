@@ -869,3 +869,16 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: tách thành container tạm chạy nền và từng lệnh `docker exec` độc lập để
   giữ quoting/exit code rõ ràng; xóa container sau kiểm chứng.
 - Phòng tránh: không gộp Python inline có quote phức tạp vào `sh -lc` qua PowerShell.
+
+# ERR-20261017-01
+
+- Task: `TASK-20261017-01`.
+- Triệu chứng: full suite đầu tiên trong image inference có 1 fail do
+  thiếu `rouge-score` và 1 error do test patch module evaluation phụ thuộc thứ
+  tự import; wheel đầu tiên còn chứa `vigovbot/qa_v4`.
+- Nguyên nhân: image production không có extra test; test dùng chuỗi patch
+  khi submodule chưa được import; `build/lib` cũ còn source đã xóa.
+- Xử lý: patch trực tiếp module đã import, chạy suite trong container tạm
+  có `.[test,dev]`, dọn chính xác `build`/`dist`/egg-info và build lại sạch.
+- Kết quả: 168 test pass, wheel có 0 file qa_v4; không xóa dataset,
+  checkpoint, prediction hay artifact lịch sử.

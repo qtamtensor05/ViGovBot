@@ -825,3 +825,20 @@
   wrapper và cache cục bộ đã xóa, caller/package/docs đã chuyển sang namespace
   canonical. Full suite 166 pass, 3 optional skip; wheel và Docker runtime đều
   xác nhận không còn package `training` cũ.
+## TASK-20261017-01
+
+- Ngày: 2026-10-17 (Asia/Saigon).
+- Yêu cầu: hợp nhất `qa_v4` và `evaluation` thành một package evaluation duy
+  nhất; đổi CLI công khai sang `python -m vigovbot eva`.
+- Phạm vi: chuyển toàn bộ module QA-v4 vào `src/vigovbot/evaluation`, xử lý tên
+  file trùng bằng `benchmark_runner.py`/`benchmark_report.py`, cập nhật import,
+  test, script tạo notebook, notebook và tài liệu; xóa package `qa_v4`.
+- Tiêu chí hoàn thành: chỉ còn một package evaluation; không còn import/path CLI
+  `vigovbot.qa_v4` hoặc `qa-v4` đang hoạt động; `eva` chạy được help/run/score và
+  QLoRA test evaluation; full regression/static/package checks đạt.
+- Giả định an toàn: giữ nguyên schema dataset, prediction, score, provenance,
+  công thức metric và artifact lịch sử; không chạy model, BERTScore, benchmark
+  hoặc training thực tế.
+- Trạng thái: completed ngày 2026-10-17; source, CLI, test, notebook và
+  tài liệu đã chuyển sang `vigovbot.evaluation`/`vigov eva`. Full suite
+  168 pass, 3 optional skip; wheel và image Docker không còn package `qa_v4`.

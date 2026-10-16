@@ -48,7 +48,7 @@ môi trường chuyên biệt, dependency tương ứng và bind mount input/out
 - `vigov data ingest|embed|check|stats`
 - `vigov rag smoke|evaluate|report|run`
 - `vigov gpu`, `vigov train`, `vigov dashboard`
-- `vigov eval`, `vigov report`
+- `vigov eva`, `vigov report`
 
 Không chạy các lệnh này bằng `docker compose exec web` với Compose hiện tại vì
 artifact ghi trong filesystem container có thể mất và nhiều dataset/output chưa
@@ -56,5 +56,6 @@ artifact ghi trong filesystem container có thể mất và nhiều dataset/outp
 [Thiết lập phát triển](../setup/development.md), [Môi trường và tái lập](../setup/environments.md),
 [Huấn luyện](training.md) hoặc [Đánh giá](evaluation.md).
 
-Các entry point `python -m vigovbot ingest|embed|rag|qa-v4` chỉ được giữ để
-tương thích script lịch sử, không phải lệnh runtime Docker thường ngày.
+Các entry point module `python -m vigovbot ingest|embed|rag|eva` dùng chung
+dispatcher với CLI; workflow chuyên biệt không phải lệnh runtime Docker
+thường ngày.

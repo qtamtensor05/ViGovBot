@@ -5,24 +5,29 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from vigovbot.qa_v4.adapter import (
+from vigovbot.evaluation.adapter import (
     existing_rag,
     normalize_result,
     ollama_baseline,
     qlora_adapter,
     structured_baseline_answer,
 )
-from vigovbot.qa_v4.io import read_jsonl
-from vigovbot.qa_v4.report import finalize_report
+from vigovbot.evaluation.io import read_jsonl
+from vigovbot.evaluation.benchmark_report import finalize_report
 from unittest.mock import patch, MagicMock
-from vigovbot.qa_v4.runner import estimate_completion, run_queries
-from vigovbot.qa_v4.scoring import evaluate
-from vigovbot.qa_v4.__main__ import dataset_file, resolve_dataset, select_rows
+from vigovbot.evaluation.benchmark_runner import estimate_completion, run_queries
+from vigovbot.evaluation.scoring import evaluate
+from vigovbot.evaluation.__main__ import dataset_file, main as evaluation_main, resolve_dataset, select_rows
 from vigovbot.evaluation.multiturn import load_queries
 from vigovbot.rag.routing import StructuredAnswerError
 
 
 class QAV4Tests(unittest.TestCase):
+    def test_unified_test_command_delegates_to_training_evaluation(self):
+        with patch("vigovbot.training.evaluate.evaluate", return_value={"status": "ok"}) as evaluate_run:
+            self.assertEqual(evaluation_main(["test", "--run-id", "run-1", "--limit", "2"]), 0)
+        evaluate_run.assert_called_once_with(Path("outputs/qlora/run-1"), split="test", limit=2)
+
     def test_baseline_uses_schema_and_retries_invalid_generation_once(self):
         invalid = ('{"answer":"x","action":"unknown"}', {"eval_count": 1}, 0.1)
         valid = ('{"answer":"Không đủ thông tin.","action":"abstain"}', {"eval_count": 2}, 0.2)

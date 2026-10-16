@@ -3,13 +3,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vigovbot.qa_v4.audit import compact, fact_candidates
-from vigovbot.qa_v4.retrieval_metrics import apply_mapping, evidence_metrics, summarize_retrieval
-from vigovbot.qa_v4.review import fingerprint, judgment_input, validate_judgments, METRICS
-from vigovbot.qa_v4.scoring import evaluate, unpack_bert_score
-from vigovbot.qa_v4.runner import run_queries
+from vigovbot.evaluation.audit import compact, fact_candidates
+from vigovbot.evaluation.retrieval_metrics import apply_mapping, evidence_metrics, summarize_retrieval
+from vigovbot.evaluation.review import fingerprint, judgment_input, validate_judgments, METRICS
+from vigovbot.evaluation.scoring import evaluate, unpack_bert_score
+from vigovbot.evaluation.benchmark_runner import run_queries
 from vigovbot.rag.routing import parse_citations
-from vigovbot.qa_v4.compare import compare
+from vigovbot.evaluation.compare import compare
 
 
 class ReviewTests(unittest.TestCase):

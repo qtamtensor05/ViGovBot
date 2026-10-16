@@ -137,7 +137,7 @@ def run_queries(queries, answer_fn, output, mode="reference_history", *, oracle_
         )
         pending = [None] * len(queries)
         next_write = 0
-        with ThreadPoolExecutor(max_workers=max(1, effective_concurrency), thread_name_prefix="qa-v4") as executor:
+        with ThreadPoolExecutor(max_workers=max(1, effective_concurrency), thread_name_prefix="eva") as executor:
             future_map = {executor.submit(_run_job, job, answer_fn, mode, oracle_contexts): job for job in jobs}
             for future in as_completed(future_map):
                 for index, prediction in future.result():

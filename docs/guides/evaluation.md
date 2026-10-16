@@ -3,9 +3,9 @@
 Test độc lập không tham gia training, Early Stopping hoặc chọn checkpoint.
 
 ```powershell
-vigov eval test --run-id <run-id>
-vigov report plots --run-id <run-id>
-vigov report build --run-id <run-id>
+vigovbot eva test --run-id <run-id>
+vigovbot report plots --run-id <run-id>
+vigovbot report build --run-id <run-id>
 ```
 
 Evaluation lưu prediction từng mẫu trong `predictions/` và metric tổng hợp trong

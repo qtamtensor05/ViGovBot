@@ -22,6 +22,10 @@ dataset.py → case[] → runner.py → answer_fn(question.text)
 | `runner.py` | Chạy từng ca, resume theo ID và cô lập lỗi từng ca |
 | `metrics.py` | Exact match, accuracy chuẩn hóa, BLEU và ROUGE |
 | `report.py` | BERTScore, source recall, thống kê độ trễ, CSV/JSON và biểu đồ |
+| `adapter.py` | Kết nối Base, RAG, QLoRA, HTTP và oracle với benchmark QA-v4 |
+| `benchmark_runner.py` | Chạy benchmark có concurrency, batch và lịch sử hội thoại |
+| `scoring.py` | Chấm coverage, action, retrieval, lexical, BERTScore và judgments |
+| `compare.py` | So sánh paired và bootstrap theo thủ tục/hội thoại |
 
 ## Đầu vào và đầu ra
 
@@ -40,3 +44,6 @@ Resume chỉ hợp lệ khi manifest lượt chạy không thay đổi. ID đã 
 quả. Báo cáo yêu cầu ít nhất một prediction hợp lệ và sử dụng khóa khi ghi file.
 
 [Kiến trúc hệ thống](../../../docs/architecture/architecture.md) · [Module RAG](../rag/README.md)
+
+Quy trình benchmark, lựa chọn dataset/view và câu lệnh `eva` được mô tả tại
+[benchmark.md](benchmark.md).

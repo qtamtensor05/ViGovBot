@@ -1,4 +1,4 @@
-# Giao tiếp và đánh giá RAG với QA v4
+# Benchmark QA v4 trong `vigovbot.evaluation`
 
 Module đọc QA, gửi câu hỏi và lịch sử cho RAG hiện có, nhận câu trả lời rồi
 đánh giá. Module không có pipeline BM25, model embedding hoặc model sinh
@@ -36,17 +36,17 @@ Chạy từ thư mục gốc, sau khi cài `python -m pip install -e ".[rag,eval
 Corpus và Ollama cần sẵn sàng theo cấu hình RAG hiện tại.
 
 ```powershell
-python -m vigovbot qa-v4 chat --config configs/rag/inference.yaml
-python -m vigovbot qa-v4 run --config configs/rag/inference.yaml --split test --limit 10 --out outputs/qa_v4/smoke.jsonl
-python -m vigovbot qa-v4 score --split test --limit 10 --predictions outputs/qa_v4/smoke.jsonl --out outputs/qa_v4/smoke_scores.json
+python -m vigovbot eva chat --config configs/rag/inference.yaml
+python -m vigovbot eva run --config configs/rag/inference.yaml --split test --limit 10 --out outputs/qa_v4/smoke.jsonl
+python -m vigovbot eva score --split test --limit 10 --predictions outputs/qa_v4/smoke.jsonl --out outputs/qa_v4/smoke_scores.json
 ```
 
 Ví dụ benchmark nhanh trên máy hiện tại:
 
 ```powershell
-.venv\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --config configs/rag/evaluation-fast-local.yaml --split test --mode reference_history --concurrency 2 --out outputs/qa_v4/single_fast.jsonl
-.venv\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_tthc_three_1500 --view views_multi_1500.json --config configs/rag/evaluation-fast-local.yaml --split test --mode free_running --concurrency 2 --out outputs/qa_v4/multi_fast.jsonl
-.venv\Scripts\python.exe -m vigovbot qa-v4 score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --lexical --bertscore --bert-device cuda --bert-batch-size 16 --predictions outputs/qa_v4/single_fast.jsonl --out outputs/qa_v4/single_fast_scores.json
+.venv\Scripts\python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --config configs/rag/evaluation-fast-local.yaml --split test --mode reference_history --concurrency 2 --out outputs/qa_v4/single_fast.jsonl
+.venv\Scripts\python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_multi_1500.json --config configs/rag/evaluation-fast-local.yaml --split test --mode free_running --concurrency 2 --out outputs/qa_v4/multi_fast.jsonl
+.venv\Scripts\python.exe -m vigovbot eva score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --lexical --bertscore --bert-device cuda --bert-batch-size 16 --predictions outputs/qa_v4/single_fast.jsonl --out outputs/qa_v4/single_fast_scores.json
 ```
 
 Không chạy RAG và BERTScore đồng thời trên GPU 16 GB. Nếu BERTScore hết VRAM,
@@ -59,8 +59,8 @@ nạp encoder và không dùng FAISS. Có thể chạy chế độ này trong l�
 embedding (nếu tài nguyên CPU/GPU đủ). Không truyền đáp án tham chiếu vào model.
 
 ```powershell
-python -m vigovbot qa-v4 run --config configs/rag/inference.yaml --no-retrieval --split test --limit 10 --out outputs/qa_v4/qwen7b_baseline_smoke.jsonl
-python -m vigovbot qa-v4 score --split test --limit 10 --predictions outputs/qa_v4/qwen7b_baseline_smoke.jsonl --out outputs/qa_v4/qwen7b_baseline_smoke_scores.json
+python -m vigovbot eva run --config configs/rag/inference.yaml --no-retrieval --split test --limit 10 --out outputs/qa_v4/qwen7b_baseline_smoke.jsonl
+python -m vigovbot eva score --split test --limit 10 --predictions outputs/qa_v4/qwen7b_baseline_smoke.jsonl --out outputs/qa_v4/qwen7b_baseline_smoke_scores.json
 ```
 
 Prediction baseline dùng cùng schema chấm điểm, nhưng không có evidence truy hồi;
@@ -81,7 +81,7 @@ toàn bộ batch.
 ## Chạy với API RAG đã có
 
 ```powershell
-python -m vigovbot qa-v4 run --endpoint http://localhost:8000/rag --split test --out outputs/qa_v4/http_test.jsonl
+python -m vigovbot eva run --endpoint http://localhost:8000/rag --split test --out outputs/qa_v4/http_test.jsonl
 ```
 
 POST chỉ gửi `{question, history}`. API trả object có `answer` hoặc `prediction`,
@@ -106,8 +106,8 @@ và coverage dùng `--mode reference_history`. Mỗi lượt chạy dùng output
 Chạy từ thư mục gốc bằng môi trường `env` trên Windows:
 
 ```powershell
-env\Scripts\python.exe -m vigovbot qa-v4 run --dataset rag_v4_small --config configs/rag/inference.yaml --split test --mode free_running --out outputs/qa_v4/small_main.jsonl
-env\Scripts\python.exe -m vigovbot qa-v4 score --dataset rag_v4_small --split test --lexical --predictions outputs/qa_v4/small_main.jsonl --out outputs/qa_v4/small_main_scores.json
+env\Scripts\python.exe -m vigovbot eva run --dataset rag_v4_small --config configs/rag/inference.yaml --split test --mode free_running --out outputs/qa_v4/small_main.jsonl
+env\Scripts\python.exe -m vigovbot eva score --dataset rag_v4_small --split test --lexical --predictions outputs/qa_v4/small_main.jsonl --out outputs/qa_v4/small_main_scores.json
 ```
 
 Để chạy baseline Ollama trên cùng bộ nhỏ, thêm `--no-retrieval` vào lệnh `run`

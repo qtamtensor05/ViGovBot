@@ -20,16 +20,14 @@ data_app = typer.Typer(help="Validate and inspect training datasets.", no_args_i
 rag_app = typer.Typer(help="Prepare, test and evaluate the RAG pipeline.", no_args_is_help=True)
 gpu_app = typer.Typer(help="Inspect CUDA and the QLoRA GPU stack.", no_args_is_help=True)
 train_app = typer.Typer(help="Start and manage QLoRA experiments.", no_args_is_help=True)
-eval_app = typer.Typer(help="Evaluate persisted experiment artifacts.", no_args_is_help=True)
 report_app = typer.Typer(help="Build plots and experiment reports.", no_args_is_help=True)
 app.add_typer(data_app, name="data")
 app.add_typer(rag_app, name="rag")
 app.add_typer(gpu_app, name="gpu")
 app.add_typer(train_app, name="train")
-app.add_typer(eval_app, name="eval")
 app.add_typer(report_app, name="report")
 
-LEGACY_COMMANDS = {"ingest", "embed", "rag", "qa-v4"}
+LEGACY_COMMANDS = {"ingest", "embed", "rag", "eva"}
 
 
 def _root() -> Path:
@@ -331,10 +329,10 @@ def dashboard(run_id: Optional[str] = typer.Option(None, "--run-id"),
     typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
 
 
-@eval_app.command("test")
-def eval_test(run_id: str = typer.Option(..., "--run-id")) -> None:
-    """Evaluate an existing run; never train or select a model on test data."""
-    _module("vigovbot.training.evaluate", "--run_dir", str(_root() / "outputs" / "qlora" / run_id))
+@app.command("eva", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def evaluation(ctx: typer.Context) -> None:
+    """Run evaluation commands: ask, chat, run, score or QLoRA test."""
+    _run_legacy(["eva", *ctx.args])
 
 
 @report_app.command("plots")
@@ -355,8 +353,8 @@ def _legacy(argv: list[str]) -> int:
         from vigovbot.pipelines.indexing import main as entry
     elif command == "embed":
         from vigovbot.embeddings.corpus_builder import main as entry
-    elif command == "qa-v4":
-        from vigovbot.qa_v4.__main__ import main as entry
+    elif command == "eva":
+        from vigovbot.evaluation.__main__ import main as entry
     else:
         from vigovbot.rag.__main__ import main as entry
     return entry(argv[1:]) or 0

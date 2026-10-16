@@ -1,3 +1,18 @@
+# TASK-20261017-01 - completed
+
+- Giai đoạn: đã hợp nhất QA benchmark và evaluation ngày 2026-10-17.
+- Source duy nhất: `src/vigovbot/evaluation`; package `src/vigovbot/qa_v4`
+  và cache cục bộ đã xóa.
+- CLI công khai: `python -m vigovbot eva` hoặc `vigov eva`, gồm
+  `ask`, `chat`, `run`, `score`, `test`; không giữ alias `qa-v4`/`eval`.
+- Giữ nguyên schema dataset, metric, prediction, provenance và thư mục
+  artifact lịch sử `outputs/qa_v4`.
+- Verification: 168 test pass, 3 optional skip; Ruff, compileall, link test,
+  diff-check và wheel sạch đạt. Wheel có 18 file evaluation, 0 file
+  qa_v4; image web rebuild sạch, namespace cũ không resolve, web/Ollama healthy
+  và HTTP 200.
+- Không chạy model generation, BERTScore thật, benchmark hay training.
+
 # TASK-20261016-05 - completed
 
 - Giai đoạn: hoàn tất hợp nhất package và verification ngày 2026-10-17.

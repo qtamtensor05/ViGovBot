@@ -130,7 +130,8 @@ class ConfigTests(unittest.TestCase):
                 self.assertEqual(chat.call_count, n)
                 prompts = chat.call_args.args[0]
                 self.assertNotIn("secret", str(prompts))
-            with patch("vigovbot.evaluation.report.compute_bertscore", return_value=([1.0], [1.0], [1.0])):
+            from vigovbot.evaluation import report as evaluation_report
+            with patch.object(evaluation_report, "compute_bertscore", return_value=([1.0], [1.0], [1.0])):
                 summary = execute(config, "report")
             self.assertEqual(summary["n_cases"], 1)
             self.assertTrue((root / "out/metrics.png").exists())

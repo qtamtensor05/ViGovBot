@@ -941,3 +941,18 @@
 - Rebuild/recreate image web thành công. Runtime mới resolve
   `vigovbot.training` từ site-packages, `find_spec('training')` trả `None`; web
   và Ollama healthy. Không chạy training/model generation/benchmark.
+
+## TASK-20261017-01 - Hợp nhất evaluation và CLI `eva`
+
+- Chuyển toàn bộ QA benchmark vào `src/vigovbot/evaluation`; đổi hai file
+  trùng tên thành `benchmark_runner.py` và `benchmark_report.py`, giữ nguyên
+  primitive RAG `runner.py`/`report.py`.
+- CLI duy nhất là `vigov eva`; lệnh `test --run-id` cũ của QLoRA được
+  gộp vào cùng entrypoint. Xóa `qa-v4` không giữ compatibility alias.
+- Cập nhật import, test, notebook generator/notebook, tài liệu và skill cấu
+  trúc; giữ nguyên `outputs/qa_v4` là artifact lịch sử.
+- Kiểm chứng: 42 targeted test và full suite 168 test pass, 3 optional skip;
+  Ruff, compileall, documentation link test và diff-check PASS. Wheel sạch có
+  18 file `vigovbot/evaluation`, 0 file `vigovbot/qa_v4`.
+- Rebuild image không cache và recreate web thành công; runtime chỉ resolve
+  `vigovbot.evaluation`, CLI `eva` exit 0, web/Ollama healthy và HTTP 200.

@@ -112,12 +112,12 @@ $dataset = ".\Data\tthc_test_case_v1"
 $pred = ".\outputs\tthc_test_case_v1\predictions_qwen_qlora.jsonl"
 $score = ".\outputs\tthc_test_case_v1\scores_qwen_qlora.json"
 
-.\.venv-qlora\Scripts\python.exe -m vigovbot qa-v4 run `
+.\.venv-qlora\Scripts\python.exe -m vigovbot eva run `
   --dataset $dataset --split test --mode reference_history --concurrency 1 `
   --batch-size 4 --verify-batch-equivalence 4 `
   --qlora-run-dir $runDir --out $pred
 
-.\.venv-qlora\Scripts\python.exe -m vigovbot qa-v4 score `
+.\.venv-qlora\Scripts\python.exe -m vigovbot eva score `
   --dataset $dataset --split test --predictions $pred --lexical --bertscore `
   --bert-device cuda --bert-batch-size 16 --out $score
 ```
@@ -125,11 +125,11 @@ $score = ".\outputs\tthc_test_case_v1\scores_qwen_qlora.json"
 So sánh paired trên đúng benchmark:
 
 ```powershell
-.\.venv-qlora\Scripts\python.exe -m vigovbot.qa_v4.compare `
+.\.venv-qlora\Scripts\python.exe -m vigovbot.evaluation.compare `
   --left .\outputs\tthc_test_case_v1\scores_qwen_baseline_schema_c4.json `
   --right $score --out .\outputs\tthc_test_case_v1\base_vs_qlora.json
 
-.\.venv-qlora\Scripts\python.exe -m vigovbot.qa_v4.compare `
+.\.venv-qlora\Scripts\python.exe -m vigovbot.evaluation.compare `
   --left .\outputs\tthc_test_case_v1\scores_c4_full.json `
   --right $score --out .\outputs\tthc_test_case_v1\rag_vs_qlora.json
 ```

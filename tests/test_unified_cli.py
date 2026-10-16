@@ -22,7 +22,7 @@ class UnifiedCliTests(unittest.TestCase):
     def test_required_command_tree_is_visible(self):
         result = self.runner.invoke(app, ["--help"])
         self.assertEqual(result.exit_code, 0, result.output)
-        for command in ("doctor", "web", "ask", "data", "rag", "gpu", "train", "dashboard", "eval", "report"):
+        for command in ("doctor", "web", "ask", "data", "rag", "gpu", "train", "dashboard", "eva", "report"):
             self.assertIn(command, result.output)
         data_help = self.runner.invoke(app, ["data", "--help"])
         for command in ("check", "stats", "ingest", "embed"):
@@ -57,6 +57,12 @@ class UnifiedCliTests(unittest.TestCase):
         with patch("vigovbot.cli.main._legacy", return_value=7) as legacy:
             self.assertEqual(main(["rag", "--help"]), 7)
         legacy.assert_called_once_with(["rag", "--help"])
+
+    def test_eva_delegates_to_unified_evaluation_package(self):
+        with patch("vigovbot.cli.main._legacy", return_value=0) as legacy:
+            result = self.runner.invoke(app, ["eva", "score", "--predictions", "result.jsonl"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        legacy.assert_called_once_with(["eva", "score", "--predictions", "result.jsonl"])
 
     def test_short_application_commands_delegate_to_existing_services(self):
         with patch("vigovbot.cli.main._legacy", return_value=0) as legacy:

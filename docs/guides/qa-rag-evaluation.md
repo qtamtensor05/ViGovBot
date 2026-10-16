@@ -11,7 +11,7 @@ Bộ `rag_tthc_three_1500` là evaluation-only, có chứa ca từ dev cũ. Khô
 Chạy từ gốc repository; trên Colab thay `env/Scripts/python.exe` bằng `python`.
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.qa_v4.audit --dataset Data/qa_test_v4/rag_tthc_three_1500 --out outputs/qa_audit_new
+env/Scripts/python.exe -m vigovbot.evaluation.audit --dataset Data/qa_test_v4/rag_tthc_three_1500 --out outputs/qa_audit_new
 ```
 
 Audit đọc PDF bằng PyMuPDF, đối chiếu hash/trang/nội dung. Dùng thứ tự text gốc để tránh trộn cột bảng và nối khoảng trắng trước khi chuẩn hóa dấu tiếng Việt. Phép kiểm vẫn không kiểm chứng liên hệ hàng/cột hay toàn bộ ngữ nghĩa. Output từ chối ghi đè JSONL đã có; chọn thư mục mới cho lần chạy mới.
@@ -26,7 +26,7 @@ Các ý đề xuất chỉ tách theo hàng bảng, giữ nguyên điều kiện
 ## 2. Mapping và retrieval
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.qa_v4.mapping --dataset Data/qa_test_v4/rag_tthc_three_1500 --predictions outputs/result_qa/three1500_single_smoke_rag_1/predictions.jsonl --out outputs/mapping_candidates_new.json
+env/Scripts/python.exe -m vigovbot.evaluation.mapping --dataset Data/qa_test_v4/rag_tthc_three_1500 --predictions outputs/result_qa/three1500_single_smoke_rag_1/predictions.jsonl --out outputs/mapping_candidates_new.json
 ```
 
 Chỉ sinh **ứng viên**, không phải mapping được duyệt. So cùng hash PDF, đúng tiêu đề và đủ phần nội dung của unit. Duyệt từng chunk và giữ `status=candidate` khi chưa xác định. Chunk rỗng ứng viên không phải đoạn không liên quan. Đoạn chứa một phần unit dài không được coi là bao phủ toàn unit; đây là giới hạn của granularity và cần xem cùng fact/context coverage khi đã có judgment.
@@ -66,7 +66,7 @@ Trong v4.2, **@k là k chunk duy nhất theo thứ tự truy hồi ban đầu**.
 ## 3. Chấm lexical và BERTScore
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.qa_v4 score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --predictions outputs/new_run/predictions.jsonl --unit-map outputs/mapping_reviewed.json --lexical --bertscore --bert-model xlm-roberta-large --bert-device cpu --bert-batch-size 1 --out outputs/new_run/scores.json
+env/Scripts/python.exe -m vigovbot eva score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --predictions outputs/new_run/predictions.jsonl --unit-map outputs/mapping_reviewed.json --lexical --bertscore --bert-model xlm-roberta-large --bert-device cpu --bert-batch-size 1 --out outputs/new_run/scores.json
 ```
 
 Không có mapping thì bỏ `--unit-map`; bộ chấm ghi rõ retrieval chưa đầy đủ. Cài extras evaluation (gồm sacrebleu, ROUGE, BERTScore). Model BERT có thể cần tải riêng.
@@ -78,7 +78,7 @@ Similarity áp dụng cho answer/partial/correct_premise có phản hồi hợp 
 ## 4. Duyệt/chấm ngữ nghĩa
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.qa_v4.review --dataset Data/qa_test_v4/rag_tthc_three_1500 --predictions outputs/new_run/predictions.jsonl --out outputs/new_run/review_packets.jsonl
+env/Scripts/python.exe -m vigovbot.evaluation.review --dataset Data/qa_test_v4/rag_tthc_three_1500 --predictions outputs/new_run/predictions.jsonl --out outputs/new_run/review_packets.jsonl
 ```
 
 Packet chứa case, history, reference, nguồn, câu trả lời, context và citations. Người/AI chấm theo `judge_rubric.md`: correctness, completeness, faithfulness, citation_support, behavior_correct là **0/1/null**. Không suy từ keyword, action hoặc BERTScore. Null nghĩa chưa chấm/không áp dụng, không phải 0.
@@ -106,15 +106,15 @@ Context giữ pages/source_sha256 nếu corpus cung cấp. Adapter giữ thứ h
 Dùng cùng model, seed, temperature, ngân sách sinh, dataset/view và lịch sử; khóa cấu hình trước khi chạy. Oracle chỉ là thí nghiệm chẩn đoán, bỏ routing/retrieval và đưa quote của bằng chứng chuẩn, không truyền reference_answer hay nhãn hành vi. Context oracle vẫn chịu token budget; không coi là mức trần toán học.
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --no-retrieval --out outputs/compare/base.jsonl
-env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --out outputs/compare/rag.jsonl
-env/Scripts/python.exe -m vigovbot.qa_v4 run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --oracle-evidence --out outputs/compare/oracle.jsonl
+env/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --no-retrieval --out outputs/compare/base.jsonl
+env/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --out outputs/compare/rag.jsonl
+env/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --oracle-evidence --out outputs/compare/oracle.jsonl
 ```
 
 Chấm từng run bằng cùng lệnh score/cấu hình metric. Oracle/base không dùng để báo chất lượng retriever. Nếu bật citations cho RAG/oracle thì nêu đây là thay đổi prompt/cấu hình so với lần chạy cũ; baseline không có nguồn để dẫn.
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.qa_v4.compare --left outputs/compare/base_scores.json --right outputs/compare/rag_scores.json --out outputs/compare/base_vs_rag.json
+env/Scripts/python.exe -m vigovbot.evaluation.compare --left outputs/compare/base_scores.json --right outputs/compare/rag_scores.json --out outputs/compare/base_vs_rag.json
 ```
 
 Comparison từ chối khác dataset, tập ID, nhóm hoặc history mode; điểm ngữ nghĩa chỉ so sánh nếu cùng tập judgment. Bootstrap theo procedure_family/conversation, seed 42, 2.000 lần; chênh lệch right-minus-left. Lỗi tính 0 cho action accuracy. Công cụ không tự xác nhận cấu hình model tương đương; phải kiểm tra provenance. Tránh dùng tập test để chọn cấu hình.
