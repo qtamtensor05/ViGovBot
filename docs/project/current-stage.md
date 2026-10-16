@@ -1,3 +1,16 @@
+# TASK-20261016-04 - completed
+
+- Giai đoạn: đã gỡ CI và hoàn tất hậu kiểm Docker sau `docker builder prune -a`.
+- CI: xóa workflow duy nhất `.github/workflows/ci.yml`; hướng dẫn development
+  hiện yêu cầu chạy thủ công unit/static gate, không còn mô tả CI đang hoạt động.
+- Docker: trước khi build, build cache đúng là `0 B` nhưng image `vigovbot-web`,
+  image Ollama và ba named volume vẫn tồn tại. Docker Desktop được khởi động lại,
+  `docker compose config --quiet` và build sạch image web đều thành công.
+- Runtime PASS: `ollama` và `web` healthy; model init exit 0; `qwen2.5:7b` 4,7 GB
+  còn trong volume; HTTP web và web-to-Ollama đều 200; container nhận RTX 4050.
+- Không xóa image, volume, dataset, adapter hoặc checkpoint; không chạy inference
+  sinh câu trả lời, browser QA, training hay benchmark.
+
 # TASK-20261015-14 - completed
 
 - Giai đoạn: hoàn tất audit, migration, documentation và verification.

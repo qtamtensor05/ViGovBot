@@ -26,8 +26,8 @@ package đã cài, nên có thể gọi ngoài thư mục repository. Có thể 
 git diff --check
 ```
 
-CI chạy cùng unit/integration/static gate trên Windows và Ubuntu, không tải Qwen
-và không chạy GPU training. Test GPU phải được ghi riêng như artifact thực nghiệm.
+Repository không còn workflow CI tự động. Trước khi bàn giao thay đổi, chạy thủ
+công các gate ở trên; test GPU phải được ghi riêng như artifact thực nghiệm.
 
 Implementation canonical nằm trong `src/vigovbot`. Namespace `training.*`, YAML
 cấp gốc và PowerShell lifecycle cũ chỉ là compatibility layer; không thêm business

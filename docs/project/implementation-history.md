@@ -912,3 +912,18 @@
   `vigov doctor`, `vigov rag prepare` với 117871 vector, test documentation và
   `git diff --check` đều PASS.
 
+
+## TASK-20261016-04 - Gỡ CI và hậu kiểm Docker sau builder prune
+
+- Xóa workflow CI duy nhất `.github/workflows/ci.yml`; giữ nguyên các gate test,
+  Ruff, compileall, pip check và diff-check dưới dạng lệnh chạy thủ công trong
+  `docs/setup/development.md`.
+- Khi bắt đầu, Docker Desktop engine chưa chạy. Sau khi khởi động lại, xác nhận
+  Docker 29.8.2, Compose hợp lệ, build cache bằng 0 B, nhưng image web/Ollama và
+  ba volume `ollama-models`, `rag-cache`, `huggingface-cache` vẫn tồn tại.
+- Chạy `docker compose build web` từ cache rỗng thành công, recreate service web
+  và chạy lại model init thành công. Runtime cuối: web/Ollama healthy, HTTP host
+  200, web gọi Ollama 200, model `qwen2.5:7b` 4,7 GB còn nguyên, CUDA nhận
+  NVIDIA GeForce RTX 4050 Laptop GPU (6141 MiB tổng theo `nvidia-smi`).
+- Kiểm chứng: `docker compose config --quiet`, build web, `vigov --help`, health,
+  HTTP và `git diff --check` đều PASS. Không chạy generation E2E hoặc browser QA.

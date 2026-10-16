@@ -788,3 +788,21 @@
   healthy, HTTP web 200, model Ollama trong volume vẫn tồn tại.
 - Trạng thái: completed; Ollama Desktop đã gỡ, ba thư mục local đã
   xóa; Docker web/Ollama vẫn healthy, HTTP 200, model và CLI container còn hoạt động.
+
+## TASK-20261016-04
+
+- Ngày: 2026-10-16 (Asia/Saigon).
+- Yêu cầu: gỡ bỏ CI của dự án và kiểm tra lại Docker sau khi người dùng chạy
+  `docker builder prune -a`.
+- Phạm vi: xóa workflow CI đang được version-control, cập nhật hướng dẫn phát
+  triển còn mô tả CI, xác minh Compose/Dockerfile, Docker engine, image, volume,
+  build lại image web và kiểm tra runtime nếu engine sẵn sàng.
+- Tiêu chí hoàn thành: không còn workflow CI đang hoạt động; Compose hợp lệ;
+  xác định rõ tác động của prune; build và health/runtime được kiểm tra thực tế
+  hoặc ghi rõ phần không thể kiểm tra cùng nguyên nhân.
+- Giả định an toàn: giữ nguyên dataset, checkpoint, adapter và toàn bộ Docker
+  volume; không chạy training, benchmark hoặc xóa thêm cache/image/volume.
+- Trạng thái: completed; workflow CI đã xóa, tài liệu development đã chuyển sang
+  gate thủ công. Docker Desktop được khởi động lại; Compose validate và build
+  sạch thành công; web/Ollama healthy, HTTP nội bộ/host 200, model cùng volume
+  còn nguyên và container nhận RTX 4050.

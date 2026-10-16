@@ -96,8 +96,8 @@ batch/cadence, optimizer và Early Stopping được `training.config` kiểm tr
   hình trong các run lịch sử vẫn giữ nguyên provenance cũ.
 - Dry-run thật đã xác nhận RTX 4050, CUDA 13.0, ba dataset hash và đúng 4 smoke
   step mà không tạo run/artifact. Chưa chạy GPU smoke/training trong refactor này.
-- Lifecycle Linux có implementation và CI Ubuntu nhưng chưa được chạy trên máy
-  Linux GPU thật trong phiên này; không xem test mock/CI source là GPU evidence.
+- Lifecycle Linux có implementation nhưng chưa được chạy trên máy Linux GPU thật
+  trong phiên này; không xem test mock hoặc source inspection là GPU evidence.
 
 ## Lệnh GPU tiếp theo
 
