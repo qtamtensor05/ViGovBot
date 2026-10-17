@@ -1,3 +1,23 @@
+# TASK-20261018-05 - completed
+
+- Giai đoạn: đã bổ sung hiển thị tiến trình nhẹ cho `run-v2` và `export-v2`.
+- Yêu cầu hiệu năng: không thêm dependency/progress bar; run chỉ in tối đa mỗi
+  10 giây và dòng cuối, scorer chỉ in mỗi 100 record và dòng cuối.
+- Output tiến trình đi qua stderr để không trộn với JSON summary trên stdout.
+- Kiểm chứng: 11 test Evaluation v2 và 1 test documentation pass; compileall và
+  `git diff --check` pass. Không chạy model hoặc benchmark thật.
+
+# TASK-20261018-04 - completed
+
+- Đã xử lý xung đột cổng host 8000 với PHP/Laravel PID 9224 bằng cổng ViGovBot
+  8001; web và Ollama hiện healthy, HTTP `/` trả 200.
+- `src`/`configs` mount read-only với `PYTHONPATH=/app/src`; Golden/output v2
+  không còn mount vào web và evaluation được hướng dẫn chạy từ host.
+- Dockerfile cài dependency trước source để lần build theo source không tải lại
+  PyTorch; Dockerfile check, Compose config, 11 test v2 và link test đều pass.
+- Đã xóa 12,76 GB Docker build cache; image, Ollama/Hugging Face/RAG volume,
+  Golden, adapter và output được giữ nguyên. Không chạy model/evaluation thật.
+
 # TASK-20261018-03 - completed
 
 - Giai đoạn: hoàn tất audit tĩnh luồng Evaluation v2 hai lệnh.

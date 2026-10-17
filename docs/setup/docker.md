@@ -5,9 +5,9 @@ trong volume `ollama-models`; web lưu cache RAG trong volume `rag-cache`. Cấu
 hình local `configs/rag/inference.yaml` không thay đổi; container dùng
 `configs/rag/inference-docker.yaml` với endpoint `http://ollama:11434`.
 
-Đây là runtime mặc định và bắt buộc cho web, Base/RAG/QLoRA và các lệnh kiểm tra
-cơ bản. Sau khi đã gỡ runtime local, không chạy `vigov`, `python` hoặc `ollama`
-trực tiếp trên Windows; dùng các lệnh `docker compose` bên dưới.
+Đây là runtime mặc định cho web, Base/RAG/QLoRA và các lệnh kiểm tra runtime cơ
+bản. Evaluation v2 có thể chạy bằng môi trường Python dự án trên Windows để đọc
+Golden/ghi output trực tiếp; Ollama và inference web vẫn chạy trong Docker.
 
 ## Yêu cầu
 
@@ -32,7 +32,8 @@ docker compose exec -T ollama ollama list
 Lần đầu, service `ollama-model-init` tải `qwen2.5:7b` vào volume trước
 khi web khởi động. Web còn tạo RAG cache từ corpus trong lần đầu,
 nên healthcheck cho phép tối đa 10 phút khởi tạo. Sau khi `web` healthy,
-mở <http://localhost:8000>.
+mở <http://localhost:8001>. Cổng trong container vẫn là 8000; có thể đổi cổng
+host bằng biến `VIGOVBOT_WEB_PORT` nếu 8001 cũng đang được sử dụng.
 
 ## Chạy hằng ngày và lệnh cơ bản
 
@@ -71,19 +72,22 @@ thực sự muốn xóa model Ollama, cache RAG và cache Hugging Face đã tả
 Các dữ liệu vẫn cần trên host vì đang được bind mount vào container:
 
 - `Data/vector/unified`: corpus vector cho RAG.
-- `Data/golden_dataset`: Golden train/val/test, bind mount read-only cho Evaluation v2.
-- `outputs/evaluation_v2`: prediction và kết quả v2 ghi trở lại host.
 - Adapter được khai báo trong `compose.yaml`: cần khi chọn QLoRA.
-- Source và cấu hình repository: dùng để build image và mount artifact.
+- `src` và `configs`: mount read-only cho development; sửa code/cấu hình chỉ
+  cần recreate/restart container, không build lại dependency.
 
 Không cần giữ `env`, `%USERPROFILE%\.ollama` hoặc `outputs/rag_cache` trên host.
 Model Ollama, cache RAG và cache Hugging Face hoạt động nằm trong Docker named
 volume. Không chạy `docker compose down --volumes` nếu muốn giữ chúng.
 
-Compose phục vụ inference/web và smoke Evaluation v2 qua `run-v2`/
-`export-v2`. Ingestion PDF, training và metric evaluation cần dependency tùy
-chọn như BERTScore vẫn cần môi trường chuyên biệt; xem hướng dẫn
-tương ứng trước khi chạy.
+Compose chỉ phục vụ inference/web và model. Evaluation v2 đọc Golden, ghi output
+và gọi API `http://localhost:8001` từ môi trường Python trên host; Golden/output
+không được đưa hoặc mount vào container web. Ingestion PDF, training và metric
+evaluation cần dependency tùy chọn như BERTScore vẫn cần môi trường chuyên biệt.
+
+Dockerfile cài dependency nặng trước khi copy source. Vì vậy thay đổi source
+không làm mất cache PyTorch ở lần build kế tiếp; chỉ thay đổi `pyproject.toml`
+mới buộc cài lại dependency.
 
 ## GPU 6 GB và chuyển model
 

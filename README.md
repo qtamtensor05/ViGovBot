@@ -22,7 +22,7 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Khi service `web` báo `healthy`, mở <http://localhost:8000>. Xem
+Khi service `web` báo `healthy`, mở <http://localhost:8001>. Xem
 [hướng dẫn Docker](docs/setup/docker.md) để vận hành và
 [tham chiếu CLI](docs/guides/cli.md) để chạy lệnh bên trong container. Các môi
 trường phát triển, training và evaluation chuyên biệt nằm trong

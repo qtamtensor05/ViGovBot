@@ -4,27 +4,26 @@
 
 Golden canonical mới nằm tại `Data/golden_dataset` với ba split
 `train_golden.jsonl`, `val_golden.jsonl` và `test_golden.jsonl`. Dùng
-hai lệnh tách biệt: `run-v2` hỏi model qua web Docker, sau đó
-`export-v2` chấm offline và xuất schema v2. Ví dụ Base smoke 2 câu:
+hai lệnh chạy từ môi trường Python trên host: `run-v2` hỏi model qua API web
+Docker, sau đó `export-v2` chấm offline và xuất schema v2. Ví dụ đánh giá Base
+trên toàn bộ split test:
 
 ```powershell
-docker compose exec web vigov eva run-v2 `
+vigov eva run-v2 `
   --architecture base `
   --split test `
-  --limit 2 `
-  --out outputs/evaluation_v2/base-smoke2/predictions.jsonl
+  --out outputs/evaluation_v2/base-test/predictions.jsonl
 
-docker compose exec web vigov eva export-v2 `
+vigov eva export-v2 `
   --architecture base `
   --model-name qwen2.5:7b `
-  --run-id base-smoke2 `
+  --run-id base-test `
   --split test `
-  --predictions outputs/evaluation_v2/base-smoke2/predictions.jsonl `
-  --allow-partial `
-  --out outputs/evaluation_v2/base-smoke2/results.jsonl
+  --predictions outputs/evaluation_v2/base-test/predictions.jsonl `
+  --out outputs/evaluation_v2/base-test/results.jsonl
 ```
 
-Mặc định `run-v2` gọi `http://localhost:8000/api/chat` và ánh xạ
+Mặc định `run-v2` gọi `http://localhost:8001/api/chat` và ánh xạ
 `base -> qwen-base`, `finetuned -> qwen-qlora`, `rag_base -> qwen-rag` theo
 `configs/rag/inference-docker.yaml`. Dùng `--model-id` nếu cần ghi đè;
 `rag_finetuned` bắt buộc chỉ định model ID vì Docker chưa có profile
@@ -34,6 +33,11 @@ mặc định. Request model chỉ gồm question/history, không có ground tru
 `gold_labels_sent_to_model=false`. Nếu một request lỗi/timeout, record vẫn
 được lưu với `execution_status=error`; lệnh trả exit code khác 0 để
 người chạy nhận biết.
+
+Trong khi chạy, `run-v2` in tiến trình tối đa mỗi 10 giây và khi hoàn tất;
+`export-v2` in mỗi 100 record và khi hoàn tất. Dòng tiến trình gồm số record,
+phần trăm, thời gian đã chạy và ETA, được ghi ra stderr để không trộn với JSON
+summary trên stdout và không cần thêm dependency progress bar.
 
 Prediction phải có `id` hoặc `test_id` trùng `TC_*` trong split Golden.
 Mặc định lệnh yêu cầu đủ coverage và từ chối ID ngoài benchmark;

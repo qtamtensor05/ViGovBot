@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import re
+import sys
 import time
 import unicodedata
 from datetime import datetime
@@ -97,6 +98,20 @@ def _detail(status: str, reason: str | None = None, scorer: str | None = None) -
     return {"status": status, "reason": reason, "scorer_version": scorer, "evidence": None}
 
 
+def _show_progress(label: str, current: int, total: int, started: float, counts=None) -> None:
+    elapsed = max(0.0, time.perf_counter() - started)
+    eta = (elapsed / current * (total - current)) if current else 0.0
+    status = "" if not counts else " | " + " | ".join(
+        f"{key}={counts.get(key, 0)}" for key in ("success", "error")
+    )
+    print(
+        f"[{label}] {current}/{total} ({current / total:.1%}){status} "
+        f"| elapsed={elapsed:.0f}s | eta={eta:.0f}s",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def load_golden(dataset: Path, split: str) -> tuple[Path, list[dict]]:
     path = Path(dataset) / f"{split}_golden.jsonl"
     if not path.is_file():
@@ -152,7 +167,7 @@ def _post_json(endpoint: str, payload: dict, timeout: float) -> dict:
 
 
 def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit: int | None = None,
-           endpoint: str = "http://localhost:8000/api/chat", model_id: str | None = None,
+           endpoint: str = "http://localhost:8001/api/chat", model_id: str | None = None,
            timeout: float = 300, post_json=None) -> dict:
     """Run selected Golden questions through an existing web endpoint without exposing gold labels."""
     if architecture not in ARCHITECTURES:
@@ -171,8 +186,10 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
     send = post_json or _post_json
     counts = collections.Counter()
     started_at = datetime.now().astimezone()
+    progress_started = time.perf_counter()
+    last_progress = progress_started
     with output.open("x", encoding="utf-8") as handle:
-        for golden in selected:
+        for index, golden in enumerate(selected, 1):
             # Intentionally exclude ground_truth, taxonomy and all evaluation labels.
             payload = {
                 "question": golden["input"]["question"],
@@ -214,6 +231,10 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
                 counts["error"] += 1
             handle.write(json.dumps(prediction, ensure_ascii=False, allow_nan=False) + "\n")
             handle.flush()
+            now = time.perf_counter()
+            if index == len(selected) or now - last_progress >= 10:
+                _show_progress("run-v2", index, len(selected), progress_started, counts)
+                last_progress = now
     report = {
         "architecture_type": architecture, "web_model_id": model_id, "split": split,
         "selected": len(selected), "execution_status": dict(sorted(counts.items())),
@@ -549,8 +570,9 @@ def export_v2(*, dataset: Path, split: str, predictions: Path | None, architectu
     counts = collections.Counter()
     cohorts = collections.defaultdict(collections.Counter)
     aggregate_values = collections.defaultdict(lambda: collections.defaultdict(list))
+    progress_started = time.perf_counter()
     with output.open("x", encoding="utf-8") as handle:
-        for golden in golden_rows:
+        for index, golden in enumerate(golden_rows, 1):
             record = build_record(golden, prediction_rows.get(golden["test_id"]), split=split, run_id=run_id,
                                   architecture=architecture, model_config=config, provenance=provenance)
             handle.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
@@ -565,6 +587,8 @@ def export_v2(*, dataset: Path, split: str, predictions: Path | None, architectu
                 for metric, value in record["evaluation_results"][group].items():
                     if isinstance(value, (int, float)) and math.isfinite(value):
                         aggregate_values[group][metric].append(float(value))
+            if index % 100 == 0 or index == len(golden_rows):
+                _show_progress("export-v2", index, len(golden_rows), progress_started)
     metric_aggregates = {
         group: {metric: {"mean": sum(values) / len(values), "n": len(values)}
                 for metric, values in sorted(metrics.items())}

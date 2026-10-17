@@ -896,3 +896,23 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   phụ thuộc ROUGE; 30 test evaluation/QA/docs và 8 test v2 đều pass.
 - Kết quả: compileall/diff-check pass; Ruff và full suite được ghi
   SKIPPED/không đạt trong image hiện tại, không cài thêm dependency.
+# ERR-20261018-02 - Cổng host 8000 đã được Laravel sử dụng
+
+- Task: TASK-20261018-04.
+- Triệu chứng: `docker compose up --build -d` build image thành công sau 750,7
+  giây nhưng container web không start do không bind được `127.0.0.1:8000`.
+- Tái hiện: Docker báo `Only one usage of each socket address ... permitted`.
+- Nguyên nhân xác nhận: `Get-NetTCPConnection` trả PID 9224; tiến trình là
+  `C:\php\php.exe -S 127.0.0.1:8000` của dự án Laravel Personal-blog.
+- Hướng sửa: không dừng tiến trình ngoài phạm vi; chuyển cổng host mặc định của
+  ViGovBot sang 8001 và cho phép ghi đè bằng biến môi trường Compose.
+
+# ERR-20261018-03 - Test host thiếu đường dẫn src trong PYTHONPATH
+
+- Task: TASK-20261018-04.
+- Triệu chứng: lần đầu chạy `python -m unittest tests.test_evaluation_v2` trên
+  host lỗi `ModuleNotFoundError: No module named 'vigovbot'`.
+- Nguyên nhân: source-layout chưa được cài vào Python 3.14 đang gọi và shell
+  kiểm chứng chưa đặt `PYTHONPATH=src`; không phải lỗi source Evaluation v2.
+- Xử lý và kết quả: đặt `$env:PYTHONPATH='src'`, chạy lại 11 test v2 đều pass;
+  không cài thêm dependency và không thay đổi Python hệ thống.

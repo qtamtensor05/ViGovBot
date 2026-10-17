@@ -898,3 +898,30 @@
 - Trạng thái: completed; xác định prediction đang lưu trùng nguồn truy xuất,
   một số metadata hằng không cần theo từng dòng, và luồng citation chưa lấy
   được citation thực từ API nên có thể chấm 0 sai ý nghĩa.
+
+## TASK-20261018-04
+
+- Ngày: 2026-10-18 (Asia/Saigon).
+- Yêu cầu: tối ưu phương án Docker vì build tốn dung lượng/thời gian, xử lý lỗi
+  cổng 8000 đang bị chiếm và xóa build cache cũ.
+- Phạm vi: giữ Docker cho web/model, data/model artifact ở host hoặc volume;
+  evaluation chạy từ host; sửa source/config không buộc cài lại dependency;
+  chỉ xóa Docker build cache, không xóa image/model/data/output.
+- Tiêu chí hoàn thành: Compose resolve được khi cổng 8000 đang bị Laravel dùng;
+  source/config được mount cho development; dependency layer đứng trước source;
+  cấu hình và kiểm tra liên quan pass; báo chính xác dung lượng cache đã dọn.
+- Trạng thái: completed; web chạy healthy tại cổng 8001 từ image hiện có,
+  source/config dùng bind mount, Dockerfile đã tách layer dependency và 12,76 GB
+  build cache đã được xóa mà không xóa image/volume/model.
+
+## TASK-20261018-05
+
+- Ngày: 2026-10-18 (Asia/Saigon).
+- Yêu cầu: hiển thị tiến trình đơn giản khi hỏi model và chấm điểm, giảm ảnh
+  hưởng tốc độ thấp nhất có thể.
+- Phạm vi: progress stderr không dependency cho `run-v2` và `export-v2`; không
+  thay đổi schema, metric, request model hoặc artifact.
+- Tiêu chí: có current/total, phần trăm, elapsed và ETA; throttling theo thời
+  gian cho inference, theo batch record cho scorer; luôn có dòng hoàn tất.
+- Trạng thái: completed; progress được ghi ra stderr theo chu kỳ giới hạn,
+  không thêm dependency và không thay đổi output JSON/artifact.

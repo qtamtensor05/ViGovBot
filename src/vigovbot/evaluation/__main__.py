@@ -108,7 +108,7 @@ def main(argv=None):
         from .v2 import run_v2
         report = run_v2(
             dataset=args.golden_dir, split=args.split or "test", architecture=args.architecture,
-            output=args.out, limit=args.limit, endpoint=args.endpoint or "http://localhost:8000/api/chat",
+            output=args.out, limit=args.limit, endpoint=args.endpoint or "http://localhost:8001/api/chat",
             model_id=args.model_id, timeout=args.timeout,
         )
         print(json.dumps(report, ensure_ascii=False, indent=2))

@@ -1,6 +1,8 @@
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -55,8 +57,10 @@ class EvaluationV2Tests(unittest.TestCase):
             root = Path(directory)
             write_jsonl(root / "test_golden.jsonl", [golden()])
             output = root / "predictions.jsonl"
-            report = run_v2(dataset=root, split="test", architecture="rag_base", output=output,
-                            endpoint="http://web/api/chat", post_json=post_json)
+            progress = io.StringIO()
+            with redirect_stderr(progress):
+                report = run_v2(dataset=root, split="test", architecture="rag_base", output=output,
+                                endpoint="http://web/api/chat", post_json=post_json)
             prediction = next(read_jsonl(output))
         self.assertEqual(captured[0], (
             "http://web/api/chat",
@@ -71,6 +75,7 @@ class EvaluationV2Tests(unittest.TestCase):
         self.assertEqual(prediction["retrieved_chunk_ids"], ["chunk-1"])
         self.assertEqual(report["execution_status"], {"success": 1})
         self.assertFalse(report["gold_labels_sent_to_model"])
+        self.assertIn("[run-v2] 1/1 (100.0%)", progress.getvalue())
 
     def test_run_v2_records_http_failure_without_fabricating_answer(self):
         def fail(*_):
@@ -142,14 +147,19 @@ class EvaluationV2Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "miss 1 Golden IDs"):
                 export_v2(dataset=root, split="test", predictions=predictions, architecture="finetuned",
                           model_name="adapter", run_id="run-1", output=output)
-            summary = export_v2(dataset=root, split="test", predictions=predictions, architecture="finetuned",
-                                model_name="adapter", run_id="run-1", output=output, allow_partial=True)
+            progress = io.StringIO()
+            with redirect_stderr(progress):
+                summary = export_v2(
+                    dataset=root, split="test", predictions=predictions, architecture="finetuned",
+                    model_name="adapter", run_id="run-1", output=output, allow_partial=True,
+                )
             rows = list(read_jsonl(output))
         self.assertEqual(summary["missing_predictions"], 1)
         self.assertEqual(summary["cohorts"]["answerable"], {"expected": 2, "predicted": 1, "successful": 1})
         self.assertEqual(summary["metric_aggregates"]["reference_based_scores"]["normalized_exact_match"]["n"], 1)
         self.assertEqual([row["scoring_status"] for row in rows], ["partial", "not_scored"])
         self.assertFalse(rows[0]["provenance"]["inference_performed"])
+        self.assertIn("[export-v2] 2/2 (100.0%)", progress.getvalue())
 
     def test_export_rejects_prediction_ids_from_another_benchmark(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -202,7 +212,7 @@ class EvaluationV2Tests(unittest.TestCase):
             ]), 0)
         runner.assert_called_once()
         self.assertEqual(runner.call_args.kwargs["model_id"], None)
-        self.assertEqual(runner.call_args.kwargs["endpoint"], "http://localhost:8000/api/chat")
+        self.assertEqual(runner.call_args.kwargs["endpoint"], "http://localhost:8001/api/chat")
 
 
 if __name__ == "__main__":

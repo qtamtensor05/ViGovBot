@@ -6,11 +6,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml ./
+
+# Cache heavy runtime dependencies independently from application source.
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -c "import subprocess, sys, tomllib; p=tomllib.load(open('pyproject.toml','rb')); d=p['project']; deps=d['dependencies']+d['optional-dependencies']['rag']+d['optional-dependencies']['gpu']; subprocess.check_call([sys.executable,'-m','pip','install','--no-cache-dir',*deps])"
+
+COPY README.md LICENSE ./
 COPY src ./src
 
-RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir ".[rag,gpu]"
+RUN python -m pip install --no-cache-dir --no-deps .
 
 COPY configs ./configs
 

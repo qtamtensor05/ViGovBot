@@ -1005,6 +1005,35 @@
   trước khi dùng ba metric citation để so sánh RAG.
 - Không chạy model, không tạo benchmark và không thay đổi source/runtime.
 
+## TASK-20261018-04 - Tối ưu Docker development và dọn build cache
+
+- Xác nhận cổng 8000 do PHP/Laravel PID 9224 sử dụng; không dừng tiến trình đó,
+  chuyển mapping web sang `${VIGOVBOT_WEB_PORT:-8001}:8000`.
+- Mount `src` và `configs` read-only, đặt `PYTHONPATH=/app/src`; bỏ mount Golden
+  và output evaluation khỏi web, chuyển hướng dẫn Evaluation v2 sang chạy host
+  và gọi API web tại cổng 8001.
+- Tách cài dependency `rag,gpu` thành layer chỉ phụ thuộc `pyproject.toml`, sau
+  đó mới copy/cài source bằng `--no-deps`; thay đổi source không còn làm mất
+  cache dependency trong các build theo Dockerfile mới.
+- Recreate bằng `docker compose up -d --no-build`; web/Ollama healthy và HTTP
+  200. Dockerfile check, Compose config, 11 test v2, documentation test,
+  compileall và diff-check đạt sau khi sửa newline nhật ký.
+- `docker builder prune -a -f` xóa 12,76 GB build cache. Hậu kiểm còn 0 B build
+  cache; không xóa image, named volume, Golden, adapter hoặc output.
+- Không chạy model generation, benchmark hay Evaluation v2 thật.
+
+## TASK-20261018-05 - Thêm tiến trình nhẹ cho Evaluation v2
+
+- Thêm progress text dùng thư viện chuẩn, ghi ra stderr để giữ JSON summary trên
+  stdout sạch và không thêm `tqdm` hoặc dependency runtime.
+- `run-v2` cập nhật tối đa mỗi 10 giây và luôn in dòng cuối, gồm current/total,
+  phần trăm, success/error, elapsed và ETA.
+- `export-v2` cập nhật mỗi 100 Golden record và luôn in dòng cuối, gồm
+  current/total, phần trăm, elapsed và ETA.
+- Thêm regression assertion cho dòng hoàn tất của cả hai bước; 11 test v2 và
+  1 test documentation pass, compileall và diff-check pass.
+- Không gọi model, không chạy benchmark và không thay đổi schema/metric/artifact.
+
 ## TASK-20261018-02 - Tách Evaluation v2 thành hai lệnh
 
 - Thêm `vigov eva run-v2` đọc Golden split, chọn `--limit`, gọi
