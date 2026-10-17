@@ -1034,6 +1034,18 @@
   1 test documentation pass, compileall và diff-check pass.
 - Không gọi model, không chạy benchmark và không thay đổi schema/metric/artifact.
 
+## TASK-20261018-06 - Đồng bộ lệnh cài đặt và khởi chạy
+
+- Cập nhật README/CLI/Docker/RAG guide theo ba trường hợp: first build hoặc đổi
+  dependency/Dockerfile dùng `up --build`; chạy hằng ngày dùng `up -d`; chỉ sửa
+  `src`/`configs` dùng `restart web` nhờ bind mount.
+- Đồng bộ URL web/API active sang cổng host 8001 và thêm
+  `VIGOVBOT_WEB_PORT=8001` vào `.env.example`; cổng container vẫn là 8000.
+- Làm rõ Evaluation v2 chạy từ môi trường Python host đã cài editable, trong
+  khi Ollama/inference web vẫn chạy trong Docker.
+- Quét tài liệu active không còn `localhost:8000`; documentation test, Compose
+  config và diff-check pass. Không sửa/restart runtime, model, data hoặc artifact.
+
 ## TASK-20261018-02 - Tách Evaluation v2 thành hai lệnh
 
 - Thêm `vigov eva run-v2` đọc Golden split, chọn `--limit`, gọi

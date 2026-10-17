@@ -8,6 +8,10 @@ hai lệnh chạy từ môi trường Python trên host: `run-v2` hỏi model qu
 Docker, sau đó `export-v2` chấm offline và xuất schema v2. Ví dụ đánh giá Base
 trên toàn bộ split test:
 
+Trước khi chạy, cài và kích hoạt môi trường evaluation theo
+[tài liệu môi trường](../setup/environments.md); lệnh `vigov` dưới đây là console
+script của package đã cài editable. Web Docker phải đang healthy tại cổng 8001.
+
 ```powershell
 vigov eva run-v2 `
   --architecture base `

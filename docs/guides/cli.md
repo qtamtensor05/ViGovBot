@@ -10,9 +10,11 @@ docker compose up -d
 docker compose ps
 ```
 
-Lần đầu hoặc sau khi đổi dependency/source dùng `docker compose up --build -d`.
-Container `web` đã chạy web server ở <http://localhost:8000>; không gọi thêm
-`vigov web` trong container.
+Lần đầu hoặc sau khi đổi `pyproject.toml`/Dockerfile dùng
+`docker compose up --build -d`. Vì `src` và `configs` được bind mount, sau khi
+chỉ sửa code hoặc cấu hình dùng `docker compose restart web`, không build lại.
+Container `web` đã chạy web server ở <http://localhost:8001>; không gọi thêm
+`vigov web` trong container. Có thể đổi cổng host bằng `VIGOVBOT_WEB_PORT`.
 
 ## Kiểm tra và hỏi đáp
 
@@ -47,6 +49,8 @@ môi trường chuyên biệt, dependency tương ứng và bind mount input/out
 
 - `vigov data ingest|embed|check|stats`
 - `vigov rag smoke|evaluate|report|run`
+- `vigov eva run-v2|export-v2` chạy trên host để đọc Golden và ghi output
+  trực tiếp; cài/kích hoạt môi trường theo [tài liệu môi trường](../setup/environments.md).
 - `vigov gpu`, `vigov train`, `vigov dashboard`
 - `vigov eva`, `vigov report`
 

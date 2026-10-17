@@ -925,3 +925,16 @@
   gian cho inference, theo batch record cho scorer; luôn có dòng hoàn tất.
 - Trạng thái: completed; progress được ghi ra stderr theo chu kỳ giới hạn,
   không thêm dependency và không thay đổi output JSON/artifact.
+
+## TASK-20261018-06
+
+- Ngày: 2026-10-18 (Asia/Saigon).
+- Yêu cầu: cập nhật thông tin cài đặt và chạy dự án cho đúng triển khai Docker
+  và Evaluation v2 hiện tại.
+- Phạm vi: tài liệu active và `.env.example`; giữ nguyên tài liệu lịch sử,
+  runtime, model, dữ liệu và artifact.
+- Tiêu chí: không còn hướng dẫn active mở web ở cổng 8000; phân biệt first
+  build/daily run/source restart; nêu rõ môi trường host cho Evaluation v2 và
+  biến cấu hình cổng.
+- Trạng thái: completed; README, Docker/CLI/RAG/Evaluation guide và
+  `.env.example` đã đồng bộ, tài liệu lịch sử được giữ nguyên.

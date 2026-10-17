@@ -17,10 +17,15 @@ cục bộ, xử lý tài liệu, huấn luyện nền, đánh giá và báo cá
 Runtime web, RAG và Ollama hiện chạy bằng Docker Desktop; không cần cài Python,
 virtual environment hoặc Ollama trên Windows.
 
+Lần đầu hoặc sau khi đổi `pyproject.toml`/Dockerfile:
+
 ```powershell
 docker compose up --build -d
 docker compose ps
 ```
+
+Những lần chạy hằng ngày chỉ cần `docker compose up -d`; sau khi sửa `src` hoặc
+`configs`, dùng `docker compose restart web` mà không build lại.
 
 Khi service `web` báo `healthy`, mở <http://localhost:8001>. Xem
 [hướng dẫn Docker](docs/setup/docker.md) để vận hành và

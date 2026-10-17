@@ -284,7 +284,7 @@ docker compose up -d
 docker compose ps
 ```
 
-Mở `http://localhost:8000`. Server nạp encoder, tokenizer, FAISS và SQLite một
+Mở `http://localhost:8001`. Server nạp encoder, tokenizer, FAISS và SQLite một
 lần, cung cấp `GET /api/health`, `GET /api/models` và `POST /api/chat`. UI giữ
 lịch sử riêng cho từng model trong trình duyệt và gửi lại qua mỗi request; server
 không lưu phiên hội thoại. Các request chat được khóa và xử lý model đã chọn theo

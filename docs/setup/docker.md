@@ -29,6 +29,10 @@ docker compose ps
 docker compose exec -T ollama ollama list
 ```
 
+Chỉ build lại khi đổi `pyproject.toml`, Dockerfile hoặc dependency. `src` và
+`configs` được bind mount; sau khi chỉ sửa code/cấu hình, chạy
+`docker compose restart web`.
+
 Lần đầu, service `ollama-model-init` tải `qwen2.5:7b` vào volume trước
 khi web khởi động. Web còn tạo RAG cache từ corpus trong lần đầu,
 nên healthcheck cho phép tối đa 10 phút khởi tạo. Sau khi `web` healthy,

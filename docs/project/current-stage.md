@@ -1,3 +1,13 @@
+# TASK-20261018-06 - completed
+
+- Giai đoạn: đã đồng bộ lệnh cài đặt/khởi chạy với Compose development hiện tại.
+- Phạm vi: README, CLI guide, Docker guide, RAG guide, Evaluation v2 guide và
+  `.env.example`; không đổi runtime/source/model/data.
+- Mục tiêu: cổng host 8001, build chỉ khi lần đầu/đổi dependency hoặc Dockerfile,
+  sửa source/config chỉ restart web, evaluation dùng môi trường Python host.
+- Kiểm chứng: không còn `localhost:8000` trong tài liệu active; documentation
+  test, Compose config và `git diff --check` pass. Không đổi hoặc restart runtime.
+
 # TASK-20261018-05 - completed
 
 - Giai đoạn: đã bổ sung hiển thị tiến trình nhẹ cho `run-v2` và `export-v2`.
