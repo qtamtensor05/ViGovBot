@@ -71,6 +71,8 @@ thực sự muốn xóa model Ollama, cache RAG và cache Hugging Face đã tả
 Các dữ liệu vẫn cần trên host vì đang được bind mount vào container:
 
 - `Data/vector/unified`: corpus vector cho RAG.
+- `Data/golden_dataset`: Golden train/val/test, bind mount read-only cho Evaluation v2.
+- `outputs/evaluation_v2`: prediction và kết quả v2 ghi trở lại host.
 - Adapter được khai báo trong `compose.yaml`: cần khi chọn QLoRA.
 - Source và cấu hình repository: dùng để build image và mount artifact.
 
@@ -78,9 +80,10 @@ Không cần giữ `env`, `%USERPROFILE%\.ollama` hoặc `outputs/rag_cache` tr�
 Model Ollama, cache RAG và cache Hugging Face hoạt động nằm trong Docker named
 volume. Không chạy `docker compose down --volumes` nếu muốn giữ chúng.
 
-Compose hiện tại phục vụ inference/web. Ingestion PDF, training và evaluation
-đầy đủ cần dependency, dữ liệu đầu vào và output mount riêng; xem các hướng dẫn
-chuyên biệt trước khi tạo lại môi trường cho những workflow đó.
+Compose phục vụ inference/web và smoke Evaluation v2 qua `run-v2`/
+`export-v2`. Ingestion PDF, training và metric evaluation cần dependency tùy
+chọn như BERTScore vẫn cần môi trường chuyên biệt; xem hướng dẫn
+tương ứng trước khi chạy.
 
 ## GPU 6 GB và chuyển model
 

@@ -842,3 +842,59 @@
 - Trạng thái: completed ngày 2026-10-17; source, CLI, test, notebook và
   tài liệu đã chuyển sang `vigovbot.evaluation`/`vigov eva`. Full suite
   168 pass, 3 optional skip; wheel và image Docker không còn package `qa_v4`.
+
+## TASK-20261017-02
+
+- Ngày: 2026-10-17 (Asia/Saigon).
+- Yêu cầu: dựa trên `examples/evaluation_v2` và
+  `examples/QA/golden_test_cases.jsonl`, đề xuất cách cập nhật nội dung
+  đánh giá cho các model.
+- Phạm vi: audit schema/example/config v2, Golden schema và pipeline evaluation
+  canonical; đề xuất contract, ma trận model, phase triển khai và tiêu chí
+  nghiệm thu. Không chạy model, benchmark hoặc tự tạo metric.
+- Tiêu chí hoàn thành: nêu rõ dữ liệu hiện có/thiếu, phân biệt
+  Base, QLoRA, RAG Base và QLoRA + RAG, quy định metric N/A/unavailable và
+  cung cấp lộ trình có acceptance criteria.
+- Trạng thái: completed; đã ghi đề xuất tại
+  `docs/reports/evaluation-v2-model-implementation-proposal.md`.
+
+## TASK-20261018-01
+
+- Ngày: 2026-10-18 (Asia/Saigon).
+- Yêu cầu: sau khi đưa Golden dataset thật vào `Data/golden_dataset`,
+  cập nhật và hoàn thiện luồng đánh giá model mà không chạy lại model.
+- Phạm vi: loader/validator Golden, chuyển prediction đã có sang
+  Evaluation Run v2, chấm metric deterministic offline, CLI/tài liệu/test.
+  Không inference, không tải model, không BERTScore hoặc judge bên ngoài.
+- Tiêu chí hoàn thành: nhận bốn architecture v2; từ chối prediction
+  sai ID/trùng ID; giữ metric thiếu là `null` kèm status; output qua JSON
+  Schema v2; có test không gọi adapter/model.
+- Trạng thái: completed; đã thêm `vigov eva export-v2`, scorer/exporter
+  offline, summary aggregate, test và hướng dẫn. Không chạy model.
+
+## TASK-20261018-02
+
+- Ngày: 2026-10-18 (Asia/Saigon).
+- Yêu cầu: rút gọn quy trình Evaluation v2 thành hai lệnh: một lệnh
+  hỏi model trên Golden test và một lệnh chấm/xuất v2.
+- Phạm vi: thêm `run-v2` đọc Golden, gọi web Docker qua HTTP và ghi
+  prediction `TC_*`; giữ `export-v2` là bước chấm offline. Không gộp
+  hai bước hoặc đưa ground truth vào request model.
+- Tiêu chí hoàn thành: Base smoke 2 câu chỉ cần hai lệnh ngắn;
+  output không ghi đè; ID/history đúng; lỗi HTTP được lưu có trạng thái;
+  test xác nhận request không chứa Golden answer/evidence.
+- Trạng thái: completed; đã thêm `run-v2`, mount Golden/output cho
+  Docker và giữ `export-v2` là lệnh chấm offline riêng.
+
+## TASK-20261018-03
+
+- Ngày: 2026-10-18 (Asia/Saigon).
+- Yêu cầu: kiểm tra luồng chấm Evaluation v2 hiện tại có bước hoặc dữ liệu
+  dư thừa không cần thiết hay không.
+- Phạm vi: audit tĩnh `run-v2`, prediction trung gian, `export-v2`, schema,
+  summary và contract response web; không chạy model và không sửa runtime.
+- Tiêu chí hoàn thành: phân biệt trường bắt buộc bởi schema với dữ liệu trùng
+  có thể bỏ; chỉ ra rủi ro ảnh hưởng kết quả chấm và đề xuất thứ tự tinh gọn.
+- Trạng thái: completed; xác định prediction đang lưu trùng nguồn truy xuất,
+  một số metadata hằng không cần theo từng dòng, và luồng citation chưa lấy
+  được citation thực từ API nên có thể chấm 0 sai ý nghĩa.

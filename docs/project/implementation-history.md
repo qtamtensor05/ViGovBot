@@ -956,3 +956,67 @@
   18 file `vigovbot/evaluation`, 0 file `vigovbot/qa_v4`.
 - Rebuild image không cache và recreate web thành công; runtime chỉ resolve
   `vigovbot.evaluation`, CLI `eva` exit 0, web/Ollama healthy và HTTP 200.
+
+## TASK-20261017-02 - Đề xuất Evaluation Run v2 cho các model
+
+- Audit xác nhận `examples/QA/golden_test_cases.jsonl` là JSON mô tả schema,
+  không phải 3.850 case thật; example v2 chỉ có hai record
+  `not_run`/`not_scored` và cùng gắn architecture `base`.
+- Đối chiếu pipeline canonical cho thấy đã có Base, RAG Base và QLoRA
+  không retrieval; chưa có profile QLoRA + RAG và chưa có writer/scorer
+  xuất trực tiếp contract v2.
+- Viết đề xuất bốn model profile, nội dung trace theo case, quy tắc
+  `null` + status cho metric thiếu, bốn phase triển khai và ba PR đề xuất.
+- Kiểm chứng chỉ gồm audit source/schema và documentation checks; không
+  chạy model, generation, BERTScore, GPU hay benchmark 3.850 case.
+
+## TASK-20261018-01 - Hoàn thiện luồng Evaluation Run v2 offline
+
+- Xác nhận `Data/golden_dataset` có 3.850 case: 2.200 train, 550 val,
+  1.100 test; 350 case unanswerable có evidence/citation rỗng theo chủ ý.
+- Thêm `src/vigovbot/evaluation/v2.py` và lệnh `vigov eva export-v2` chỉ
+  đọc Golden/prediction đã có. Lệnh không import adapter inference, từ chối
+  ID ngoài split/trùng ID/thiếu coverage, trừ khi chọn `--allow-partial`.
+- Hỗ trợ `base`, `finetuned`, `rag_base`, `rag_finetuned`; tính metric
+  reference/retrieval/citation/telemetry có đủ input. Metric semantic,
+  groundedness, BERTScore và constraint thiếu judgment giữ `null` kèm status.
+- Output mỗi case theo schema v2 và summary riêng gồm hash provenance,
+  coverage, answerable/unanswerable cohort, execution status và aggregate có `n`.
+- Kiểm chứng: 8 test v2 pass; nhóm evaluation/QA/documentation 30/30 pass;
+  compileall và `git diff --check` pass. Export skeleton thật trên 1.100 test
+  case có 1.100/1.100 record pass JSON Schema, `inference_performed=false`.
+- Không chạy model, retriever, BERTScore, judge, GPU hay benchmark generation.
+  Ruff SKIPPED vì image inference không có package; full suite trong image này
+  còn failure ROUGE-L cũ do thiếu optional `rouge-score`.
+
+## TASK-20261018-03 - Audit phần dư thừa trong Evaluation v2
+
+- Lần theo luồng `run-v2 -> predictions.jsonl -> export-v2 ->
+  results.jsonl/summary.json` và đối chiếu schema v2 với response `/api/chat`.
+- Xác định `predictions.jsonl` lưu đồng thời `retrieved`,
+  `retrieved_chunk_ids` và `retrieved_scores`; `question`, `history_mode` và
+  `web_model_id` cũng lặp theo từng dòng dù có thể suy ra hoặc đặt ở manifest.
+- Các nhóm metric đầy đủ, Golden nhúng trong từng result và performance lặp ở
+  hai nhánh làm output lớn, nhưng hiện thuộc contract schema v2 nên không thể
+  bỏ nếu vẫn cam kết xuất đúng schema này.
+- Phát hiện response web chỉ công khai `sources`, còn `run-v2` đặt
+  `citations=[]`; scorer sau đó coi citation kỳ vọng nhưng rỗng là điểm 0.
+  Vì vậy citation hiện không phản ánh citation do model sinh và cần sửa contract
+  trước khi dùng ba metric citation để so sánh RAG.
+- Không chạy model, không tạo benchmark và không thay đổi source/runtime.
+
+## TASK-20261018-02 - Tách Evaluation v2 thành hai lệnh
+
+- Thêm `vigov eva run-v2` đọc Golden split, chọn `--limit`, gọi
+  `/api/chat` và ghi prediction theo `TC_*`; Base/QLoRA/RAG mặc định lần lượt
+  dùng `qwen-base`, `qwen-qlora`, `qwen-rag`, có thể ghi đè bằng `--model-id`.
+- Payload HTTP chỉ có question, model ID và history. Ground truth, taxonomy,
+  context/citation label và key fact không được gửi tới model.
+- Prediction thành công giữ answer/action/retrieval source/latency; request lỗi
+  vẫn tạo record `execution_status=error`, không bịa answer. Output và run
+  manifest không ghi đè.
+- Compose mount `Data/golden_dataset` read-only và `outputs/evaluation_v2` read-write,
+  nên sau một lần rebuild workflow chạy bằng hai lệnh `docker compose exec`.
+- Kiểm chứng: 11 test v2 pass; 39 test evaluation/QA/docs/server pass;
+  Compose config, compileall, public CLI routing và `git diff --check` pass.
+  Không gửi request model thật trong quá trình kiểm chứng.

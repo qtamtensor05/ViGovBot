@@ -1,0 +1,17 @@
+{
+  "total": 3850,
+  "counts": {
+    "train_golden.jsonl": 2200,
+    "unanswerable": 350,
+    "val_golden.jsonl": 550,
+    "test_golden.jsonl": 1100
+  },
+  "schema_example_valid": true,
+  "notes": [
+    "Reference similarity can run over all cases after predictions exist; expected_answer is present for all.",
+    "Unanswerable has empty evidence/facts by design.",
+    "No inference metrics or model scores can be populated from Golden data alone.",
+    "Actual retrieval traces required for ranking and latency/VRAM telemetry for performance.",
+    "Retrieval evaluation depends on index ID alignment and corpus access."
+  ]
+}

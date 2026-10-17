@@ -52,11 +52,21 @@ def select_rows(rows, dataset, view, split, limit=None):
 def main(argv=None):
     configure_console()
     parser = argparse.ArgumentParser(description="Run unified ViGovBot evaluation workflows")
-    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test"])
+    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "run-v2", "export-v2"])
     parser.add_argument("--dataset", type=Path, default=Path("Data/qa_test_v4/rag_tthc_v4_1"),
                         help="Dataset directory or alias: rag_v4_small, rag_tthc_three_1500, rag_tthc_v4_1")
     parser.add_argument("--question")
-    parser.add_argument("--run-id", help="Completed QLoRA run ID for the test command")
+    parser.add_argument("--run-id", help="Completed QLoRA run ID for test, or immutable run ID for export-v2")
+    parser.add_argument("--golden-dir", type=Path, default=Path("Data/golden_dataset"),
+                        help="Golden train/val/test directory for offline export-v2")
+    parser.add_argument("--architecture", choices=["base", "finetuned", "rag_base", "rag_finetuned"],
+                        help="Model architecture recorded by export-v2")
+    parser.add_argument("--model-name", help="Model/checkpoint label recorded by export-v2")
+    parser.add_argument("--model-id", help="Web model ID for run-v2; defaults from architecture")
+    parser.add_argument("--model-config", type=Path,
+                        help="Optional JSON provenance/config object for export-v2; never executes the model")
+    parser.add_argument("--allow-partial", action="store_true",
+                        help="Allow cached predictions to cover only part of the selected Golden split")
     connection = parser.add_mutually_exclusive_group()
     connection.add_argument("--config", default="configs/rag/inference.yaml")
     connection.add_argument("--endpoint", help="Existing RAG HTTP endpoint")
@@ -69,7 +79,7 @@ def main(argv=None):
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=180)
     parser.add_argument("--view", help="ID view file; defaults to main test for the small dataset, balanced otherwise")
-    parser.add_argument("--split", choices=["dev", "test"])
+    parser.add_argument("--split", choices=["train", "val", "dev", "test"])
     parser.add_argument("--limit", type=int)
     parser.add_argument("--concurrency", type=int, default=1,
                         help="Parallel questions, or parallel conversations in free-running mode")
@@ -89,6 +99,35 @@ def main(argv=None):
     parser.add_argument('--bert-device', default='cpu')
     parser.add_argument('--bert-batch-size', type=int, default=1)
     args = parser.parse_args(argv)
+    if args.command == "run-v2":
+        missing = [name for name, value in (("--architecture", args.architecture), ("--out", args.out)) if not value]
+        if missing:
+            parser.error("run-v2 requires " + ", ".join(missing))
+        if args.split == "dev":
+            parser.error("run-v2 uses Golden split names train, val or test; dev is not valid")
+        from .v2 import run_v2
+        report = run_v2(
+            dataset=args.golden_dir, split=args.split or "test", architecture=args.architecture,
+            output=args.out, limit=args.limit, endpoint=args.endpoint or "http://localhost:8000/api/chat",
+            model_id=args.model_id, timeout=args.timeout,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return int(report["execution_status"].get("error", 0) > 0)
+    if args.command == "export-v2":
+        missing = [name for name, value in (("--run-id", args.run_id), ("--architecture", args.architecture),
+                                             ("--model-name", args.model_name), ("--out", args.out)) if not value]
+        if missing:
+            parser.error("export-v2 requires " + ", ".join(missing))
+        if args.split == "dev":
+            parser.error("export-v2 uses Golden split names train, val or test; dev is not valid")
+        from .v2 import export_v2
+        summary = export_v2(
+            dataset=args.golden_dir, split=args.split or "test", predictions=args.predictions,
+            architecture=args.architecture, model_name=args.model_name, run_id=args.run_id,
+            output=args.out, model_config_path=args.model_config, allow_partial=args.allow_partial,
+        )
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
     if args.command == "test":
         if not args.run_id:
             parser.error("--run-id is required for test")

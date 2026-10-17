@@ -882,3 +882,17 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   có `.[test,dev]`, dọn chính xác `build`/`dist`/egg-info và build lại sạch.
 - Kết quả: 168 test pass, wheel có 0 file qa_v4; không xóa dataset,
   checkpoint, prediction hay artifact lịch sử.
+
+# ERR-20261018-01
+
+- Task: `TASK-20261018-01`.
+- Triệu chứng: regression `tests.test_qa_v4` không import được trên
+  Python host do thiếu `tqdm`; Ruff trong image inference báo `No module named ruff`.
+  Full suite image có failure ROUGE-L `None != 1.0`.
+- Nguyên nhân: runtime host đã được dọn dependency; image `vigovbot-web`
+  chỉ có dependency inference, không có extra `dev` và `rouge-score`. Failure
+  ROUGE-L trùng giới hạn đã ghi tại `ERR-20261016-05`, không do v2.
+- Xử lý: chạy source mount read-only trong image cho các nhóm test không
+  phụ thuộc ROUGE; 30 test evaluation/QA/docs và 8 test v2 đều pass.
+- Kết quả: compileall/diff-check pass; Ruff và full suite được ghi
+  SKIPPED/không đạt trong image hiện tại, không cài thêm dependency.

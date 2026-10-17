@@ -1,0 +1,46 @@
+{
+  "schema_version": "2.0.0",
+  "reference_normalization": {
+    "unicode": "NFC",
+    "lowercase": true,
+    "collapse_whitespace": true,
+    "punctuation_policy": "configurable",
+    "vietnamese_word_segmenter": "PIN_VERSION",
+    "numeric_and_legal_identifiers": "preserve"
+  },
+  "semantic_models": {
+    "bertscore_model": "PIN_MODEL_ID_AND_REVISION",
+    "bertscore_layer": "PIN",
+    "bertscore_idf": "PIN",
+    "bertscore_rescale_with_baseline": false,
+    "sentence_embedding_model": "PIN_MODEL_ID_AND_REVISION"
+  },
+  "metric_policy": {
+    "null_means": "not computed or not applicable; inspect metric_details.status",
+    "unanswerable": "score reference similarity and abstention; mark key-fact/retrieval/citation evidence metrics N/A when no label",
+    "unavailable_metric": "null, never zero",
+    "reference_multi_answer": "maximum over validated equivalent references; log chosen reference",
+    "retrieval_ground_truth": "ID-based relevance may omit valid alternative chunks; audit or semantic match",
+    "metric_score_range": "typically [0,1], but raw BERTScore/cosine may be negative; latency/tokens/error rates differ",
+    "sacrebleu": "aggregate on corpus, do not average sentence BLEU as corpus BLEU"
+  },
+  "comparisons": {
+    "same_test_ids": true,
+    "paired_bootstrap_ci": 0.95,
+    "slices": [
+      "domain",
+      "difficulty",
+      "complexity_type",
+      "turn_type",
+      "eval_split",
+      "is_unanswerable",
+      "adversarial_type"
+    ],
+    "compare_architectures": [
+      "base",
+      "finetuned",
+      "rag_base",
+      "rag_finetuned"
+    ]
+  }
+}

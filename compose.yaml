@@ -55,7 +55,9 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./Data/vector/unified:/app/Data/vector/unified:ro
+      - ./Data/golden_dataset:/app/Data/golden_dataset:ro
       - rag-cache:/app/outputs/rag_cache
+      - ./outputs/evaluation_v2:/app/outputs/evaluation_v2
       - ./outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter:/app/outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter:ro
       - huggingface-cache:/var/cache/huggingface
     deploy:

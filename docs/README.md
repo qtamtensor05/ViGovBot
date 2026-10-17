@@ -40,6 +40,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 - [Đánh giá RAG vs Base trên TTHC v1](reports/bao-cao-danh-gia-rag-vs-base-tthc-v1.md)
 - [Phân tích QLoRA Qwen2.5-7B](reports/bao-cao-phan-tich-qlora-qwen2-5-7b.md)
+- [Đề xuất triển khai Evaluation Run v2 cho các model](reports/evaluation-v2-model-implementation-proposal.md)
 
 ## Quản trị dự án
 

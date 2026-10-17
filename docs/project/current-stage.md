@@ -1,3 +1,51 @@
+# TASK-20261018-03 - completed
+
+- Giai đoạn: hoàn tất audit tĩnh luồng Evaluation v2 hai lệnh.
+- Có thể tinh gọn prediction trung gian do đang lưu trùng retrieval source/ID/
+  score và metadata hằng theo từng dòng.
+- Các trường metric `null`, Golden nhúng và hai bản performance chủ yếu do
+  schema v2 hiện hành yêu cầu; chỉ bỏ được nếu sửa version/contract schema.
+- Rủi ro chính: API không trả citation riêng, `run-v2` luôn ghi citation rỗng,
+  nhưng scorer vẫn tính citation bằng 0 khi Golden có expected citation.
+- Không sửa runtime và không chạy model; bước tiếp theo nếu được yêu cầu là
+  tinh gọn prediction rồi sửa contract citation và ràng buộc manifest khi chấm.
+
+# TASK-20261018-02 - completed
+
+- Giai đoạn: đã hoàn tất quy trình Evaluation v2 hai lệnh.
+- Ranh giới: model chỉ nhận question/history; Golden answer, context ID,
+  citation, key fact và taxonomy không được chuyển qua HTTP.
+- `run-v2` ánh xạ Base/QLoRA/RAG sang model ID web, ghi prediction và run
+  manifest; `export-v2` chấm offline và xuất result/summary schema v2.
+- Compose mount Golden read-only và `outputs/evaluation_v2` ghi trở lại host.
+- Kiểm chứng: 11 test v2 và nhóm 39 test evaluation/QA/docs/server pass;
+  Compose config, compileall, CLI routing và diff-check pass. Không chạy model thật.
+
+# TASK-20261018-01 - completed
+
+- Giai đoạn: đã hoàn tất luồng Evaluation Run v2 offline.
+- Dữ liệu xác nhận: 2.200 train, 550 val, 1.100 test; tổng 3.850 case,
+  trong đó 350 unanswerable theo báo cáo augmentation.
+- Prediction lịch sử hiện mang ID `qa2_*`, không giao với Golden `TC_*`;
+  không được ghép hoặc chấm chéo hai benchmark.
+- Đã thêm `vigov eva export-v2`: ghép Golden/prediction theo ID, từ chối
+  benchmark khác, hỗ trợ skeleton/partial có chủ ý, chấm lexical/retrieval
+  deterministic và ghi summary aggregate/provenance.
+- Kiểm chứng: 30 test evaluation/QA/docs pass; 8 test v2 pass độc lập;
+  compileall, link test, `git diff --check` và 1.100/1.100 record schema pass.
+- Ranh giới: không chạy/tải model, retriever, BERTScore hay external judge;
+  full suite trong image inference còn fail cũ do thiếu `rouge-score`.
+
+# TASK-20261017-02 - completed
+
+- Giai đoạn: hoàn tất audit và đề xuất Evaluation Run v2.
+- Xác nhận Golden trong `examples/QA` hiện chỉ là schema template; 3.850
+  case thật chưa có trong repository. Example v2 có hai record chưa chạy.
+- Đã đề xuất contract và lộ trình cho Base, QLoRA, RAG Base và
+  QLoRA + RAG tại `docs/reports/evaluation-v2-model-implementation-proposal.md`.
+- Không thay runtime/schema/example, không chạy model/benchmark và không sinh
+  metric. Bước tiếp theo là chốt Golden thật cùng 5 quyết định contract.
+
 # TASK-20261017-01 - completed
 
 - Giai đoạn: đã hợp nhất QA benchmark và evaluation ngày 2026-10-17.

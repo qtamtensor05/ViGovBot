@@ -1,0 +1,865 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/vigov/evaluation-run-v2.schema.json",
+  "title": "Vigov Evaluation Result v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "test_id",
+    "split",
+    "golden",
+    "system_execution_output",
+    "evaluation_results"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "test_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "split": {
+      "enum": [
+        "train",
+        "val",
+        "test",
+        "unknown"
+      ]
+    },
+    "golden": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "version",
+        "taxonomy",
+        "input",
+        "ground_truth"
+      ],
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "taxonomy": {
+          "type": "object"
+        },
+        "input": {
+          "type": "object"
+        },
+        "ground_truth": {
+          "type": "object"
+        }
+      }
+    },
+    "system_execution_output": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "model_config",
+        "query_processing",
+        "retrieval_output",
+        "generation_output",
+        "performance",
+        "execution_status"
+      ],
+      "properties": {
+        "model_config": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "architecture_type",
+            "model_name"
+          ]
+        },
+        "query_processing": {
+          "type": "object"
+        },
+        "retrieval_output": {
+          "type": "object"
+        },
+        "generation_output": {
+          "type": "object",
+          "required": [
+            "actual_output"
+          ],
+          "properties": {
+            "actual_output": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "performance": {
+          "type": "object"
+        },
+        "execution_status": {
+          "enum": [
+            "success",
+            "timeout",
+            "oom",
+            "error",
+            "not_run"
+          ]
+        }
+      }
+    },
+    "evaluation_results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_based_scores",
+        "query_processing_scores",
+        "retrieval_scores",
+        "generation_scores",
+        "robustness_and_style_scores",
+        "performance_scores",
+        "pairwise_arena",
+        "human_calibration",
+        "metric_details",
+        "quality_gates",
+        "error_analysis"
+      ],
+      "properties": {
+        "reference_based_scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "exact_match",
+            "normalized_exact_match",
+            "token_precision",
+            "token_recall",
+            "token_f1",
+            "rouge_1_precision",
+            "rouge_1_recall",
+            "rouge_1_f1",
+            "rouge_2_precision",
+            "rouge_2_recall",
+            "rouge_2_f1",
+            "rouge_l_precision",
+            "rouge_l_recall",
+            "rouge_l_f1",
+            "bertscore_precision",
+            "bertscore_recall",
+            "bertscore_f1",
+            "embedding_cosine_similarity",
+            "chrf",
+            "chrf_pp",
+            "sacrebleu",
+            "meteor",
+            "character_error_rate",
+            "word_error_rate"
+          ],
+          "properties": {
+            "exact_match": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "normalized_exact_match": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "token_precision": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "token_recall": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "token_f1": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_1_precision": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_1_recall": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_1_f1": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_2_precision": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_2_recall": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_2_f1": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_l_precision": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_l_recall": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rouge_l_f1": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "bertscore_precision": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "bertscore_recall": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "bertscore_f1": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "embedding_cosine_similarity": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "chrf": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "chrf_pp": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "sacrebleu": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "meteor": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "character_error_rate": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "word_error_rate": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "query_processing_scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "router_accuracy",
+            "query_rewrite_similarity",
+            "sub_query_recall",
+            "sub_query_precision"
+          ],
+          "properties": {
+            "router_accuracy": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "query_rewrite_similarity": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "sub_query_recall": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "sub_query_precision": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "retrieval_scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hit_at_1",
+            "hit_at_3",
+            "hit_at_5",
+            "hit_at_10",
+            "recall_at_1",
+            "recall_at_3",
+            "recall_at_5",
+            "recall_at_10",
+            "precision_at_1",
+            "precision_at_3",
+            "precision_at_5",
+            "precision_at_10",
+            "mrr_at_5",
+            "mrr_at_10",
+            "map_at_10",
+            "ndcg_at_5",
+            "ndcg_at_10",
+            "context_recall",
+            "context_precision",
+            "multi_intent_retrieval_coverage",
+            "context_noise_ratio"
+          ],
+          "properties": {
+            "hit_at_1": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hit_at_3": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hit_at_5": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hit_at_10": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "recall_at_1": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "recall_at_3": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "recall_at_5": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "recall_at_10": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "precision_at_1": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "precision_at_3": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "precision_at_5": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "precision_at_10": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "mrr_at_5": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "mrr_at_10": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "map_at_10": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "ndcg_at_5": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "ndcg_at_10": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "context_recall": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "context_precision": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "multi_intent_retrieval_coverage": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "context_noise_ratio": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "generation_scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "semantic_correctness",
+            "answer_relevancy",
+            "key_fact_coverage",
+            "intent_coverage_score",
+            "source_groundedness",
+            "retrieved_context_faithfulness",
+            "unsupported_claim_rate",
+            "hallucination_rate",
+            "citation_precision",
+            "citation_recall",
+            "invalid_citation_rate"
+          ],
+          "properties": {
+            "semantic_correctness": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "answer_relevancy": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "key_fact_coverage": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "intent_coverage_score": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "source_groundedness": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "retrieved_context_faithfulness": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "unsupported_claim_rate": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hallucination_rate": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "citation_precision": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "citation_recall": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "invalid_citation_rate": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "robustness_and_style_scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "format_compliance",
+            "negative_constraint_pass",
+            "noise_robustness_pass",
+            "false_premise_rejection",
+            "ood_correctness",
+            "abstention_correct",
+            "false_refusal",
+            "unsupported_answer"
+          ],
+          "properties": {
+            "format_compliance": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "negative_constraint_pass": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "noise_robustness_pass": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "false_premise_rejection": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "ood_correctness": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "abstention_correct": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "false_refusal": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "unsupported_answer": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "performance_scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rewrite_latency_ms",
+            "retrieval_latency_ms",
+            "rerank_latency_ms",
+            "generation_latency_ms",
+            "total_latency_ms",
+            "ttft_ms",
+            "generation_tokens_per_second",
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "peak_allocated_vram_gb",
+            "peak_reserved_vram_gb",
+            "gpu_utilization_percent",
+            "cost_usd",
+            "timed_out",
+            "oom",
+            "execution_failed"
+          ],
+          "properties": {
+            "rewrite_latency_ms": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "retrieval_latency_ms": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rerank_latency_ms": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "generation_latency_ms": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "total_latency_ms": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "ttft_ms": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "generation_tokens_per_second": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "prompt_tokens": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "completion_tokens": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "total_tokens": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "peak_allocated_vram_gb": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "peak_reserved_vram_gb": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "gpu_utilization_percent": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "cost_usd": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "timed_out": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "oom": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "execution_failed": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "pairwise_arena": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "human_calibration": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "metric_details": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "enum": [
+                  "computed",
+                  "not_applicable",
+                  "not_run",
+                  "missing_input",
+                  "error",
+                  "needs_review"
+                ]
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "scorer_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "evidence": {
+                "type": [
+                  "array",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "quality_gates": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "error_analysis": {
+          "type": "object",
+          "properties": {
+            "error_categories": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "notes": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "scoring_status": {
+      "enum": [
+        "not_scored",
+        "partial",
+        "complete",
+        "failed"
+      ]
+    }
+  }
+}

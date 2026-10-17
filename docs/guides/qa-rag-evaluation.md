@@ -1,5 +1,57 @@
 # Quy trình đánh giá RAG có kiểm chứng - QA v4.2
 
+## Evaluation Run v2 offline trên Golden dataset
+
+Golden canonical mới nằm tại `Data/golden_dataset` với ba split
+`train_golden.jsonl`, `val_golden.jsonl` và `test_golden.jsonl`. Dùng
+hai lệnh tách biệt: `run-v2` hỏi model qua web Docker, sau đó
+`export-v2` chấm offline và xuất schema v2. Ví dụ Base smoke 2 câu:
+
+```powershell
+docker compose exec web vigov eva run-v2 `
+  --architecture base `
+  --split test `
+  --limit 2 `
+  --out outputs/evaluation_v2/base-smoke2/predictions.jsonl
+
+docker compose exec web vigov eva export-v2 `
+  --architecture base `
+  --model-name qwen2.5:7b `
+  --run-id base-smoke2 `
+  --split test `
+  --predictions outputs/evaluation_v2/base-smoke2/predictions.jsonl `
+  --allow-partial `
+  --out outputs/evaluation_v2/base-smoke2/results.jsonl
+```
+
+Mặc định `run-v2` gọi `http://localhost:8000/api/chat` và ánh xạ
+`base -> qwen-base`, `finetuned -> qwen-qlora`, `rag_base -> qwen-rag` theo
+`configs/rag/inference-docker.yaml`. Dùng `--model-id` nếu cần ghi đè;
+`rag_finetuned` bắt buộc chỉ định model ID vì Docker chưa có profile
+mặc định. Request model chỉ gồm question/history, không có ground truth.
+
+`run-v2` ghi `<predictions>.run.json` với coverage, endpoint, model ID và
+`gold_labels_sent_to_model=false`. Nếu một request lỗi/timeout, record vẫn
+được lưu với `execution_status=error`; lệnh trả exit code khác 0 để
+người chạy nhận biết.
+
+Prediction phải có `id` hoặc `test_id` trùng `TC_*` trong split Golden.
+Mặc định lệnh yêu cầu đủ coverage và từ chối ID ngoài benchmark;
+`--allow-partial` chỉ dùng cho smoke/cached run chưa đủ. Prediction lịch sử
+`qa2_*` thuộc benchmark khác nên không được ghép vào Golden này.
+
+Không truyền `--predictions` sẽ tạo skeleton `not_run` cho việc kiểm tra
+schema/coverage, không tạo kết quả model. Bốn giá trị architecture hợp lệ
+là `base`, `finetuned`, `rag_base`, `rag_finetuned`. Base/fine-tuned có metric
+retrieval `null` + `not_applicable`; RAG chỉ có retrieval score khi prediction
+chứa trace ID và Golden có relevance label. Metric semantic, groundedness,
+BERTScore hoặc constraint không đủ bằng chứng được giữ `null` kèm
+`metric_details`, không thay bằng 0.
+
+`export-v2` không khởi tạo model, retriever, BERTScore hay judge. File
+`<results.jsonl>.summary.json` ghi coverage, execution status, hash đầu vào
+và `inference_performed=false`. Cả hai lệnh không ghi đè artifact cũ.
+
 ## Phạm vi và trạng thái
 
 Tách kiểm chứng nguồn, duyệt ngữ nghĩa và chất lượng mô hình. Script tìm thấy nguyên văn trong PDF không phải là người/AI đã xác nhận câu hỏi và đáp án đúng, đủ. AI review không thay thế hai người duyệt theo rubric dataset. Không tự chuyển `gold_status` sang approved.
