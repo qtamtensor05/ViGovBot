@@ -31,4 +31,4 @@ phép giảm batch size nhưng phải giữ nguyên thứ tự bản ghi. File Z
 traversal, vượt giới hạn, vector rỗng/không hữu hạn hoặc metadata sai schema đều
 bị từ chối. Công bố artifact sử dụng khóa và không ghi đè corpus đã tồn tại.
 
-[Đặc tả embedding](../../../EMBEDDING.md) · [Kiến trúc hệ thống](../../../docs/architecture/architecture.md)
+[Đặc tả embedding](../../../docs/architecture/embedding.md) · [Kiến trúc hệ thống](../../../docs/architecture/architecture.md)

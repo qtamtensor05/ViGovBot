@@ -30,7 +30,7 @@ web:
       model: Qwen/Qwen2.5-7B-Instruct
       base_url: local
       mode: qlora
-      adapter_path: ../../outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter
+      adapter_path: ../../outputs/qlora/best_adapter
       load_in_4bit: true
       allow_multiple_models: false
       cpu_offload: false

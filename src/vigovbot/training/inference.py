@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import threading
 
 _LOCK = threading.RLock()
@@ -97,24 +98,25 @@ def local_transformers_batch_answer(messages_batch, settings):
                                      gpu_memory_gib=key[4], cpu_memory_gib=key[5],
                                      force_single_gpu=key[6])
         model, tokenizer = _CACHE[key]
-    tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
-    tokenizer.padding_side = "left"
-    encoded = tokenizer.apply_chat_template(
-        messages_batch, tokenize=True, add_generation_prompt=True,
-        padding=True, return_tensors="pt", return_dict=True,
-    )
-    model_inputs = {name: value.to(model.device) for name, value in encoded.items()}
-    prompt_width = model_inputs["input_ids"].shape[-1]
-    started = time.perf_counter()
-    with torch.inference_mode():
-        output = model.generate(
-            **model_inputs, max_new_tokens=settings["num_predict"],
-            temperature=settings.get("temperature", 0.0),
-            do_sample=settings.get("temperature", 0.0) > 0,
+        tokenizer = copy.deepcopy(tokenizer)
+        tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
+        tokenizer.padding_side = "left"
+        encoded = tokenizer.apply_chat_template(
+            messages_batch, tokenize=True, add_generation_prompt=True,
+            padding=True, return_tensors="pt", return_dict=True,
         )
-    answers = tokenizer.batch_decode(output[:, prompt_width:], skip_special_tokens=True)
-    elapsed = time.perf_counter() - started
-    return [answer.strip() for answer in answers], {
-        "provider": "local_transformers", "adapter_path": settings.get("adapter_path"),
-        "batch_size": len(messages_batch),
-    }, elapsed
+        model_inputs = {name: value.to(model.device) for name, value in encoded.items()}
+        prompt_width = model_inputs["input_ids"].shape[-1]
+        started = time.perf_counter()
+        with torch.inference_mode():
+            output = model.generate(
+                **model_inputs, max_new_tokens=settings["num_predict"],
+                temperature=settings.get("temperature", 0.0),
+                do_sample=settings.get("temperature", 0.0) > 0,
+            )
+        answers = tokenizer.batch_decode(output[:, prompt_width:], skip_special_tokens=True)
+        elapsed = time.perf_counter() - started
+        return [answer.strip() for answer in answers], {
+            "provider": "local_transformers", "adapter_path": settings.get("adapter_path"),
+            "batch_size": len(messages_batch),
+        }, elapsed

@@ -3,7 +3,7 @@ input: ../../Data/pdf
 output: ../../outputs/metadata
 overwrite: false
 modules:
-  ingestion: settings.yaml
+  ingestion: ingestion.yaml
   chunking: chunking.yaml
 colab:
   use_google_drive: false

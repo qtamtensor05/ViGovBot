@@ -1,6 +1,9 @@
 """Vérification cấu hình/CLI và orchestration độc lập với Colab/model weights."""
 
+from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
+
 import json
+import os
 import tempfile
 import types
 import unittest
@@ -26,6 +29,18 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.data.dataset_path, Path(work).resolve() / "qa_test/dataset.jsonl")
             self.assertEqual(config.inference_settings()["top_k"], 5)
             self.assertTrue(config.inference_settings()["routing_enabled"])
+
+    def test_qlora_adapter_environment_override_and_yaml_fallback(self):
+        root = Path(__file__).resolve().parents[1]
+        with patch.dict(os.environ, {}, clear=True):
+            config = load_config(root / "configs/rag/inference.yaml")
+            adapter = next(m for m in config.web.models if m.mode == "qlora")
+            self.assertEqual(adapter.adapter_path, root / "outputs/qlora/best_adapter")
+        with patch.dict(os.environ, {"QLORA_ADAPTER_PATH": "custom-adapter"}):
+            config = load_config(root / "configs/rag/inference.yaml")
+            adapter = next(m for m in config.web.models if m.mode == "qlora")
+            self.assertEqual(adapter.adapter_path, Path("custom-adapter").resolve())
+            self.assertTrue(all(m.adapter_path is None for m in config.web.models if m.mode != "qlora"))
 
     def test_config_rejects_typos_and_invalid_budget(self):
         data = {"unified_source": "unified.zip", "dataset_path": "qa.jsonl"}
@@ -96,18 +111,9 @@ class ConfigTests(unittest.TestCase):
                 def encode(self, *args, **kwargs):
                     return v.copy()
 
-            class Tokenizer:
-                def encode(self, text, **kwargs):
-                    return list(map(ord, text))
-
-                def decode(self, ids):
-                    return "".join(map(chr, ids))
-
-                def apply_chat_template(self, messages, **kwargs):
-                    return self.encode(str(messages))
 
             transformers = types.SimpleNamespace(
-                AutoTokenizer=types.SimpleNamespace(from_pretrained=lambda *a, **kw: Tokenizer())
+                AutoTokenizer=types.SimpleNamespace(from_pretrained=lambda *a, **kw: Tokenizer(serialize_messages=True))
             )
             torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False))
             with (

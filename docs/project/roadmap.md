@@ -21,7 +21,8 @@ thể kiểm chứng của repository tại thời điểm hiện tại.
 | Thành phần | Trạng thái hiện tại |
 |---|---|
 | Mã nguồn | Package duy nhất là `vigovbot`; notebook và điểm chạy dùng namespace `vigovbot.*` |
-| Giao diện | CLI, notebook Colab và web UI/API cục bộ; so sánh Qwen trực tiếp với Qwen + RAG |
+| Giao diện | CLI, notebook Colab và web UI/API cục bộ; so sánh Base, RAG và QLoRA |
+| Training | `src/vigovbot/training/`: QLoRA 4-bit, masking multi-turn, checkpoint/resume, CLI `vigov train`; chưa xác nhận production |
 | Ingestion | Đọc PDF, hỗ trợ OCR và xuất dữ liệu đã chia đoạn |
 | Embedding và corpus | BGE-M3, FAISS, SQLite, manifest và kiểm tra checksum/revision |
 | Hỏi đáp | Dense RAG nhiều lượt; router dùng schema theo nhánh, có retry/fallback và chẩn đoán web |
@@ -39,7 +40,7 @@ thể kiểm chứng của repository tại thời điểm hiện tại.
 - Luồng truy hồi dùng dense top-k, không có BM25, hybrid search, reranker hoặc
   ngưỡng điểm tối thiểu.
 - Web giữ history riêng theo model/chế độ ở trình duyệt và mất khi reload; chưa
-  có persistence phía server, quản lý người dùng, xác thực/TLS hay fine-tuning QLoRA.
+  có persistence phía server, quản lý người dùng, xác thực/TLS. Fine-tuning QLoRA đã có trong module `training`.
 
 ## Giới hạn đã ghi nhận
 

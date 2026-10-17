@@ -68,10 +68,10 @@ Bộ `rag_tthc_three_1500` là evaluation-only, có chứa ca từ dev cũ. Khô
 
 ## 1. Kiểm tra nguồn và duyệt case
 
-Chạy từ gốc repository; trên Colab thay `env/Scripts/python.exe` bằng `python`.
+Chạy từ gốc repository; trên Colab thay `.venv/Scripts/python.exe` bằng `python`.
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.evaluation.audit --dataset Data/qa_test_v4/rag_tthc_three_1500 --out outputs/qa_audit_new
+.venv/Scripts/python.exe -m vigovbot.evaluation.audit --dataset Data/qa_test_v4/rag_tthc_three_1500 --out outputs/qa_audit_new
 ```
 
 Audit đọc PDF bằng PyMuPDF, đối chiếu hash/trang/nội dung. Dùng thứ tự text gốc để tránh trộn cột bảng và nối khoảng trắng trước khi chuẩn hóa dấu tiếng Việt. Phép kiểm vẫn không kiểm chứng liên hệ hàng/cột hay toàn bộ ngữ nghĩa. Output từ chối ghi đè JSONL đã có; chọn thư mục mới cho lần chạy mới.
@@ -86,7 +86,7 @@ Các ý đề xuất chỉ tách theo hàng bảng, giữ nguyên điều kiện
 ## 2. Mapping và retrieval
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.evaluation.mapping --dataset Data/qa_test_v4/rag_tthc_three_1500 --predictions outputs/result_qa/three1500_single_smoke_rag_1/predictions.jsonl --out outputs/mapping_candidates_new.json
+.venv/Scripts/python.exe -m vigovbot.evaluation.mapping --dataset Data/qa_test_v4/rag_tthc_three_1500 --predictions outputs/result_qa/three1500_single_smoke_rag_1/predictions.jsonl --out outputs/mapping_candidates_new.json
 ```
 
 Chỉ sinh **ứng viên**, không phải mapping được duyệt. So cùng hash PDF, đúng tiêu đề và đủ phần nội dung của unit. Duyệt từng chunk và giữ `status=candidate` khi chưa xác định. Chunk rỗng ứng viên không phải đoạn không liên quan. Đoạn chứa một phần unit dài không được coi là bao phủ toàn unit; đây là giới hạn của granularity và cần xem cùng fact/context coverage khi đã có judgment.
@@ -126,7 +126,7 @@ Trong v4.2, **@k là k chunk duy nhất theo thứ tự truy hồi ban đầu**.
 ## 3. Chấm lexical và BERTScore
 
 ```powershell
-env/Scripts/python.exe -m vigovbot eva score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --predictions outputs/new_run/predictions.jsonl --unit-map outputs/mapping_reviewed.json --lexical --bertscore --bert-model xlm-roberta-large --bert-device cpu --bert-batch-size 1 --out outputs/new_run/scores.json
+.venv/Scripts/python.exe -m vigovbot eva score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --predictions outputs/new_run/predictions.jsonl --unit-map outputs/mapping_reviewed.json --lexical --bertscore --bert-model xlm-roberta-large --bert-device cpu --bert-batch-size 1 --out outputs/new_run/scores.json
 ```
 
 Không có mapping thì bỏ `--unit-map`; bộ chấm ghi rõ retrieval chưa đầy đủ. Cài extras evaluation (gồm sacrebleu, ROUGE, BERTScore). Model BERT có thể cần tải riêng.
@@ -138,7 +138,7 @@ Similarity áp dụng cho answer/partial/correct_premise có phản hồi hợp 
 ## 4. Duyệt/chấm ngữ nghĩa
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.evaluation.review --dataset Data/qa_test_v4/rag_tthc_three_1500 --predictions outputs/new_run/predictions.jsonl --out outputs/new_run/review_packets.jsonl
+.venv/Scripts/python.exe -m vigovbot.evaluation.review --dataset Data/qa_test_v4/rag_tthc_three_1500 --predictions outputs/new_run/predictions.jsonl --out outputs/new_run/review_packets.jsonl
 ```
 
 Packet chứa case, history, reference, nguồn, câu trả lời, context và citations. Người/AI chấm theo `judge_rubric.md`: correctness, completeness, faithfulness, citation_support, behavior_correct là **0/1/null**. Không suy từ keyword, action hoặc BERTScore. Null nghĩa chưa chấm/không áp dụng, không phải 0.
@@ -166,15 +166,15 @@ Context giữ pages/source_sha256 nếu corpus cung cấp. Adapter giữ thứ h
 Dùng cùng model, seed, temperature, ngân sách sinh, dataset/view và lịch sử; khóa cấu hình trước khi chạy. Oracle chỉ là thí nghiệm chẩn đoán, bỏ routing/retrieval và đưa quote của bằng chứng chuẩn, không truyền reference_answer hay nhãn hành vi. Context oracle vẫn chịu token budget; không coi là mức trần toán học.
 
 ```powershell
-env/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --no-retrieval --out outputs/compare/base.jsonl
-env/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --out outputs/compare/rag.jsonl
-env/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --oracle-evidence --out outputs/compare/oracle.jsonl
+.venv/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --no-retrieval --out outputs/compare/base.jsonl
+.venv/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --out outputs/compare/rag.jsonl
+.venv/Scripts/python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --config configs/rag/evaluation.yaml --oracle-evidence --out outputs/compare/oracle.jsonl
 ```
 
 Chấm từng run bằng cùng lệnh score/cấu hình metric. Oracle/base không dùng để báo chất lượng retriever. Nếu bật citations cho RAG/oracle thì nêu đây là thay đổi prompt/cấu hình so với lần chạy cũ; baseline không có nguồn để dẫn.
 
 ```powershell
-env/Scripts/python.exe -m vigovbot.evaluation.compare --left outputs/compare/base_scores.json --right outputs/compare/rag_scores.json --out outputs/compare/base_vs_rag.json
+.venv/Scripts/python.exe -m vigovbot.evaluation.compare --left outputs/compare/base_scores.json --right outputs/compare/rag_scores.json --out outputs/compare/base_vs_rag.json
 ```
 
 Comparison từ chối khác dataset, tập ID, nhóm hoặc history mode; điểm ngữ nghĩa chỉ so sánh nếu cùng tập judgment. Bootstrap theo procedure_family/conversation, seed 42, 2.000 lần; chênh lệch right-minus-left. Lỗi tính 0 cho action accuracy. Công cụ không tự xác nhận cấu hình model tương đương; phải kiểm tra provenance. Tránh dùng tập test để chọn cấu hình.
@@ -182,3 +182,73 @@ Comparison từ chối khác dataset, tập ID, nhóm hoặc history mode; đi�
 ## Artifact triển khai hiện tại
 
 Xem artifact `outputs/result_qa/evaluation_upgrade/README.md` (không có trong checkout hiện tại). PDF/data và kết quả model gốc được giữ nguyên. Chưa có runtime Ollama hoạt động trong phiên triển khai, nên các kiểm thử adapter/oracle/citations là offline; chưa có ba lần chạy model thật để so sánh.
+
+## Hợp đồng lexical và tương thích kết quả (2026-10-18)
+
+Training evaluation và QA scoring dùng `vi-lexical-v1`: NFC + casefold +
+Unicode word tokens (giữ dấu tiếng Việt, chữ số và underscore; không phải tách
+ từ tiếng Việt). BLEU dùng SacreBLEU, tokenize=none, smoothing=exp,
+effective_order=True, thang 0–100; tổng hợp bằng corpus BLEU, không lấy trung
+bình sentence BLEU. ROUGE dùng rouge-score với tokenizer Unicode chung,
+không stemming. Normalized EM dùng cùng normalization; raw EM của training
+vẫn là so sánh chuỗi strip, khác normalized EM của QA.
+
+Training summary và QA report lưu `metric_contract`; QA còn lưu phiên bản thư
+viện và BLEU signature. V2 dùng normalization chung và ghi
+`normalization_version` trong summary; không tự tính BLEU/ROUGE còn thiếu.
+Đồng nhất công thức chưa đủ để so sánh: phải cùng tập mẫu, reference, cohort,
+quy tắc bỏ prediction lỗi/rỗng và denominator. QA chỉ chấm reference similarity
+ở cohort nội dung phù hợp, training chấm các hàng được đánh giá; token F1 trên
+cặp chuỗi rỗng cũng còn chính sách khác nhau giữa hai luồng.
+
+`evaluation/metrics.py` phục vụ baseline notebook legacy, giữ nguyên NLTK
+sentence BLEU method1 (0–1), normalization lower/punctuation và tokenizer ROUGE
+cũ; report gắn `baseline-notebook-legacy-v1`. Không trộn các số này với
+`vi-lexical-v1`. Training BLEU/ROUGE trước thay đổi cũng không cùng contract:
+muốn so sánh, chấm lại cached prediction/reference cùng phiên bản. Không sửa
+artifact lịch sử hoặc suy ra chất lượng factuality từ similarity.
+
+JSONL dataset dùng parser read-only chung với chính sách tường minh:
+evaluation bỏ dòng trắng, training từ chối dòng trắng và vẫn kiểm tra hội
+thoại/ID. `experiments.read_results` là recovery log riêng: chỉ khi bật
+`repair_tail=True` mới cắt dòng cuối JSON lỗi không có newline; dòng trắng
+không bị cắt, lỗi giữa file luôn bị từ chối. Không dùng recovery để đọc dataset.
+
+Hash file dùng duy nhất `artifacts.file_hash` (chunk 1 MiB), các tên cũ là
+alias tương thích. Kiểm tra overlap training nay có NFC và version normalization;
+kết quả overlap mới có thể khác báo cáo cũ với văn bản Unicode decomposed.
+
+## Chọn runner và xử lý output đã tồn tại
+
+| Entry point | Input/output và lịch sử | Resume |
+|---|---|---|
+| `evaluation.runner.evaluate_cases` | Case baseline có question.text/ground_truth; raw_predictions trong run dir | Có, manifest phải khớp, writer lock, tail recovery |
+| `evaluation.benchmark_runner.run_queries` | Query QA; reference_history hoặc free_running; thread theo job/conversation, file prediction riêng | Không; output mới bắt buộc, lỗi chỉ rõ phải chọn --out khác |
+| `evaluation.multiturn` | Query hội thoại có sequence validation, run directory và manifest | Có theo hợp đồng history/run của module |
+
+Ba entry point phục vụ schema và cơ chế thực thi khác nhau. Không đổi từ runner
+này sang runner khác để nối file prediction đang dở; cần chọn workflow trước
+khi chạy. Benchmark threaded dùng exclusive create có chủ đích để bảo vệ kết
+quả; kiểm tra sớm output trước khi gọi model và vẫn giữ mode x để tránh race.
+Không triển khai resume bằng cách bỏ qua ID đơn thuần vì free-running phải
+khôi phục history, trạng thái lỗi và provenance trước khi tiếp tục.
+
+`scoring_legacy.py` vẫn cung cấp phần chấm judgment/evidence được scorer hiện
+đại gọi tới. Mã đã được format, đổi biến thành tên rõ nghĩa và đóng file qua
+Path/context-managed JSONL reader; công thức và schema kết quả giữ nguyên.
+
+## HTTP và concurrency (2026-10-18)
+
+`/api/chat` là API comparison riêng, không phải endpoint chat-completions OpenAI.
+Request không hợp lệ trả 400; tất cả model lỗi trả 502 với `status=failed`,
+`error` và lỗi từng model trong `results`. Có cả thành công/lỗi trả 200 với
+`status=partial`; client phải kiểm tra từng result. Tất cả thành công trả 200
+với `status=success`. Health/models không sử dụng khóa inference.
+
+Provider `openai_compatible` chạy ngoài khóa GPU; Ollama và local Transformers
+vẫn tuần tự hóa switching/inference trên GPU dùng chung. Không tuyên bố tăng
+throughput GPU từ thay đổi này. Batch Transformers giữ khóa cache đến hết
+inference và dùng bản sao tokenizer riêng, không sửa padding của tokenizer cache.
+Retrieval đọc metadata bằng IN theo batch tối đa 900 ID, sau đó khôi phục thứ tự
+FAISS; top-k thông thường chỉ dùng một SELECT. Cleanup unload lỗi ghi warning
+loại exception, không nuốt im lặng và không che exception generation ban đầu.

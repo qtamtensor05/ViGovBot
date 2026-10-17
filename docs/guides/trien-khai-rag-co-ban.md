@@ -61,7 +61,7 @@ flowchart TD
 
 ### 2.1. Trích xuất và chia chunk
 
-Lệnh `ingest` đọc PDF theo `configs/ingestion/pipeline.yaml`, dùng cấu hình trích xuất tại `configs/ingestion/settings.yaml` và cấu hình chia đoạn tại `configs/ingestion/chunking.yaml`.
+Lệnh `ingest` đọc PDF theo `configs/ingestion/pipeline.yaml`, dùng cấu hình trích xuất tại `configs/ingestion/ingestion.yaml` và cấu hình chia đoạn tại `configs/ingestion/chunking.yaml`.
 
 - PDF đầu vào mặc định: `Data/pdf`; giới hạn kích thước mỗi PDF: 20 MB.
 - OCR được bật, ngôn ngữ `vie+eng`, DPI 300, chế độ `full: true`; cần Tesseract/tessdata tương ứng khi thực hiện OCR.

@@ -19,3 +19,9 @@ checkpoints
 ipynb
 tests
 docs
+
+# Secrets must never enter the build context, including nested files.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key

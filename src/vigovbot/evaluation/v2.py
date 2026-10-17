@@ -9,12 +9,12 @@ import math
 import re
 import sys
 import time
-import unicodedata
 from datetime import datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
 
 from .io import read_jsonl
+from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
 ARCHITECTURES = {"base", "finetuned", "rag_base", "rag_finetuned"}
 DEFAULT_WEB_MODELS = {"base": "qwen-base", "finetuned": "qwen-qlora", "rag_base": "qwen-rag"}
@@ -58,8 +58,7 @@ def _sha256(path: Path) -> str:
 
 
 def _normalize(value) -> str:
-    text = unicodedata.normalize("NFC", str(value or "")).casefold()
-    return " ".join(re.findall(r"\w+", text, re.UNICODE))
+    return normalize_vietnamese(str(value or ""))
 
 
 def _tokens(value) -> list[str]:
@@ -600,6 +599,7 @@ def export_v2(*, dataset: Path, split: str, predictions: Path | None, architectu
         "prediction_records": len(prediction_rows), "missing_predictions": len(missing),
         "execution_status": dict(sorted(counts.items())),
         "cohorts": {name: dict(values) for name, values in sorted(cohorts.items())},
+        "normalization_version": NORMALIZATION_VERSION,
         "metric_aggregates": metric_aggregates,
         "output": str(output), "provenance": provenance,
         "note": "Offline export only; no model, retriever, BERTScore or external judge was run.",

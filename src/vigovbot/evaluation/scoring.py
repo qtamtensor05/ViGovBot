@@ -3,13 +3,13 @@ import argparse
 import collections
 import json
 import math
-import re
 import statistics
 import time
-import unicodedata
 from importlib.util import find_spec
 from importlib.metadata import version, PackageNotFoundError
 from .scoring_legacy import score as legacy_score
+from vigovbot.utils.text import normalize_vietnamese as normalize, word_tokens as tokens
+from .lexical import METRIC_CONTRACT, VietnameseTokenizer, bleu_metric
 from .retrieval_metrics import RETRIEVAL_KEYS, summarize_retrieval
 from .review import fingerprint, validate_judgments
 
@@ -24,8 +24,6 @@ def unique(rows):
         out[r['id']] = r
     return out
 
-def tokens(s): return re.findall(r'\w+', unicodedata.normalize('NFC',s).casefold(), re.UNICODE)
-def normalize(s): return ' '.join(tokens(s))
 def prf(a,b):
     hit=sum((collections.Counter(a)&collections.Counter(b)).values())
     p=hit/len(a) if a else float(not b); r=hit/len(b) if b else float(not a)
@@ -39,8 +37,6 @@ def summary(xs):
         return xs[lo]+(xs[hi]-xs[lo])*(pos-lo)
     return {'n':len(xs),'mean':statistics.mean(xs),'min':xs[0],'max':xs[-1], 'p50':q(.5),'p95':q(.95),'p99':q(.99)}
 
-class VietnameseTokenizer:
-    def tokenize(self,text): return tokens(text)
 
 def aggregate(rows, keys):
     result={}
@@ -87,14 +83,15 @@ def evaluate(cases,predictions,judgments,k=5,lexical=True,bert=False,model='bert
     output['evaluation_version']='4.2.0'
     output['coverage']={'expected':len(cases),'successful_predictions':len(valid),'failed_or_missing':len(cases)-len(valid),'extra_prediction_ids':len(set(ps)-set(cs))}
     output['configuration']={'k':k,'normalization':'NFC + casefold + Unicode word tokens; Vietnamese syllables, not word segmentation','bert_enabled':bert,'bert_model':model if bert else None,'bert_device':device if bert else None}
+    output['metric_contract'] = METRIC_CONTRACT
     output['packages']={}
     for pkg in ['sacrebleu','rouge-score','bert-score','torch','transformers','psutil','nvidia-ml-py']:
         try: output['packages'][pkg]=version(pkg)
         except PackageNotFoundError: pass
     if lexical:
-        from sacrebleu.metrics import BLEU,CHRF,TER
+        from sacrebleu.metrics import CHRF,TER
         from rouge_score.rouge_scorer import RougeScorer
-        bleu=BLEU(tokenize='none',effective_order=True); chrf=CHRF(word_order=2); ter=TER()
+        bleu=bleu_metric(); chrf=CHRF(word_order=2); ter=TER()
         rouge=RougeScorer(['rouge1','rouge2','rougeL'],tokenizer=VietnameseTokenizer())
     if not action_available:
         for row in rows: row.pop('action_accuracy', None)

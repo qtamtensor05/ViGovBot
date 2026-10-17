@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from vigovbot.utils.text import normalize_vietnamese as normalize_vietnamese
+
+from vigovbot.evaluation.lexical import VietnameseTokenizer, bleu_metric
+
 import math
 import re
-import unicodedata
 from collections import Counter
 
-
-def normalize_vietnamese(text: str) -> str:
-    text = unicodedata.normalize("NFC", text).casefold()
-    return " ".join(re.sub(r"[^\w\s]", " ", text).split())
 
 
 def word_tokens(text: str) -> list[str]:
@@ -36,14 +35,15 @@ def generation_metrics(prediction: str, reference: str) -> dict[str, float | Non
     }
     try:
         from rouge_score import rouge_scorer
-        scores = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=False).score(reference, prediction)
+        scores = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=False,
+                                           tokenizer=VietnameseTokenizer()).score(reference, prediction)
         values.update({name: scores[key].fmeasure for name, key in
                        (("rouge_1", "rouge1"), ("rouge_2", "rouge2"), ("rouge_l", "rougeL"))})
     except ImportError:
         values.update({"rouge_1": None, "rouge_2": None, "rouge_l": None})
     try:
         import sacrebleu
-        values["bleu"] = sacrebleu.sentence_bleu(prediction, [reference], use_effective_order=True).score
+        values["bleu"] = bleu_metric().sentence_score(normalize_vietnamese(prediction), [normalize_vietnamese(reference)]).score
         values["chrf"] = sacrebleu.sentence_chrf(prediction, [reference]).score
     except ImportError:
         values.update({"bleu": None, "chrf": None})
@@ -64,7 +64,8 @@ def aggregate_generation_metrics(rows: list[dict]) -> dict[str, float | None]:
         import sacrebleu
         predictions = [row["prediction"] for row in rows]
         references = [[row["reference"] for row in rows]]
-        result["bleu"] = sacrebleu.corpus_bleu(predictions, references).score
+        result["bleu"] = bleu_metric().corpus_score([normalize_vietnamese(p) for p in predictions],
+                                                   [[normalize_vietnamese(r) for r in references[0]]]).score
         result["chrf"] = sacrebleu.corpus_chrf(predictions, references).score
     except ImportError:
         result.update(bleu=None, chrf=None)

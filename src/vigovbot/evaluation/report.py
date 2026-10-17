@@ -7,7 +7,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from vigovbot.evaluation.metrics import exact_match, normalized_accuracy, bleu_score, rouge_scores
+from vigovbot.evaluation.metrics import METRIC_CONTRACT_VERSION, exact_match, normalized_accuracy, bleu_score, rouge_scores
 from vigovbot.experiments import read_results
 from vigovbot.artifacts import output_lock
 
@@ -97,6 +97,7 @@ def _generate_report(config, selected_cases):
     metrics_df.to_csv(output_dir / "case_metrics.csv", index=False, encoding="utf-8-sig")
 
     summary = {
+        "metric_contract_version": METRIC_CONTRACT_VERSION,
         "model": model_name,
         "pipeline": "bge-m3 + FAISS + SQLite + Qwen",
         "n_requested": len(selected_cases),

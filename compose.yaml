@@ -55,12 +55,18 @@ services:
       - "127.0.0.1:${VIGOVBOT_WEB_PORT:-8001}:8000"
     environment:
       PYTHONPATH: /app/src
+      QLORA_ADAPTER_PATH: /app/models/qlora
     volumes:
       - ./src:/app/src:ro
       - ./configs:/app/configs:ro
       - ./Data/vector/unified:/app/Data/vector/unified:ro
       - rag-cache:/app/outputs/rag_cache
-      - ./outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter:/app/outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter:ro
+      - type: bind
+        source: ${QLORA_ADAPTER_PATH:?Set QLORA_ADAPTER_PATH to an existing adapter directory in .env}
+        target: /app/models/qlora
+        read_only: true
+        bind:
+          create_host_path: false
       - huggingface-cache:/var/cache/huggingface
     deploy:
       resources:

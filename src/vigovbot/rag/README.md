@@ -135,4 +135,4 @@ Kết quả cũ không được tiếp tục nếu các thông tin này không c
 - [RAG nhiều lượt và đánh giá qa_test_v4](../../../docs/guides/rag-multi-turn.md)
 - [Kiến trúc hệ thống](../../../docs/architecture/architecture.md)
 - [Hướng dẫn vận hành pipeline RAG](../../../docs/guides/trien-khai-rag-co-ban.md)
-- [Đặc tả embedding và corpus](../../../EMBEDDING.md)
+- [Đặc tả embedding và corpus](../../../docs/architecture/embedding.md)

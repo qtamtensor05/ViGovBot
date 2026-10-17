@@ -11,6 +11,7 @@ from vigovbot.training.config import load_config
 from vigovbot.training.data import dataset_paths, read_jsonl
 from vigovbot.training.inference import load_model
 from vigovbot.training.masking import encode_assistant_only
+from vigovbot.evaluation.lexical import METRIC_CONTRACT
 from vigovbot.training.metrics import aggregate_generation_metrics, generation_metrics, perplexity, structured_checks
 
 
@@ -59,6 +60,7 @@ def _evaluate_model(model, tokenizer, records, generation: dict, output: Path) -
     token_loss = loss_sum / target_tokens if target_tokens else None
     return {"examples": len(rows), "target_tokens": target_tokens, "teacher_forced_token_loss": token_loss,
             "teacher_forced_perplexity": perplexity(token_loss) if token_loss is not None else None,
+            "metric_contract": METRIC_CONTRACT,
             "generation_metrics": aggregate_generation_metrics(rows),
             "aggregation": "EM/normalized-EM/token-PRF/ROUGE are macro means; BLEU and chrF are corpus scores."}
 

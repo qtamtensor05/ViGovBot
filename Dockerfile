@@ -7,10 +7,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml ./
+COPY locks/inference-linux-py312.txt ./locks/inference-linux-py312.txt
 
-# Cache heavy runtime dependencies independently from application source.
-RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -c "import subprocess, sys, tomllib; p=tomllib.load(open('pyproject.toml','rb')); d=p['project']; deps=d['dependencies']+d['optional-dependencies']['rag']+d['optional-dependencies']['gpu']; subprocess.check_call([sys.executable,'-m','pip','install','--no-cache-dir',*deps])"
+# Resolve Linux/Python 3.12 dependencies separately from Windows environments.
+RUN python -m pip install --no-cache-dir -r locks/inference-linux-py312.txt
 
 COPY README.md LICENSE ./
 COPY src ./src

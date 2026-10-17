@@ -1,13 +1,13 @@
 """Read-only PDF/source audit. Mechanical checks are never semantic approval."""
 import argparse
 from collections import Counter
-import hashlib
 import json
 from pathlib import Path
 import re
 import unicodedata
 
 from .io import read_jsonl
+from vigovbot.artifacts import file_hash as sha256
 
 
 def compact(text):
@@ -15,9 +15,6 @@ def compact(text):
     text = re.sub(r'\s+', '', text)
     return ''.join(re.findall(r'\w+', unicodedata.normalize('NFC', text).casefold()))
 
-
-def sha256(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def fact_candidates(case, units):

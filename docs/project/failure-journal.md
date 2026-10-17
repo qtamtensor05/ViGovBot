@@ -916,3 +916,48 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   kiểm chứng chưa đặt `PYTHONPATH=src`; không phải lỗi source Evaluation v2.
 - Xử lý và kết quả: đặt `$env:PYTHONPATH='src'`, chạy lại 11 test v2 đều pass;
   không cài thêm dependency và không thay đổi Python hệ thống.
+
+## ERR-20261018-04 — Môi trường kiểm chứng thiếu dependency
+
+- Task: TASK-20261018-07.
+- Python 3.14 host không có pydantic/Ruff. Image inference hiện có thiếu matplotlib,
+  làm test_pipeline_smoke_evaluate_resume_and_report lỗi khi import evaluation.report.
+- Tái hiện: python -m unittest tests.test_rag_config_cli tests.test_documentation -q
+  trong image vigovbot-web:latest; kết quả 6 test, 1 error (ModuleNotFoundError).
+- Xử lý: chạy 4 test cấu hình/CLI cùng documentation/artifact safety bằng image offline;
+  18 test pass. Dùng uvx ruff==0.15.6 kiểm tra hai file thay đổi hành vi: pass.
+- Giới hạn: chưa xác nhận bài test pipeline/full suite hoặc môi trường cài từ lock mới.
+  Muốn chạy toàn bộ cần môi trường extras test/dev/evaluation phù hợp.
+
+## ERR-20261018-05 — Lỗi trung gian khi refactor helper
+
+- Task: TASK-20261018-08.
+- Ruff phát hiện import đặt trước docstring và regex replacement chưa thay hết
+  caller scoring. Đã sửa import và dùng helper chung; Ruff pass sau sửa.
+- Script sửa file dùng encoding mặc định CP1252 gặp UnicodeDecodeError; đặt
+  PYTHONUTF8=1 trước chạy lại. Không thay văn bản bằng ký tự replacement.
+- Kiểm chứng cuối: 61 test pass; không còn lỗi import/helper trong phạm vi test.
+
+## ERR-20261018-06 — Import json còn được pipeline sử dụng
+
+- Task: TASK-20261018-09.
+- Sau tách routing retry, Ruff báo F821 vì json vẫn phục vụ manifest/report CLI.
+- Khôi phục import json trong pipeline; Ruff pass, regression 103 test pass.
+
+## ERR-20261018-07 — Import thừa trong test runtime mới
+
+- Task: TASK-20261018-10. Ruff phát hiện tempfile/Path không được dùng.
+- Đã bỏ hai import; Ruff pass và 62 test runtime/regression pass.
+
+## ERR-20261018-08 — Shell wrapper coverage mất exit code
+
+- Task: TASK-20261018-11. Suite đầu ghi OK (194, skip 3), nhưng shell exit lỗi
+  Illegal number do nội suy biến PowerShell khi truyền sh -c.
+- Thay wrapper bằng scripts/verify_tests.py sử dụng subprocess.returncode;
+  chạy lại full suite, exit 0, report đủ và skip ghi rõ. Không dùng exit lỗi
+  ban đầu để tuyên bố cả quy trình verification đã pass.
+
+## ERR-20261018-09 — Import sys không còn dùng trong clean-env
+
+- Task: TASK-20261018-13. Bỏ gate sys.platform/version khiến sys dư thừa.
+- Ruff F401 phát hiện; bỏ import, Ruff và kiểm tra script pass.

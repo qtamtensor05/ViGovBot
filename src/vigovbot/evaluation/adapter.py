@@ -1,9 +1,13 @@
 """Connect the QA runner to the existing RAG without changing its models."""
 
 from contextlib import contextmanager
+import logging
 import json
 from urllib.request import Request, urlopen
 from vigovbot.console import configure_console
+
+
+LOG = logging.getLogger(__name__)
 
 
 BASELINE_SYSTEM_PROMPT = """Bạn là trợ lý trả lời câu hỏi về thủ tục hành chính Việt Nam.
@@ -187,8 +191,9 @@ def ollama_baseline(config_path):
     finally:
         try:
             unload_model(config.llm.ollama_url, config.llm.model)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Cleanup must not mask a generation failure or discard completed predictions.
+            LOG.warning("Ollama cleanup failed (%s); model may remain loaded", type(exc).__name__)
 
 
 @contextmanager
@@ -334,8 +339,9 @@ def ollama_oracle(config_path):
     finally:
         try:
             unload_model(config.llm.ollama_url, config.llm.model)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Cleanup must not mask a generation failure or discard completed predictions.
+            LOG.warning("Ollama cleanup failed (%s); model may remain loaded", type(exc).__name__)
 
 
 @contextmanager

@@ -1,5 +1,7 @@
 """Kiểm thử offline RAG: FAISS/SQLite thực, encoder và HTTP được mô phỏng."""
 
+from tests.tokenizer_fixtures import CharacterTokenizer as CharacterTokenizer
+
 import json
 import sqlite3
 import tempfile
@@ -43,15 +45,6 @@ def qa(i):
     }
 
 
-class CharacterTokenizer:
-    def encode(self, text, **kwargs):
-        return list(map(ord, text))
-
-    def decode(self, ids):
-        return "".join(map(chr, ids))
-
-    def apply_chat_template(self, messages, **kwargs):
-        return self.encode("".join(m["content"] for m in messages)) + [0] * 10
 
 
 class PipelineTests(unittest.TestCase):
@@ -169,13 +162,13 @@ class PipelineTests(unittest.TestCase):
 
     def test_prompt_budget_and_used_context(self):
         hits = [{**chunk(i), "row_id": i, "score": 1.0, "text_content": "Nội dung dài " * 500} for i in range(3)]
-        messages, used, count = build_messages("Câu hỏi", hits, CharacterTokenizer(), 2048, 512, 400)
+        messages, used, count = build_messages("Câu hỏi", hits, CharacterTokenizer(overhead=10), 2048, 512, 400)
         self.assertLessEqual(count, 2048 - 512 - 256)
         self.assertGreater(len(used), 0)
         self.assertTrue(all(len(h["included_text"]) <= 400 for h in used))
         self.assertTrue(all(h["included_text"] in messages[1]["content"] for h in used))
         with self.assertRaises(ValueError):
-            build_messages("x" * 10000, hits, CharacterTokenizer(), 2048, 512, 400)
+            build_messages("x" * 10000, hits, CharacterTokenizer(overhead=10), 2048, 512, 400)
 
     def test_resume_and_no_ground_truth_leakage(self):
         output = self.root / "results"
@@ -239,7 +232,7 @@ class PipelineTests(unittest.TestCase):
             "timeout": 20,
         }
         messages, _, _ = build_messages(
-            "Câu hỏi", [{**chunk(0), "row_id": 0, "score": 1.0}], CharacterTokenizer(), 2048, 100
+            "Câu hỏi", [{**chunk(0), "row_id": 0, "score": 1.0}], CharacterTokenizer(overhead=10), 2048, 100
         )
         with patch("requests.post", return_value=Response()) as post:
             answer, _, _ = ollama_answer(messages, settings)

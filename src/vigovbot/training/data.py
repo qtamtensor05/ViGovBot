@@ -1,36 +1,27 @@
 from __future__ import annotations
 
+from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese as normalize_text
+
+from vigovbot.artifacts import file_hash as sha256_file  # noqa: F401 - public compatibility alias
+
 import hashlib
-import json
 import re
 from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Iterable
 
+from vigovbot.utils.jsonl import iter_jsonl
+
 ALLOWED_ROLES = ("user", "assistant")
 
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def read_jsonl(path: Path) -> list[dict]:
     records = []
-    with path.open(encoding="utf-8-sig") as handle:
-        for line_number, line in enumerate(handle, 1):
-            if not line.strip():
-                raise ValueError(f"{path}:{line_number}: blank lines are not allowed")
-            try:
-                value = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"{path}:{line_number}: invalid JSON: {exc.msg}") from exc
-            validate_conversation(value, f"{path}:{line_number}")
-            records.append(value)
+    for line_number, value in iter_jsonl(path, blank_lines="error"):
+        validate_conversation(value, f"{path}:{line_number}")
+        records.append(value)
     ids = [item["id"] for item in records]
     duplicates = [key for key, count in Counter(ids).items() if count > 1]
     if duplicates:
@@ -52,9 +43,6 @@ def validate_conversation(record: dict, location: str = "record") -> None:
         if not isinstance(content, str) or not content.strip():
             raise ValueError(f"{location}: message {index} content is empty")
 
-
-def normalize_text(value: str) -> str:
-    return " ".join(re.sub(r"[^\w\s]", " ", value.casefold()).split())
 
 
 def _signature(record: dict, role: str | None = None) -> str:
@@ -111,7 +99,7 @@ def _near_overlap(left: list[dict], right: list[dict], threshold: float, limit: 
 
 
 def analyze_splits(splits: dict[str, list[dict]], near_threshold: float = 0.92) -> dict:
-    report: dict = {"splits": {}, "overlaps": {}, "near_duplicate_threshold": near_threshold}
+    report: dict = {"normalization_version": NORMALIZATION_VERSION, "splits": {}, "overlaps": {}, "near_duplicate_threshold": near_threshold}
     all_ids: dict[str, str] = {}
     for name, records in splits.items():
         turns = Counter(len(item["messages"]) for item in records)

@@ -18,7 +18,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [Kiến trúc hệ thống](architecture/architecture.md)
 - [Hướng dẫn migration và tương thích ngược](architecture/migration.md)
 - [Tóm tắt refactor](architecture/refactor-summary.md)
-- [Đặc tả embedding và corpus](../EMBEDDING.md)
+- [Đặc tả embedding và corpus](architecture/embedding.md)
 
 ## Hướng dẫn sử dụng
 
@@ -59,3 +59,5 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - Báo cáo ghi nhận kết quả tại một thời điểm, không đại diện trạng thái hiện thời.
 - Hồ sơ `project/` là lịch sử append-only; không sửa đường dẫn cũ chỉ vì tài liệu
   hiện tại đã được di chuyển.
+
+- [Lịch sử snapshot đến 2026-10-18](project/stage-history-20261018.md)

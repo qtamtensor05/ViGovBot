@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
+
 import json
 import logging
 import threading
@@ -108,12 +110,15 @@ class ChatApplication:
             raise ValueError("histories phải là JSON object")
         clean_histories = {model_id: validate_history(histories.get(model_id)) for model_id in model_ids}
         results = []
-        with self._lock:
-            for model_id in model_ids:
-                model = self.models[model_id]
+        for model_id in model_ids:
+            model = self.models[model_id]
+            # Only backends sharing the local GPU participate in switching/serialization.
+            gpu_backend = model.provider in {"ollama", "local_transformers"}
+            with self._lock if gpu_backend else nullcontext():
                 try:
                     mode = getattr(model, "mode", "rag")
-                    self._switch_provider(model)
+                    if gpu_backend:
+                        self._switch_provider(model)
                     answer_fn = answerer_for(model.provider)
                     settings = self._settings(model)
                     if mode in {"base", "qlora"}:
@@ -161,7 +166,12 @@ class ChatApplication:
                 except Exception as exc:
                     LOG.exception("Model %s không trả lời được", model_id)
                     results.append({"model_id": model_id, "error": str(exc)})
-        return {"results": results}
+        failures = sum("error" in result for result in results)
+        status = "failed" if failures == len(results) else "partial" if failures else "success"
+        response = {"results": results, "status": status}
+        if status == "failed":
+            response["error"] = "Tất cả model đều không trả lời được. Xem results để biết lỗi từng model."
+        return response
 
 
 def make_handler(app):
@@ -204,7 +214,8 @@ def make_handler(app):
                 if length <= 0 or length > MAX_BODY_BYTES:
                     raise ValueError("Kích thước yêu cầu không hợp lệ")
                 payload = json.loads(self.rfile.read(length))
-                self.send_json(200, app.chat(payload))
+                result = app.chat(payload)
+                self.send_json(502 if result["status"] == "failed" else 200, result)
             except (ValueError, TypeError, json.JSONDecodeError) as exc:
                 self.send_json(400, {"error": str(exc)})
             except Exception:

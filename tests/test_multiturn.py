@@ -1,3 +1,4 @@
+from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
 import json
 import tempfile
 import unittest
@@ -11,9 +12,6 @@ from vigovbot.rag.pipeline import answer_question
 from vigovbot.rag.routing import answer_schema
 
 
-class Tokenizer:
-    def apply_chat_template(self, messages, **kwargs):
-        return list("".join(m["content"] for m in messages))
 
 
 def queries():

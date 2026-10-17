@@ -1,12 +1,8 @@
-"""Dataset serialization only; no retrieval or generation."""
-import json
+"""Dataset serialization only; blank lines are skipped, input is never repaired."""
+
+from vigovbot.utils.jsonl import iter_jsonl
 
 
 def read_jsonl(path):
-    with open(path, encoding="utf-8-sig") as handle:
-        for number, line in enumerate(handle, 1):
-            if line.strip():
-                try:
-                    yield json.loads(line)
-                except ValueError as exc:
-                    raise ValueError(f"{path}:{number}: invalid JSON") from exc
+    for _, value in iter_jsonl(path, blank_lines="skip"):
+        yield value

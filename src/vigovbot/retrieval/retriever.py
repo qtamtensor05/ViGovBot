@@ -47,15 +47,22 @@ class Retriever:
         vector /= np.max(np.abs(vector))
         faiss.normalize_L2(vector)
         scores, ids = self.index.search(vector, min(top_k, self.index.ntotal))
+        ranked = [(float(score), int(row_id)) for score, row_id in zip(scores[0], ids[0]) if row_id >= 0]
+        metadata = {}
+        # Bound placeholders for SQLite builds with the historical 999-variable limit.
+        row_ids = list(dict.fromkeys(row_id for _, row_id in ranked))
+        with self._db_lock:
+            for start in range(0, len(row_ids), 900):
+                batch = row_ids[start:start + 900]
+                placeholders = ",".join("?" for _ in batch)
+                metadata.update(self.db.execute(
+                    f"SELECT row_id, payload FROM chunks WHERE row_id IN ({placeholders})", batch
+                ).fetchall())
         hits = []
-        for score, row_id in zip(scores[0], ids[0]):
-            if row_id < 0:
-                continue
-            with self._db_lock:
-                row = self.db.execute("SELECT payload FROM chunks WHERE row_id=?", (int(row_id),)).fetchone()
-            if row is None:
+        for score, row_id in ranked:
+            if row_id not in metadata:
                 raise ValueError(f"Thiếu metadata cho dòng FAISS {row_id}")
-            hits.append({"row_id": int(row_id), "score": float(score), **json.loads(row[0])})
+            hits.append({"row_id": row_id, "score": score, **json.loads(metadata[row_id])})
         return hits
 
     def close(self):

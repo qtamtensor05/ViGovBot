@@ -40,7 +40,7 @@ ViGovBot/
 | `src/vigovbot/cli.py` | `src/vigovbot/cli/main.py` | Đã chuyển; import `vigovbot.cli:main` vẫn hoạt động |
 | console script `vigovbot` | console script `vigov` | Đã thêm; alias cũ được giữ |
 | `config.yaml`, `configs/pipeline.yaml` | `configs/ingestion/pipeline.yaml` | Đã hợp nhất cấu hình nguồn trùng vai trò |
-| `configs/ingestion.yaml`, `configs/chunking.yaml` | `configs/ingestion/settings.yaml`, `configs/ingestion/chunking.yaml` | Đã nhóm theo pipeline ingestion |
+| `configs/ingestion.yaml`, `configs/chunking.yaml` | `configs/ingestion/ingestion.yaml`, `configs/ingestion/chunking.yaml` | Đã nhóm theo pipeline ingestion |
 | `rag_config.yaml`, `configs/inference.yaml` | `configs/rag/inference.yaml` | Đã hợp nhất entry point suy luận |
 | `configs/rag*.yaml` | `configs/rag/evaluation*.yaml` | Đã nhóm các profile đánh giá RAG |
 | `configs/base.yaml` | `configs/training/base.yaml` | Đã chuyển cấu hình QLoRA nền |
@@ -60,7 +60,7 @@ không bị di chuyển. Script PowerShell cũ chưa xóa vì còn là compatibi
 
 ## CLI và cấu hình
 
-`vigov` có các nhóm `data`, `gpu`, `train`, `eval`, `report`, cùng `doctor` và
+`vigov` có các nhóm `data`, `gpu`, `train`, `eva`, `report`, cùng `doctor` và
 `dashboard`. Handler chỉ điều phối service/module hiện có và không import Torch,
 Transformers hoặc model khi chỉ xem help/status.
 

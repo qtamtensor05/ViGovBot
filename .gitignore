@@ -55,3 +55,14 @@ trainer_state.json
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local generated packages, databases, indexes, trackers and editor files
+*.whl
+*.egg
+.eggs/
+*.sqlite
+*.db
+*.index
+wandb/
+desktop.ini
+*.swp

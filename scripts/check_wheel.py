@@ -1,5 +1,6 @@
 """Install the built wheel outside the checkout and check packaged defaults/CLI."""
 
+import argparse
 import os
 from pathlib import Path
 import subprocess
@@ -9,7 +10,10 @@ import tempfile
 
 def main():
     root = Path(__file__).resolve().parents[1]
-    wheels = sorted((root / "dist").glob("vigovbot-*.whl"))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--wheel-dir", type=Path, default=root / "dist")
+    args = parser.parse_args()
+    wheels = sorted(args.wheel_dir.resolve().glob("vigovbot-*.whl"))
     if len(wheels) != 1:
         raise RuntimeError("Expected exactly one built vigovbot wheel in dist/")
     with tempfile.TemporaryDirectory() as work:
@@ -30,6 +34,16 @@ def main():
         subprocess.run([sys.executable, "-c", code], cwd=work, env=env, check=True)
         for args in (["--help"], ["ingest", "--help"], ["embed", "--help"], ["rag", "--help"]):
             subprocess.run([sys.executable, "-m", "vigovbot", *args], cwd=work, env=env, check=True)
+        # Resolve installed console entrypoints, not only the compatibility module.
+        for entrypoint in ("vigov", "vigovbot"):
+            for command in ([], ["train"], ["eva"], ["data"], ["doctor"]):
+                invocation = (
+                    "from importlib.metadata import distribution; "
+                    f"ep=next(e for e in distribution('vigovbot').entry_points if e.name=={entrypoint!r}); "
+                    "ep.load()()"
+                )
+                subprocess.run([sys.executable, "-c", invocation, *command, "--help"],
+                               cwd=work, env=env, check=True)
 
 
 if __name__ == "__main__":

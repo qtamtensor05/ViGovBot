@@ -13,6 +13,12 @@ def openai_compatible_answer(messages, settings):
     """Call a server implementing the OpenAI chat-completions protocol."""
     import requests
 
+    if not isinstance(messages, list) or not messages:
+        raise ValueError("messages must be a nonempty list")
+    if any(not isinstance(message, dict) or not isinstance(message.get("content"), str)
+           or message.get("role") not in {"system", "user", "assistant"} for message in messages):
+        raise ValueError("messages require a supported role and string content")
+    messages = [dict(message) for message in messages]
     key_env = settings.get("api_key_env")
     api_key = os.environ.get(key_env) if key_env else None
     if key_env and not api_key:

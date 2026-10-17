@@ -102,3 +102,17 @@ khi quay lại Base/RAG. `OLLAMA_NUM_PARALLEL=1` và
 
 Không gửi đồng thời nhiều request GPU trong cấu hình này. Lần đầu chọn
 QLoRA có thể tải base model vào volume `huggingface-cache`, nên sẽ lâu hơn.
+
+## Chọn adapter trên từng máy
+
+Đặt `QLORA_ADAPTER_PATH` trong `.env` thành thư mục adapter thực tế trên host
+(chứa `adapter_config.json` và trọng số), theo mẫu `.env.example`. Không chép
+đường dẫn run cá nhân vào YAML. Compose hiện yêu cầu adapter khi tạo web;
+biến chưa đặt sẽ báo lỗi cấu hình, thư mục không tồn tại sẽ bị từ chối thay vì
+tự tạo thư mục rỗng. Container luôn đọc adapter tại `/app/models/qlora`.
+Sau khi đổi mount, dùng `docker compose up -d --force-recreate web`.
+
+Khi chạy Python trực tiếp, đặt `$env:QLORA_ADAPTER_PATH` trước khi chạy CLI;
+đường dẫn tương đối của biến được tính từ thư mục làm việc. Python không tự
+nạp `.env`. Khi không có biến, config local dùng `outputs/qlora/best_adapter`;
+cần chuẩn bị adapter tại đó trước khi chọn QLoRA. Không di chuyển run lịch sử.

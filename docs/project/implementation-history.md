@@ -1061,3 +1061,164 @@
 - Kiểm chứng: 11 test v2 pass; 39 test evaluation/QA/docs/server pass;
   Compose config, compileall, public CLI routing và `git diff --check` pass.
   Không gửi request model thật trong quá trình kiểm chứng.
+
+## TASK-20261018-07 — Đồng bộ training, adapter, Docker secrets, lock và EOL
+
+- Bổ sung training QLoRA 4-bit vào Mermaid/bảng module và bỏ phủ nhận fine-tuning.
+  Code hiện hardcode load_in_4bit=True; chưa xác nhận training 8-bit/production.
+- Config dùng path chung; loader hỗ trợ QLORA_ADAPTER_PATH, Compose bind read-only
+  vào /app/models/qlora với create_host_path:false và lỗi rõ khi thiếu biến.
+  .env local được bổ sung lựa chọn adapter hiện có, không đọc/in token; artifact giữ nguyên.
+- .dockerignore loại .env/.env.*, PEM/KEY ở mọi cấp. Không có bằng chứng token đã lộ.
+- Pin Transformers 4.57.3 tại extras rag/embedding; uv pip compile resolve lại 4 lock
+  Windows và thêm Linux x86_64/Python 3.12 (rag,gpu). Dockerfile cài lock Linux.
+  Đây là resolver lock, không phải xác nhận cài đặt hoặc GPU runtime.
+- .gitattributes quy định LF cho text và CRLF cho PowerShell/batch; chuẩn hóa 7 file
+  mixed được báo cáo. Không stage/renormalize toàn repo hoặc sửa checkpoint.
+- PASS: 18 test chọn lọc từ tests.test_rag_config_cli (4 test cấu hình/CLI),
+  tests.test_documentation và tests.test_artifact_safety trong image vigovbot-web:latest
+  với network none, repository read-only; Ruff 0.15.6 cho config/test mới;
+  compileall cho hai file; docker compose config --quiet; thiếu biến adapter bị từ chối;
+  git diff --check; scan tracked text không còn mixed EOL.
+- Lượt chạy cả tests.test_rag_config_cli + docs: 6 test, 1 lỗi do thiếu matplotlib.
+  Python host thiếu pydantic/Ruff nên dùng image có sẵn và uvx Ruff trong cache tạm.
+- Chưa clean install lock, rebuild Docker hoặc chạy inference/training. Không restart service.
+
+## TASK-20261018-08 — Helper canonical và hợp đồng lexical
+
+- Hash helper/training/audit chuyển sang alias artifacts.file_hash, bỏ read_bytes
+  toàn file; indexing dùng configure_console.
+- utils/text.py gom NFC/casefold/Unicode tokens cho training data/metrics, QA và
+  V2. Audit overlap ghi normalization version; V2 giữ coercion input cũ.
+- evaluation/lexical.py định nghĩa vi-lexical-v1: SacreBLEU none/exp/effective-order,
+  scale 0–100, corpus aggregate; ROUGE tokenizer Unicode dùng chung.
+  Training summary và QA report gắn contract, legacy report gắn version riêng.
+- Không đổi baseline notebook legacy; tài liệu qa-rag-evaluation.md ghi rõ phải
+  rescore prediction cũ trước khi so sánh và đồng nhất cohort/denominator.
+- utils/jsonl.py đọc UTF-8 BOM với chính sách blank skip/error; training giữ
+  validation/duplicate ID. experiments recovery không bị hợp nhất vào dataset reader.
+- PASS: Ruff các module bị tác động và test mới; 61 unittest trong container tạm:
+  tests.test_shared_contracts, test_qlora_local, test_qa_v4, test_evaluation_v2,
+  test_artifact_safety, test_documentation. Repo mount read-only; dependency test
+  cài trong container bị xóa khi hoàn tất, không thay image runtime hay host.
+- Test mới xác nhận hash đa chunk không read_bytes, NFC/NFD/casefold parity,
+  BLEU/ROUGE tiếng Việt, blank-line policy và recovery không cắt lỗi giữa file.
+- Không chạy GPU/model/benchmark hoặc sửa artifact cũ. Không commit.
+
+## TASK-20261018-09 — Tách trách nhiệm orchestration
+
+- chunking/tables.py chứa repair, flatten, header helpers thuần; markdown giữ
+  method alias tương thích. Table repair vốn độc lập, nhận định cần instantiate
+  toàn chunker không đúng với repair_table_continuations hiện tại.
+- rag/response.py chứa resolve_route và generate_answer; pipeline giữ retrieval,
+  prompt budget và assembly. Retry schema/citation, fallback và thời gian giữ nguyên.
+- train.py tách _prepare_training_data, _prepare_model, _training_arguments,
+  _finalize_training; giữ resume gate/hash, callback/optimizer state và best-restored
+  validation. Đã sửa hướng dẫn dependency cũ trỏ requirements không còn tồn tại.
+- scoring_legacy.py format và đổi tên biến; đọc/ghi file bằng Path và JSONL reader
+  có context manager. Đối chiếu scorer trước refactor từ HEAD: bằng nhau trên 3
+  biến thể view (all, selected, empty), gồm missing prediction và judgment.
+- Namespace cùng basename không collision Python; bổ sung bảng trách nhiệm trong
+  architecture.md thay vì đổi tên public hàng loạt. Runner schema/history khác nhau
+  giữ riêng; benchmark thêm lỗi rõ ràng khi output tồn tại, vẫn exclusive-create.
+  Không tuyên bố đã thêm resume cho threaded runner.
+- PASS: 103 tests trong container tạm với repo mount read-only: refactor boundaries,
+  ingestion chunking, RAG pipeline, conversation routing, routing providers,
+  training lifecycle, QLoRA local, QA v4/review, documentation. Các test model là mock.
+- PASS: Ruff phạm vi thay đổi, compileall src/test mới, diff-check. Không training,
+  GPU resume, model inference hoặc benchmark thật. Artifact cũ giữ nguyên.
+
+## TASK-20261018-10 — Runtime/API correctness
+
+- server/app.py: khóa theo model call chỉ cho Ollama/local Transformers; API
+  ngoài không chờ khóa và không thay _active_provider, tránh mất dấu owner GPU.
+  Health/models vốn không dùng lock. GPU switching vẫn tuần tự hóa có chủ đích.
+- Tất cả model lỗi trả 502 + status failed + results + error cho UI; mixed result
+  trả 200/status partial; validation giữ 400. Đây là API comparison, không phải
+  server OpenAI chat-completions. Không thay schema success từng model.
+- evaluation/adapter.py: hai except nằm ở unload cleanup; warning exception type
+  thay pass, giữ exception generation và kết quả đã hoàn thành, không in URL/token.
+- Retriever dùng SELECT IN theo tối đa 900 ID/batch trong một vùng khóa, lookup
+  map rồi trả theo FAISS rank; thiếu metadata vẫn raise. K thông thường một query.
+- Batch local inference giữ RLock đến hết decode và dùng deepcopy tokenizer,
+  padding state cache không đổi kể cả generate lỗi; release cache không xen ngang.
+- Provider vốn copy message ở nhánh schema; thêm validation list không rỗng,
+  role/content hợp lệ và copy ngay đầu cho mọi nhánh trước gửi request.
+- PASS: 62 unittest trong container tạm, source mount read-only: runtime safety,
+  server, routing providers, RAG pipeline, QA v4, evaluation v2. HTTP test thật
+  localhost status 400/502/200 và content-type; model/API ngoài đều giả lập.
+- Test concurrency dùng barrier 2 request, xác nhận remote không chờ GPU lock;
+  SQL trace xác nhận một SELECT và rank; batch lỗi giữ tokenizer và nhả lock;
+  provider không gọi HTTP khi messages rỗng và không sửa caller khi network lỗi.
+- PASS Ruff, compileall, documentation, diff-check. Không chạy GPU/model/load test,
+  không đo throughput thực tế, không recreate dịch vụ hay sửa artifact.
+
+## TASK-20261018-11 — Coverage có bằng chứng và PEFT CPU integration
+
+- Review 0% không đúng với nhiều module đã có test; đo full suite với coverage
+  branch/line thay vì suy ra từ tên file. Chi tiết bảng tại setup/development.md.
+- pyproject.toml cấu hình coverage; scripts/verify_tests.py chạy unittest verbose,
+  offline, giữ test exit status và xuất tests.log/coverage.json/coverage.txt.
+- Gom fixture ký tự từ 4 file, giữ overhead=10 và serialize_messages tại caller
+  cần semantics đó; QLoRA FakeTokenizer có role/EOS riêng không gộp cơ học.
+- Test real PEFT CPU không mock torch/Transformers/PEFT/tokenizers: tiny GPT2,
+  masking, finite loss, gradient adapter, optimizer step, save/reload và logits parity.
+- Lượt cuối: exit 0; 194 test, 3 skip; 3887/5624 statement (69,1%),
+  1062/1794 branch (59,2%), combined 66,7%. Report trong
+  outputs/verification/task-20261018-11; không commit artifacts.
+- Skip có lý do: dataset v4 thiếu, Qwen tokenizer thiếu cache, Node.js thiếu.
+  Integration HTTP/FAISS/SQLite đã có; chưa E2E OCR/model thật hay GPU QLoRA.
+- Không khôi phục CI đã xóa chủ động; unittest không cần conftest/pytest.ini.
+  Assertion chuẩn đã có expected/actual/traceback; test mới thêm context nghiệp vụ,
+  không thêm message máy móc cho toàn bộ suite.
+- PASS Ruff các test/script thay đổi, compileall, documentation và diff-check.
+  Container tạm, repo read-only, chỉ thư mục verification được mount writable.
+
+## TASK-20261018-12 — Typed training config và docs canonical
+
+- training/schema.py dùng Pydantic strict/extra forbid theo từng section; validate
+  type/range/cadence/LoRA/NF4/early stopping. config.py gọi schema, vẫn trả dict
+  nguyên giá trị, không chèn default làm đổi snapshot/hash checkpoint cũ.
+- Model khác default được chọn qua name và experimental=true; target modules
+  tùy kiến trúc phải không rỗng/unique. Default Qwen 7B giữ bộ projection audited.
+  trust_remote_code vẫn false. Schema không chứng minh PhoGPT/Llama/Qwen size
+  khác chạy đúng; cần smoke riêng, chat template đúng và GPU phù hợp.
+- refactor-summary đổi nhóm eval thành eva; QA guide đổi env/Scripts sang .venv.
+- Di chuyển EMBEDDING.md đến docs/architecture/embedding.md và sửa mọi caller/link
+  active trong docs/README và README subsystem. Không để cây tài liệu song song.
+- configs/ingestion/settings.yaml đổi thành ingestion.yaml; pipeline và docs cập
+  nhật, đồng bộ basename với package default. Không đổi giá trị ingestion.
+- Stage cũ lưu nguyên bytes tại docs/project/stage-history-20261018.md (1.022 dòng,
+  SHA256 462db71290983efb6530692c46010c38bf063fd3707a584a1dd15104933d414c).
+  current-stage chỉ giữ snapshot ngắn, link archive/history; docs index đã cập nhật.
+- PASS: 47 unittest chạy, 46 pass/1 skip tokenizer Qwen không có cache; nhóm
+  training schema, QLoRA local/audit/readiness, unified CLI, ingestion, documentation.
+  Test schema cover toàn profile repo, experimental opt-in, typo/type/cadence và
+  không mutation snapshot. Ruff, compileall, documentation link, diff-check pass.
+- Không chạy model mới, training/GPU, không đổi checkpoint/dataset; chưa commit.
+
+## TASK-20261018-13 — Dependency/packaging/cleanup
+
+- Khai báo huggingface-hub>=0.34,<1 ở core để artifact/preflight không lệ thuộc
+  transitive install. Resolve lại 5 lock Windows/Linux; không sửa version bằng tay.
+- torch==2.9.1 thuộc gpu, tương thích >=2.2,<3; không có xung đột chỉ vì range/pin.
+  Giữ requires-python core, docs phân biệt GPU baseline 3.12 và wheel availability
+  chưa xác nhận theo host. Không tuyên bố mọi Python 3.14 GPU wheel tồn tại/không tồn tại.
+- helpers.__all__ liệt kê export; bỏ Ruff per-file F401 suppression.
+- check_clean_env bỏ gate Windows 3.14, tự chọn Scripts/python.exe hay bin/python;
+  mặc định install test/dev extras, --lock cho lock đúng nền tảng. Help/syntax pass,
+  chưa chạy cài sạch full dependency ở từng OS/Python.
+- check_wheel --wheel-dir hỗ trợ artifact tạm, kiểm tra installed entrypoint
+  vigov/vigovbot qua importlib.metadata ngoài checkout: help/train/eva/data/doctor;
+  legacy ingest/embed/rag vẫn được kiểm tra.
+- main.py dùng unified dispatcher, không argument hiện help; ingestion phải tường minh.
+- Xóa đúng __pycache__/colab_worker_embed.cpython-314.pyc và
+  merge_vector_packs.cpython-314.pyc sau xác nhận source không còn; rmdir ba cây
+  context-management/repository-navigation/token-budget-optimization chỉ khi rỗng.
+  Đường dẫn resolve nằm trong workspace; không recursive delete artifact.
+- .gitignore thêm wheel/egg/.eggs, sqlite/db/index, wandb, desktop.ini, swp.
+- PASS Docker container tạm: copy source build sang /tmp/package, wheel build,
+  install target ngoài checkout, defaults và entrypoints, root help, 14 tests
+  unified CLI/shared contracts/docs. Repo mount read-only; log/wheel trong
+  outputs/verification/task-20261018-13. Không thay service/image runtime.
+- PASS Ruff, compileall, docs, diff-check. Không clean-env matrix hoặc GPU/model.

@@ -5,6 +5,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 import re
+from vigovbot.console import configure_console
+
 import sys
 from pathlib import Path
 from uuid import uuid4
@@ -150,10 +152,7 @@ def parse_pdf_to_hybrid_data(file_path=None, *, markdown_converter=None, output_
 
 
 def main(argv=None):
-    # Windows redirected streams may default to an encoding without Vietnamese.
-    for stream in (sys.stdout, sys.stderr):
-        if hasattr(stream, "reconfigure"):
-            stream.reconfigure(encoding="utf-8", errors="replace")
+    configure_console()
     cli = argparse.ArgumentParser(description="Parse PDF cục bộ sang Markdown và JSON, không cần API.")
     cli.add_argument("file", nargs="?", type=Path)
     cli.add_argument("--config", type=Path, help="Root YAML configuration path")

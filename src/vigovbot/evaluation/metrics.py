@@ -1,9 +1,15 @@
-"""Answer metrics consistent with the original baseline notebook."""
+"""Legacy baseline-notebook metrics. Not comparable to vi-lexical-v1 scores.
+
+Preserved for historical reproducibility: lower/punctuation normalization,
+NLTK sentence BLEU method1 (0..1), default rouge-score tokenizer.
+"""
 
 import re
 import unicodedata
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from rouge_score import rouge_scorer
+
+METRIC_CONTRACT_VERSION = "baseline-notebook-legacy-v1"
 
 
 def normalize_answer(text: str) -> str:

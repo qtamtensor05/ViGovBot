@@ -938,3 +938,52 @@
   biến cấu hình cổng.
 - Trạng thái: completed; README, Docker/CLI/RAG/Evaluation guide và
   `.env.example` đã đồng bộ, tài liệu lịch sử được giữ nguyên.
+
+## TASK-20261018-07 — Sửa năm phát hiện review
+
+- Yêu cầu: đồng bộ tài liệu training; bỏ path adapter theo máy; chặn bí mật trong Docker context; sửa dependency lock; thống nhất line ending.
+- Phạm vi: source cấu hình, Compose, dependency, tài liệu và các file mixed; giữ nguyên dataset/checkpoint.
+- Tiêu chí: config portable, lock được resolver kiểm tra, test liên quan và diff-check pass; phân biệt static với runtime/model.
+- Trạng thái: completed (sửa source/config/docs; clean install lock và GPU runtime chưa kiểm chứng).
+
+## TASK-20261018-08 — Hợp nhất helper và làm rõ hợp đồng metric/JSONL
+
+- Yêu cầu: xử lý năm phát hiện hashing, normalization, BLEU, JSONL và UTF-8 console.
+- Phạm vi: dùng helper canonical, NFC cho training data, metric mới có version; giữ baseline legacy và recovery log.
+- Tiêu chí: test parity/hash/NFC/blank-tail và test các caller; không sửa kết quả benchmark cũ.
+- Trạng thái: completed; 61 test pass, không chạy lại benchmark/model.
+
+## TASK-20261018-09 — Tách trách nhiệm và làm rõ evaluation runners
+
+- Yêu cầu: xử lý chunker, answer_question, train quá lớn; namespace/runner khó phân biệt; legacy minified và file handle.
+- Phạm vi: refactor bảo toàn hợp đồng, API cũ và artifact; không gộp các runner khác schema, không tự overwrite/resume thiếu provenance.
+- Tiêu chí: helper có thể test riêng, regression pass, tài liệu vai trò/resume rõ; không chạy GPU.
+- Trạng thái: completed trong phạm vi refactor; 103 test pass, GPU chưa chạy.
+
+## TASK-20261018-10 — HTTP concurrency, errors và shared state
+
+- Yêu cầu: xử lý 6 phát hiện lock, HTTP status, cleanup exception, N+1 SQL, tokenizer và messages.
+- Phạm vi: API ngoài không dùng GPU lock; giữ switching GPU an toàn, status all-failed/partial rõ, batch retrieval/tokenizer.
+- Tiêu chí: test concurrency/error HTTP/SQL order/shared state; không load test hoặc chạy model thật.
+- Trạng thái: completed; 62 test pass, không benchmark/model thật.
+
+## TASK-20261018-11 — Đo coverage và nâng chất lượng kiểm thử
+
+- Yêu cầu: xác minh coverage, fixture trùng, integration/E2E, CI, over-mocking và diagnostics.
+- Phạm vi: unittest coverage branch/line, helper tokenizer dùng chung, real tiny PEFT CPU; giữ CI đã chủ động xóa.
+- Tiêu chí: full suite có số liệu và skip rõ; phân biệt GPU/OCR/model E2E chưa chạy.
+- Trạng thái: completed cho audit/coverage/CPU integration; E2E OCR/model/GPU chưa kiểm chứng.
+
+## TASK-20261018-12 — Training schema và canonical docs/config
+
+- Yêu cầu: model experiments, Pydantic, CLI eva, .venv, embedding docs, stage ngắn và ingestion naming.
+- Phạm vi: schema validate trước trả dict tương thích, model ngoài default phải opt-in experimental; không sửa artifact snapshot.
+- Tiêu chí: config cũ pass, typo/type/model policy được test, link docs pass, stage archive không mất lịch sử.
+- Trạng thái: completed; 47 test chạy, 46 pass/1 skip; chưa chạy model mới/GPU.
+
+## TASK-20261018-13 — Dependency, packaging và cleanup
+
+- Yêu cầu: xử lý nhóm 7/8, kiểm chứng dependency/CLI, dọn đúng ghost cache và skill rỗng.
+- Phạm vi: dependency hub, docs support matrix, exports, script portable, root help, ignore.
+- Tiêu chí: resolver/CLI/tests pass; không xóa source/artifact/user data.
+- Trạng thái: completed; wheel/CLI và 14 test pass, clean-env matrix chưa chạy.

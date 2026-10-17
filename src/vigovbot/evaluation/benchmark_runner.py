@@ -122,6 +122,12 @@ def run_queries(queries, answer_fn, output, mode="reference_history", *, oracle_
     effective_concurrency = min(concurrency, len(jobs)) if jobs else 0
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
+    if output.exists():
+        raise FileExistsError(
+            f"Prediction output already exists: {output}. Choose a new --out path. "
+            "Threaded benchmark runs do not support resume; use the resumable multiturn runner "
+            "for its supported query/history contract. Existing predictions were not modified."
+        )
     successful = attempted = 0
     plain_progress = not sys.stderr.isatty()
     started = time.perf_counter()

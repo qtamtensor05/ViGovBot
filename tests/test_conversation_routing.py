@@ -1,4 +1,6 @@
 """Offline behavioral tests for routing, evidence decisions and v4 output."""
+from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
+
 import json
 import tempfile
 import unittest
@@ -11,15 +13,6 @@ from vigovbot.rag.pipeline import answer_question
 from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
 
 
-class Tokenizer:
-    def encode(self, text, **kwargs):
-        return list(map(ord, text))
-
-    def decode(self, ids):
-        return "".join(map(chr, ids))
-
-    def apply_chat_template(self, messages, **kwargs):
-        return self.encode("".join(m["content"] for m in messages))
 
 
 def route(relation="new_question", scope="in_scope", query="Phí cấp hộ chiếu?", clarification=""):

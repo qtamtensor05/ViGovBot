@@ -1,5 +1,6 @@
 """Cấu hình riêng cho RAG, không thay đổi cấu hình parse/chunk PDF."""
 
+import os
 import re
 from pathlib import Path
 
@@ -130,5 +131,9 @@ def load_config(path):
         config.evaluation.baseline_summary_path = (path.parent / config.evaluation.baseline_summary_path).resolve()
     for model in config.web.models:
         if model.adapter_path is not None:
-            model.adapter_path = (path.parent / model.adapter_path).resolve()
+            override = os.environ.get("QLORA_ADAPTER_PATH") if model.mode == "qlora" else None
+            if override:
+                model.adapter_path = Path(override).expanduser().resolve()
+            else:
+                model.adapter_path = (path.parent / model.adapter_path).resolve()
     return config

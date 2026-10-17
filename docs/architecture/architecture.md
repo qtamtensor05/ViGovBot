@@ -19,6 +19,10 @@ flowchart LR
     llm --> answer
     answer --> evaluation
     dataset[Bộ test và đáp án chuẩn] --> evaluation
+    sft[Dataset SFT] --> training[training: QLoRA 4-bit]
+    training --> checkpoint[Checkpoint / best_adapter]
+    checkpoint --> local[local_transformers: Base + Adapter]
+    question --> local --> answer
 ```
 
 | Thành phần | Trách nhiệm |
@@ -30,6 +34,7 @@ flowchart LR
 | `retrieval` | Chuẩn hóa vector câu hỏi, tra FAISS và đọc metadata |
 | `prompts` | Prompt tiếng Việt, ngân sách ngữ cảnh, ghi lại nguồn đã dùng |
 | `llm` | Giao tiếp Ollama |
+| `training` | SFT QLoRA 4-bit, chat template, masking multi-turn, checkpoint/resume và inference adapter |
 | `rag` | Chuẩn bị corpus, phiên inference, điều phối hỏi đáp/benchmark |
 | `evaluation` | Bộ test, metric và báo cáo; đáp án chuẩn không đưa vào inference |
 | `pipelines/indexing.py` | Điều phối PDF → chunk → báo cáo và CLI ingestion |
@@ -80,9 +85,48 @@ từ nguồn đáng tin cậy. Chế độ legacy không thể chứng minh mode
 ## Phạm vi hệ thống
 
 Hiện phục vụ nghiên cứu qua CLI, notebook Colab và web UI/API cục bộ. Web dùng
-`ThreadingHTTPServer`, nạp một encoder/FAISS/SQLite dùng chung và tuần tự hóa các
-lượt chat; SQLite mở read-only để truy hồi từ thread request. Lịch sử nằm trong
+`ThreadingHTTPServer`, nạp một encoder/FAISS/SQLite dùng chung; encoder và SQLite
+có khóa riêng. Ollama/QLoRA tuần tự hóa theo model call để bảo vệ GPU và switching;
+API ngoài không dùng khóa GPU. SQLite mở read-only để truy hồi từ thread request. Lịch sử nằm trong
 trình duyệt và được gửi lại theo từng model/chế độ. Chưa có lưu phiên phía server,
-quản lý người dùng, xác thực/TLS hoặc pipeline fine-tuning QLoRA.
+quản lý người dùng hoặc xác thực/TLS.
+
+Pipeline fine-tuning nằm tại `src/vigovbot/training/`, gọi qua `vigov train`.
+Training dùng quantization 4-bit, chat template và loss masking; checkpoint
+resume kiểm tra trạng thái optimizer/scheduler/RNG và dữ liệu trước khi tiếp tục.
+Artifact nằm trong `outputs/qlora/`; web có chế độ QLoRA qua local Transformers.
+QLoRA trực tiếp không truy hồi nguồn như RAG. Đây là pipeline nghiên cứu có
+kiểm tra tính toàn vẹn, chưa phải chứng nhận vận hành production.
 Các nội dung liên quan được quy định tại [migration](migration.md),
 [môi trường](../setup/environments.md) và [quy trình phát triển](../../CONTRIBUTING.md).
+
+## Ranh giới orchestration và helper (2026-10-18)
+
+- `chunking/markdown.py`: schema, metadata/heading, chia section và lắp chunk.
+  `chunking/tables.py`: hàm thuần sửa continuation, tìm/lặp header và flatten
+  cell; gọi trực tiếp không cần tạo chunker. Method cũ giữ alias tương thích.
+  `repair_table_continuations` vốn đã là hàm độc lập trước refactor.
+- `rag/pipeline.py`: điều phối route → retrieval → budget/prompt → kết quả;
+  `rag/response.py`: routing retry/fallback và generation JSON/citation retry.
+  Helper nhận tokenizer/settings/answer_fn, không sở hữu FAISS hay dataset nhãn.
+- `training/train.py`: điều phối vòng đời; `_prepare_training_data` giữ gate
+  resume/hash/run identity, `_prepare_model` cấu hình quantization/LoRA,
+  `_training_arguments` xây Trainer arguments, `_finalize_training` đánh giá
+  best-restored model và xuất báo cáo. Stop/interruption vẫn thuộc orchestration.
+  Đây là refactor source/test; chưa chứng minh GPU training/resume thật.
+
+### Các tên module cùng basename không cùng trách nhiệm
+
+| Module | Hợp đồng |
+|---|---|
+| `artifacts` | Checksum, corpus provenance, publication/lock |
+| `training.artifacts` | Thư mục run training, config snapshot, đường dẫn báo cáo |
+| `evaluation.report` | Báo cáo baseline notebook với metric legacy |
+| `evaluation.benchmark_report` | Báo cáo benchmark QA và provenance |
+| `training.report` | Báo cáo trạng thái/artifact training |
+| `evaluation.metrics` | Metric baseline notebook legacy |
+| `evaluation.lexical` | Hợp đồng lexical hiện đại dùng chung |
+| `training.metrics` | Metric generation/loss training; lexical dùng module chung |
+
+Dùng import đầy đủ namespace tại ranh giới subsystem. Không đổi tên hàng loạt
+các module public chỉ vì cùng basename; chúng không ghi đè nhau trong Python.
