@@ -1,0 +1,159 @@
+{
+    "test_id": "<String> Mã định danh duy nhất của test case (VD: TC_0001)",
+    "version": "<String> Phiên bản của bộ test dataset để quản lý thay đổi (VD: 1.0, 2.0)",
+    "taxonomy": {
+        "domain": "<String> Lĩnh vực hoặc chủ đề chuyên môn của câu hỏi (dùng để gom nhóm phân tích lỗi theo miền)",
+        "turn_type": "<Enum: 'new_question' | 'follow_up'> Câu hỏi mới độc lập hoàn toàn hay câu hỏi nối tiếp phụ thuộc vào lịch sử hội thoại",
+        "complexity_type": "<Enum: 'single_hop' | 'multi_hop' | 'multi_intent'> Câu hỏi đơn (1 tài liệu), đa chặng suy luận bắc cầu (>=2 tài liệu), hay hỏi gộp nhiều ý độc lập trong 1 câu",
+        "has_topic_shift": "<Boolean> True nếu có lịch sử chat cũ nhưng người dùng đột ngột đổi sang hỏi một chủ đề mới không liên quan (kiểm tra nhiễu lịch sử)",
+        "difficulty": "<Enum: 'easy' | 'medium' | 'hard'> Mức độ khó của câu hỏi",
+        "eval_split": "<Enum: 'in_domain' | 'out_of_distribution'> Thuộc miền dữ liệu đã Fine-tune hay ngoài miền (dùng để kiểm tra hiện tượng Quên thảm khốc - Catastrophic Forgetting)",
+        "is_unanswerable": "<Boolean> True nếu câu hỏi không có đáp án trong cơ sở tri thức (dùng để test khả năng từ chối trả lời chống ảo giác)",
+        "adversarial_type": "<Enum: 'none' | 'false_premise' | 'prompt_injection' | 'heavy_typo'> Loại câu hỏi gài bẫy: bình thường, chứa tiền đề sai, tấn công tiêm lệnh, hoặc viết tắt/không dấu/sai chính tả nặng"
+    },
+    "input": {
+        "system_prompt": "<String> Lời nhắc hệ thống định hình vai trò, giọng văn và quy tắc an toàn cho mô hình",
+        "instruction": "<String> Chỉ thị tác vụ cụ thể cho từng mẫu (phục vụ định dạng chuẩn Alpaca/ShareGPT khi đánh giá Fine-tuned model)",
+        "chat_history": [
+            {
+                "role": "<Enum: 'user' | 'assistant'> Vai trò người nói trong các lượt hội thoại trước (để rỗng [] nếu là lượt đầu tiên)",
+                "content": "<String> Nội dung tin nhắn của lượt hội thoại trước đó"
+            }
+        ],
+        "question": "<String> Câu hỏi hoặc yêu cầu đầu vào thực tế của người dùng ở lượt hiện tại",
+        "metadata_filters": "<Object/Dict> Các cặp key-value dùng làm bộ lọc siêu dữ liệu khi truy vấn Vector DB (VD: thời gian hiệu lực, loại tài liệu, phòng ban)",
+        "few_shot_examples": [
+            {
+                "input": "<String> Câu hỏi ví dụ mẫu (chỉ dùng khi đánh giá Base Model ở chế độ Few-shot)",
+                "output": "<String> Câu trả lời ví dụ mẫu tương ứng"
+            }
+        ]
+    },
+    "ground_truth": {
+        "expected_route": "<Enum: 'rag_search' | 'direct_chat' | 'tool_call'> Luồng xử lý chuẩn mà bộ Router/Agent cần điều hướng tới",
+        "ground_truth_standalone_query": "<String> Câu hỏi chuẩn sau khi đã được viết lại đầy đủ chủ ngữ/ngữ cảnh từ chat_history (chỉ bắt buộc khi turn_type = 'follow_up')",
+        "ground_truth_sub_queries": [
+            "<String> Danh sách các câu hỏi con độc lập sau khi phân rã từ câu hỏi phức (chỉ bắt buộc khi complexity_type = 'multi_hop' hoặc 'multi_intent')"
+        ],
+        "sub_query_context_mapping": {
+            "sub_query_index_0": [
+                "<String> Danh sách ID của các chunk chuẩn cần thiết để trả lời cho riêng câu hỏi con thứ nhất"
+            ],
+            "sub_query_index_1": [
+                "<String> Danh sách ID của các chunk chuẩn cần thiết để trả lời cho riêng câu hỏi con thứ hai"
+            ]
+        },
+        "ground_truth_context_ids": [
+            "<String> Tổng hợp toàn bộ ID của các đoạn văn bản (chunks) chuẩn chứa thông tin trả lời câu hỏi"
+        ],
+        "ground_truth_contexts": [
+            "<String> Nội dung văn bản gốc tương ứng với ground_truth_context_ids (dùng làm chuẩn đối chiếu cho LLM Judge)"
+        ],
+        "distractor_injection": {
+            "distractor_context_ids": [
+                "<String> Danh sách ID các chunk gây nhiễu cố tình chèn thêm để test độ bền RAFT (cùng chủ đề nhưng sai đối tượng hoặc hết hiệu lực)"
+            ],
+            "conflict_type": "<Enum: 'none' | 'outdated_info' | 'similar_entity' | 'contradictory'> Bản chất gây nhiễu của các chunk bẫy",
+            "injected_noise_ratio": "<Float: 0.0 -> 1.0> Tỷ lệ phần trăm số chunk nhiễu trên tổng số chunk đưa vào ngữ cảnh"
+        },
+        "expected_answer": "<String> Câu trả lời chuẩn mực (Golden Answer) do chuyên gia biên soạn hoặc đã được kiểm duyệt",
+        "key_facts_required": [
+            "<String> Danh sách các từ khóa, con số, mốc thời gian, hoặc sự kiện bắt buộc phải xuất hiện trong câu trả lời của mô hình"
+        ],
+        "expected_citations": [
+            {
+                "claim": "<String> Mệnh đề hoặc thông tin khẳng định quan trọng cần phải được trích dẫn nguồn",
+                "source_id": "<String> Mã ID của tài liệu/điều khoản chuẩn tương ứng với mệnh đề đó"
+            }
+        ],
+        "expected_format": "<Enum: 'markdown_text' | 'json_object' | 'bullet_list' | 'table'> Định dạng cấu trúc đầu ra bắt buộc mô hình phải tuân thủ",
+        "negative_constraints": [
+            "<String> Danh sách các điều cấm kỵ mô hình không được vi phạm trong câu trả lời này (VD: không suy diễn ngoài văn bản, không nhầm sang thủ tục X)"
+        ]
+    },
+    "system_execution_output": {
+        "model_config": {
+            "architecture_type": "<Enum: 'Base_Model' | 'FineTuned_Only' | 'RAG_Base' | 'RAG_FineTuned'> Kiến trúc hệ thống đang được chạy kiểm thử",
+            "model_name": "<String> Tên và phiên bản mô hình hoặc checkpoint LoRA/QLoRA đang chạy",
+            "top_k": "<Integer> Số lượng chunk tối đa lấy ra từ bước Retrieval (bằng 0 nếu không dùng RAG)"
+        },
+        "query_processing": {
+            "actual_route": "<String> Luồng xử lý thực tế mà hệ thống đã chọn",
+            "actual_rewritten_query": "<String> Câu hỏi thực tế sau khi module Query Rewriter của hệ thống viết lại",
+            "actual_sub_queries": [
+                "<String> Danh sách các câu hỏi con thực tế mà module Query Decomposition của hệ thống đã tách ra"
+            ]
+        },
+        "retrieval_output": {
+            "retrieved_context_ids": [
+                "<String> Danh sách ID các chunk thực tế mà Retriever trả về, sắp xếp giảm dần theo điểm tương đồng (từ hạng 1 đến hạng K)"
+            ],
+            "retrieved_scores": [
+                "<Float> Điểm tương đồng (Cosine/BM25/Rerank score) tương ứng với từng chunk trong retrieved_context_ids"
+            ],
+            "retrieved_contexts": [
+                "<String> Nội dung văn bản thực tế của các chunk đã truy xuất được và truyền vào Prompt cho Generator"
+            ]
+        },
+        "generation_output": {
+            "actual_output": "<String> Câu trả lời nguyên bản thực tế do mô hình sinh ra",
+            "extracted_claims": [
+                "<String> Danh sách các mệnh đề khẳng định đơn lẻ được bóc tách tự động từ actual_output (để chấm Faithfulness)"
+            ],
+            "extracted_citations": [
+                {
+                    "claim": "<String> Mệnh đề trong câu trả lời của mô hình có gắn kèm trích dẫn",
+                    "cited_source_id": "<String> Mã nguồn/tài liệu mà mô hình đã trích dẫn cho mệnh đề đó"
+                }
+            ]
+        },
+        "performance": {
+            "rewrite_latency_ms": "<Float> Thời gian chạy bước phân tích và viết lại câu hỏi (mili-giây)",
+            "retrieval_latency_ms": "<Float> Thời gian tìm kiếm Vector DB + Reranking (mili-giây)",
+            "generation_latency_ms": "<Float> Thời gian LLM sinh câu trả lời (mili-giây)",
+            "total_latency_ms": "<Float> Tổng thời gian phản hồi từ lúc nhận câu hỏi đến khi trả kết quả hoàn chỉnh",
+            "prompt_tokens": "<Integer> Số lượng token đầu vào (System prompt + Context + History + Question)",
+            "completion_tokens": "<Integer> Số lượng token đầu ra của câu trả lời"
+        }
+    },
+    "evaluation_results": {
+        "query_processing_scores": {
+            "router_accuracy": "<Float: 0.0 | 1.0> Điểm chính xác của bộ điều hướng (Router)",
+            "query_rewrite_similarity": "<Float: 0.0 -> 1.0> Độ tương đồng ngữ nghĩa giữa câu hỏi viết lại thực tế và câu hỏi độc lập chuẩn",
+            "sub_query_recall": "<Float: 0.0 -> 1.0> Tỷ lệ phần trăm các ý định/câu hỏi con được tách ra đầy đủ"
+        },
+        "retrieval_scores": {
+            "hit_rate_at_k": "<Float: 0.0 | 1.0> Có ít nhất 1 chunk chuẩn xuất hiện trong Top K kết quả tìm kiếm hay không",
+            "mrr_at_k": "<Float: 0.0 -> 1.0> Giá trị nghịch đảo của thứ hạng đầu tiên xuất hiện chunk chuẩn",
+            "context_recall": "<Float: 0.0 -> 1.0> Tỷ lệ số chunk chuẩn tìm thấy trên tổng số chunk chuẩn cần thiết",
+            "context_precision": "<Float: 0.0 -> 1.0> Độ chụm xếp hạng: đánh giá xem các chunk chuẩn có được xếp ở các vị trí đầu tiên trong Top K hay không",
+            "multi_intent_retrieval_coverage": "<Float: 0.0 -> 1.0> Tỷ lệ các câu hỏi con (nhánh suy luận) đã thu thập được ít nhất 1 chunk chuẩn tương ứng"
+        },
+        "generation_scores": {
+            "faithfulness": "<Float: 0.0 -> 1.0> Tỷ lệ các mệnh đề trong câu trả lời thực tế hoàn toàn dựa trên ngữ cảnh truy xuất được (không bịa đặt)",
+            "answer_relevancy": "<Float: 0.0 -> 1.0> Mức độ câu trả lời đi thẳng vào trọng tâm câu hỏi của người dùng, không lan man",
+            "key_fact_coverage": "<Float: 0.0 -> 1.0> Tỷ lệ các thông tin/từ khóa cốt lõi (key_facts_required) xuất hiện chính xác trong câu trả lời",
+            "intent_coverage_score": "<Float: 0.0 -> 1.0> Tỷ lệ số ý hỏi trong câu multi_intent được mô hình giải đáp đầy đủ (không bỏ sót ý)",
+            "citation_precision": "<Float: 0.0 -> 1.0> Tỷ lệ các nguồn mô hình trích dẫn ra thực sự chứa thông tin của câu đang nói",
+            "citation_recall": "<Float: 0.0 -> 1.0> Tỷ lệ các mệnh đề quan trọng trong câu trả lời được gắn trích dẫn nguồn đúng"
+        },
+        "robustness_and_style_scores": {
+            "format_compliance": "<Float: 0.0 | 1.0> Câu trả lời có tuân thủ đúng định dạng cấu trúc yêu cầu (expected_format) hay không",
+            "negative_constraint_pass": "<Float: 0.0 | 1.0> Mô hình có tuân thủ toàn bộ các lệnh cấm trong negative_constraints hay không",
+            "noise_robustness_pass": "<Float: 0.0 | 1.0> Mô hình có trả lời đúng và không bị đánh lừa bởi các chunk nhiễu (distractor_injection) hay không",
+            "abstention_accuracy": "<Float: 0.0 | 1.0 | null> Điểm từ chối trả lời hợp lệ khi không đủ thông tin hoặc gặp câu hỏi tiền đề sai (null nếu câu hỏi bình thường)"
+        },
+        "pairwise_arena": {
+            "baseline_model_name": "<String> Tên mô hình đối thủ dùng làm mốc so sánh trực tiếp (VD: Base Model)",
+            "win_status_forward": "<Enum: 'win' | 'tie' | 'loss'> Kết quả chấm đối đầu khi xếp mô hình hiện tại ở vị trí A, mô hình đối thủ ở vị trí B",
+            "win_status_swapped": "<Enum: 'win' | 'tie' | 'loss'> Kết quả chấm đối đầu khi đảo vị trí (khử thiên vị vị trí - Position Bias)",
+            "final_verdict": "<Enum: 'win' | 'tie' | 'loss'> Kết quả đối đầu chung cuộc sau khi tổng hợp cả 2 lượt chấm thuận và đảo"
+        },
+        "human_calibration": {
+            "is_sampled_for_human_eval": "<Boolean> True nếu mẫu test này được chọn vào tập con để chuyên gia chấm tay đối chiếu",
+            "human_overall_score": "<Float: 0.0 -> 1.0 | null> Điểm đánh giá tổng thể do con người chấm trực tiếp",
+            "llm_judge_overall_score": "<Float: 0.0 -> 1.0> Điểm đánh giá tổng thể do LLM-as-a-Judge chấm tự động",
+            "judge_reasoning": "<String> Lời giải thích chi tiết của LLM Judge hoặc chuyên gia về lý do cho điểm và nguyên nhân gây lỗi (nếu có)"
+        }
+    }
+}
