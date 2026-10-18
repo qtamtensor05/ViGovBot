@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency, requires_dependencies
+
 import hashlib
 import json
 import tempfile
@@ -6,19 +8,23 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from vigovbot.artifacts import file_hash
-from vigovbot.evaluation.audit import sha256
-from vigovbot.evaluation.io import read_jsonl
-from vigovbot.evaluation.lexical import bleu_metric
-from vigovbot.evaluation.scoring import normalize
-from vigovbot.evaluation.v2 import _normalize
-from vigovbot.experiments import read_results
-from vigovbot.training.data import normalize_text, sha256_file, read_jsonl as training_read
-from vigovbot.training.metrics import normalize_vietnamese, generation_metrics, aggregate_generation_metrics
-from vigovbot.utils.helpers import file_hash as helper_hash
+try:
+    from vigovbot.artifacts import file_hash
+    from vigovbot.evaluation.audit import sha256
+    from vigovbot.evaluation.io import read_jsonl
+    from vigovbot.evaluation.lexical import bleu_metric
+    from vigovbot.evaluation.scoring import normalize
+    from vigovbot.evaluation.v2 import _normalize
+    from vigovbot.experiments import read_results
+    from vigovbot.training.data import normalize_text, sha256_file, read_jsonl as training_read
+    from vigovbot.training.metrics import normalize_vietnamese, generation_metrics, aggregate_generation_metrics
+    from vigovbot.utils.helpers import file_hash as helper_hash
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class SharedContractsTests(unittest.TestCase):
+    @requires_dependencies("sacrebleu", "rouge_score")
     def test_baseline_bleu_uses_shared_backend_with_report_scale(self):
         from vigovbot.evaluation.metrics import bleu_score, METRIC_CONTRACT_VERSION
         self.assertEqual(METRIC_CONTRACT_VERSION, "baseline-vi-lexical-v3")
@@ -62,6 +68,7 @@ class SharedContractsTests(unittest.TestCase):
             self.assertIs(sha256_file, file_hash)
             self.assertIs(sha256, file_hash)
 
+    @requires_dependencies("rouge_score")
     def test_unicode_normalization_parity(self):
         expected = "lệ phí strasse hồ_sơ 10 000 đồng"
         for text in ("LỆ PHÍ Straße: hồ_sơ 10.000 đồng!", unicodedata.normalize("NFD", "LỆ PHÍ Straße: hồ_sơ 10.000 đồng!")):
@@ -70,6 +77,7 @@ class SharedContractsTests(unittest.TestCase):
                 self.assertEqual(function(text), expected)
             self.assertAlmostEqual(rouge_scores(text, expected)["rougeL_f1"], 1.0)
 
+    @requires_dependencies("sacrebleu", "rouge_score")
     def test_training_bleu_matches_modern_contract(self):
         pairs = [("Lệ phí!", "lệ phí"), ("Hồ sơ mới đầy đủ", "hồ sơ đầy đủ")]
         rows = [{"prediction": p, "reference": r, "metrics": generation_metrics(p, r)} for p, r in pairs]

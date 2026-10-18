@@ -72,8 +72,10 @@ def evaluate(run_dir: str | Path, split: str = "test", limit: int | None = None)
         raise ValueError("Independent evaluation supports validation or test only")
     records = read_jsonl(dataset_paths(config)[split])
     if limit: records = records[:limit]
-    generation = {"max_seq_length": config["model"]["max_seq_length"], **config["evaluation"]["generation"]}
-    baseline_model, tokenizer = load_model(config["model"]["name"], None, True)
+    if config.evaluation is None:
+        raise ValueError("evaluation settings are required")
+    generation = {"max_seq_length": config.model.max_seq_length, **config.evaluation.generation.model_dump()}
+    baseline_model, tokenizer = load_model(config.model.name, None, True)
     baseline = _evaluate_model(baseline_model, tokenizer, records, generation,
                                artifact_path(root, "predictions", f"baseline_predictions_{split}.jsonl"))
     del baseline_model
@@ -81,7 +83,7 @@ def evaluate(run_dir: str | Path, split: str = "test", limit: int | None = None)
         import torch
         if torch.cuda.is_available(): torch.cuda.empty_cache()
     except ImportError: pass
-    tuned_model, tokenizer = load_model(config["model"]["name"], str(root / "best_adapter"), True)
+    tuned_model, tokenizer = load_model(config.model.name, str(root / "best_adapter"), True)
     tuned = _evaluate_model(tuned_model, tokenizer, records, generation,
                             artifact_path(root, "predictions", f"finetuned_predictions_{split}.jsonl"))
     comparison = {}

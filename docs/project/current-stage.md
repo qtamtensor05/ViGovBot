@@ -1,3 +1,26 @@
+# TASK-20261018-19 — completed
+
+- Đã nối trace pipeline → Web Chat opt-in → run-v2 → export-v2; không đổi inference settings.
+- Route thực thi, rewritten query, context, citation khi bật và timing thực có được lưu.
+- Citation thiếu trace trả null/missing_input; scorer offline version 2. Token estimate giữ riêng.
+- PASS: 217 tests (212 pass, 5 skip), gồm HTTP localhost với model fixture; Ruff, compileall, diff-check.
+- Docker runtime chưa nạp bản sửa: docker compose ps không kết nối được dockerDesktopLinuxEngine (daemon không sẵn sàng). Không chạy model/GPU; chưa commit. Không sửa Golden/checkpoint hoặc artifact cũ.
+
+## Mốc trước
+
+# TASK-20261018-18 — completed
+
+- Discovery Python tối giản: 38 tests, 10 pass, 28 skip đúng dependency.
+- Venv Python 3.12 offline: 213 tests, 208 pass, 5 skip có lý do.
+- Chunker tách headings/splitter, class 178 dòng; 48 parity cases giữ nguyên.
+- Ba evaluation adapter dùng chung execution engine, giữ output/resume contracts.
+- Training runtime dùng TrainingConfig; 7 profile snapshot parity với source cũ.
+- Ruff, compileall, pip check, documentation và diff-check pass.
+- Chưa chạy GPU/model/Mypy/Docker; không commit. Không còn việc triển khai trong phạm vi task.
+- Chi tiết: [lịch sử](implementation-history.md), [yêu cầu](requests.md), [lỗi](failure-journal.md).
+
+## Mốc trước
+
 # TASK-20261018-17 - partial
 
 - Đổi scoring_legacy thành judgment_scoring, cập nhật caller/docs và format scorer.

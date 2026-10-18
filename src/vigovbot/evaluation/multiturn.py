@@ -1,6 +1,8 @@
 """Run qa_test_v4 runner_queries without exposing scoring labels to inference."""
 from __future__ import annotations
 
+from vigovbot.evaluation.execution import ExecutionEngine, RetryPolicy
+
 import argparse
 import json
 import time
@@ -46,11 +48,14 @@ def validate_sequence(queries):
         turns[cv] = expected
 
 
-def evaluate_multiturn(queries, output_dir, configuration, answer_fn, mode="free_running"):
+def evaluate_multiturn(queries, output_dir, configuration, answer_fn, mode="free_running", *, retry_policy: RetryPolicy | None = None):
     if mode not in {"free_running", "reference_history"}:
         raise ValueError("Unknown history mode")
     if mode == "free_running":
         validate_sequence(queries)
+    engine = ExecutionEngine(retry_policy)
+    if retry_policy is not None:
+        configuration = {**configuration, "execution_policy": retry_policy.manifest()}
     output_dir = Path(output_dir)
     manifest = {**configuration, "history_mode": mode, "queries_sha256": json_hash(queries)}
     with output_lock(output_dir, ".pipeline.lock"):
@@ -63,7 +68,7 @@ def evaluate_multiturn(queries, output_dir, configuration, answer_fn, mode="free
             raise ValueError("Saved predictions must be an ordered prefix of the selected queries")
         cached = {r["id"]: r for r in saved}
         histories, broken, results = {}, set(), []
-        for q in queries:
+        def run_query(q):
             cv = q["conversation_id"]
             history = histories.get(cv, []) if mode == "free_running" and cv is not None else q["history"]
             started = time.perf_counter()
@@ -72,7 +77,7 @@ def evaluate_multiturn(queries, output_dir, configuration, answer_fn, mode="free
                 try:
                     if mode == "free_running" and cv is not None and cv in broken:
                         raise ValueError("Previous conversation turn failed; dependent turn not sent")
-                    result = answer_fn(q["question"], history=history)
+                    result = engine.call(answer_fn, q["question"], history=history)
                     answer = result["prediction"]
                     if not isinstance(answer, str) or not answer.strip():
                         raise ValueError("Empty answer")
@@ -97,6 +102,8 @@ def evaluate_multiturn(queries, output_dir, configuration, answer_fn, mode="free
                 else:
                     histories[cv] = history + [{"role": "user", "content": q["question"]},
                                                {"role": "assistant", "content": row["answer"]}]
+        for _ in engine.map(run_query, queries):
+            pass
         return {"attempted": len(results), "successful": sum(not r.get("error") for r in results),
                 "failed": sum(bool(r.get("error")) for r in results), "history_mode": mode,
                 "predictions": str(path)}

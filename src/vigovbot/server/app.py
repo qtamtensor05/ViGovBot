@@ -19,6 +19,41 @@ LOG = logging.getLogger(__name__)
 MAX_BODY_BYTES = 1_000_000
 
 
+def evaluation_trace(result, mode):
+    """Expose measured evaluation fields only; never expose raw provider replies."""
+    citation_status = result.get("citations_status", "unavailable")
+    citations = result.get("citations")
+    available = (citation_status == "validated_references_not_semantic_support"
+                 and isinstance(citations, list))
+    return {
+        "schema_version": "1.0",
+        "actual_route": result.get("actual_route"),
+        "routing": result.get("routing"),
+        "retrieval_query": result.get("retrieval_query"),
+        "decision_reason": result.get("decision_reason"),
+        "evidence_status": result.get("evidence_status"),
+        "routing_attempts": result.get("routing_attempts"),
+        "fallback_reason": result.get("fallback_reason"),
+        "context_used": result.get("context_used", []),
+        "citations_status": citation_status,
+        "citations": [{**item, "source_id": item["chunk_id"]} for item in citations] if available else None,
+        "token_estimates": {key: result.get(key) for key in
+                            ("prompt_tokens_estimated", "routing_prompt_tokens_estimated")},
+        "telemetry": {
+            "routing_seconds": result.get("routing_s"),
+            "rewrite_seconds": result.get("rewrite_s"),
+            "retrieval_seconds": result.get("retrieval_s"),
+            "generation_seconds": result.get("generation_s"),
+            "rerank_seconds": None, "ttft_seconds": None,
+            "prompt_tokens": None, "completion_tokens": None, "total_tokens": None,
+            "generation_tokens_per_second": None,
+            "peak_allocated_vram_gb": None, "peak_reserved_vram_gb": None,
+            "gpu_utilization_percent": None, "cost_usd": None,
+        },
+        "mode": mode,
+    }
+
+
 class ChatApplication:
     """Own the long-lived retrieval resources used by HTTP requests."""
 
@@ -95,6 +130,9 @@ class ChatApplication:
     def chat(self, payload):
         if not isinstance(payload, dict):
             raise ValueError("Dữ liệu gửi lên phải là một JSON object")
+        trace_requested = payload.get("evaluation_trace", False)
+        if type(trace_requested) is not bool:
+            raise ValueError("evaluation_trace must be a boolean")
         question = payload.get("question")
         if not isinstance(question, str) or not question.strip():
             raise ValueError("Câu hỏi không được để trống")
@@ -152,6 +190,8 @@ class ChatApplication:
                         "sources": result.get("retrieved", []),
                         "latency_s": result.get("latency_s"),
                     }
+                    if trace_requested:
+                        public_result["evaluation_trace"] = evaluation_trace(result, mode)
                     if mode == "rag":
                         route = result.get("routing") or {}
                         public_result["routing_diagnostics"] = {

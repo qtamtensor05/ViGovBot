@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from vigovbot.training.schema import TrainingConfig
+
 import argparse
 import csv
 import json
@@ -31,8 +33,8 @@ def _write_log(path: Path, history: list[dict]) -> None:
         writer.writerows(history)
 
 
-def _precision(torch, config):
-    requested = config["quantization"]["bnb_4bit_compute_dtype"]
+def _precision(torch, config: TrainingConfig):
+    requested = config.quantization.bnb_4bit_compute_dtype
     if requested == "bfloat16" and torch.cuda.is_bf16_supported():
         return torch.bfloat16, True, False
     if torch.cuda.is_available():
@@ -40,9 +42,9 @@ def _precision(torch, config):
     return torch.float32, False, False
 
 
-def train(config: dict, approve: bool, resume: str | None = None, run_id: str | None = None) -> Path:
-    environment = inspect_environment(config["_project_root"])
-    if not approve and not config.get("execution", {}).get("approved", False):
+def train(config: TrainingConfig, approve: bool, resume: str | None = None, run_id: str | None = None) -> Path:
+    environment = inspect_environment(config.project_root)
+    if not approve and not (config.execution.approved if config.execution else False):
         raise RuntimeError("Full training requires explicit --approve or execution.approved=true after reviewing preflight suggestions")
     if not environment["cuda_available"]:
         raise RuntimeError("CUDA is unavailable. QLoRA training will not silently fall back to CPU or full fine-tuning")
@@ -55,18 +57,18 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
 
     train_records, validation_records, dataset_hashes, run_dir, checkpoint, resume_start_global_step = (
         _prepare_training_data(config, resume, run_id))
-    environment.update({"git_commit": git_commit(config["_project_root"]),
+    environment.update({"git_commit": git_commit(config.project_root),
                         "dataset_hashes": dataset_hashes,
-                        "effective_config": {key: value for key, value in config.items() if not key.startswith("_")},
+                        "effective_config": config.snapshot(),
                         "preflight_suggestions_not_applied": suggestions(environment),
                         "memory_estimates": estimated_requirements(config, environment)})
-    set_seed(config["training"]["seed"])
+    set_seed(config.training.seed)
     dtype, bf16, fp16 = _precision(torch, config)
     environment["effective_precision"] = {"compute_dtype": str(dtype), "bf16": bf16, "fp16": fp16}
     if not resume:
         write_json(run_dir / "environment.json", environment)
     model, tokenizer, parameter_report = _prepare_model(config, dtype, run_dir)
-    max_length = config["model"]["max_seq_length"]
+    max_length = config.model.max_seq_length
     train_dataset = ConversationDataset(train_records, tokenizer, max_length)
     eval_dataset = ConversationDataset(validation_records, tokenizer, max_length)
     args = _training_arguments(config, run_dir, bf16, fp16)
@@ -75,9 +77,9 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
     )
     callbacks = [control_callback]
     early_callback = None
-    if config["early_stopping"]["enabled"]:
-        early_callback = EarlyStoppingCallback(early_stopping_patience=config["early_stopping"]["patience"],
-                                               early_stopping_threshold=config["early_stopping"]["threshold"])
+    if config.early_stopping.enabled:
+        early_callback = EarlyStoppingCallback(early_stopping_patience=config.early_stopping.patience,
+                                               early_stopping_threshold=config.early_stopping.threshold)
         callbacks.append(early_callback)
     trainer = Trainer(model=model, args=args, train_dataset=train_dataset, eval_dataset=eval_dataset,
                       data_collator=padding_collator(tokenizer), callbacks=callbacks)
@@ -90,7 +92,7 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
         if stop_requested:
             status, reason = "stopped_by_request", "graceful_stop_request"
         elif (early_callback is not None and
-              early_callback.early_stopping_patience_counter >= config["early_stopping"]["patience"]):
+              early_callback.early_stopping_patience_counter >= config.early_stopping.patience):
             status, reason = "early_stopped", "validation_loss_patience"
     except KeyboardInterrupt:
         status, reason = "interrupted", "keyboard_interrupt"
@@ -99,7 +101,7 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
                                                         "wall_clock_seconds": time.perf_counter() - started,
                                                         "global_step": trainer.state.global_step,
                                                         "best_checkpoint": trainer.state.best_model_checkpoint})
-        if config["reporting"]["save_csv"]:
+        if config.reporting.save_csv:
             _write_log(artifact_path(run_dir, "metrics", "training_log.csv"), trainer.state.log_history)
         raise
     except Exception as exc:
@@ -112,10 +114,10 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
             "peak_gpu_allocated_bytes_measured": torch.cuda.max_memory_allocated(),
             "peak_gpu_reserved_bytes_measured": torch.cuda.max_memory_reserved(),
         })
-        if config["reporting"]["save_csv"]:
+        if config.reporting.save_csv:
             _write_log(artifact_path(run_dir, "metrics", "training_log.csv"), trainer.state.log_history)
         raise
-    if config["reporting"]["save_csv"]:
+    if config.reporting.save_csv:
         _write_log(artifact_path(run_dir, "metrics", "training_log.csv"), trainer.state.log_history)
     if status == "stopped_by_request":
         elapsed = time.perf_counter() - started
@@ -132,7 +134,7 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
             "checkpoint_verified_after_stop": checkpoint_verified,
             "best_checkpoint": trainer.state.best_model_checkpoint,
             "best_validation_loss": trainer.state.best_metric,
-            "early_stopping": {"enabled": config["early_stopping"]["enabled"],
+            "early_stopping": {"enabled": config.early_stopping.enabled,
                                "triggered": False, "reason": "graceful_stop_request"},
             "peak_gpu_allocated_bytes_measured": torch.cuda.max_memory_allocated(),
             "peak_gpu_reserved_bytes_measured": torch.cuda.max_memory_reserved(),
@@ -150,12 +152,12 @@ def train(config: dict, approve: bool, resume: str | None = None, run_id: str | 
                               run_dir, started, status, reason, resume_start_global_step, parameter_report)
 
 
-def _prepare_training_data(config, resume, run_id):
+def _prepare_training_data(config: TrainingConfig, resume, run_id):
     paths = dataset_paths(config)
     train_records, validation_records = read_jsonl(paths["train"]), read_jsonl(paths["validation"])
     source_counts = {"train": len(train_records), "validation": len(validation_records),
                      "test": len(read_jsonl(paths["test"]))}
-    smoke_limit = config.get("execution", {}).get("max_samples")
+    smoke_limit = (config.execution.max_samples if config.execution else None)
     if smoke_limit:
         train_records, validation_records = train_records[:smoke_limit], validation_records[:max(1, smoke_limit // 2)]
     dataset_hashes = {name: sha256_file(path) for name, path in paths.items()}
@@ -187,23 +189,23 @@ def _prepare_training_data(config, resume, run_id):
     return train_records, validation_records, dataset_hashes, run_dir, checkpoint, resume_start_global_step
 
 
-def _prepare_model(config, dtype, run_dir):
+def _prepare_model(config: TrainingConfig, dtype, run_dir):
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-    quant = config["quantization"]
-    quant_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type=quant["bnb_4bit_quant_type"],
-                                     bnb_4bit_use_double_quant=quant["bnb_4bit_use_double_quant"],
+    quant = config.quantization
+    quant_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type=quant.bnb_4bit_quant_type,
+                                     bnb_4bit_use_double_quant=quant.bnb_4bit_use_double_quant,
                                      bnb_4bit_compute_dtype=dtype)
-    tokenizer = AutoTokenizer.from_pretrained(config["model"]["name"], trust_remote_code=False)
+    tokenizer = AutoTokenizer.from_pretrained(config.model.name, trust_remote_code=False)
     tokenizer.pad_token = tokenizer.pad_token or tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(config["model"]["name"], quantization_config=quant_config,
+    model = AutoModelForCausalLM.from_pretrained(config.model.name, quantization_config=quant_config,
                                                  device_map="auto", trust_remote_code=False)
     base_parameter_count = sum(item.numel() for item in model.parameters())
-    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=config["training"]["gradient_checkpointing"])
-    lora = config["lora"]
-    model = get_peft_model(model, LoraConfig(r=lora["r"], lora_alpha=lora["alpha"], lora_dropout=lora["dropout"],
-                                             bias=lora["bias"], target_modules=lora["target_modules"],
+    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=config.training.gradient_checkpointing)
+    lora = config.lora
+    model = get_peft_model(model, LoraConfig(r=lora.r, lora_alpha=lora.alpha, lora_dropout=lora.dropout,
+                                             bias=lora.bias, target_modules=lora.target_modules,
                                              task_type="CAUSAL_LM"))
     trainable_names = validate_lora_trainability(model)
     parameter_report = count_parameters(model)
@@ -217,29 +219,29 @@ def _prepare_model(config, dtype, run_dir):
     return model, tokenizer, parameter_report
 
 
-def _training_arguments(config, run_dir, bf16, fp16):
+def _training_arguments(config: TrainingConfig, run_dir, bf16, fp16):
     from transformers import TrainingArguments
 
-    values = config["training"]
-    max_steps = config.get("execution", {}).get("max_steps", -1)
+    values = config.training
+    max_steps = (config.execution.max_steps if config.execution else -1)
     args = TrainingArguments(
-        output_dir=str(run_dir / "checkpoints"), num_train_epochs=values["num_train_epochs"], max_steps=max_steps,
-        per_device_train_batch_size=values["per_device_train_batch_size"],
-        per_device_eval_batch_size=values["per_device_eval_batch_size"],
-        gradient_accumulation_steps=values["gradient_accumulation_steps"], learning_rate=values["learning_rate"],
-        weight_decay=values["weight_decay"], lr_scheduler_type=values["lr_scheduler_type"], warmup_ratio=values["warmup_ratio"],
-        max_grad_norm=values["max_grad_norm"], gradient_checkpointing=values["gradient_checkpointing"], optim=values["optim"],
-        seed=values["seed"], logging_steps=values["logging_steps"], eval_strategy=values["eval_strategy"],
-        eval_steps=values["eval_steps"], save_strategy=values["save_strategy"], save_steps=values["save_steps"],
-        save_total_limit=values["save_total_limit"], load_best_model_at_end=values["load_best_model_at_end"],
-        metric_for_best_model=values["metric_for_best_model"], greater_is_better=values["greater_is_better"],
-        report_to=["tensorboard"] if config["reporting"]["tensorboard"] else [], bf16=bf16, fp16=fp16,
+        output_dir=str(run_dir / "checkpoints"), num_train_epochs=values.num_train_epochs, max_steps=max_steps,
+        per_device_train_batch_size=values.per_device_train_batch_size,
+        per_device_eval_batch_size=values.per_device_eval_batch_size,
+        gradient_accumulation_steps=values.gradient_accumulation_steps, learning_rate=values.learning_rate,
+        weight_decay=values.weight_decay, lr_scheduler_type=values.lr_scheduler_type, warmup_ratio=values.warmup_ratio,
+        max_grad_norm=values.max_grad_norm, gradient_checkpointing=values.gradient_checkpointing, optim=values.optim,
+        seed=values.seed, logging_steps=values.logging_steps, eval_strategy=values.eval_strategy,
+        eval_steps=values.eval_steps, save_strategy=values.save_strategy, save_steps=values.save_steps,
+        save_total_limit=values.save_total_limit, load_best_model_at_end=values.load_best_model_at_end,
+        metric_for_best_model=values.metric_for_best_model, greater_is_better=values.greater_is_better,
+        report_to=["tensorboard"] if config.reporting.tensorboard else [], bf16=bf16, fp16=fp16,
         remove_unused_columns=False, restore_callback_states_from_checkpoint=True, ignore_data_skip=False,
         save_only_model=False, include_num_input_tokens_seen=True)
     return args
 
 
-def _finalize_training(config, trainer, tokenizer, train_dataset, eval_dataset, result,
+def _finalize_training(config: TrainingConfig, trainer, tokenizer, train_dataset, eval_dataset, result,
                        run_dir, started, status, reason, resume_start_global_step, parameter_report):
     import torch
     from transformers import EarlyStoppingCallback
@@ -271,9 +273,9 @@ def _finalize_training(config, trainer, tokenizer, train_dataset, eval_dataset, 
                "best_checkpoint": trainer.state.best_model_checkpoint, "best_validation_loss": trainer.state.best_metric,
                "best_checkpoint_step": int(Path(trainer.state.best_model_checkpoint).name.rsplit("-", 1)[-1]),
                "early_stopping": {
-                   "enabled": config["early_stopping"]["enabled"],
-                   "patience": config["early_stopping"]["patience"],
-                   "threshold": config["early_stopping"]["threshold"],
+                   "enabled": config.early_stopping.enabled,
+                   "patience": config.early_stopping.patience,
+                   "threshold": config.early_stopping.threshold,
                    "triggered": status == "early_stopped",
                    "reason": reason if status == "early_stopped" else "not_triggered",
                },

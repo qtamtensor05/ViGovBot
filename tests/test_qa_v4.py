@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency
+
 import tempfile
 import threading
 import time
@@ -5,21 +7,27 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from vigovbot.evaluation.adapter import (
-    existing_rag,
-    normalize_result,
-    ollama_baseline,
-    qlora_adapter,
-    structured_baseline_answer,
-)
-from vigovbot.evaluation.io import read_jsonl
-from vigovbot.evaluation.benchmark_report import finalize_report
+try:
+    from vigovbot.evaluation.adapter import (
+        existing_rag,
+        normalize_result,
+        ollama_baseline,
+        qlora_adapter,
+        structured_baseline_answer,
+    )
+    from vigovbot.evaluation.io import read_jsonl
+    from vigovbot.evaluation.benchmark_report import finalize_report
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 from unittest.mock import patch, MagicMock
-from vigovbot.evaluation.benchmark_runner import estimate_completion, run_queries
-from vigovbot.evaluation.scoring import evaluate
-from vigovbot.evaluation.__main__ import dataset_file, main as evaluation_main, resolve_dataset, select_rows
-from vigovbot.evaluation.multiturn import load_queries
-from vigovbot.rag.routing import StructuredAnswerError
+try:
+    from vigovbot.evaluation.benchmark_runner import estimate_completion, run_queries
+    from vigovbot.evaluation.scoring import evaluate
+    from vigovbot.evaluation.__main__ import dataset_file, main as evaluation_main, resolve_dataset, select_rows
+    from vigovbot.evaluation.multiturn import load_queries
+    from vigovbot.rag.routing import StructuredAnswerError
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class QAV4Tests(unittest.TestCase):
@@ -283,10 +291,8 @@ class QAV4Tests(unittest.TestCase):
         self.assertEqual(generate.call_count, 1)
 
     def test_qlora_adapter_uses_same_structured_protocol_without_gold(self):
-        config = {
-            "model": {"name": "Qwen/Qwen2.5-7B-Instruct"},
-            "evaluation": {"generation": {"max_new_tokens": 64, "temperature": 0.0}},
-        }
+        from vigovbot.training.config import load_config
+        config = load_config("configs/training/base.yaml", ["evaluation.generation.max_new_tokens=64"])
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "config.yaml").write_text("fixture", encoding="utf-8")

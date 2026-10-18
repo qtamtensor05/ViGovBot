@@ -1,15 +1,20 @@
+from tests.dependencies import skip_missing_dependency
+
 import hashlib
 import tempfile
 import unittest
 from pathlib import Path
 
-from vigovbot.evaluation.audit import compact, fact_candidates
-from vigovbot.evaluation.retrieval_metrics import apply_mapping, evidence_metrics, summarize_retrieval
-from vigovbot.evaluation.review import fingerprint, judgment_input, validate_judgments, METRICS
-from vigovbot.evaluation.scoring import evaluate, unpack_bert_score
-from vigovbot.evaluation.benchmark_runner import run_queries
-from vigovbot.rag.routing import parse_citations
-from vigovbot.evaluation.compare import compare
+try:
+    from vigovbot.evaluation.audit import compact, fact_candidates
+    from vigovbot.evaluation.retrieval_metrics import apply_mapping, evidence_metrics, summarize_retrieval
+    from vigovbot.evaluation.review import fingerprint, judgment_input, validate_judgments, METRICS
+    from vigovbot.evaluation.scoring import evaluate, unpack_bert_score
+    from vigovbot.evaluation.benchmark_runner import run_queries
+    from vigovbot.rag.routing import parse_citations
+    from vigovbot.evaluation.compare import compare
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class ReviewTests(unittest.TestCase):

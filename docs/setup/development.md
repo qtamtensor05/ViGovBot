@@ -95,3 +95,34 @@ nghiệp vụ (masking, gradient, logits), không thêm thông báo lặp lại 
 Lượt xác nhận bằng verify_tests.py: exit 0; 194 test, 3 skip. Skip cụ thể:
 thiếu dataset v4, tokenizer Qwen không có cache, container không có Node.js
 cho kiểm tra JavaScript UI. Coverage.py 7.16.2.
+
+
+### Discovery tối giản và kiểm chứng đầy đủ
+
+`python -m unittest discover -s tests -v` chạy trực tiếp từ checkout, không cần
+editable install. Test thiếu dependency được báo `SKIPPED` kèm tên thư viện;
+chỉ `ModuleNotFoundError` của dependency đã khai báo được chuyển thành skip.
+Import lỗi của module nội bộ hoặc dependency không biết vẫn làm test fail.
+Không mock FAISS/NumPy để tuyên bố integration pass. `conftest.py` không tham gia
+unittest discovery. Discovery có skip không chứng minh test suite đầy đủ đã pass.
+
+Để chạy chức năng offline, tạo venv và cài `.[test,dev]` như hướng dẫn trên;
+các test GPU/PEFT hoặc tokenizer local còn yêu cầu extras/artifact tương ứng.
+`pydantic`, `filelock`, `typer` là dependency lõi, không phải optional extras.
+
+### Các boundary sau refactor
+
+- Chunker dùng `chunking.headings` cho metadata/heading và `chunking.splitter`
+  cho ngân sách ký tự, overlap và bảo toàn dòng bảng. `markdown` điều phối section
+  và tạo Chunk; schema/output không đổi.
+- Ba adapter evaluation dùng `evaluation.execution.ExecutionEngine` chung cho
+  scheduling, retry và log tiến độ. Adapter giữ hợp đồng dữ liệu/persistence:
+  legacy resume theo ID, multi-turn resume prefix và history, benchmark fail nếu
+  output đã có và ghi theo thứ tự input. Progress UI của benchmark giữ ETA riêng.
+- API runner nhận `retry_policy=RetryPolicy(...)`; mặc định một lần gọi như cũ.
+  Retry opt-in có giới hạn cho timeout/connection và HTTP 429/502/503/504, tôn trọng
+  Retry-After dạng giây trong giới hạn delay. Policy được ghi vào manifest/report.
+  Không retry lỗi validation hoặc tự bật retry ở CLI.
+- `training.config.load_config` trả `TrainingConfig`; runtime dùng thuộc tính
+  có kiểu. `snapshot()` chỉ serialize trường được cung cấp, giữ tương thích
+  snapshot/checkpoint cũ; đường dẫn nguồn/root là private metadata.

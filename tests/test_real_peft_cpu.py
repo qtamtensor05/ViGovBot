@@ -1,4 +1,6 @@
 """Offline CPU integration with real Transformers/PEFT; not a QLoRA GPU test."""
+from tests.dependencies import skip_missing_dependency  # noqa: F401
+
 
 import tempfile
 import unittest

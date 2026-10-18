@@ -189,6 +189,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
 
     def early_answer(text, action, reason, *, hits=(), used=(), tokens=0, retrieval_s=0.0):
         return {
+            "actual_route": {"no_context": "rag_search", "out_of_scope": "out_of_scope",
+                             "ambiguous_question": "clarify", "routing_fallback": "routing_error"}.get(reason),
             "prediction": text, "action": action, "decision_reason": reason,
             "routing": route, "routing_s": routing_s, "routing_prompt_tokens_estimated": routing_tokens,
             "routing_attempts": routing_attempts, "fallback_reason": fallback_reason,
@@ -209,6 +211,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
                             "routing_fallback" if fallback_reason else "ambiguous_question")
     # Rewrite follow-ups using only the supplied conversation, never evaluation labels.
     retrieval_query = question
+    rewrite_s = None
     if route:
         # A new question must not inherit any previous subject, even via a rewritten query.
         retrieval_query = question if route["relation"] == "new_question" else route["query"]
@@ -226,7 +229,9 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         if len(tokenizer.apply_chat_template(rewrite_messages, tokenize=True, add_generation_prompt=True)) > (
                 settings["num_ctx"] - settings["num_predict"] - 256):
             raise ValueError("Lịch sử quá dài so với NUM_CTX")
+        rewrite_started = time.perf_counter()
         retrieval_query, _, _ = answer_fn(rewrite_messages, settings)
+        rewrite_s = time.perf_counter() - rewrite_started
     retrieval_started = time.perf_counter()
     hits = retriever.search(retrieval_query, settings["top_k"])
     retrieval_s = time.perf_counter() - retrieval_started
@@ -240,10 +245,13 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         result = early_answer("Chưa tìm thấy thông tin trong tài liệu để trả lời câu hỏi này.",
                               "abstain", "no_context", hits=hits, used=used, tokens=tokens, retrieval_s=retrieval_s)
         result["retrieval_query"] = retrieval_query
+        result["rewrite_s"] = rewrite_s
         return result
     answer, raw, generation_s, action, evidence, generation_diagnostics, citations, citation_ids = generate_answer(
         messages, used, tokenizer, settings, answer_fn, structured, routing_enabled)
     return {
+        "actual_route": "rag_search",
+        "rewrite_s": rewrite_s,
         "prediction": answer,
         "citations": citations,
         "citations_status": "validated_references_not_semantic_support" if citation_ids is not None else "disabled",

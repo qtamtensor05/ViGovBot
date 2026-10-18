@@ -1,4 +1,6 @@
 """Exercise browser routing labels/history helpers without a running server."""
+from tests.dependencies import skip_missing_dependency  # noqa: F401
+
 from pathlib import Path
 import shutil
 import subprocess

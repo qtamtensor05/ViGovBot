@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from vigovbot.training.schema import TrainingConfig
 
 
 REQUIRED_SECTIONS = {"model", "data", "quantization", "lora", "training", "early_stopping", "reporting"}
@@ -28,11 +29,11 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return value
 
 
-def load_config(path: str | Path, overrides: list[str] | None = None) -> dict[str, Any]:
+def _load_config_mapping(path: str | Path, overrides: list[str] | None = None) -> dict[str, Any]:
     path = Path(path).resolve()
     raw = _load_yaml(path)
     parent = raw.pop("extends", None)
-    config = _merge(load_config(path.parent / parent) if parent else {}, raw)
+    config = _merge(_load_config_mapping(path.parent / parent) if parent else {}, raw)
     config["_config_path"] = str(path)
     project_root = next((parent for parent in (path.parent, *path.parents) if (parent / "pyproject.toml").is_file()),
                         path.parent.parent)
@@ -60,13 +61,21 @@ def load_config(path: str | Path, overrides: list[str] | None = None) -> dict[st
     return config
 
 
-def resolve_path(config: dict[str, Any], value: str | Path) -> Path:
+def load_config(path: str | Path, overrides: list[str] | None = None) -> TrainingConfig:
+    raw = _load_config_mapping(path, overrides)
+    config = validate_config(raw)
+    config._config_path = raw["_config_path"]
+    config._project_root = raw["_project_root"]
+    return config
+
+
+def resolve_path(config: TrainingConfig, value: str | Path) -> Path:
     path = Path(value)
-    return path.resolve() if path.is_absolute() else (Path(config["_project_root"]) / path).resolve()
+    return path.resolve() if path.is_absolute() else (Path(config.project_root) / path).resolve()
 
 
-def validate_config(config: dict[str, Any]) -> None:
-    from vigovbot.training.schema import TrainingConfig
-
-    TrainingConfig.model_validate({key: value for key, value in config.items()
-                                   if key not in {"_config_path", "_project_root"}})
+def validate_config(config: dict[str, Any] | TrainingConfig) -> TrainingConfig:
+    if isinstance(config, TrainingConfig):
+        return TrainingConfig.model_validate(config.snapshot())
+    return TrainingConfig.model_validate({key: value for key, value in config.items()
+                                         if key not in {"_config_path", "_project_root"}})

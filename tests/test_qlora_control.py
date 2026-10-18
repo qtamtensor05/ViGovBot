@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency
+
 import json
 import tempfile
 import unittest
@@ -5,15 +7,20 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from vigovbot.training.artifacts import create_run_dir
-from vigovbot.training.control import QLoRAControlCallback
+try:
+    from vigovbot.training.artifacts import create_run_dir
+    from vigovbot.training.control import QLoRAControlCallback
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class ArtifactSafetyTests(unittest.TestCase):
     def test_run_directory_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            config = {"_project_root": str(root), "data": {"output_dir": "outputs"}}
+            from vigovbot.training.config import load_config
+            config = load_config("configs/training/base.yaml", ["data.output_dir=outputs"])
+            config._project_root = str(root)
             first = create_run_dir(config, "fixed")
             self.assertTrue(first.is_dir())
             self.assertEqual(
@@ -53,7 +60,8 @@ class ControlCallbackTests(unittest.TestCase):
             self.assertEqual(event["gpu_allocated_bytes"], 123)
             (root / "control").mkdir(exist_ok=True)
             (root / "control" / "stop.requested").write_text("stop", encoding="utf-8")
-            callback.on_step_end(None, state, control)
+            with patch.object(callback, "_gpu", return_value={}):
+                callback.on_step_end(None, state, control)
             self.assertTrue(control.should_save)
             self.assertTrue(control.should_training_stop)
             ack = json.loads((root / "control" / "stop.acknowledged.json").read_text(encoding="utf-8"))

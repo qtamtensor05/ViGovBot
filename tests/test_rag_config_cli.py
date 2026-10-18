@@ -1,4 +1,6 @@
 """Vérification cấu hình/CLI và orchestration độc lập với Colab/model weights."""
+from tests.dependencies import skip_missing_dependency
+
 
 from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
 
@@ -10,11 +12,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import faiss
-import numpy as np
+try:
+    import faiss
+    import numpy as np
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
-from vigovbot.rag.config import load_config, RAGConfig
-from vigovbot.rag.pipeline import execute, source_fingerprint
+try:
+    from vigovbot.rag.config import load_config, RAGConfig
+    from vigovbot.rag.pipeline import execute, source_fingerprint
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class ConfigTests(unittest.TestCase):

@@ -213,13 +213,15 @@ def qlora_adapter(run_dir):
     if not adapter_path.is_dir():
         raise FileNotFoundError(f"QLoRA best adapter not found: {adapter_path}")
     config = load_config(config_path)
-    generation = config["evaluation"]["generation"]
+    if config.evaluation is None:
+        raise ValueError("evaluation settings are required")
+    generation = config.evaluation.generation
     settings = {
-        "model": config["model"]["name"],
+        "model": config.model.name,
         "adapter_path": str(adapter_path),
         "load_in_4bit": True,
-        "num_predict": generation["max_new_tokens"],
-        "temperature": generation["temperature"],
+        "num_predict": generation.max_new_tokens,
+        "temperature": generation.temperature,
     }
 
     def answer(question, history=None):

@@ -1,15 +1,23 @@
+from tests.dependencies import skip_missing_dependency
+
 import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from typer.testing import CliRunner
+try:
+    from typer.testing import CliRunner
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
-from vigovbot.training.config import load_config
-from vigovbot.cli.main import app, main
-from vigovbot.configuration import load_configuration
-from vigovbot.rag.config import load_config as load_rag_config
+try:
+    from vigovbot.training.config import load_config
+    from vigovbot.cli.main import app, main
+    from vigovbot.configuration import load_configuration
+    from vigovbot.rag.config import load_config as load_rag_config
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,12 +104,12 @@ class UnifiedCliTests(unittest.TestCase):
         key = "VIGOVBOT_QLORA__TRAINING__LEARNING_RATE"
         with patch.dict(os.environ, {key: "0.1"}):
             config = load_config(ROOT / "configs" / "training" / "base.yaml", ["training.learning_rate=0.0003"])
-        self.assertEqual(config["training"]["learning_rate"], 0.0003)
+        self.assertEqual(config.training.learning_rate, 0.0003)
 
     def test_canonical_config_layers_load(self):
         smoke = load_config(ROOT / "configs" / "training" / "experiments" / "smoke.yaml")
-        self.assertEqual(smoke["execution"]["max_steps"], 4)
-        self.assertEqual(smoke["quantization"]["bnb_4bit_quant_type"], "nf4")
+        self.assertEqual(smoke.execution.max_steps, 4)
+        self.assertEqual(smoke.quantization.bnb_4bit_quant_type, "nf4")
 
     def test_configs_are_grouped_and_resolve_project_paths(self):
         pipeline, _, _ = load_configuration(ROOT / "configs" / "ingestion" / "pipeline.yaml")

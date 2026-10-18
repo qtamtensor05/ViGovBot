@@ -1294,3 +1294,46 @@
 - Docker Desktop tắt (`dockerDesktopLinuxEngine` không tồn tại), nên không dùng
   container; chạy test trong môi trường `uv --no-project` tạm. Không chạy model,
   benchmark, GPU hoặc runtime Docker.
+
+
+## TASK-20261018-18 — Discovery độc lập, chunker decomposition, execution chung và typed config
+
+- Test: thêm package bootstrap checkout và guard dependency có allowlist chính xác;
+  chỉ thiếu package bên ngoài mới skip, không che lỗi module nội bộ/submodule sai.
+  Import metric/tensor trong method có guard riêng. Mock encoder/GPU đúng phạm vi
+  test logic; không giả lập FAISS để tuyên bố integration pass.
+- Chunker: `headings.py` quản lý metadata/sanitize/heading; `splitter.py` quản lý
+  ngân sách ký tự, overlap và bảng. Class điều phối còn 178 dòng thay vì 372.
+  Giữ public TTHCChunkingError/sanitize_text/extract_metadata và output contract.
+- Evaluation: `execution.py` là engine scheduling/retry/log tiến độ chung cho
+  cả ba adapter. Giữ persistence/resume/history/output schema riêng; không tuyên bố
+  đã xóa ba public entry point. Retry mặc định 1 attempt, opt-in có delay giới hạn;
+  policy explicit ghi vào manifest/report, UI ETA benchmark vẫn ở adapter.
+- Training: load_config trả TrainingConfig; train và caller dùng thuộc tính có kiểu.
+  Dict chỉ còn ở parsing YAML/override và serialization. Private path metadata không
+  vào snapshot; exclude_unset giữ tương thích snapshot/resume cũ. Không chạy Mypy.
+- Kiểm chứng: Python hệ thống 3.14 và `python -S -m unittest discover -s tests`:
+  38 tests, 10 pass, 28 skip do thiếu dependency; không có lỗi discovery.
+- Venv tạm `%TEMP%/vigov-task18-env`, Python 3.12, cài `.[test,dev]` và sacrebleu;
+  HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1. Full suite: 213 tests, 208 pass, 5 skip
+  (3 cần torch, 1 tokenizer không có cache, 1 dataset v4 không có).
+  Có kiểm chứng FAISS/SQLite thật và HTTP localhost bằng fixture/mock model.
+- Parity đối chiếu source HEAD trước refactor: 48 trường hợp chunking (output,
+  warnings và lỗi), 7 profile snapshot training đều bằng nhau.
+- Metric dependency bị chặn qua import hook: 6 shared-contract tests, 3 pass,
+  3 skip đúng; không che lỗi nội bộ. Ruff toàn repo, compileall, pip check,
+  documentation/link checks trong full suite và git diff --check pass.
+- Log kiểm chứng tạm: `%TEMP%/vigov-task18-{bare,nosite,focused,full}.log`.
+  Lượt full suite ban đầu và cách sửa ghi ERR-20261018-18.
+- Không chạy model/GPU/training/benchmark mạng/Docker; không sửa dataset/checkpoint,
+  không commit. Hướng dẫn cập nhật tại docs/setup/development.md.
+## TASK-20261018-19 — Evaluation trace qua Web Chat
+
+- API `/api/chat` nhận boolean `evaluation_trace`; mặc định response như cũ. Opt-in trả schema trace 1.0 với route thực thi, router object, retrieval_query, context_used, evidence, citation status và telemetry thực có. Không trả raw provider response/raw router trong trace.
+- Pipeline ghi actual_route theo nhánh đã chạy (rag_search, clarify, out_of_scope, routing_error); timing rewrite chỉ đo khi có lượt rewrite riêng. Routing time không bị gán giả thành rewrite time.
+- run-v2 tự yêu cầu trace, giữ trace gốc và ánh xạ cho scorer; report có số mẫu available/unavailable/unsupported_version. Không gửi nhãn Golden hoặc cờ trace tới model.
+- Citation đã validate được ánh xạ chunk_id → source_id. Không tự bật citations_enabled để giữ cùng hành vi Web Chat; disabled/thiếu trace giữ null, quan sát danh sách rỗng có status hợp lệ mới chấm 0. Prediction Web cũ có danh sách rỗng nhưng thiếu status được đánh dấu thiếu trace khi export lại. Artifact lịch sử không bị sửa.
+- Scorer offline version 2 ghi trong provenance và metric_details. Token ước tính giữ riêng; token usage/throughput, TTFT, rerank time, VRAM, GPU utilization, cost chưa đo vẫn null.
+- Kiểm chứng: nhóm API/v2/routing/multiturn 48 tests, 47 pass/1 skip. Full suite Python 3.12 venv tạm với HF offline: 217 tests, 212 pass/5 skip (torch, tokenizer cache, dataset v4). Regression HTTP localhost chạy make_handler + ChatApplication + run-v2 + export-v2 với model fixture; route/rewrite/citation/latency tới scorer đúng, không rò nhãn Golden.
+- Ruff toàn repo, compileall, documentation checks và diff-check pass. Log: `%TEMP%/vigov-task19-full.log`. Không gọi model/GPU/benchmark mạng, không kiểm chứng Docker/deployment và không commit.
+- Chốt triển khai: diff-check và Ruff lần cuối pass. `docker compose ps --format json` không kết nối được pipe dockerDesktopLinuxEngine; chưa thể xác nhận dịch vụ Docker nạp code mới. Cần khởi động Docker rồi khởi động lại service web trước khi chạy Golden thật.

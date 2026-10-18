@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency
+
 import io
 import json
 import tempfile
@@ -6,9 +8,12 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
-from vigovbot.evaluation.__main__ import main as evaluation_main
-from vigovbot.evaluation.io import read_jsonl
-from vigovbot.evaluation.v2 import build_record, export_v2, load_golden, load_predictions, run_v2
+try:
+    from vigovbot.evaluation.__main__ import main as evaluation_main
+    from vigovbot.evaluation.io import read_jsonl
+    from vigovbot.evaluation.v2 import build_record, export_v2, load_golden, load_predictions, run_v2
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 def golden(test_id="TC_1", *, unanswerable=False):
@@ -64,7 +69,8 @@ class EvaluationV2Tests(unittest.TestCase):
             prediction = next(read_jsonl(output))
         self.assertEqual(captured[0], (
             "http://web/api/chat",
-            {"question": "Lệ phí bao nhiêu?", "models": ["qwen-rag"], "histories": {"qwen-rag": []}},
+            {"question": "Lệ phí bao nhiêu?", "models": ["qwen-rag"], "histories": {"qwen-rag": []},
+             "evaluation_trace": True},
             300,
         ))
         serialized_payload = json.dumps(captured[0][1], ensure_ascii=False)
@@ -76,6 +82,80 @@ class EvaluationV2Tests(unittest.TestCase):
         self.assertEqual(report["execution_status"], {"success": 1})
         self.assertFalse(report["gold_labels_sent_to_model"])
         self.assertIn("[run-v2] 1/1 (100.0%)", progress.getvalue())
+        self.assertIsNone(prediction["citations"])
+        self.assertEqual(prediction["citations_status"], "unavailable")
+        self.assertEqual(report["evaluation_trace_status"], {"unavailable": 1})
+
+    def test_citation_missing_is_distinct_from_observed_empty(self):
+        variants = [
+            ({"citations": None, "citations_status": "unavailable"}, None),
+            ({"citations": [], "citations_status": "disabled"}, None),
+            ({"citations": [], "web_model_id": "qwen-rag"}, None),
+            ({}, None),
+            ({"citations": [], "citations_status": "validated_references_not_semantic_support"}, 0.0),
+            ({"citations": [{"source_id": "chunk-1"}]}, 1.0),
+        ]
+        for fields, expected in variants:
+            with self.subTest(fields=fields):
+                record = build_record(golden(), {"id": "TC_1", "answer": "x", **fields}, split="test",
+                                      run_id="r", architecture="rag_base", model_config={"model_name": "m"}, provenance={})
+                result = record["evaluation_results"]
+                self.assertEqual(result["generation_scores"]["citation_recall"], expected)
+                self.assertEqual(result["metric_details"]["citation_recall"]["status"],
+                                 "missing_input" if expected is None else "computed")
+
+    def test_local_http_trace_reaches_export_without_gold_leakage(self):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from types import SimpleNamespace
+        try:
+            from vigovbot.server.app import ChatApplication, make_handler
+        except ModuleNotFoundError as exc:
+            skip_missing_dependency(exc)
+        model = SimpleNamespace(id="qwen-rag", provider="openai_compatible", model="fixture",
+                                base_url="unused", api_key_env=None, mode="rag")
+        config = SimpleNamespace(web=SimpleNamespace(models=[model]), inference_settings=lambda: {"top_k": 5})
+        app = ChatApplication(config, "retriever", "tokenizer")
+        result = {
+            "prediction": "Lệ phí 10.000 đồng.", "action": "answer", "actual_route": "rag_search",
+            "routing": {"scope": "in_scope", "relation": "new_question"},
+            "retrieval_query": "Lệ phí bao nhiêu?", "retrieved": [{"chunk_id": "chunk-1", "score": 0.9}],
+            "citations": [{"chunk_id": "chunk-1", "claim": "10.000 đồng"}],
+            "citations_status": "validated_references_not_semantic_support",
+            "routing_s": 0.1, "retrieval_s": 0.2, "generation_s": 0.3, "latency_s": 0.6,
+            "prompt_tokens_estimated": 123, "raw_ollama": {"secret": "must-not-export"},
+        }
+        with patch("vigovbot.server.app.answer_question", return_value=result) as answer:
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with tempfile.TemporaryDirectory() as work:
+                    root = Path(work)
+                    write_jsonl(root / "test_golden.jsonl", [golden()])
+                    predictions = root / "predictions.jsonl"
+                    run_v2(dataset=root, split="test", architecture="rag_base", output=predictions,
+                           endpoint=f"http://127.0.0.1:{server.server_port}/api/chat")
+                    row = next(read_jsonl(predictions))
+                    self.assertNotIn("must-not-export", json.dumps(row))
+                    self.assertEqual(row["evaluation_trace"]["token_estimates"]["prompt_tokens_estimated"], 123)
+                    self.assertIsNone(row["telemetry"]["prompt_tokens"])
+                    output = root / "results.jsonl"
+                    export_v2(dataset=root, split="test", architecture="rag_base", predictions=predictions,
+                              model_name="fixture", run_id="r", output=output)
+                    scores = next(read_jsonl(output))["evaluation_results"]
+                    self.assertEqual(scores["query_processing_scores"]["router_accuracy"], 1.0)
+                    self.assertEqual(scores["query_processing_scores"]["query_rewrite_similarity"], 1.0)
+                    self.assertEqual(scores["generation_scores"]["citation_recall"], 1.0)
+                    self.assertEqual(scores["performance_scores"]["generation_latency_ms"], 300.0)
+                    self.assertEqual(scores["performance_scores"]["retrieval_latency_ms"], 200.0)
+                    self.assertIsNone(scores["performance_scores"]["ttft_ms"])
+                    self.assertNotIn("ground_truth", str(answer.call_args))
+                    self.assertNotIn("10.000", str(answer.call_args))
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
 
     def test_run_v2_records_http_failure_without_fabricating_answer(self):
         def fail(*_):

@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency
+
 import json
 import tempfile
 import unittest
@@ -5,13 +7,17 @@ from importlib.util import find_spec
 from pathlib import Path
 from types import SimpleNamespace
 
-from vigovbot.training.checkpoints import validate_resume_checkpoint
-from vigovbot.training.early_stopping import EarlyStoppingState, select_best_checkpoint
-from vigovbot.training.evaluate import _evaluate_model
-from vigovbot.training.masking import IGNORE_INDEX, encode_assistant_only
-from vigovbot.training.metrics import aggregate_generation_metrics, generation_metrics, perplexity
-from vigovbot.training.parameters import validate_lora_trainability
-from vigovbot.training.train import _precision
+try:
+    from vigovbot.training.checkpoints import validate_resume_checkpoint
+    from vigovbot.training.early_stopping import EarlyStoppingState, select_best_checkpoint
+    from vigovbot.training.evaluate import _evaluate_model
+    from vigovbot.training.masking import IGNORE_INDEX, encode_assistant_only
+    from vigovbot.training.metrics import aggregate_generation_metrics, generation_metrics, perplexity
+    from vigovbot.training.parameters import validate_lora_trainability
+    from vigovbot.training.config import load_config
+    from vigovbot.training.train import _precision
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class OfficialTemplateTests(unittest.TestCase):
@@ -67,12 +73,12 @@ class ResumeAndStoppingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run = Path(directory) / "run"
             checkpoint = self._checkpoint(run)
-            config = {"model": {"name": "base"}}
-            (run / "config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+            config = load_config("configs/training/base.yaml")
+            (run / "config.yaml").write_text(yaml.safe_dump(config.snapshot()), encoding="utf-8")
             (run / "environment.json").write_text(json.dumps({"dataset_hashes": {"train": "abc"}}), encoding="utf-8")
             self.assertEqual(validate_resume_checkpoint(checkpoint, config, {"train": "abc"}), checkpoint.resolve())
             with self.assertRaisesRegex(ValueError, "config differs"):
-                validate_resume_checkpoint(checkpoint, {"model": {"name": "other"}}, {"train": "abc"})
+                validate_resume_checkpoint(checkpoint, load_config("configs/training/base.yaml", ["training.seed=999"]), {"train": "abc"})
             with self.assertRaisesRegex(ValueError, "Dataset hashes"):
                 validate_resume_checkpoint(checkpoint, config, {"train": "changed"})
 
@@ -137,7 +143,7 @@ class MetricAndAccountingTests(unittest.TestCase):
             @staticmethod
             def is_bf16_supported(): return False
         torch = SimpleNamespace(cuda=Cuda(), bfloat16="bf16", float16="fp16", float32="fp32")
-        config = {"quantization": {"bnb_4bit_compute_dtype": "bfloat16"}}
+        config = load_config("configs/training/base.yaml")
         self.assertEqual(_precision(torch, config), ("fp16", False, True))
 
 

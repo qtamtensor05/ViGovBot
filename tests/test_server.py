@@ -1,8 +1,13 @@
+from tests.dependencies import skip_missing_dependency
+
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from vigovbot.server.app import ChatApplication
+try:
+    from vigovbot.server.app import ChatApplication
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class WebChatTests(unittest.TestCase):
@@ -42,9 +47,34 @@ class WebChatTests(unittest.TestCase):
         for payload in (
             None, {}, {"question": " "}, {"question": "x", "models": ["missing"]},
             {"question": "x", "models": ["local"], "histories": {"local": [{}]}},
+            {"question": "x", "evaluation_trace": "true"},
+            {"question": "x", "evaluation_trace": 1},
         ):
             with self.subTest(payload=payload), self.assertRaises(ValueError):
                 self.app.chat(payload)
+
+    def test_trace_is_opt_in_and_does_not_change_inference(self):
+        result = {"prediction": "x", "citations": [], "citations_status": "disabled",
+                  "raw_ollama": {"private": "secret"}, "raw_routing": {"private": "secret"}}
+        with patch("vigovbot.server.app.answer_question", return_value=result) as answer:
+            normal = self.app.chat({"question": "x"})["results"][0]
+            normal_call = answer.call_args
+            traced = self.app.chat({"question": "x", "evaluation_trace": True})["results"][0]
+            self.assertEqual(answer.call_args, normal_call)
+        self.assertNotIn("evaluation_trace", normal)
+        trace = traced.pop("evaluation_trace")
+        self.assertEqual(traced, normal)
+        self.assertIsNone(trace["citations"])
+        self.assertNotIn("secret", str(trace))
+
+    def test_base_trace_keeps_only_available_timings(self):
+        self.app.models["local"].mode = "base"
+        with patch("vigovbot.server.app.answerer_for", return_value=unittest.mock.Mock(
+                return_value=("answer", {"private": True}, 0.2))):
+            trace = self.app.chat({"question": "x", "evaluation_trace": True})["results"][0]["evaluation_trace"]
+        self.assertEqual(trace["telemetry"]["generation_seconds"], 0.2)
+        self.assertIsNone(trace["actual_route"])
+        self.assertIsNone(trace["telemetry"]["retrieval_seconds"])
 
     def test_fallback_diagnostics_and_opt_in_raw_routing(self):
         result = {

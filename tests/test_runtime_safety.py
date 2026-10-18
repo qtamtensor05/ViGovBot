@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency
+
 import copy
 import json
 import sqlite3
@@ -8,12 +10,18 @@ from http.server import ThreadingHTTPServer
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-import numpy as np
+try:
+    import numpy as np
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 import requests
 
-from vigovbot.server.app import ChatApplication, make_handler
-from vigovbot.server.providers import openai_compatible_answer
-from vigovbot.retrieval.retriever import Retriever
+try:
+    from vigovbot.server.app import ChatApplication, make_handler
+    from vigovbot.server.providers import openai_compatible_answer
+    from vigovbot.retrieval.retriever import Retriever
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 def model(identifier, provider="openai_compatible"):
@@ -106,7 +114,10 @@ class RuntimeSafetyTests(unittest.TestCase):
             retriever.close()
 
     def test_batch_failure_preserves_cached_tokenizer_and_releases_lock(self):
-        import torch
+        try:
+            import torch
+        except ModuleNotFoundError as exc:
+            skip_missing_dependency(exc)
         from vigovbot.training import inference
         class Tokenizer:
             pad_token = None

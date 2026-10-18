@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency
+
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,7 +26,10 @@ class PlotTests(unittest.TestCase):
             self.assertTrue((root / "plots" / "plot_manifest.json").is_file())
 
     def test_report_reads_canonical_layout_and_writes_reports_section(self):
-        from vigovbot.training.report import build_report
+        try:
+            from vigovbot.training.report import build_report
+        except ModuleNotFoundError as exc:
+            skip_missing_dependency(exc)
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

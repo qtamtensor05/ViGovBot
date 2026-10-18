@@ -18,6 +18,7 @@ from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
 ARCHITECTURES = {"base", "finetuned", "rag_base", "rag_finetuned"}
 DEFAULT_WEB_MODELS = {"base": "qwen-base", "finetuned": "qwen-qlora", "rag_base": "qwen-rag"}
+OFFLINE_SCORER_VERSION = "2"
 REFERENCE_KEYS = [
     "exact_match", "normalized_exact_match", "token_precision", "token_recall", "token_f1",
     "rouge_1_precision", "rouge_1_recall", "rouge_1_f1", "rouge_2_precision", "rouge_2_recall",
@@ -176,6 +177,7 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
     output.parent.mkdir(parents=True, exist_ok=True)
     send = post_json or _post_json
     counts = collections.Counter()
+    trace_counts = collections.Counter()
     started_at = datetime.now().astimezone()
     progress_started = time.perf_counter()
     last_progress = progress_started
@@ -186,6 +188,7 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
                 "question": golden["input"]["question"],
                 "models": [model_id],
                 "histories": {model_id: golden["input"].get("chat_history") or []},
+                "evaluation_trace": True,
             }
             started = time.perf_counter()
             try:
@@ -206,20 +209,32 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
                     "retrieved_chunk_ids": [source["chunk_id"] for source in sources
                                              if isinstance(source, dict) and isinstance(source.get("chunk_id"), str)],
                     "retrieved_scores": [source.get("score") for source in sources if isinstance(source, dict)],
-                    "retrieved": sources, "citations": [], "history_mode": "reference_history",
+                    "retrieved": sources, "citations": None, "citations_status": "unavailable",
+                    "history_mode": "reference_history",
                     "latency_seconds": result.get("latency_s", time.perf_counter() - started),
                     "execution_status": "success", "web_model_id": model_id,
                 }
+                trace = result.get("evaluation_trace")
+                prediction["evaluation_trace_status"] = "unsupported_version" if isinstance(trace, dict) else "unavailable"
+                if isinstance(trace, dict) and trace.get("schema_version") == "1.0":
+                    prediction["evaluation_trace_status"] = "available"
+                    prediction["evaluation_trace"] = trace
+                    for key in ("actual_route", "routing", "retrieval_query", "decision_reason",
+                                "evidence_status", "context_used", "citations", "citations_status", "telemetry"):
+                        if key in trace:
+                            prediction[key] = trace[key]
                 counts["success"] += 1
             except Exception as exc:
                 prediction = {
                     "id": golden["test_id"], "question": golden["input"]["question"],
-                    "answer": None, "action": None, "retrieved_chunk_ids": [], "citations": [],
+                    "answer": None, "action": None, "retrieved_chunk_ids": [],
+                    "citations": None, "citations_status": "unavailable",
                     "history_mode": "reference_history", "latency_seconds": time.perf_counter() - started,
                     "execution_status": "error", "error": f"{type(exc).__name__}: {exc}",
-                    "web_model_id": model_id,
+                    "web_model_id": model_id, "evaluation_trace_status": "unavailable",
                 }
                 counts["error"] += 1
+            trace_counts[prediction["evaluation_trace_status"]] += 1
             handle.write(json.dumps(prediction, ensure_ascii=False, allow_nan=False) + "\n")
             handle.flush()
             now = time.perf_counter()
@@ -233,6 +248,8 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
         "started_at": started_at.isoformat(timespec="seconds"),
         "completed_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "gold_labels_sent_to_model": False,
+        "evaluation_trace_requested": True,
+        "evaluation_trace_status": dict(sorted(trace_counts.items())),
     }
     Path(str(output) + ".run.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -366,7 +383,7 @@ def _metric_details(computed: set[str], not_applicable: set[str], has_prediction
     all_keys = REFERENCE_KEYS + QUERY_KEYS + RETRIEVAL_KEYS + GENERATION_KEYS + ROBUSTNESS_KEYS + PERFORMANCE_KEYS
     for key in all_keys:
         if key in computed:
-            details[key] = _detail("computed", scorer="vigovbot-evaluation-v2-offline-1")
+            details[key] = _detail("computed", scorer=f"vigovbot-evaluation-v2-offline-{OFFLINE_SCORER_VERSION}")
         elif key in not_applicable:
             details[key] = _detail("not_applicable", "Metric does not apply to this architecture or Golden case")
         elif not has_prediction:
@@ -441,7 +458,15 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
     actual_sources = {item.get("source_id", item.get("id")) if isinstance(item, dict) else item
                       for item in _citations(prediction)}
     actual_sources.discard(None)
-    if expected_sources and has_prediction:
+    citation_status = prediction.get("citations_status")
+    citation_trace = isinstance(prediction.get("citations"), list) or isinstance(
+        prediction.get("retrieval_output", {}).get("citations"), list)
+    # Old run-v2 wrote an empty list even when the API had no citation trace.
+    if prediction.get("web_model_id") and citation_status is None and not actual_sources:
+        citation_trace = False
+    if citation_status in {"unavailable", "disabled"}:
+        citation_trace = False
+    if expected_sources and has_prediction and citation_trace:
         citation_hits = len(expected_sources & actual_sources)
         generation["citation_precision"] = citation_hits / len(actual_sources) if actual_sources else 0.0
         generation["citation_recall"] = citation_hits / len(expected_sources)
@@ -552,7 +577,7 @@ def export_v2(*, dataset: Path, split: str, predictions: Path | None, architectu
         "predictions_sha256": _sha256(prediction_path) if prediction_path else None,
         "model_config": str(model_config_path) if model_config_path else None,
         "model_config_sha256": _sha256(Path(model_config_path)) if model_config_path else None,
-        "scorer_versions": {"offline_v2": "1"},
+        "scorer_versions": {"offline_v2": OFFLINE_SCORER_VERSION},
         "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "inference_performed": False,
     }

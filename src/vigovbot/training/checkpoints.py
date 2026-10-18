@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from vigovbot.training.schema import TrainingConfig
+
 import json
 from pathlib import Path
 
@@ -16,7 +21,7 @@ def list_checkpoints(output_dir: str | Path) -> list[Path]:
 
 def validate_resume_checkpoint(
     path: str | Path,
-    expected_config: dict | None = None,
+    expected_config: TrainingConfig | None = None,
     expected_dataset_hashes: dict[str, str] | None = None,
 ) -> Path:
     checkpoint = Path(path).resolve()
@@ -45,7 +50,7 @@ def validate_resume_checkpoint(
         if not saved_path.is_file():
             raise ValueError(f"Resume run lacks config snapshot: {saved_path}")
         saved = yaml.safe_load(saved_path.read_text(encoding="utf-8-sig")) or {}
-        current = {key: value for key, value in expected_config.items() if not key.startswith("_")}
+        current = expected_config.snapshot()
         if saved != current:
             raise ValueError("Resume config differs from the immutable run config")
     if expected_dataset_hashes is not None:

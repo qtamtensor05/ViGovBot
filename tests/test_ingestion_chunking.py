@@ -1,4 +1,6 @@
 """Regression tests for PDF boundaries, review routing, and chunk preservation."""
+from tests.dependencies import skip_missing_dependency
+
 
 import json
 import tempfile
@@ -10,17 +12,20 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from vigovbot.chunking.markdown import TTHCStructureAwareChunker, TTHCChunkingError, sanitize_text
-from vigovbot.configuration import IngestionSettings, load_configuration
-from vigovbot.ingestion.recovery import extract_pdf
-from vigovbot.pipelines.indexing import (
-    ConfigurationError,
-    clean_markdown,
-    main as ingestion_main,
-    parse_pdf_to_hybrid_data,
-    validate_pdf,
-    write_json_atomic,
-)
+try:
+    from vigovbot.chunking.markdown import TTHCStructureAwareChunker, TTHCChunkingError, sanitize_text
+    from vigovbot.configuration import IngestionSettings, load_configuration
+    from vigovbot.ingestion.recovery import extract_pdf
+    from vigovbot.pipelines.indexing import (
+        ConfigurationError,
+        clean_markdown,
+        main as ingestion_main,
+        parse_pdf_to_hybrid_data,
+        validate_pdf,
+        write_json_atomic,
+    )
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 SAMPLE = """# Cấp bản sao trích lục hộ tịch
 

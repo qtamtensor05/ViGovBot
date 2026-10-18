@@ -1,12 +1,20 @@
+from tests.dependencies import skip_missing_dependency
+
 import json
 import unittest
 from unittest.mock import Mock, patch
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
-from vigovbot.llm.llm_client import ollama_answer
-from vigovbot.rag.routing import parse_route, routing_schema, answer_schema, parse_answer
-from vigovbot.server.providers import openai_compatible_answer
+try:
+    from vigovbot.llm.llm_client import ollama_answer
+    from vigovbot.rag.routing import parse_route, routing_schema, answer_schema, parse_answer
+    from vigovbot.server.providers import openai_compatible_answer
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class RoutingProviderTests(unittest.TestCase):

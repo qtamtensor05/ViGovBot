@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from vigovbot.training.schema import TrainingConfig
+
 from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese as normalize_text
 
 from vigovbot.artifacts import file_hash as sha256_file  # noqa: F401 - public compatibility alias
@@ -129,9 +134,9 @@ def analyze_splits(splits: dict[str, list[dict]], near_threshold: float = 0.92) 
     return report
 
 
-def dataset_paths(config: dict) -> dict[str, Path]:
+def dataset_paths(config: TrainingConfig) -> dict[str, Path]:
     from vigovbot.training.config import resolve_path
-    return {name: resolve_path(config, value) for name, value in config["data"]["splits"].items()}
+    return {name: resolve_path(config, value) for name, value in config.data.splits.model_dump().items()}
 
 
 def iter_text(records: Iterable[dict]) -> Iterable[str]:

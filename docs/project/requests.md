@@ -1023,3 +1023,19 @@
   metric skip đúng khi thiếu ROUGE; ba profile load mà không trỏ file giả.
 - Trạng thái: completed; các file mới đã nằm trong commit hiện tại, test ROUGE
   pass khi có dependency và skip khi thiếu, ba profile không còn path giả.
+
+
+## TASK-20261018-18 — Test discovery, chunker, execution và typed training
+
+- Yêu cầu: xử lý bốn nhận xét về dependency của test, SRP chunker, runner trùng cơ chế thực thi và training config dạng dict.
+- Phạm vi: test offline; tách module canonical; chia sẻ execution policy nhưng giữ output/resume contract; typed config và caller. Không chạy GPU/model/benchmark mạng.
+- Tiêu chí: unittest discovery trên Python tối giản không lỗi do thiếu dependency; regression khi đủ dependency; chunk output và checkpoint snapshot tương thích; Ruff, compileall, documentation và diff-check pass.
+- Kế hoạch: (1) dependency guards, (2) chunker decomposition, (3) execution policy chung, (4) typed runtime, (5) regression và hồ sơ.
+- Trạng thái: completed; full offline suite 208 pass/5 skip; Python tối giản discovery không lỗi. Giữ ba adapter công khai, dùng chung engine.
+
+## TASK-20261018-19 — Trace evaluation qua Web Chat
+
+- Yêu cầu: giữ gọi Web Chat, mở rộng response để prediction nhận trace thực tế.
+- Phạm vi: opt-in evaluation_trace, pipeline → API → run-v2 → export-v2; phân biệt citation thiếu trace và danh sách rỗng thực sự.
+- Tiêu chí: API mặc định tương thích; không gửi nhãn Golden tới model; trace không đổi inference; regression HTTP localhost và scorer pass; telemetry chưa đo giữ null.
+- Trạng thái: completed. Full suite 217 tests: 212 pass, 5 skip; kiểm chứng HTTP localhost với model fixture. Không chạy model/GPU hoặc đánh giá lại Golden.

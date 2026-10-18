@@ -3,7 +3,7 @@ import json
 import sys
 import time
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from vigovbot.evaluation.execution import ExecutionEngine, RetryPolicy
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -30,8 +30,9 @@ def _duration(seconds):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
-def _run_job(items, answer_fn, mode, oracle_contexts):
+def _run_job(items, answer_fn, mode, oracle_contexts, engine=None):
     """Run one independent query or one ordered free-running conversation."""
+    engine = engine or ExecutionEngine()
     history = []
     expected_turn = 1
     broken_by = None
@@ -40,7 +41,7 @@ def _run_job(items, answer_fn, mode, oracle_contexts):
         tick = time.perf_counter()
         requests = [{"question": q["question"], "history": q.get("history", [])} for _, q in items]
         try:
-            predictions = answer_fn.answer_batch(requests)
+            predictions = engine.call(answer_fn.answer_batch, requests)
             if len(predictions) != len(items): raise ValueError("Batch answer count mismatch")
         except Exception as exc:
             predictions = [{"error": f"{type(exc).__name__}: {exc}", "error_kind": "batch_failed"} for _ in items]
@@ -62,9 +63,9 @@ def _run_job(items, answer_fn, mode, oracle_contexts):
                     raise ValueError("Selection starts mid-conversation")
                 request_history = history
             if oracle_contexts is None:
-                prediction = answer_fn(q["question"], history=request_history)
+                prediction = engine.call(answer_fn, q["question"], history=request_history)
             else:
-                prediction = answer_fn(q["question"], history=request_history, context=oracle_contexts[q["id"]])
+                prediction = engine.call(answer_fn, q["question"], history=request_history, context=oracle_contexts[q["id"]])
                 prediction["evaluation_mode"] = "oracle_evidence_upper_bound"
             if not isinstance(prediction.get("answer"), str) or not prediction["answer"].strip():
                 raise ValueError("Invalid RAG answer")
@@ -107,7 +108,8 @@ def _jobs(queries, mode, batch_size=1):
 
 
 def run_queries(queries, answer_fn, output, mode="reference_history", *, oracle_contexts=None, provenance=None,
-                concurrency=1, batch_size=1):
+                concurrency=1, batch_size=1, retry_policy: RetryPolicy | None = None):
+    engine = ExecutionEngine(retry_policy)
     configure_console()
     if mode not in {"reference_history", "free_running"}:
         raise ValueError("Unknown history mode")
@@ -143,28 +145,29 @@ def run_queries(queries, answer_fn, output, mode="reference_history", *, oracle_
         )
         pending = [None] * len(queries)
         next_write = 0
-        with ThreadPoolExecutor(max_workers=max(1, effective_concurrency), thread_name_prefix="eva") as executor:
-            future_map = {executor.submit(_run_job, job, answer_fn, mode, oracle_contexts): job for job in jobs}
-            for future in as_completed(future_map):
-                for index, prediction in future.result():
-                    pending[index] = prediction
-                    attempted += 1
-                    successful += int("error" not in prediction)
-                    progress.update(1)
-                    eta = estimate_completion(time.perf_counter() - started, attempted, len(queries))
-                    progress.set_postfix(success=successful, failed=attempted - successful,
-                                         remaining=_duration(eta["estimated_remaining_seconds"]), refresh=False)
-                    if plain_progress:
-                        status = prediction.get("error") or "OK"
-                        print(f"[QA {attempted}/{len(queries)}] {prediction['id']}: {status} | "
-                              f"{prediction['latency_seconds']:.1f}s | thành công={successful}, "
-                              f"lỗi={attempted - successful} | còn khoảng "
-                              f"{_duration(eta['estimated_remaining_seconds'])} | "
-                              f"dự kiến xong {eta['estimated_completion_at']}", flush=True)
-                while next_write < len(pending) and pending[next_write] is not None:
-                    handle.write(json.dumps(pending[next_write], ensure_ascii=False) + "\n")
-                    handle.flush()
-                    next_write += 1
+        def run_job(job):
+            return _run_job(job, answer_fn, mode, oracle_contexts, engine)
+
+        for predictions in engine.map(run_job, jobs, concurrency=max(1, effective_concurrency)):
+            for index, prediction in predictions:
+                pending[index] = prediction
+                attempted += 1
+                successful += int("error" not in prediction)
+                progress.update(1)
+                eta = estimate_completion(time.perf_counter() - started, attempted, len(queries))
+                progress.set_postfix(success=successful, failed=attempted - successful,
+                                     remaining=_duration(eta["estimated_remaining_seconds"]), refresh=False)
+                if plain_progress:
+                    status = prediction.get("error") or "OK"
+                    print(f"[QA {attempted}/{len(queries)}] {prediction['id']}: {status} | "
+                          f"{prediction['latency_seconds']:.1f}s | thành công={successful}, "
+                          f"lỗi={attempted - successful} | còn khoảng "
+                          f"{_duration(eta['estimated_remaining_seconds'])} | "
+                          f"dự kiến xong {eta['estimated_completion_at']}", flush=True)
+            while next_write < len(pending) and pending[next_write] is not None:
+                handle.write(json.dumps(pending[next_write], ensure_ascii=False) + "\n")
+                handle.flush()
+                next_write += 1
     elapsed = time.perf_counter() - started
     completed_at = datetime.now().astimezone()
     report = {"attempted": attempted, "successful": successful, "failed": attempted - successful,
@@ -177,6 +180,8 @@ def run_queries(queries, answer_fn, output, mode="reference_history", *, oracle_
               "batch_size": batch_size,
               "scheduling_unit": "conversation" if mode == "free_running" else "question",
               "note": "Threaded batch throughput; requests within one free-running conversation remain sequential"}
+    if retry_policy is not None:
+        report["execution_policy"] = retry_policy.manifest()
     if provenance is not None: report['provenance'] = provenance
     Path(str(output) + ".run.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return report

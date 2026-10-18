@@ -1,4 +1,6 @@
 """Kiểm thử offline RAG: FAISS/SQLite thực, encoder và HTTP được mô phỏng."""
+from tests.dependencies import skip_missing_dependency
+
 
 from tests.tokenizer_fixtures import CharacterTokenizer as CharacterTokenizer
 
@@ -11,16 +13,22 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-import faiss
-import numpy as np
+try:
+    import faiss
+    import numpy as np
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
-from vigovbot.vectordb.vector_store import prepare_corpus
-from vigovbot.evaluation.dataset import load_cases
-from vigovbot.evaluation.runner import evaluate_cases
-from vigovbot.retrieval.retriever import Retriever
-from vigovbot.prompts.prompt_templates import build_messages
-from vigovbot.llm.llm_client import ollama_answer
-from vigovbot.utils.helpers import read_results, append_result, ensure_run
+try:
+    from vigovbot.vectordb.vector_store import prepare_corpus
+    from vigovbot.evaluation.dataset import load_cases
+    from vigovbot.evaluation.runner import evaluate_cases
+    from vigovbot.retrieval.retriever import Retriever
+    from vigovbot.prompts.prompt_templates import build_messages
+    from vigovbot.llm.llm_client import ollama_answer
+    from vigovbot.utils.helpers import read_results, append_result, ensure_run
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 def chunk(i):

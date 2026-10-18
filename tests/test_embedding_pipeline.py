@@ -1,4 +1,6 @@
 """Offline tests for the single-process corpus builder."""
+from tests.dependencies import skip_missing_dependency
+
 
 import json
 import hashlib
@@ -9,12 +11,18 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-import faiss
-import numpy as np
+try:
+    import faiss
+    import numpy as np
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
-from vigovbot.embeddings.corpus_builder import build_corpus, embedding_text, encode_chunks, load_chunks, safe_extract
-from vigovbot.ingestion.unified import verify_corpus
-from vigovbot.utils.helpers import json_hash
+try:
+    from vigovbot.embeddings.corpus_builder import build_corpus, embedding_text, encode_chunks, load_chunks, safe_extract
+    from vigovbot.ingestion.unified import verify_corpus
+    from vigovbot.utils.helpers import json_hash
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 def record(identifier):
@@ -97,6 +105,7 @@ class CorpusBuilderTests(unittest.TestCase):
         np.testing.assert_array_equal(vectors[:, 0], [1, 2, 3])
         self.assertEqual(calls, [3, 1, 1, 1])
 
+    @patch.dict("sys.modules", {"sentence_transformers": types.SimpleNamespace(SentenceTransformer=None)})
     def test_build_corpus_publishes_verified_artifacts(self):
         source = self.root / "chunks"
         source.mkdir()

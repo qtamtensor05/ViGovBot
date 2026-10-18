@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from vigovbot.training.schema import TrainingConfig
+
 import argparse
 import json
 from pathlib import Path
@@ -24,20 +26,20 @@ def token_statistics(records: list[dict], tokenizer) -> dict:
             "p95": _percentile(lengths, .95), "p99": _percentile(lengths, .99), "max": max(lengths, default=None)}
 
 
-def validate(config: dict, with_tokenizer: bool = False, local_files_only: bool = False) -> dict:
+def validate(config: TrainingConfig, with_tokenizer: bool = False, local_files_only: bool = False) -> dict:
     paths = dataset_paths(config)
     missing = [str(path) for path in paths.values() if not path.is_file()]
     if missing:
         raise FileNotFoundError(f"Missing dataset files: {missing}")
     splits = {name: read_jsonl(path) for name, path in paths.items()}
-    report = analyze_splits(splits, float(config["data"].get("near_duplicate_threshold", .92)))
+    report = analyze_splits(splits, float(config.data.near_duplicate_threshold))
     for name, path in paths.items():
         report["splits"][name]["path"] = str(path)
         report["splits"][name]["sha256"] = sha256_file(path)
     report["token_statistics"] = {"status": "not_run", "reason": "Use --with-tokenizer; this may download tokenizer files."}
     if with_tokenizer:
         from transformers import AutoTokenizer
-        tokenizer = AutoTokenizer.from_pretrained(config["model"]["name"], trust_remote_code=False,
+        tokenizer = AutoTokenizer.from_pretrained(config.model.name, trust_remote_code=False,
                                                   local_files_only=local_files_only)
         report["token_statistics"] = {name: token_statistics(records, tokenizer) for name, records in splits.items()}
     return report

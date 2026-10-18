@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency
+
 from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
 import json
 import tempfile
@@ -5,11 +7,14 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from vigovbot.evaluation.multiturn import evaluate_multiturn, load_queries, validate_sequence
-from vigovbot.experiments import read_results
-from vigovbot.prompts.prompt_templates import build_messages, validate_history
-from vigovbot.rag.pipeline import answer_question
-from vigovbot.rag.routing import answer_schema
+try:
+    from vigovbot.evaluation.multiturn import evaluate_multiturn, load_queries, validate_sequence
+    from vigovbot.experiments import read_results
+    from vigovbot.prompts.prompt_templates import build_messages, validate_history
+    from vigovbot.rag.pipeline import answer_question
+    from vigovbot.rag.routing import answer_schema
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 

@@ -1,11 +1,17 @@
+from tests.dependencies import skip_missing_dependency
+
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from vigovbot.chunking.tables import flatten_tables, first_table_header, repeat_table_header, repair_table_continuations
-from vigovbot.evaluation.benchmark_runner import run_queries
-from vigovbot.training.train import _prepare_training_data
+try:
+    from vigovbot.chunking.tables import flatten_tables, first_table_header, repeat_table_header, repair_table_continuations
+    from vigovbot.evaluation.benchmark_runner import run_queries
+    from vigovbot.training.config import load_config
+    from vigovbot.training.train import _prepare_training_data
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class RefactorBoundaryTests(unittest.TestCase):
@@ -32,5 +38,5 @@ class RefactorBoundaryTests(unittest.TestCase):
              patch("vigovbot.training.train.sha256_file", return_value="digest"), \
              patch("vigovbot.training.train.create_run_dir") as create:
             with self.assertRaisesRegex(ValueError, "cannot be combined"):
-                _prepare_training_data({}, "checkpoint", "new-run")
+                _prepare_training_data(load_config("configs/training/base.yaml"), "checkpoint", "new-run")
             create.assert_not_called()

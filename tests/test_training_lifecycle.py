@@ -1,10 +1,15 @@
+from tests.dependencies import skip_missing_dependency
+
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from vigovbot.training import lifecycle
+try:
+    from vigovbot.training import lifecycle
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class TrainingLifecycleTests(unittest.TestCase):

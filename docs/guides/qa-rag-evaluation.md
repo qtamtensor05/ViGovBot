@@ -33,6 +33,37 @@ Mặc định `run-v2` gọi `http://localhost:8001/api/chat` và ánh xạ
 `rag_finetuned` bắt buộc chỉ định model ID vì Docker chưa có profile
 mặc định. Request model chỉ gồm question/history, không có ground truth.
 
+`run-v2` gửi thêm `evaluation_trace=true` tới Web Chat. Đây là cờ quan sát
+ở API, không truyền vào prompt/model và không thay đổi inference settings.
+Chat thông thường không có cờ này vẫn nhận response như trước.
+Response opt-in chứa `evaluation_trace.schema_version="1.0"`; prediction giữ
+trace gốc cùng các trường dành cho scorer: actual_route, routing, retrieval_query,
+context_used, citations, citations_status, telemetry.
+
+- Actual route ghi quyết định thực thi: `rag_search` khi đã đi vào retrieval
+  (kể cả không có context), `clarify`, `out_of_scope`, hoặc `routing_error`
+  khi router fallback. Base/QLoRA không có router nên giữ null.
+- Citation đã được pipeline validate được chuyển `chunk_id` sang `source_id`
+  và giữ claim. Không coi retrieved source là citation. Cờ trace không bật
+  `citations_enabled`; nếu citation đang disabled/không có trace thì score
+  citation là null/missing_input. Danh sách rỗng được quan sát khi citation
+  bật vẫn có recall/precision 0 nếu Golden yêu cầu citation.
+- Ghi timing routing/retrieval/generation thực có. Rewrite chỉ có timing riêng
+  khi pipeline chạy lượt rewrite riêng; không lấy routing time thay rewrite time.
+  Token estimate được giữ riêng, không điền vào token usage thực.
+  TTFT, rerank time, token usage/throughput, VRAM, GPU utilization và cost chưa
+  được đo trong response này nên giữ null.
+- Server cũ không trả trace vẫn được chạy; prediction/report ghi
+  `evaluation_trace_status=unavailable` (report là bảng đếm). Trace version chưa
+  hỗ trợ được ghi `unsupported_version`, không tự suy đoán schema.
+- Scorer offline version 2 phân biệt citation thiếu trace với citation rỗng.
+  Prediction Web v2 cũ có `web_model_id`, citations rỗng và không có status sẽ
+  được coi là thiếu trace. Kết quả scoring lịch sử không bị ghi đè; export lại
+  sang đường dẫn mới để áp dụng chính sách mới.
+
+Trace có thể chứa context đã truy hồi; không bao gồm raw provider response,
+raw router hay secrets. Cờ debug_routing hiện có hoạt động độc lập.
+
 `run-v2` ghi `<predictions>.run.json` với coverage, endpoint, model ID và
 `gold_labels_sent_to_model=false`. Nếu một request lỗi/timeout, record vẫn
 được lưu với `execution_status=error`; lệnh trả exit code khác 0 để

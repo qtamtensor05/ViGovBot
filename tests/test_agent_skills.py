@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency
+
 import importlib.util
 import json
 import re
@@ -5,7 +7,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
+try:
+    import yaml
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 ROOT = Path(__file__).resolve().parents[1]

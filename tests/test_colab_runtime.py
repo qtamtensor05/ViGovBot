@@ -1,10 +1,15 @@
 """Setup boundaries: remote services, model arguments and installer isolation."""
+from tests.dependencies import skip_missing_dependency
+
 
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from vigovbot.utils.colab_runtime import ensure_ollama
+try:
+    from vigovbot.utils.colab_runtime import ensure_ollama
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class ColabRuntimeTests(unittest.TestCase):

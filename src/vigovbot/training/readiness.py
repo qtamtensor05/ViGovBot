@@ -27,7 +27,7 @@ def check_readiness(config_path: str | Path, output: str | Path | None = None) -
     absent = expected - QLoRAControlCallback.EVENT_FIELDS
     checks.append({"name": "continuous_event_schema", "status": "PASS" if not absent else "FAIL",
                    "detail": "append-only JSONL fields verified" if not absent else f"missing {sorted(absent)}"})
-    output_root = resolve_path(config, config["data"]["output_dir"])
+    output_root = resolve_path(config, config.data.output_dir)
     try:
         output_root.mkdir(parents=True, exist_ok=True)
         probe = output_root / ".logging-readiness-probe"

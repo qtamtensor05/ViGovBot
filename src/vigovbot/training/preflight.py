@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from vigovbot.training.schema import TrainingConfig
+
 import importlib.metadata
 import json
 import platform
@@ -59,9 +64,9 @@ def suggestions(report: dict) -> list[dict]:
     ]
 
 
-def estimated_requirements(config: dict, report: dict) -> dict:
-    seq = int(config["model"]["max_seq_length"])
-    batch = int(config["training"]["per_device_train_batch_size"])
+def estimated_requirements(config: TrainingConfig, report: dict) -> dict:
+    seq = int(config.model.max_seq_length)
+    batch = int(config.training.per_device_train_batch_size)
     return {
         "estimated_peak_vram_gib_range": [10 + 2 * batch * seq / 2048, 18 + 3 * batch * seq / 2048],
         "basis": "Heuristic QLoRA range for a 7B model; includes approximate weights/activations but varies by kernels and sequence mix.",
@@ -79,16 +84,16 @@ def main() -> None:
     parser.add_argument("--output")
     args = parser.parse_args()
     config = load_config(args.config)
-    report = inspect_environment(config["_project_root"])
+    report = inspect_environment(config.project_root)
     report["config_valid"] = True
     try:
-        info = model_info(config["model"]["name"])
+        info = model_info(config.model.name)
         report["model_hub_access"] = {"status": "ok", "model_id": info.id, "revision": info.sha}
     except Exception as exc:
         report["model_hub_access"] = {"status": "blocked", "error": f"{type(exc).__name__}: {exc}"}
     try:
         tokenizer = AutoTokenizer.from_pretrained(
-            config["model"]["name"], trust_remote_code=False, local_files_only=True
+            config.model.name, trust_remote_code=False, local_files_only=True
         )
         report["tokenizer"] = {
             "status": "ok",

@@ -1,3 +1,5 @@
+from tests.dependencies import skip_missing_dependency  # noqa: F401
+
 import json
 import os
 import tempfile

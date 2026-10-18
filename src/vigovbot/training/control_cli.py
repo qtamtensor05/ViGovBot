@@ -13,17 +13,17 @@ from vigovbot.training.preflight import inspect_environment
 
 def validate_launch(config_path: str, resume: str | None = None) -> dict:
     config = load_config(config_path)
-    environment = inspect_environment(config["_project_root"])
+    environment = inspect_environment(config.project_root)
     if not environment["cuda_available"]:
         raise RuntimeError("CUDA is unavailable")
     paths = dataset_paths(config)
     records = {name: read_jsonl(path) for name, path in paths.items()}
     hashes = {name: sha256_file(path) for name, path in paths.items()}
-    batch = int(config["training"]["per_device_train_batch_size"])
-    accumulation = int(config["training"]["gradient_accumulation_steps"])
+    batch = int(config.training.per_device_train_batch_size)
+    accumulation = int(config.training.gradient_accumulation_steps)
     steps_per_epoch = math.ceil(math.ceil(len(records["train"]) / batch) / accumulation)
-    max_steps = int(config.get("execution", {}).get("max_steps", -1))
-    total_steps = max_steps if max_steps > 0 else math.ceil(steps_per_epoch * float(config["training"]["num_train_epochs"]))
+    max_steps = int((config.execution.max_steps if config.execution else -1))
+    total_steps = max_steps if max_steps > 0 else math.ceil(steps_per_epoch * float(config.training.num_train_epochs))
     resume_path = None
     resume_step = 0
     run_dir = None
@@ -36,8 +36,8 @@ def validate_launch(config_path: str, resume: str | None = None) -> dict:
     return {
         "status": "valid",
         "config": str(Path(config_path).resolve()),
-        "output_root": str(resolve_path(config, config["data"].get("output_dir", "outputs/qlora"))),
-        "model": config["model"]["name"],
+        "output_root": str(resolve_path(config, config.data.output_dir)),
+        "model": config.model.name,
         "dataset_records": {name: len(value) for name, value in records.items()},
         "dataset_hashes": hashes,
         "gpu": environment["gpu"],

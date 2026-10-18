@@ -1,16 +1,21 @@
+from tests.dependencies import skip_missing_dependency
+
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from vigovbot.training.checkpoints import checkpoint_run_dir, validate_resume_checkpoint
-from vigovbot.training.config import load_config
-from vigovbot.training.data import analyze_splits, read_jsonl, validate_conversation
-from vigovbot.training.early_stopping import EarlyStoppingState, select_best_checkpoint
-from vigovbot.training.masking import IGNORE_INDEX, encode_assistant_only
-from vigovbot.training.metrics import generation_metrics, normalize_vietnamese, perplexity
-from vigovbot.training.parameters import count_parameters
+try:
+    from vigovbot.training.checkpoints import checkpoint_run_dir, validate_resume_checkpoint
+    from vigovbot.training.config import load_config
+    from vigovbot.training.data import analyze_splits, read_jsonl, validate_conversation
+    from vigovbot.training.early_stopping import EarlyStoppingState, select_best_checkpoint
+    from vigovbot.training.masking import IGNORE_INDEX, encode_assistant_only
+    from vigovbot.training.metrics import generation_metrics, normalize_vietnamese, perplexity
+    from vigovbot.training.parameters import count_parameters
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 from tests.tokenizer_fixtures import FakeTokenizer, MappingTokenizer
@@ -72,7 +77,7 @@ class LogicTests(unittest.TestCase):
             "configs/training/environments/gpu.yaml",
         ):
             config = load_config(path)
-            self.assertEqual(config["model"]["name"], "Qwen/Qwen2.5-7B-Instruct")
+            self.assertEqual(config.model.name, "Qwen/Qwen2.5-7B-Instruct")
         state = EarlyStoppingState(2, .01)
         self.assertFalse(state.update(1.0, 1)); self.assertFalse(state.update(.995, 2)); self.assertTrue(state.update(.994, 3))
         self.assertEqual(select_best_checkpoint([{"step": 1, "eval_loss": 2}, {"step": 2, "eval_loss": 1}]), (2, 1.0))

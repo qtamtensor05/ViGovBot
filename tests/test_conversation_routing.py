@@ -1,4 +1,6 @@
 """Offline behavioral tests for routing, evidence decisions and v4 output."""
+from tests.dependencies import skip_missing_dependency
+
 from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
 
 import json
@@ -7,10 +9,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from vigovbot.evaluation.multiturn import evaluate_multiturn
-from vigovbot.experiments import read_results
-from vigovbot.rag.pipeline import answer_question
-from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
+try:
+    from vigovbot.evaluation.multiturn import evaluate_multiturn
+    from vigovbot.experiments import read_results
+    from vigovbot.rag.pipeline import answer_question
+    from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 
@@ -51,6 +56,7 @@ class RoutingTests(unittest.TestCase):
         self.assertNotIn("OLD_", str(llm.call_args_list[1].args[0]))
         self.assertEqual(result["action"], "answer")
         self.assertEqual(result["routing"]["relation"], "new_question")
+        self.assertEqual(result["actual_route"], "rag_search")
 
     def test_follow_up_uses_resolved_query_without_old_assistant_claims(self):
         resolved = "Lệ phí cấp hộ chiếu trực tuyến cho người lớn?"
@@ -72,6 +78,7 @@ class RoutingTests(unittest.TestCase):
                 result, llm = self.run_answer([response])
                 self.assertEqual(result["action"], action)
                 self.assertEqual(result["decision_reason"], reason)
+                self.assertEqual(result["actual_route"], "clarify" if action == "clarify" else "out_of_scope")
                 self.assertEqual(llm.call_count, 1)
                 self.assertEqual(result["retrieval_s"], 0)
                 self.assertEqual(result["generation_s"], 0)
@@ -84,6 +91,7 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(result["evidence_status"], "missing")
         self.assertEqual(result["action"], "abstain")
         self.assertEqual(result["decision_reason"], "no_context")
+        self.assertEqual(result["actual_route"], "rag_search")
         self.assertEqual(llm.call_count, 1)
 
     def test_partial_correction_and_clarification_after_retrieval(self):
@@ -104,6 +112,7 @@ class RoutingTests(unittest.TestCase):
                 self.assertEqual(llm.call_count, 2)
                 self.assertEqual(result["raw_routing"]["fallback_reason"], "invalid_routing_after_retry")
                 self.assertEqual(result["decision_reason"], "routing_fallback")
+                self.assertEqual(result["actual_route"], "routing_error")
                 self.assertEqual(result["fallback_reason"], "invalid_routing_after_retry")
                 self.assertEqual(result["routing_attempts"], 2)
         self.retriever.search.assert_not_called()

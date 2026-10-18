@@ -1,7 +1,7 @@
-"""Typed training input contract; runtime consumers retain the dictionary API."""
+"""Typed training configuration used from file loading through runtime."""
 
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 
 class StrictModel(BaseModel):
@@ -108,6 +108,21 @@ class EvaluationSettings(StrictModel):
 
 
 class TrainingConfig(StrictModel):
+    _config_path: str = PrivateAttr(default="")
+    _project_root: str = PrivateAttr(default="")
+
+    @property
+    def config_path(self) -> str:
+        return self._config_path
+
+    @property
+    def project_root(self) -> str:
+        return self._project_root
+
+    def snapshot(self) -> dict:
+        """Preserve supplied keys; defaults must not change historical resume snapshots."""
+        return self.model_dump(exclude_unset=True)
+
     model: ModelSettings
     data: DataSettings
     quantization: QuantizationSettings

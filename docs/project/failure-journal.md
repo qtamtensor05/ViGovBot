@@ -977,3 +977,21 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: không khởi động runtime ngoài yêu cầu; dùng môi trường `uv --no-project`
   tạm để kiểm tra cả nhánh có/không có `rouge-score`, load config và docs.
 - Giới hạn: không có bằng chứng runtime Docker/model từ task này.
+
+
+## ERR-20261018-18 — TASK-20261018-18: discovery và fixtures phụ thuộc môi trường
+
+- Tái hiện: Python 3.14 hệ thống chạy unittest discovery, 29 tests, 24 errors, 3 skip; thiếu dependency ở import module.
+- Sửa: guard ModuleNotFoundError theo allowlist thư viện ngoài; lỗi nội bộ không bị nuốt; bootstrap source checkout trong package tests.
+- Regression đầu tiên trong venv Python 3.12: 213 tests, 5 errors, 4 skip. Hai fixture còn truyền dict vào typed config; ba test còn cần sentence-transformers/torch ngoài phạm vi mock hoặc import trong method.
+- Sửa: fixture dùng load_config, mock encoder/GPU đúng ranh giới test logic; test tensor thật skip khi thiếu torch.
+- Công cụ: PowerShell profile phát cảnh báo PSReadLine do console redirect; các lệnh sau dùng login=false. rg glob trong đối số path trên Windows lỗi, chuyển sang -g và directory.
+- Kết quả sau sửa sẽ ghi ở implementation-history; không coi lượt thất bại là PASS.
+
+- Bổ sung ERR-20261018-18: thử chặn sacrebleu/rouge_score phát hiện normalization test còn import ROUGE trong method; thêm guard riêng. Sau sửa 6 tests có 3 pass/3 skip, không lỗi. Full suite sau sửa fixture: 208 pass/5 skip.
+## ERR-20261018-19 — TASK-20261018-19: định dạng nhật ký
+
+- git diff --check báo dòng trống cuối requests.md sau khi thêm task; xóa dòng thừa và thêm khoảng cách giữa các mục.
+- Lần apply_patch sửa heading dùng context thiếu phần tiêu đề nên không khớp; sửa bằng heading đầy đủ. Không thay đổi source trong lần patch thất bại.
+- Regression chức năng không có lỗi; kiểm tra diff cuối được chạy lại.
+- Kiểm tra runtime: `docker compose ps --format json` trả exit 1, pipe dockerDesktopLinuxEngine không tồn tại. Docker daemon chưa sẵn sàng; không tuyên bố runtime/deployment đã được kiểm chứng. Kiểm chứng HTTP localhost với model fixture vẫn pass.

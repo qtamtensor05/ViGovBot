@@ -1,4 +1,6 @@
 """Integrity, compatibility, concurrency, and independent inference regressions."""
+from tests.dependencies import skip_missing_dependency
+
 
 import json
 import os
@@ -12,19 +14,25 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
-import numpy as np
+try:
+    import numpy as np
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
-from vigovbot.artifacts import (
-    CORPUS_MANIFEST,
-    embedding_identity,
-    make_manifest,
-    output_lock,
-    publish,
-)
-from vigovbot.ingestion.unified import corpus_identity, verify_corpus
-from vigovbot.rag.config import RAGConfig
-from vigovbot.rag.pipeline import execute, inference_session
-from vigovbot.vectordb.vector_store import prepare_corpus
+try:
+    from vigovbot.artifacts import (
+        CORPUS_MANIFEST,
+        embedding_identity,
+        make_manifest,
+        output_lock,
+        publish,
+    )
+    from vigovbot.ingestion.unified import corpus_identity, verify_corpus
+    from vigovbot.rag.config import RAGConfig
+    from vigovbot.rag.pipeline import execute, inference_session
+    from vigovbot.vectordb.vector_store import prepare_corpus
+except ModuleNotFoundError as exc:
+    skip_missing_dependency(exc)
 
 
 class ArtifactSafetyTests(unittest.TestCase):
