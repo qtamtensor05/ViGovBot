@@ -325,7 +325,11 @@ giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
 > biệt theo [Môi trường và tái lập](../setup/environments.md) trước khi chạy các
 > lệnh trong phần này; không chạy chúng bằng container `web` hiện tại.
 
-Chuẩn bị `Data/qa_test/dataset.jsonl` hoặc cấu hình `dataset_zip`. Kiểm tra `unified_source`, chế độ legacy nếu cần và chọn `output_dir` phù hợp trong `configs/rag/evaluation.yaml`.
+Các profile `configs/rag/evaluation*.yaml` không gắn cứng dataset. `vigov eva`
+chọn dataset v2 bằng `--dataset`. Lệnh legacy `vigov rag evaluate` dùng schema
+`question`/`ground_truth`; hãy tạo config riêng với `dataset_path` hoặc
+`dataset_zip` đúng schema đó. Không trỏ loader legacy vào
+`Data/tthc_test_case_v1/data/test.jsonl` vì đây là schema evaluation v2.
 
 ```powershell
 vigov rag smoke

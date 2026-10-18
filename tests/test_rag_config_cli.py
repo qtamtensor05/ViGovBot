@@ -18,6 +18,14 @@ from vigovbot.rag.pipeline import execute, source_fingerprint
 
 
 class ConfigTests(unittest.TestCase):
+    def test_repository_evaluation_profiles_do_not_reference_missing_legacy_dataset(self):
+        root = Path(__file__).resolve().parents[1]
+        for path in sorted((root / "configs/rag").glob("evaluation*.yaml")):
+            with self.subTest(path=path.name):
+                config = load_config(path)
+                self.assertIsNone(config.data.dataset_path)
+                self.assertIsNone(config.data.dataset_zip)
+
     def test_relative_paths_resolve_against_yaml(self):
         with tempfile.TemporaryDirectory() as work:
             path = Path(work) / "rag.yaml"

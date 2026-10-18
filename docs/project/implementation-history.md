@@ -1222,3 +1222,23 @@
   unified CLI/shared contracts/docs. Repo mount read-only; log/wheel trong
   outputs/verification/task-20261018-13. Không thay service/image runtime.
 - PASS Ruff, compileall, docs, diff-check. Không clean-env matrix hoặc GPU/model.
+
+## TASK-20261018-14 — Chốt release blockers sau review
+
+- Kiểm tra Git trước khi sửa: worktree sạch, HEAD/main/origin-main cùng ở commit
+  `8a65476`; các module `tables.py`, `response.py`, `schema.py`, `text.py`,
+  `jsonl.py`, `lexical.py` và các test/helper mới đều đã được commit, không còn
+  18 file untracked. Không tạo commit mới hoặc sửa lại lịch sử.
+- `test_metric_formulas_and_corpus_aggregation` dùng `skipUnless(find_spec())`
+  cho dependency `rouge-score`. Test pass khi cài ROUGE/SacreBLEU và được báo
+  `skipped: rouge-score is unavailable` trong môi trường không có ROUGE.
+- Ba `configs/rag/evaluation*.yaml` đặt `dataset_path: null`. Dataset hiện có
+  `Data/tthc_test_case_v1/data/test.jsonl` là schema v2, không tương thích loader
+  legacy `question`/`ground_truth`, nên không thay bằng một path tồn tại nhưng sai
+  schema. `vigov eva` tiếp tục nhận dataset v2 qua `--dataset`; tài liệu legacy
+  yêu cầu config riêng với dataset đúng schema.
+- Thêm regression test nạp cả ba profile và xác nhận không còn dataset path/zip
+  giả. PASS: profile load, documentation links, Ruff, compileall, diff-check.
+- Docker Desktop tắt (`dockerDesktopLinuxEngine` không tồn tại), nên không dùng
+  container; chạy test trong môi trường `uv --no-project` tạm. Không chạy model,
+  benchmark, GPU hoặc runtime Docker.

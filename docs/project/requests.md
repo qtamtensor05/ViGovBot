@@ -987,3 +987,15 @@
 - Phạm vi: dependency hub, docs support matrix, exports, script portable, root help, ignore.
 - Tiêu chí: resolver/CLI/tests pass; không xóa source/artifact/user data.
 - Trạng thái: completed; wheel/CLI và 14 test pass, clean-env matrix chưa chạy.
+
+## TASK-20261018-14 — Release blockers: tracked files, optional ROUGE và evaluation config
+
+- Yêu cầu: bảo đảm các module mới được Git theo dõi, guard test phụ thuộc
+  `rouge-score`, và bỏ đường dẫn dataset legacy không tồn tại khỏi ba profile
+  `configs/rag/evaluation*.yaml`.
+- Phạm vi: không đổi schema dataset; `vigov eva` tiếp tục nhận dataset v2 qua
+  `--dataset`; legacy `vigov rag evaluate` cần config riêng trỏ đúng schema cũ.
+- Tiêu chí: không còn file untracked; import module mới từ checkout pass; test
+  metric skip đúng khi thiếu ROUGE; ba profile load mà không trỏ file giả.
+- Trạng thái: completed; các file mới đã nằm trong commit hiện tại, test ROUGE
+  pass khi có dependency và skip khi thiếu, ba profile không còn path giả.

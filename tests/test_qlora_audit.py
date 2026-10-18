@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from importlib.util import find_spec
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -101,6 +102,7 @@ class ResumeAndStoppingTests(unittest.TestCase):
 
 
 class MetricAndAccountingTests(unittest.TestCase):
+    @unittest.skipUnless(find_spec("rouge_score"), "rouge-score is unavailable")
     def test_metric_formulas_and_corpus_aggregation(self):
         perfect = generation_metrics("xin chào", "xin chào")
         self.assertEqual(perfect["exact_match"], 1.0)

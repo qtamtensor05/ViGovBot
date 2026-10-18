@@ -3,7 +3,9 @@
 data:
   allow_legacy_corpus: false  # Set true only for older corpora without model provenance.
   unified_source: ../../Data/vector/unified  # Thư mục hoặc unified.zip
-  dataset_path: ../../Data/qa_test/dataset.jsonl
+  # Legacy `vigov rag evaluate` needs a separate config pointing to its
+  # question/ground_truth dataset. `vigov eva` receives the v2 dataset via --dataset.
+  dataset_path: null
   dataset_zip: null
   cache_dir: ../../outputs/rag_cache
   output_dir: ../../outputs/qwen2_5_7b_rag_results
@@ -34,7 +36,7 @@ conversation:
 
 evaluation:
   smoke_test_n: 5
-  max_cases: null  # null = toàn bộ 570 câu; thử 10 câu với thư mục đầu ra riêng.
+  max_cases: null
   bertscore_model: xlm-roberta-large
   bertscore_device: cpu
   bertscore_batch_size: 1

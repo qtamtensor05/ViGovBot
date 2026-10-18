@@ -961,3 +961,12 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 
 - Task: TASK-20261018-13. Bỏ gate sys.platform/version khiến sys dư thừa.
 - Ruff F401 phát hiện; bỏ import, Ruff và kiểm tra script pass.
+
+## ERR-20261018-10 — Docker Desktop chưa chạy khi kiểm chứng TASK-14
+
+- Task: TASK-20261018-14.
+- Lệnh test container không kết nối được named pipe
+  `dockerDesktopLinuxEngine` vì Docker Desktop đang tắt.
+- Xử lý: không khởi động runtime ngoài yêu cầu; dùng môi trường `uv --no-project`
+  tạm để kiểm tra cả nhánh có/không có `rouge-score`, load config và docs.
+- Giới hạn: không có bằng chứng runtime Docker/model từ task này.

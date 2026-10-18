@@ -3,7 +3,9 @@
 data:
   allow_legacy_corpus: false
   unified_source: ../../Data/vector/unified
-  dataset_path: ../../Data/qa_test/dataset.jsonl
+  # Dataset v2 is selected by `vigov eva --dataset`; do not point the legacy
+  # RAG evaluator at a v2 JSONL with an incompatible schema.
+  dataset_path: null
   dataset_zip: null
   cache_dir: ../../outputs/rag_cache
   output_dir: ../../outputs/tthc_test_case_v1
