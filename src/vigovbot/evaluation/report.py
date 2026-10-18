@@ -156,6 +156,8 @@ def _generate_report(config, selected_cases):
 
     if baseline_summary_path:
         baseline = json.loads(Path(baseline_summary_path).read_text(encoding="utf-8"))
+        if baseline.get("metric_contract_version") != METRIC_CONTRACT_VERSION:
+            raise ValueError("Baseline metric contract differs; rescore cached predictions before comparison")
         print(
             "Chỉ đối chiếu trực tiếp khi cùng tập câu hỏi, model, metric và cấu hình sinh. Cùng số câu chưa bảo đảm cùng tập test."
         )

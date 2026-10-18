@@ -1,4 +1,25 @@
-"""Deterministic character fixtures for budget tests, not model tokenization evidence."""
+"""Deterministic fixtures for budget and masking tests, not model compatibility evidence."""
+
+
+class FakeTokenizer:
+    """Deterministic masking fixture; not evidence of real-model compatibility."""
+    pad_token_id = 0
+    eos_token_id = 2
+
+    def apply_chat_template(self, messages, tokenize=True, add_generation_prompt=False, **kwargs):
+        values = []
+        for message in messages:
+            values.extend([10 if message["role"] == "user" else 20])
+            values.extend(range(30, 30 + len(message["content"].split())))
+            values.append(2)
+        if add_generation_prompt:
+            values.append(20)
+        return values
+
+
+class MappingTokenizer(FakeTokenizer):
+    def apply_chat_template(self, *args, **kwargs):
+        return {"input_ids": [super().apply_chat_template(*args, **kwargs)], "attention_mask": [[1]]}
 
 
 class CharacterTokenizer:

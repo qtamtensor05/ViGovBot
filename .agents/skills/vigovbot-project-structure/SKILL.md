@@ -1,6 +1,6 @@
 ---
 name: vigovbot-project-structure
-description: Preserve ViGovBot's canonical source, configuration, documentation and CLI layout when adding, moving, renaming or consolidating project files. Use for repository refactors and changes to configs, docs, entry points or package boundaries; skip ordinary implementation edits that do not affect structure.
+description: Preserve ViGovBot's canonical source, configuration, documentation and CLI layout when adding, moving, renaming or consolidating files. Use for repository refactors and changes to configs, docs, entry points or package boundaries; skip implementation edits that do not affect structure.
 ---
 
 # Cấu trúc dự án ViGovBot

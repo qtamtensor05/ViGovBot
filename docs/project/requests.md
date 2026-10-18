@@ -988,6 +988,30 @@
 - Tiêu chí: resolver/CLI/tests pass; không xóa source/artifact/user data.
 - Trạng thái: completed; wheel/CLI và 14 test pass, clean-env matrix chưa chạy.
 
+## TASK-20261018-17 — Scoring, fingerprint và cấu hình còn sót
+
+- Yêu cầu: đối chiếu 11 nhận xét về evaluation/config/skills; sửa các lỗi còn đúng.
+- Phạm vi: tên module judgment, readability scorer, fingerprint, config duplication,
+  tài liệu và discovery test skills; giữ hợp đồng runner hiện tại.
+- Trạng thái: partial; sửa scoring/fingerprint/config/skills. Không hợp nhất
+  runner hoặc namespace khi chưa thiết kế migration hợp đồng.
+
+## TASK-20261018-16 — Đối chiếu các phần consolidation còn sót
+
+- Yêu cầu: kiểm tra 12 nhận xét về duplication, cấu trúc, runtime và trạng thái Git.
+- Phạm vi: sửa hash/normalization còn trùng, chia sẻ fixture training; xác minh
+  JSONL/Git và phân biệt chính sách an toàn với refactor còn thiếu.
+- Tiêu chí: regression liên quan pass; báo rõ phần chưa refactor.
+- Trạng thái: partial; đã sửa hash/normalization/fixture, xác minh JSONL/Git.
+  Chưa tách tiếp chunker hoặc chuyển toàn subsystem training sang typed runtime.
+
+## TASK-20261018-15 — Hợp nhất BLEU và JSONL readers
+
+- Yêu cầu: bỏ hai backend BLEU và các reader JSONL ad-hoc.
+- Phạm vi: SacreBLEU chung, version metric rõ ràng; parser stream chung cho file/ZIP, giữ recovery log riêng.
+- Tiêu chí: regression metric, BOM/blank/error location và caller tests pass.
+- Trạng thái: completed; 11 test pass, 1 skip do thiếu dataset v4; Ruff và diff-check pass.
+
 ## TASK-20261018-14 — Release blockers: tracked files, optional ROUGE và evaluation config
 
 - Yêu cầu: bảo đảm các module mới được Git theo dõi, guard test phụ thuộc

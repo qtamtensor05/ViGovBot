@@ -1,5 +1,57 @@
 # Lịch sử triển khai
 
+## TASK-20261018-17 — Scoring/fingerprint/config/skills (partial)
+
+- PASS: 64 unittest thuộc test_agent_skills, test_qa_v4, test_qa_v4_review,
+  test_shared_contracts, test_qlora_local, test_documentation, test_rag_config_cli;
+  Ruff các file đổi, compileall và git diff --check. Môi trường uv tạm có
+  dependency RAG/evaluation nhẹ; generation và BERTScore trong smoke được mock.
+
+- Đổi module scoring_legacy thành judgment_scoring, sửa import và tài liệu;
+  format scoring.py để tách semicolon/one-line blocks. Không đổi công thức.
+- source_fingerprint duyệt toàn package Python, path POSIX ổn định; test thêm/
+  sửa helper và nested chunking làm đổi hash. Phạm vi bảo thủ có thể invalidates
+  run khi source không liên quan đổi; không sửa manifest lịch sử.
+- Profile RTX kế thừa gpu thay vì copy giá trị base. Smoke profile đã tách
+  hardware qua extends; giữ entry point. URL Ollama dùng YAML anchors.
+- Doc skills phân biệt mốc hai skill cũ và inventory 16 hiện tại; test kiểm tra
+  equality inventory và manifest của cả 16. UI metadata được kiểm tra nếu có.
+- Các runner khác schema/history/resume vẫn riêng; namespaces theo domain không
+  phải collision Python. Chưa thực hiện refactor rộng hai mục này.
+- Không commit/push; giữ index công việc trước. Không chạy model/GPU/Docker.
+
+## TASK-20261018-16 — Đối chiếu consolidation (partial)
+
+- v2._sha256 alias artifacts.file_hash; regression xác nhận identity và đọc
+  chunk thay vì read_bytes. Baseline normalize_answer dùng normalize_vietnamese;
+  ROUGE dùng VietnameseTokenizer; version baseline-vi-lexical-v3 yêu cầu rescore.
+- FakeTokenizer/MappingTokenizer chuyển vào tests/tokenizer_fixtures.py;
+  audit không còn import fixture từ test module khác. Tokenizer tensor/generation
+  và tokenizer kiểm tra mutation padding là test doubles khác hợp đồng, giữ riêng.
+- JSONL ad-hoc đã xử lý TASK-15; experiments recovery riêng có truncate có chủ ý.
+  git ls-files và git log xác nhận các mục 2.9–2.12 đã nằm trong commit 8a65476.
+  Git ghi nhận rename bằng nội dung; không cần chạy lại git mv trên path đã đổi.
+- Không bỏ GPU lock vì _switch_provider unload trọng số dùng chung; giữ model
+  experimental opt-in do chưa xác minh tương thích. Chunker còn nhiều trách nhiệm
+  và training runtime còn dict: chưa refactor, không tuyên bố hoàn tất hai mục này.
+- Kiểm chứng: uv unittest tests.test_shared_contracts tests.test_qlora_local
+  tests.test_qlora_audit: 26 test, 23 pass/3 skip. Không chạy model/GPU/Docker.
+
+## TASK-20261018-15 — Hợp nhất BLEU và JSONL
+
+- Chuyển BLEU baseline từ NLTK sang factory SacreBLEU chung, normalization
+  Unicode chung; giữ output 0–1 và macro sentence aggregation để không đổi
+  schema/biểu đồ. Version mới: baseline-sacrebleu-v2; comparison từ chối report
+  khác version. EM/ROUGE baseline không thay đổi; cần rescore cached prediction.
+- Mở rộng utils/jsonl.py thành parser stream dùng chung cho file và ZIP.
+  Scoring, multi-turn, dataset, training plot/epoch và corpus JSONL fallback
+  không còn tự parse từng dòng. Dòng trắng có policy rõ; báo lỗi kèm nguồn/số
+  dòng; experiments recovery vẫn riêng vì có chức năng truncate khi được bật.
+- Kiểm chứng trong môi trường uv tạm: unittest discover test_shared_contracts.py
+  6/6 pass; test_multiturn.py 5 pass, 1 skip (thiếu dataset v4); Ruff các file
+  đổi và git diff --check pass. Chưa chạy full suite, model/GPU hoặc Docker.
+- Giữ nguyên index đã stage của TASK-14; không commit/push.
+
 ## TASK-20261015-14 - migration hai bộ Agent Skills theo Codex hiện hành
 
 - Đối chiếu bốn nguồn OpenAI được yêu cầu, Codex CLI 0.160.0, layout repo/global

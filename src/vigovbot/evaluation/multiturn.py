@@ -13,7 +13,8 @@ from vigovbot.utils.helpers import json_hash
 
 
 def load_queries(path, view=None, split=None):
-    rows = [json.loads(line) for line in Path(path).read_text(encoding="utf-8-sig").splitlines() if line.strip()]
+    from vigovbot.evaluation.io import read_jsonl
+    rows = read_jsonl(path)
     ids = set(json.loads(Path(view).read_text(encoding="utf-8-sig"))) if view else None
     selected, seen = [], set()
     for row in rows:

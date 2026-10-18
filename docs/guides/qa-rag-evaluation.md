@@ -201,9 +201,10 @@ quy tắc bỏ prediction lỗi/rỗng và denominator. QA chỉ chấm referenc
 ở cohort nội dung phù hợp, training chấm các hàng được đánh giá; token F1 trên
 cặp chuỗi rỗng cũng còn chính sách khác nhau giữa hai luồng.
 
-`evaluation/metrics.py` phục vụ baseline notebook legacy, giữ nguyên NLTK
-sentence BLEU method1 (0–1), normalization lower/punctuation và tokenizer ROUGE
-cũ; report gắn `baseline-notebook-legacy-v1`. Không trộn các số này với
+`evaluation/metrics.py` dùng SacreBLEU chung, scale 0–1 và macro sentence
+BLEU trong summary (khác corpus BLEU). EM/ROUGE dùng normalization/tokenizer
+chung từ `baseline-vi-lexical-v3`, từ chối baseline khác version.
+Chấm lại prediction cũ để so sánh; không trộn các số này với
 `vi-lexical-v1`. Training BLEU/ROUGE trước thay đổi cũng không cùng contract:
 muốn so sánh, chấm lại cached prediction/reference cùng phiên bản. Không sửa
 artifact lịch sử hoặc suy ra chất lượng factuality từ similarity.
@@ -233,9 +234,9 @@ quả; kiểm tra sớm output trước khi gọi model và vẫn giữ mode x �
 Không triển khai resume bằng cách bỏ qua ID đơn thuần vì free-running phải
 khôi phục history, trạng thái lỗi và provenance trước khi tiếp tục.
 
-`scoring_legacy.py` vẫn cung cấp phần chấm judgment/evidence được scorer hiện
-đại gọi tới. Mã đã được format, đổi biến thành tên rõ nghĩa và đóng file qua
-Path/context-managed JSONL reader; công thức và schema kết quả giữ nguyên.
+`judgment_scoring.py` cung cấp phần chấm judgment/evidence cho scorer hiện
+đại. Module cũ `scoring_legacy.py` đã được đổi tên; công thức và schema kết quả
+giữ nguyên. Entry point công khai vẫn là `vigov eva`.
 
 ## HTTP và concurrency (2026-10-18)
 

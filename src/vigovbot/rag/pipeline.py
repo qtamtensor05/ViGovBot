@@ -36,11 +36,9 @@ def select_cases(config):
 def source_fingerprint():
     """Phát hiện mã pipeline đổi, kể cả khi quên tăng số phiên bản."""
     root = Path(__file__).resolve().parents[1]
-    folders = ("rag", "evaluation", "retrieval", "prompts", "llm")
-    paths = [p for folder in folders for p in (root / folder).glob("*.py")]
-    paths += [root / "ingestion/unified.py", root / "embeddings/embedder.py", root / "vectordb/vector_store.py"]
-    paths += [root / name for name in ("schemas.py", "artifacts.py", "experiments.py", "utils/helpers.py")]
-    return json_hash({str(p.relative_to(root)): p.read_text(encoding="utf-8") for p in sorted(paths)})
+    # Conservative package-wide identity: newly added helpers must invalidate runs too.
+    paths = sorted(root.rglob("*.py"))
+    return json_hash({p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in paths})
 
 
 def manifest_base(config, cases, selected):

@@ -8,7 +8,7 @@ embedding:
   device: cpu
 llm:
   model: qwen2.5:7b
-  ollama_url: http://ollama:11434
+  ollama_url: &ollama_url http://ollama:11434
 web:
   debug_routing: false
   models:
@@ -16,13 +16,13 @@ web:
       label: Qwen 2.5 7B - Base (không RAG)
       provider: ollama
       model: qwen2.5:7b
-      base_url: http://ollama:11434
+      base_url: *ollama_url
       mode: base
     - id: qwen-rag
       label: Qwen 2.5 7B + RAG
       provider: ollama
       model: qwen2.5:7b
-      base_url: http://ollama:11434
+      base_url: *ollama_url
       mode: rag
     - id: qwen-qlora
       label: Qwen 2.5 7B + QLoRA

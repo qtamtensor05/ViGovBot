@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json
+from vigovbot.utils.jsonl import iter_jsonl, iter_jsonl_stream
 import zipfile
 from pathlib import Path
 from vigovbot.ingestion.unified import zip_member
@@ -8,12 +8,13 @@ from vigovbot.ingestion.unified import zip_member
 def load_cases(dataset_path=None, dataset_zip=None):
     """Đúng schema qa_test trong baseline; ZIP cho phép thư mục qa_test/ bên trong."""
     if dataset_path and Path(dataset_path).is_file():
-        with Path(dataset_path).open("r", encoding="utf-8-sig") as handle:
-            rows = [json.loads(line) for line in handle if line.strip()]
+        rows = [row for _, row in iter_jsonl(dataset_path, blank_lines="skip")]
     elif dataset_zip and Path(dataset_zip).is_file():
         with zipfile.ZipFile(dataset_zip) as archive:
             with archive.open(zip_member(archive, "dataset.jsonl")) as handle:
-                rows = [json.loads(line.decode("utf-8-sig")) for line in handle if line.strip()]
+                rows = [row for _, row in iter_jsonl_stream(
+                    handle, source=f"{dataset_zip}:{handle.name}", blank_lines="skip"
+                )]
     else:
         raise FileNotFoundError("Đặt DATASET_PATH tới qa_test/dataset.jsonl hoặc DATASET_ZIP tới qa_test.zip")
     seen = set()

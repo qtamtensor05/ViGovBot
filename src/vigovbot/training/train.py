@@ -298,7 +298,8 @@ def _finalize_training(config, trainer, tokenizer, train_dataset, eval_dataset, 
     epoch_durations = []
     epoch_path = artifact_path(run_dir, "logs", "epoch_metrics.jsonl")
     if epoch_path.exists():
-        epoch_durations = [json.loads(line) for line in epoch_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        from vigovbot.utils.jsonl import iter_jsonl
+        epoch_durations = [row for _, row in iter_jsonl(epoch_path, blank_lines="skip")]
     write_json(artifact_path(run_dir, "metrics", "timing_report.json"), {"training_wall_clock_seconds_measured": elapsed,
                                                  "epoch_measurements": epoch_durations,
                                                  "time_per_optimizer_step_seconds_measured": metrics["time_per_optimizer_step_seconds_measured"],

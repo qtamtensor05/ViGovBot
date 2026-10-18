@@ -1,5 +1,7 @@
 extends: ../environments/rtx5060ti_16gb.yaml
 # Real QLoRA smoke only: four optimizer steps, checkpoint/evaluation every two.
+# Composition entry point: hardware settings belong to the inherited environment;
+# this file only overrides experiment duration, logging and output label.
 training:
   num_train_epochs: 1
   eval_steps: 2

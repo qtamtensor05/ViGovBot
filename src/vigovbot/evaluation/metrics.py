@@ -1,26 +1,21 @@
 """Legacy baseline-notebook metrics. Not comparable to vi-lexical-v1 scores.
 
-Preserved for historical reproducibility: lower/punctuation normalization,
-NLTK sentence BLEU method1 (0..1), default rouge-score tokenizer.
+Normalization and lexical backends are shared with modern evaluation.
+BLEU remains macro sentence BLEU, rescaled to 0..1 for this report.
 """
 
-import re
-import unicodedata
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from vigovbot.evaluation.lexical import VietnameseTokenizer, bleu_metric
+from vigovbot.utils.text import normalize_vietnamese
 from rouge_score import rouge_scorer
 
-METRIC_CONTRACT_VERSION = "baseline-notebook-legacy-v1"
+METRIC_CONTRACT_VERSION = "baseline-vi-lexical-v3"
 
 
 def normalize_answer(text: str) -> str:
     if text is None:
         return ""
 
-    text = unicodedata.normalize("NFC", str(text)).lower().strip()
-    text = re.sub(r'[“”"`]', "", text)
-    text = re.sub(r"[.,;:!?()\[\]{}]", " ", text)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    return normalize_vietnamese(str(text))
 
 
 def exact_match(prediction: str, reference: str) -> int:
@@ -31,30 +26,20 @@ def normalized_accuracy(prediction: str, reference: str) -> int:
     return int(normalize_answer(prediction) == normalize_answer(reference))
 
 
-smooth = SmoothingFunction().method1
-
-
 def bleu_score(prediction: str, reference: str) -> float:
-    pred_tokens = normalize_answer(prediction).split()
-    ref_tokens = normalize_answer(reference).split()
+    pred_tokens = normalize_vietnamese(prediction).split()
+    ref_tokens = normalize_vietnamese(reference).split()
 
     if not pred_tokens or not ref_tokens:
         return 0.0
 
-    # BLEU-4 với smoothing để tránh quá nhiều case bằng 0 ở câu ngắn.
-    return float(
-        sentence_bleu(
-            [ref_tokens],
-            pred_tokens,
-            weights=(0.25, 0.25, 0.25, 0.25),
-            smoothing_function=smooth,
-        )
-    )
+    return bleu_metric().sentence_score(" ".join(pred_tokens), [" ".join(ref_tokens)]).score / 100.0
 
 
 rouge = rouge_scorer.RougeScorer(
     ["rouge1", "rouge2", "rougeL"],
     use_stemmer=False,
+    tokenizer=VietnameseTokenizer(),
 )
 
 

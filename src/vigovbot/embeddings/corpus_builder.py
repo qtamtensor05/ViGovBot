@@ -31,8 +31,9 @@ def load_chunks(directory: Path) -> list[dict]:
             data = json.loads(raw)
         except json.JSONDecodeError:
             try:
-                data = [json.loads(line) for line in raw.splitlines() if line.strip()]
-            except json.JSONDecodeError as exc:
+                from vigovbot.utils.jsonl import iter_jsonl_stream
+                data = [row for _, row in iter_jsonl_stream(raw.splitlines(), source=path, blank_lines="skip")]
+            except ValueError as exc:
                 raise ValueError(f"{path}: invalid JSON/JSON Lines: {exc}") from exc
         if isinstance(data, dict):
             data = [data]

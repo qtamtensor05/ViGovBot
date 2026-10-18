@@ -10,7 +10,8 @@ from vigovbot.training.artifacts import artifact_path, discover_artifact
 def _load_frame(root: Path, pandas):
     events = discover_artifact(root, "logs", "training_events.jsonl")
     if events.exists():
-        rows = [json.loads(line) for line in events.read_text(encoding="utf-8").splitlines() if line.strip()]
+        from vigovbot.utils.jsonl import iter_jsonl
+        rows = [row for _, row in iter_jsonl(events, blank_lines="skip")]
         return pandas.DataFrame(rows), events.name
     csv_path = discover_artifact(root, "metrics", "training_log.csv")
     if not csv_path.exists():

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import collections
-import hashlib
 import json
 import math
 import re
@@ -14,6 +13,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 from .io import read_jsonl
+from vigovbot.artifacts import file_hash as _sha256
 from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
 ARCHITECTURES = {"base", "finetuned", "rag_base", "rag_finetuned"}
@@ -47,14 +47,6 @@ PERFORMANCE_KEYS = [
     "total_tokens", "peak_allocated_vram_gb", "peak_reserved_vram_gb", "gpu_utilization_percent", "cost_usd",
     "timed_out", "oom", "execution_failed",
 ]
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def _normalize(value) -> str:

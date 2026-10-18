@@ -1,4 +1,4 @@
-"""Evaluate judged evidence and reviewed generation. No substring correctness score."""
+"""Shared scoring of judged evidence and reviewed generation."""
 
 from pathlib import Path
 import argparse

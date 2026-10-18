@@ -1,4 +1,4 @@
-"""Shared modern lexical metric contract; legacy notebook metrics stay separate."""
+"""Shared lexical backends; each report declares its aggregation and score scale."""
 
 from vigovbot.utils.text import NORMALIZATION_VERSION, word_tokens
 

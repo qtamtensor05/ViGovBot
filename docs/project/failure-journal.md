@@ -1,5 +1,12 @@
 # Nhật ký vấp ngã
 
+## ERR-20261018-17 — Discovery và môi trường regression thiếu dependency
+
+- TASK-20261018-17: test 16 skills phát hiện description project-structure dài
+  303 ký tự, vượt giới hạn 300; đã rút gọn, test discovery sau đó pass.
+- Regression RAG trong uv tạm lần lượt thiếu ijson rồi pandas; bổ sung ijson,
+  pandas và matplotlib cho môi trường test, không thay dependency production.
+
 Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận với giả thuyết.
 
 ## ERR-20261015-21

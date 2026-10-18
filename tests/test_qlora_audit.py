@@ -41,7 +41,7 @@ class OfficialTemplateTests(unittest.TestCase):
         self.assertTrue(supervised)
 
     def test_overlength_multiturn_is_rejected_not_truncated(self):
-        from tests.test_qlora_local import FakeTokenizer
+        from tests.tokenizer_fixtures import FakeTokenizer
         messages = [
             {"role": "user", "content": "u"}, {"role": "assistant", "content": "a"},
             {"role": "user", "content": "u2"}, {"role": "assistant", "content": "final answer"},

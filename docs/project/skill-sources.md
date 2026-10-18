@@ -8,8 +8,10 @@
 | [Anthropic skills](https://github.com/anthropics/skills) | Tham khảo các skill và cách đóng gói từ nhà phát hành |
 | [Agent Skills specification](https://agentskills.io/specification) | Chuẩn SKILL.md, frontmatter và cấu trúc resources |
 
-Hai skill riêng được viết cho yêu cầu ViGovBot, không sao chép hoặc cài hàng
+Mốc 2026-10-03 có hai skill riêng; đến 2026-10-18 repository có 16 skill
+trực tiếp trong `.agents/skills/`, được liệt kê tại
+[catalog](../agent-skills/SKILL_CATALOG.md). Không sao chép hoặc cài hàng
 loạt skill không liên quan. Nguồn bổ sung để cân nhắc theo task: `jupyter-notebook`
 cho notebook, `pdf` cho tài liệu PDF và `playwright` cho kiểm chứng web UI trong
-catalog OpenAI. Chưa cài các skill này vì task hiện tại chỉ cần quy trình ghi hồ
-sơ và chờ lệnh. Skill tải ngoài cần đọc nội dung và script trước khi sử dụng.
+catalog OpenAI. Đây là gợi ý nguồn, không phải inventory plugin của máy.
+Skill tải ngoài cần đọc nội dung và script trước khi sử dụng.

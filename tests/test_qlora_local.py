@@ -13,18 +13,7 @@ from vigovbot.training.metrics import generation_metrics, normalize_vietnamese, 
 from vigovbot.training.parameters import count_parameters
 
 
-class FakeTokenizer:
-    """Deterministic fixture tokenizer; not evidence of Qwen tokenizer compatibility."""
-    pad_token_id = 0
-    eos_token_id = 2
-    def apply_chat_template(self, messages, tokenize=True, add_generation_prompt=False, **kwargs):
-        values = []
-        for message in messages:
-            values.extend([10 if message["role"] == "user" else 20])
-            values.extend(range(30, 30 + len(message["content"].split())))
-            values.append(2)
-        if add_generation_prompt: values.append(20)
-        return values
+from tests.tokenizer_fixtures import FakeTokenizer, MappingTokenizer
 
 
 def record(identifier, question="Phí bao nhiêu?", answer="Lệ phí 10.000 đồng."):
@@ -69,9 +58,6 @@ class MaskingTests(unittest.TestCase):
             encode_assistant_only(FakeTokenizer(), record("x")["messages"], 3)
 
     def test_transformers_mapping_chat_template_output(self):
-        class MappingTokenizer(FakeTokenizer):
-            def apply_chat_template(self, *args, **kwargs):
-                return {"input_ids": [super().apply_chat_template(*args, **kwargs)], "attention_mask": [[1]]}
         encoded = encode_assistant_only(MappingTokenizer(), record("x")["messages"], 100)
         self.assertGreater(len(encoded["input_ids"]), 2)
         self.assertTrue(any(value != IGNORE_INDEX for value in encoded["labels"]))

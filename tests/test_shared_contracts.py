@@ -19,13 +19,44 @@ from vigovbot.utils.helpers import file_hash as helper_hash
 
 
 class SharedContractsTests(unittest.TestCase):
+    def test_baseline_bleu_uses_shared_backend_with_report_scale(self):
+        from vigovbot.evaluation.metrics import bleu_score, METRIC_CONTRACT_VERSION
+        self.assertEqual(METRIC_CONTRACT_VERSION, "baseline-vi-lexical-v3")
+        for prediction, reference in [("LỆ PHÍ!", "lệ phí"), ("hồ sơ mới", "hồ sơ đủ"), ("", "hồ sơ")]:
+            expected = generation_metrics(prediction, reference)["bleu"] / 100
+            self.assertAlmostEqual(bleu_score(prediction, reference), expected)
+
+    def test_jsonl_file_zip_and_scoring_share_parser(self):
+        import zipfile
+        from vigovbot.evaluation.dataset import load_cases
+        from vigovbot.evaluation.scoring import read
+        from vigovbot.utils.jsonl import iter_jsonl_stream
+        row = {"id": "a", "question": {"text": "hồ sơ?", "type": "fact", "difficulty": "easy"},
+               "ground_truth": {"answer": "đủ"}}
+        content = "\ufeff" + json.dumps(row, ensure_ascii=False) + "\n\n"
+        with tempfile.TemporaryDirectory() as work:
+            path = Path(work) / "dataset.jsonl"
+            path.write_text(content, encoding="utf-8")
+            archive = Path(work) / "data.zip"
+            with zipfile.ZipFile(archive, "w") as handle:
+                handle.writestr("qa_test/dataset.jsonl", content.encode("utf-8"))
+            self.assertEqual(load_cases(dataset_path=path), [row])
+            self.assertEqual(load_cases(dataset_zip=archive), [row])
+            self.assertEqual(read(path), [row])
+        with self.assertRaisesRegex(ValueError, "stream:3: invalid JSON"):
+            list(iter_jsonl_stream(["{}\n", "\n", "bad"], source="stream", blank_lines="skip"))
+        with self.assertRaisesRegex(ValueError, "blank_lines must"):
+            list(iter_jsonl_stream([], source="stream", blank_lines="other"))
+
     def test_hash_aliases_stream_multiple_blocks(self):
         with tempfile.TemporaryDirectory() as work:
             path = Path(work) / "large.bin"
             data = b"abc" * 800000
             path.write_bytes(data)
             with patch.object(Path, "read_bytes", side_effect=AssertionError("must stream")):
-                for function in (file_hash, helper_hash, sha256_file, sha256):
+                from vigovbot.evaluation.v2 import _sha256
+                self.assertIs(_sha256, file_hash)
+                for function in (file_hash, helper_hash, sha256_file, sha256, _sha256):
                     self.assertEqual(function(path), hashlib.sha256(data).hexdigest())
             self.assertIs(helper_hash, file_hash)
             self.assertIs(sha256_file, file_hash)
@@ -34,8 +65,10 @@ class SharedContractsTests(unittest.TestCase):
     def test_unicode_normalization_parity(self):
         expected = "lệ phí strasse hồ_sơ 10 000 đồng"
         for text in ("LỆ PHÍ Straße: hồ_sơ 10.000 đồng!", unicodedata.normalize("NFD", "LỆ PHÍ Straße: hồ_sơ 10.000 đồng!")):
-            for function in (normalize_text, normalize_vietnamese, normalize, _normalize):
+            from vigovbot.evaluation.metrics import normalize_answer, rouge_scores
+            for function in (normalize_text, normalize_vietnamese, normalize, _normalize, normalize_answer):
                 self.assertEqual(function(text), expected)
+            self.assertAlmostEqual(rouge_scores(text, expected)["rougeL_f1"], 1.0)
 
     def test_training_bleu_matches_modern_contract(self):
         pairs = [("Lệ phí!", "lệ phí"), ("Hồ sơ mới đầy đủ", "hồ sơ đầy đủ")]

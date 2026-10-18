@@ -18,6 +18,33 @@ from vigovbot.rag.pipeline import execute, source_fingerprint
 
 
 class ConfigTests(unittest.TestCase):
+    def test_fingerprint_covers_new_helpers_and_nested_sources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "rag").mkdir()
+            entry = root / "rag" / "pipeline.py"
+            entry.write_text("# pipeline", encoding="utf-8")
+            with patch("vigovbot.rag.pipeline.__file__", str(entry)):
+                previous = source_fingerprint()
+                for name in ("utils/text.py", "utils/jsonl.py", "console.py", "chunking/nested/tables.py"):
+                    path = root / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text("# added", encoding="utf-8")
+                    current = source_fingerprint()
+                    self.assertNotEqual(previous, current, name)
+                    self.assertEqual(current, source_fingerprint())
+                    path.write_text("# modified", encoding="utf-8")
+                    previous = source_fingerprint()
+                    self.assertNotEqual(current, previous, name)
+
+    def test_inference_ollama_urls_share_yaml_anchor(self):
+        import yaml
+        for name in ("inference.yaml", "inference-docker.yaml"):
+            config = yaml.safe_load((Path("configs/rag") / name).read_text(encoding="utf-8"))
+            for model in config["web"]["models"]:
+                if model["provider"] == "ollama":
+                    self.assertEqual(model["base_url"], config["llm"]["ollama_url"])
+
     def test_repository_evaluation_profiles_do_not_reference_missing_legacy_dataset(self):
         root = Path(__file__).resolve().parents[1]
         for path in sorted((root / "configs/rag").glob("evaluation*.yaml")):
