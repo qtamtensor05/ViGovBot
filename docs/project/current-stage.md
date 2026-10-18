@@ -1,4 +1,23 @@
-# TASK-20261018-20 — partial
+# TASK-20261018-22 — completed analysis
+
+- Đã triển khai phân tích chi tiết, đầy đủ và chuyên sâu toàn bộ kết quả đánh giá 2 mô hình `base-qwen2.5-7b-20261018-173953` và `rag-base-qwen2.5-7b-20261018-192403` trong thư mục `outputs/evaluation_v2/`.
+- Hoàn thành báo cáo phân tích toàn diện tại `docs/reports/bao-cao-danh-gia-chi-tiet-base-vs-rag-v2.md` và artifact `bao-cao-danh-gia-base-vs-rag-v2.md`.
+- Kết quả đối sánh nổi bật: Win rate của RAG đạt 87,45%; SacreBLEU tăng +1.046% (2,06 lên 23,66); BERTScore F1 đạt 0,9046; Key Fact Coverage tăng từ 21,38% lên 50,40%; CER giảm -88,5% và WER giảm -87,2%. Nhóm Multi-intent Fact Coverage tăng từ 8,5% lên 73,0%. Nhóm Unanswerable đạt Abstention Correctness 93,0%.
+- Không can thiệp sửa đổi các artifact và dữ liệu đánh giá gốc.
+
+## Mốc trước
+
+# TASK-20261018-21 - completed verification
+
+- Đã kiểm tra trực tiếp hai thư mục Base/RAG trong `outputs/evaluation_v2`: mỗi run có 1.100 prediction và 1.100 result, ID duy nhất, không thiếu/thừa, execution success và trace v1.0 available toàn bộ.
+- Hash Golden `5bf3606d...a127` và hash prediction trong summary/offline scorer đều khớp file thực tế. Supplemental BERTScore cũng khớp cùng input.
+- Base BERTScore F1 0,854424; RAG 0,904564. RAG MAP@5 0,365917 trên 1.000 ca có relevance; không có retrieved ID trùng trong artifact.
+- RAG citation: 1.098 disabled, 2 unavailable. Token usage, throughput, TTFT, VRAM/GPU và cost đều null; semantic/groundedness/judgment chưa có. Không tuyên bố bộ metric đầy đủ.
+- Không chạy lại model/GPU và không sửa artifact. JSON/schema validation bằng package `jsonschema` chưa chạy vì dependency không có trong Python hiện tại.
+
+## Mốc trước
+
+# TASK-20261018-20 - partial
 
 - Triển khai local không Docker và đánh giá Golden Dataset.
 - Đã xác minh: Python thực/`py`/`uv`/`ollama` chưa có trong PATH; Golden Dataset có `train_golden.jsonl` (2.200), `val_golden.jsonl` (550), `test_golden.jsonl` (1.100); `nvidia-smi` có sẵn.

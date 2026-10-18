@@ -1,5 +1,13 @@
 # Yêu cầu dự án
 
+## TASK-20261018-22
+
+- Ngày tiếp nhận: 2026-10-18.
+- Yêu cầu: triển khai phân tích kết quả đánh giá 2 model base/base+rag trong thư mục `outputs/evaluation_v2` chi tiết và đầy đủ.
+- Phạm vi: phân tích định lượng toàn diện (Lexical, Semantic BERTScore, Factuality, Robustness, Latency/Throughput), phân tích retrieval riêng của RAG (Hit@K, MRR, NDCG, MAP@5, Noise ratio), phân tích đa chiều theo taxonomy dữ liệu (Single-hop vs Multi-intent, Độ khó, Turn type, Lĩnh vực), phân tích nhóm unanswerable và giải mã nghịch lý Token F1, trích xuất case studies định tính và đề xuất kiến trúc tối ưu. Không chạy lại inference, không sửa kết quả thô.
+- Tiêu chí hoàn thành: có báo cáo phân tích chi tiết, đầy đủ bảng số liệu đối sánh, biểu đồ luồng/cột trực quan, case study định tính và khuyến nghị kỹ thuật; cập nhật hồ sơ dự án.
+- Trạng thái: completed.
+
 ## TASK-20261018-20
 
 - Ngày tiếp nhận: 2026-10-18.
@@ -1050,3 +1058,8 @@
 - Phạm vi: opt-in evaluation_trace, pipeline → API → run-v2 → export-v2; phân biệt citation thiếu trace và danh sách rỗng thực sự.
 - Tiêu chí: API mặc định tương thích; không gửi nhãn Golden tới model; trace không đổi inference; regression HTTP localhost và scorer pass; telemetry chưa đo giữ null.
 - Trạng thái: completed. Full suite 217 tests: 212 pass, 5 skip; kiểm chứng HTTP localhost với model fixture. Không chạy model/GPU hoặc đánh giá lại Golden.
+## TASK-20261018-21 - Xác minh artifact Evaluation v2 chuyển từ máy chạy model
+
+- Yêu cầu: kiểm tra các kết quả Base/RAG vừa bổ sung vào `outputs/evaluation_v2` từ máy đã chạy chấm model.
+- Phạm vi: kiểm tra coverage, ID, hash provenance, trạng thái execution/trace, metric aggregate và dữ liệu còn thiếu; không chạy lại model hoặc sửa artifact.
+- Trạng thái: completed; hai run đều đủ 1.100/1.100 success và hash Golden/prediction khớp. Citation, token/TTFT/GPU và judgment vẫn thiếu theo chính artifact.

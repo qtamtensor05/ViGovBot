@@ -1,5 +1,18 @@
 # Lịch sử triển khai
 
+## TASK-20261018-22 — Phân tích chi tiết và đầy đủ kết quả đánh giá Base vs Base+RAG (completed)
+
+- Phân tích toàn diện 1.100 mẫu kiểm thử của `base-qwen2.5-7b-20261018-173953` và `rag-base-qwen2.5-7b-20261018-192403` từ `outputs/evaluation_v2/`.
+- Thực hiện trích xuất, tổng hợp định lượng đa chiều và đối sánh từng cặp qua script độc lập:
+  - Tỷ lệ chiến thắng: RAG thắng 87,45% (962 ca), Base thắng 4,18% (46 ca, hầu hết ở nhóm unanswerable do đặc thù n-gram overlap), Hòa 8,36% (92 ca).
+  - So sánh định lượng: SacreBLEU (2,06 lên 23,66, +1046%), BERTScore F1 (0,854 lên 0,905), Key Fact Coverage (21,38% lên 50,40%, +135,7%), CER giảm 88,5% (9,81 xuống 1,13), WER giảm 87,2% (9,95 xuống 1,27).
+  - Phân tích retrieval: Hit@1 32,5%, Hit@5 43,8%, MRR@5 0,3693, NDCG@5 0,3838, MAP@5 0,3659; Router Accuracy 99,82%, Query Rewrite Similarity 99,67%; Retrieval latency trung bình 77,38 ms.
+  - Phân tích taxonomy: Multi-intent Fact Coverage tăng từ 8,5% lên 73,0% (+64,5% tuyệt đối); Follow-up Fact Coverage tăng từ 12,5% lên 87,5%.
+  - Phân tích Unanswerable (100 ca): RAG đạt Abstention Correct 93,0%, Unsupported Answer chỉ 7,0%; giải thích rõ hiện tượng "Nghịch lý Token F1" khi Base lặp lại câu hỏi lan man khiến n-gram overlap cao giả tạo.
+  - Phân tích độ trễ: Generation latency của RAG giảm 31,3% (5.471 ms xuống 3.757 ms do trả lời súc tích); tổng độ trễ toàn trình tăng 1,45s (5.471 ms lên 6.919 ms) để đổi lại độ chính xác pháp lý vượt trội.
+- Xuất báo cáo canonical tại `docs/reports/bao-cao-danh-gia-chi-tiet-base-vs-rag-v2.md` và artifact `bao-cao-danh-gia-base-vs-rag-v2.md`.
+- Kiểm chứng: toàn bộ bảng dữ liệu khớp tuyệt đối với `results.jsonl.summary.json` và `offline_scores_v2_bertscore.json` của cả 2 run. Không có can thiệp hoặc thay đổi file đánh giá gốc.
+
 ## TASK-20261018-20 — Chuẩn bị chấm Base local (partial)
 
 - Đã cài Python 3.12.10 trong `C:\Users\ezycloudx-admin\AppData\Local\Programs\Python\Python312` và tạo `.venv` tại gốc repository. Cài editable `.[rag,evaluation,test,dev]`; `pip check` PASS, `vigov doctor` PASS, compileall `src` PASS.
@@ -1361,3 +1374,10 @@
 - Kiểm chứng: nhóm API/v2/routing/multiturn 48 tests, 47 pass/1 skip. Full suite Python 3.12 venv tạm với HF offline: 217 tests, 212 pass/5 skip (torch, tokenizer cache, dataset v4). Regression HTTP localhost chạy make_handler + ChatApplication + run-v2 + export-v2 với model fixture; route/rewrite/citation/latency tới scorer đúng, không rò nhãn Golden.
 - Ruff toàn repo, compileall, documentation checks và diff-check pass. Log: `%TEMP%/vigov-task19-full.log`. Không gọi model/GPU/benchmark mạng, không kiểm chứng Docker/deployment và không commit.
 - Chốt triển khai: diff-check và Ruff lần cuối pass. `docker compose ps --format json` không kết nối được pipe dockerDesktopLinuxEngine; chưa thể xác nhận dịch vụ Docker nạp code mới. Cần khởi động Docker rồi khởi động lại service web trước khi chạy Golden thật.
+## TASK-20261018-21 - Xác minh artifact Evaluation v2
+
+- Base run `base-qwen2.5-7b-20261018-173953` và RAG run `rag-base-qwen2.5-7b-20261018-192403` đều phủ đúng 1.100 Golden test ID, không trùng/thiếu/thừa và có 1.100 execution success.
+- Đối chiếu SHA-256 xác nhận `results.jsonl.summary.json`, `offline_scores_v2.json` và `offline_scores_v2_bertscore.json` cùng trỏ đúng Golden/prediction hiện có.
+- Base: chrF 21,4384; SacreBLEU 2,0640; BERTScore F1 0,854424. RAG: chrF 41,3178; SacreBLEU 23,6626; BERTScore F1 0,904564; MAP@5 0,365917 trên 1.000 ca relevance.
+- RAG có routing/retrieval/generation timing nhưng citation bị tắt ở 1.098 ca; token usage, TTFT, throughput, VRAM/GPU và cost đều thiếu. Không có judgment semantic/groundedness.
+- Kiểm tra chỉ đọc artifact; không inference lại. `compileall` và Git checks đạt; unit test/Ruff và JSON Schema validator không có đủ dependency trong Python hiện tại.
