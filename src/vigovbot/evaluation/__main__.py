@@ -52,7 +52,7 @@ def select_rows(rows, dataset, view, split, limit=None):
 def main(argv=None):
     configure_console()
     parser = argparse.ArgumentParser(description="Run unified ViGovBot evaluation workflows")
-    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "run-v2", "export-v2"])
+    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "run-v2", "export-v2", "score-v2-offline"])
     parser.add_argument("--dataset", type=Path, default=Path("Data/qa_test_v4/rag_tthc_v4_1"),
                         help="Dataset directory or alias: rag_v4_small, rag_tthc_three_1500, rag_tthc_v4_1")
     parser.add_argument("--question")
@@ -127,6 +127,21 @@ def main(argv=None):
             output=args.out, model_config_path=args.model_config, allow_partial=args.allow_partial,
         )
         print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "score-v2-offline":
+        missing = [name for name, value in (("--architecture", args.architecture), ("--predictions", args.predictions),
+                                             ("--out", args.out)) if not value]
+        if missing:
+            parser.error("score-v2-offline requires " + ", ".join(missing))
+        if args.split == "dev":
+            parser.error("score-v2-offline uses Golden split names train, val or test; dev is not valid")
+        from .offline_v2 import score_offline_v2
+        summary = score_offline_v2(
+            dataset=args.golden_dir, split=args.split or "test", predictions=args.predictions,
+            architecture=args.architecture, output=args.out, bertscore=args.bertscore,
+            bert_model=args.bert_model, bert_device=args.bert_device, bert_batch_size=args.bert_batch_size,
+        )
+        print(json.dumps({"output": str(args.out), "metrics": summary["metrics"]}, ensure_ascii=False, indent=2))
         return 0
     if args.command == "test":
         if not args.run_id:

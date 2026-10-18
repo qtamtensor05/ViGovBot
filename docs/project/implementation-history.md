@@ -1,5 +1,29 @@
 # Lịch sử triển khai
 
+## TASK-20261018-20 — Chuẩn bị chấm Base local (partial)
+
+- Đã cài Python 3.12.10 trong `C:\Users\ezycloudx-admin\AppData\Local\Programs\Python\Python312` và tạo `.venv` tại gốc repository. Cài editable `.[rag,evaluation,test,dev]`; `pip check` PASS, `vigov doctor` PASS, compileall `src` PASS.
+- Đã cài Ollama 0.40.5 local; process đang hoạt động tại `%LOCALAPPDATA%\Programs\Ollama\ollama.exe`. `ollama list` xác nhận chưa có model, nên chưa tải hoặc chạy model.
+- Dataset/corpus giữ nguyên: Golden `test_golden.jsonl` có 1.100 ID; corpus unified manifest ghi BGE-M3 revision `5617a9f61b028005a4858fdac845db406aefb181`, 117.871 chunk. Không có output cũ dưới `outputs/evaluation_v2`.
+- Xác minh GPU bằng `nvidia-smi`: NVIDIA GeForce RTX 5060 Ti, 16.311 MiB, driver 596.49. Torch cài từ extra RAG là `2.14.1+cpu`, nên `torch.cuda.is_available()` false; chưa có CUDA PyTorch runtime. Chấm Base qua Ollama không cần torch CUDA, còn web server vẫn sẽ tải encoder BGE-M3 nếu cache chưa có.
+- Phạm vi đổi theo người dùng: chỉ chuẩn bị và cung cấp lệnh chấm `base`; không khởi động Web Chat, không tải `qwen2.5:7b`, không gọi API, không chạy Golden hay export-v2. Không sửa source, config, Golden, corpus, cache/checkpoint hoặc commit.
+
+### Kết quả runtime do người dùng chạy sau chuẩn bị
+
+- Base `base-qwen2.5-7b-20261018-173953`: `run-v2` và `export-v2` hoàn tất 1.100/1.100 success; trace 1.0 sẵn có 1.100/1.100. Artifact nằm tại `outputs/evaluation_v2/base-qwen2.5-7b-20261018-173953/`.
+- RAG `rag-base-qwen2.5-7b-20261018-192403`: `run-v2` và `export-v2` hoàn tất 1.100/1.100 success; trace 1.0 sẵn có 1.100/1.100. Artifact nằm tại `outputs/evaluation_v2/rag-base-qwen2.5-7b-20261018-192403/`.
+- Cả hai dùng Golden test SHA-256 `5bf3606d87690e3b1625f7dc31c593d4226d4b19c79aa9cd75e31aaca102a127`; không thiếu prediction, không lỗi/timeout/OOM. Export v2 là offline, không chạy BERTScore hoặc judge.
+- Còn thiếu: BERTScore/các metric lexical mở rộng và embedding similarity (scorer v2 chưa triển khai); semantic, groundedness, claim/citation support và behavioral judgments (thiếu judgment có provenance); telemetry TTFT/token/throughput/VRAM/GPU/cost và rerank (trace trả null); citation trace (citations đang unavailable); MAP@10, sub-query và multi-intent coverage (scorer/trace chưa có đủ dữ liệu). Không được suy ra chúng từ số 0.
+
+### Chấm bổ sung offline từ prediction cache
+
+- Thêm `vigov eva score-v2-offline` tại `evaluation/offline_v2.py`; lệnh chỉ đọc Golden/prediction có hash và ghi JSON mới bằng exclusive create. Không gọi Web Chat, Ollama/Qwen hay sửa `results.jsonl` v2.
+- Contract mới tách riêng: chrF và corpus SacreBLEU (0–100), mean CER/WER trên văn bản đã normalize NFC/casefold; MAP@5 dùng binary relevance, top-5 đã lưu và mẫu số AP `min(5, known_relevant)`. Không gọi MAP@5 là MAP@10. Base là `not_applicable` cho retrieval.
+- BERTScore chạy sau đó bằng `xlm-roberta-large`, CPU, batch 8, toàn bộ 1.100 prediction/run. Base: P=0.822171, R=0.890069, F1=0.854424; RAG: P=0.901628, R=0.908594, F1=0.904564. Đây là similarity, không phải factual correctness/groundedness.
+- Metric lexical bổ sung: Base chrF=21.4384, SacreBLEU=2.0640, CER=9.8085, WER=9.9533; RAG chrF=41.3178, SacreBLEU=23.6626, CER=1.1314, WER=1.2744. RAG MAP@5=0.365917 trên 1.000 ca có relevance labels; 100 unanswerable không áp dụng.
+- Artifact mới: `outputs/evaluation_v2/base-qwen2.5-7b-20261018-173953/offline_scores_v2_bertscore.json` SHA-256 `daa24d1ae8a63fa10e407a30d27be960e3f1d2bb21731f6b4a820c35fe8bd886`; `outputs/evaluation_v2/rag-base-qwen2.5-7b-20261018-192403/offline_scores_v2_bertscore.json` SHA-256 `ea29f2a5d17438d198834adec915135e30939525e6db29866736a6f4a21e1315`.
+- PASS: 14 `tests.test_evaluation_v2`, Ruff `src/vigovbot/evaluation`/test, compileall. Không chạy full suite. `embedding_cosine_similarity` và METEOR vẫn unavailable theo contract; semantic/judgment, citations, MAP@10/sub-query/multi-intent, telemetry không thể tái tạo từ artifact hiện có.
+
 ## TASK-20261018-17 — Scoring/fingerprint/config/skills (partial)
 
 - PASS: 64 unittest thuộc test_agent_skills, test_qa_v4, test_qa_v4_review,

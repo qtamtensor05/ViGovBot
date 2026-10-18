@@ -48,6 +48,31 @@ def write_jsonl(path, rows):
 
 
 class EvaluationV2Tests(unittest.TestCase):
+    def test_supplemental_offline_scores_cached_predictions_without_inference(self):
+        from vigovbot.evaluation.offline_v2 import score_offline_v2
+
+        def bert_score(predictions, references, **kwargs):
+            self.assertEqual(predictions, ["Lệ phí 10.000 đồng."])
+            self.assertEqual(references, ["Lệ phí 10.000 đồng."])
+            self.assertEqual(kwargs["model_type"], "fixture")
+            return [0.1], [0.2], [0.3]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_jsonl(root / "test_golden.jsonl", [golden()])
+            predictions = root / "predictions.jsonl"
+            write_jsonl(predictions, [{"id": "TC_1", "answer": "Lệ phí 10.000 đồng.",
+                                       "retrieved_chunk_ids": ["chunk-1", "noise"]}])
+            output = root / "offline.json"
+            report = score_offline_v2(dataset=root, split="test", predictions=predictions,
+                                      architecture="rag_base", output=output, bertscore=True,
+                                      bert_model="fixture", bert_score_fn=bert_score)
+            output_exists = output.exists()
+        self.assertEqual(report["metrics"]["retrieval"]["map_at_5"], 1.0)
+        self.assertEqual(report["metrics"]["lexical"]["bertscore_f1"], 0.3)
+        self.assertEqual(report["metrics"]["metric_details"]["map_at_5"]["n"], 1)
+        self.assertTrue(output_exists)
+
     def test_run_v2_sends_only_question_history_and_records_trace(self):
         captured = []
 

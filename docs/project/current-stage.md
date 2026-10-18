@@ -1,3 +1,19 @@
+# TASK-20261018-20 — partial
+
+- Triển khai local không Docker và đánh giá Golden Dataset.
+- Đã xác minh: Python thực/`py`/`uv`/`ollama` chưa có trong PATH; Golden Dataset có `train_golden.jsonl` (2.200), `val_golden.jsonl` (550), `test_golden.jsonl` (1.100); `nvidia-smi` có sẵn.
+- Đã cài Python 3.14.7 và Python 3.12.10 bằng winget; Ollama installer vẫn đang hoàn tất. Đang tạo venv Python 3.12 với extras RAG/evaluation/test/dev.
+- Phạm vi đã đổi theo yêu cầu: chỉ chuẩn bị môi trường và cung cấp lệnh chấm `base`; không khởi động Web Chat, không tải model, không chạy Golden ở lượt này.
+- Hoàn tất chuẩn bị: `.venv` Python 3.12 với `.[rag,evaluation,test,dev]`; `pip check`, `vigov doctor`, compileall PASS. Ollama local chạy nhưng chưa có model. `torch 2.14.1+cpu` chưa nhìn thấy CUDA.
+- Bước tiếp: khi người dùng yêu cầu, tải `qwen2.5:7b`, chạy Web Chat localhost port 8001, preflight 1–2 mẫu và chấm đủ Golden `test` theo các lệnh trong lịch sử task.
+- Bổ sung kết quả thực tế: Base và RAG đã chạy/được export đủ 1.100 mẫu, 1.100 success mỗi run, trace v1.0 đầy đủ. Stage vẫn partial vì các metric cần telemetry, citation hoặc judgment/scorer bổ sung chưa được thu thập hay triển khai.
+- Giai đoạn mới: bổ sung scorer offline riêng cho prediction đã lưu. Mục tiêu: MAP@5 RAG (vì artifact chỉ có top-5), BERTScore và lexical mở rộng; artifact mới, không ghi đè kết quả v2 cũ và không gọi model hỏi đáp.
+- Đã hoàn tất supplemental scorer offline: chrF, SacreBLEU, CER/WER, BERTScore (`xlm-roberta-large`, CPU, batch 8) cho cả Base/RAG; MAP@5 RAG = 0,3659166667 trên 1.000 ca relevance. Artifact `offline_scores_v2_bertscore.json` nằm cạnh từng run. Không có inference mới.
+- Task partial: các metric semantic/groundedness/citation/judgment, MAP@10/sub-query/multi-intent và telemetry hiệu năng vẫn cần input hoặc trace mới nên không được tính hồi tố.
+- Không sửa Golden Dataset hoặc artifact lịch sử. Cần xác minh model, corpus vector và endpoint web trước khi chạy evaluation.
+
+## Mốc trước
+
 # TASK-20261018-19 — completed
 
 - Đã nối trace pipeline → Web Chat opt-in → run-v2 → export-v2; không đổi inference settings.

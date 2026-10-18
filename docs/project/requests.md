@@ -1,5 +1,16 @@
 # Yêu cầu dự án
 
+## TASK-20261018-20
+
+- Ngày tiếp nhận: 2026-10-18.
+- Yêu cầu: cài đặt và triển khai model hỏi đáp trực tiếp trên máy hiện tại, không dùng Docker; chạy đánh giá với Golden Dataset.
+- Phạm vi: cài Python/Ollama local, tạo môi trường RAG, chuẩn bị corpus nếu dữ liệu nguồn sẵn có, khởi động web local và chạy `run-v2`/`export-v2` trên split Golden phù hợp. Không huấn luyện lại, không sửa Golden, không chạy Docker hoặc benchmark tải cao.
+- Tiêu chí hoàn thành: runtime local phản hồi qua HTTP, model được xác minh, evaluation ghi artifact có provenance và metric; ghi rõ mọi điều kiện không thể xác minh.
+- Giả định: model mặc định `qwen2.5:7b`, cấu hình `configs/rag/inference.yaml`, và split `test` là tập đánh giá cuối.
+- Trạng thái: in_progress.
+- Bổ sung phạm vi: người dùng yêu cầu chỉ chuẩn bị môi trường và gửi lệnh chấm `base` trước; không khởi động Web Chat, không tải model và không chạy Golden trong lượt này.
+- Bổ sung phạm vi: chấm tiếp offline từ prediction Base/RAG đã có; thêm MAP@5 (không suy diễn MAP@10) và các metric lexical/BERTScore khả dụng. Không chạy lại inference hoặc ghi đè artifact đã xuất.
+
 ## TASK-20261015-13
 
 - Ngày tiếp nhận: 2026-10-15.
