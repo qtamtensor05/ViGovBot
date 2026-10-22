@@ -1,5 +1,13 @@
 # Yêu cầu dự án
 
+## TASK-20261022-02
+
+- Yêu cầu: thêm profile Golden SFT train/validation mới; test tùy chọn khi training.
+- Phạm vi: schema, loader, chuẩn bị training, readiness/evaluation và test hồi quy.
+- Tiêu chí: hai split chạy được qua preflight dữ liệu; profile ba split và resume giữ tương thích.
+- Trạng thái: completed. 12 test pass; profile đọc đúng 2.200 train/550 validation.
+  Không chạy training GPU hoặc sửa dataset.
+
 ## TASK-20261018-22
 
 - Ngày tiếp nhận: 2026-10-18.
@@ -1063,3 +1071,9 @@
 - Yêu cầu: kiểm tra các kết quả Base/RAG vừa bổ sung vào `outputs/evaluation_v2` từ máy đã chạy chấm model.
 - Phạm vi: kiểm tra coverage, ID, hash provenance, trạng thái execution/trace, metric aggregate và dữ liệu còn thiếu; không chạy lại model hoặc sửa artifact.
 - Trạng thái: completed; hai run đều đủ 1.100/1.100 success và hash Golden/prediction khớp. Citation, token/TTFT/GPU và judgment vẫn thiếu theo chính artifact.
+## TASK-20261022-01 — Chuyển Golden train/val sang SFT
+
+- Ngày: 2026-10-22 (Asia/Saigon). Trạng thái: completed.
+- Yêu cầu: tạo train_sft (2.200) và validation_sft (550), ánh xạ nguyên văn history + question → expected_answer; giữ ID/thứ tự/Unicode và mọi ca unanswerable.
+- Phạm vi: converter canonical, CLI, unit test, kiểm chứng artifact và hồ sơ. Không tạo test_sft, sửa Golden/config training, chạy model/GPU hoặc commit/push.
+- Tiêu chí: validator training, mapping toàn bộ, deterministic bytes, thống kê/overlap, SHA-256 nguồn trước/sau, Ruff, compileall, documentation và diff-check.

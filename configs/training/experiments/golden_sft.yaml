@@ -1,0 +1,7 @@
+extends: ../base.yaml
+data:
+  splits:
+    train: Data/golden_dataset_sft/train_sft.jsonl
+    validation: Data/golden_dataset_sft/validation_sft.jsonl
+    # Explicitly clear the inherited legacy test split.
+    test: null

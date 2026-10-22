@@ -21,7 +21,7 @@ def check_readiness(config_path: str | Path, output: str | Path | None = None) -
     paths = dataset_paths(config)
     missing = [f"{name}: {path}" for name, path in paths.items() if not path.is_file()]
     checks.append({"name": "datasets", "status": "PASS" if not missing else "FAIL",
-                   "detail": "train/validation/test present" if not missing else "; ".join(missing)})
+                   "detail": f"configured splits present: {', '.join(paths)}" if not missing else "; ".join(missing)})
     expected = {"loss", "eval_loss", "learning_rate", "grad_norm", "global_step", "epoch",
                 "timestamp_utc", "gpu_allocated_bytes", "gpu_reserved_bytes"}
     absent = expected - QLoRAControlCallback.EVENT_FIELDS

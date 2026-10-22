@@ -70,7 +70,13 @@ def evaluate(run_dir: str | Path, split: str = "test", limit: int | None = None)
     config = load_config(root / "config.yaml")
     if split not in ("validation", "test"):
         raise ValueError("Independent evaluation supports validation or test only")
-    records = read_jsonl(dataset_paths(config)[split])
+    paths = dataset_paths(config)
+    if split not in paths:
+        raise ValueError(
+            f"Split '{split}' is not configured for this run. "
+            "Use validation for SFT evaluation, or vigov eva for Golden test evaluation."
+        )
+    records = read_jsonl(paths[split])
     if limit: records = records[:limit]
     if config.evaluation is None:
         raise ValueError("evaluation settings are required")

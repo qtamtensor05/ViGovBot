@@ -1,4 +1,27 @@
-# TASK-20261018-22 — completed analysis
+# TASK-20261022-02 — completed
+
+- Đã thêm profile Golden SFT và test tùy chọn trong schema/loader/training.
+- 12 test PASS: hai/ba split, evaluator, launch với GPU fixture, resume/hash/snapshot và tài liệu.
+- Profile đọc đúng 2.200 train/550 validation; Ruff, compileall và diff-check PASS.
+- Python host thiếu pydantic; dùng venv tạm có sẵn `vigov-sft-check` để kiểm thử.
+- Không chạy GPU/model/tokenizer. Bước tiếp theo: kiểm tra token length và GPU smoke khi chuẩn bị train.
+- Không còn việc triển khai trong phạm vi hai chỉnh sửa; giữ nguyên dataset/config base và thay đổi người dùng.
+
+## Mốc trước
+
+# TASK-20261022-01 — completed
+
+- Đã tạo `Data/golden_dataset_sft/train_sft.jsonl` (2.200) và `validation_sft.jsonl` (550), CLI `vigov data golden-to-sft`.
+- Train: 2.167 single-turn, 33 follow-up, 200 unanswerable. Validation: 546 single-turn, 4 follow-up, 50 unanswerable.
+- Mapping/ID/thứ tự/Unicode, validator training và deterministic bytes PASS toàn bộ. SHA-256 cả ba Golden trước/sau không đổi.
+- Exact overlap train/validation: ID=0, conversation=0, prompt history+question=0; question-only=2 (câu follow-up chung, giữ nguyên).
+- 14/14 test converter/schema/documentation, Ruff, compileall và git diff --check PASS. Không chạy model/GPU, không sửa config, không tạo test_sft.
+- Artifact thuộc Data đang bị Git ignore theo quy tắc sẵn có; không tự force-add. Không commit/push. Không còn bước triển khai; near-duplicate/model/tokenizer không kiểm chứng trong task.
+- Hướng dẫn tái tạo: `docs/guides/training.md`; bằng chứng/hash/lệnh: `docs/project/implementation-history.md`.
+
+## Mốc trước
+
+# TASK-20261018-22 - completed analysis
 
 - Đã triển khai phân tích chi tiết, đầy đủ và chuyên sâu toàn bộ kết quả đánh giá 2 mô hình `base-qwen2.5-7b-20261018-173953` và `rag-base-qwen2.5-7b-20261018-192403` trong thư mục `outputs/evaluation_v2/`.
 - Hoàn thành báo cáo phân tích toàn diện tại `docs/reports/bao-cao-danh-gia-chi-tiet-base-vs-rag-v2.md` và artifact `bao-cao-danh-gia-base-vs-rag-v2.md`.

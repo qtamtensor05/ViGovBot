@@ -1,5 +1,12 @@
 # Nhật ký vấp ngã
 
+## ERR-20261022-02 — Môi trường kiểm thử thiếu dependency
+
+- Task: TASK-20261022-02. Python 3.12 và 3.14 host báo ModuleNotFoundError: pydantic.
+- Tạo venv tạm `vigovbot-golden-sft-tests-20261022`; lượt pip tải Ruff chậm.
+- Tìm được venv tạm có sẵn `vigov-sft-check`, chạy 12 test và Ruff thành công.
+- Không cài dependency vào môi trường host; lần sau kiểm tra venv tạm trước khi tạo mới.
+
 ## ERR-20261018-17 — Discovery và môi trường regression thiếu dependency
 
 - TASK-20261018-17: test 16 skills phát hiện description project-structure dài
@@ -995,3 +1002,10 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Lần apply_patch sửa heading dùng context thiếu phần tiêu đề nên không khớp; sửa bằng heading đầy đủ. Không thay đổi source trong lần patch thất bại.
 - Regression chức năng không có lỗi; kiểm tra diff cuối được chạy lại.
 - Kiểm tra runtime: `docker compose ps --format json` trả exit 1, pipe dockerDesktopLinuxEngine không tồn tại. Docker daemon chưa sẵn sàng; không tuyên bố runtime/deployment đã được kiểm chứng. Kiểm chứng HTTP localhost với model fixture vẫn pass.
+## ERR-20261022-01 — TASK-20261022-01: môi trường kiểm chứng thiếu dependency
+
+- Python 3.14 hệ thống thiếu typer và filelock; `python -m unittest tests.test_golden_sft -v` lỗi import filelock, chưa chạy test logic.
+- `.venv/Scripts/python.exe` và venv task cũ không có executable. Tạo venv riêng `%TEMP%/vigov-sft-check` bằng Python 3.12, cài dependency nhẹ cho validator/CLI/Ruff; không cài model stack.
+- Bổ sung guard dependency trong test theo convention repository để discovery tối giản skip đúng; kiểm chứng thực dùng venv đầy đủ, kết quả ghi tại implementation-history.
+- Lỗi công cụ đọc ban đầu: PowerShell profile cảnh báo PSReadLine và encoding; chuyển `login=false`, đọc UTF-8. `rg tests/test*` không hợp lệ trên Windows, chuyển tìm trong directory `tests`. Không thay đổi dữ liệu do các lỗi này.
+- Lượt `git diff --check` đầu phát hiện dòng trống EOF trong bốn tài liệu; loại dòng trống thừa và kiểm tra lại trước bàn giao.

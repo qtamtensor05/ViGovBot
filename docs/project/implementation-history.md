@@ -1,5 +1,21 @@
 # Lịch sử triển khai
 
+## TASK-20261022-02 — Golden SFT hai split (completed)
+
+- Thêm `configs/training/experiments/golden_sft.yaml`: kế thừa base, chọn
+  train/validation mới và `test: null` để xóa đường dẫn test kế thừa.
+- Schema chấp nhận test bỏ qua/null; dataset_paths lọc null, train chỉ đọc test
+  khi có cấu hình. control_cli/validate_data dùng chung loader nên hỗ trợ hai split.
+- Readiness hiển thị split thực tế; evaluator báo lỗi rõ khi yêu cầu test chưa cấu hình.
+- Hash/snapshot giữ nguyên hợp đồng ba split; resume từ bộ cũ bị chặn theo config/hash.
+- Kiểm chứng bằng Python trong `%TEMP%/vigov-sft-check`: unittest
+  `tests.test_optional_training_test tests.test_training_schema tests.test_documentation
+  tests.test_qlora_audit.ResumeAndStoppingTests.test_resume_rejects_config_or_dataset_drift`:
+  12/12 PASS. Ruff trên 5 module sửa và test mới PASS; compileall, git diff --check PASS.
+- Đọc artifact qua config/validator thật: train=2.200, validation=550, không có test.
+- Không sửa dataset, base config hoặc checkpoint. GPU/model/tokenizer NOT RUN;
+  launch dùng fixture CUDA, không suy diễn thành GPU readiness. Hướng dẫn ở `docs/guides/training.md`.
+
 ## TASK-20261018-22 — Phân tích chi tiết và đầy đủ kết quả đánh giá Base vs Base+RAG (completed)
 
 - Phân tích toàn diện 1.100 mẫu kiểm thử của `base-qwen2.5-7b-20261018-173953` và `rag-base-qwen2.5-7b-20261018-192403` từ `outputs/evaluation_v2/`.
@@ -1381,3 +1397,35 @@
 - Base: chrF 21,4384; SacreBLEU 2,0640; BERTScore F1 0,854424. RAG: chrF 41,3178; SacreBLEU 23,6626; BERTScore F1 0,904564; MAP@5 0,365917 trên 1.000 ca relevance.
 - RAG có routing/retrieval/generation timing nhưng citation bị tắt ở 1.098 ca; token usage, TTFT, throughput, VRAM/GPU và cost đều thiếu. Không có judgment semantic/groundedness.
 - Kiểm tra chỉ đọc artifact; không inference lại. `compileall` và Git checks đạt; unit test/Ruff và JSON Schema validator không có đủ dependency trong Python hiện tại.
+
+## TASK-20261022-01 — Golden train/validation → SFT (2026-10-22)
+
+- Thêm `src/vigovbot/training/golden_sft.py`, dùng reader JSONL chung và validator `training/data.py`; thêm CLI `vigov data golden-to-sft` tại `cli/main.py`. Tài liệu: `docs/guides/training.md`.
+- Chỉ ánh xạ ID/history/question/expected_answer, không chuẩn hóa chuỗi; giữ mọi unanswerable. Kiểm tra hai split trước ghi, báo file/dòng/ID khi lỗi, chặn ID trùng và bảo vệ artifact có nội dung khác. UTF-8, ensure_ascii=False, newline LF cuối file, tái tạo byte giống nhau.
+- Tạo train_sft.jsonl: 2.200 mẫu, 2.167 single-turn / 33 follow-up / 200 unanswerable; validation_sft.jsonl: 550 mẫu, 546 single-turn / 4 follow-up / 50 unanswerable. Không loại/cân bằng mẫu.
+- Mapping tuyệt đối và thứ tự ID trên 2.750 mẫu PASS; đọc toàn bộ bằng `training.data.read_jsonl` PASS. Không trùng ID hoặc toàn conversation trong mỗi split.
+- Exact overlap (không normalize): ID=0, toàn messages=0, prompt history+question=0, question cuối=2 chuỗi. Hai câu “Nếu nộp trực tiếp thì thời hạn và phí thế nào?” (14 train/2 val) và “Nếu nộp trực tuyến thì thời hạn và phí thế nào?” (15 train/2 val) có history khác; không loại dữ liệu. Question duplicate nội bộ: train 3 nhóm/30 bản dư, validation 2 nhóm/2 bản dư.
+- Chạy helper `.agents/skills/dataset-validation/scripts/validate_dataset.py` qua hàm validate trên projection question/split tạm vì helper không đọc schema messages: 2.750 record, 0 lỗi, 34 bản dư trên tập gộp, 2 câu giao split sau casefold/chuẩn hóa whitespace. Phân biệt kiểm tra chuẩn hóa này với exact nguyên văn bên trên. Không chạy near-duplicate.
+- Kiểm chứng bằng Python 3.12 trong `%TEMP%/vigov-sft-check`, PYTHONPATH=src, PYTHONUTF8=1. Không cài model stack.
+- PASS: `python -m unittest tests.test_golden_sft tests.test_training_schema tests.test_documentation -v` (14/14 PASS: 8 converter, 5 training schema, 1 documentation).
+- PASS: `python %TEMP%/vigov-sft-verify.py`: gọi CLI thật bằng Typer CliRunner, assert count/ID/mapping/schema, hash trước/sau, không test_sft và tái tạo vào thư mục tạm để so byte. Report tạm `%TEMP%/vigov-sft-verify.json`.
+- PASS: `python -m ruff check src/vigovbot/training/golden_sft.py src/vigovbot/cli/main.py tests/test_golden_sft.py`; `python -m compileall -q` trên ba file này.
+- Lượt test đầu trên Python hệ thống FAIL vì thiếu filelock; đã xử lý môi trường (ERR-20261022-01). Lượt diff-check đầu FAIL vì dòng trống EOF tài liệu, đã xóa.
+- SKIPPED theo phạm vi: near-duplicate, tokenizer, training/inference/GPU/model download/benchmark, full suite không liên quan. Không tuyên bố chất lượng mô hình từ kiểm chứng dữ liệu.
+- Golden source/config training không sửa; test chỉ được đọc bytes để hash, không dùng chuyển đổi/training/validation. Không tạo test_sft. Data bị Git ignore theo quy tắc hiện có; artifact có trên đĩa, không force-add, không commit/push.
+- Giữ thay đổi chưa commit ban đầu của người dùng tại current-stage (dấu gạch tiêu đề TASK-20261018-22).
+
+SHA-256 nguồn trước = sau:
+
+- `test_golden.jsonl`: `5bf3606d87690e3b1625f7dc31c593d4226d4b19c79aa9cd75e31aaca102a127`
+- `train_golden.jsonl`: `e68a3fa29cbad31a0d83ba5b4b7fe79e561a3dd88157ae51968dbbbb2c1a70fa`
+- `val_golden.jsonl`: `ef0602251f67b4336b52690e8322d11127973b161c54e7f8f0efacf0ffa17589`
+
+SHA-256 artifact:
+
+- `train`: `c38649aa644be6dd97c26757cbe8acc3f91fdba86f37cd6eb584cb5dfcad7e0d`
+- `validation`: `fdf7cfb5d22ee944055adaaf1aa54ed3eb48f2ada6f8165cdb2c12d32f60a05a`
+
+Đề xuất commit: `feat(data): convert Golden train and validation to lossless SFT`
+
+- Chốt: `git diff --check` PASS; `git status --short` gồm 6 file sửa và 2 file code/test mới, không có Golden/config trong diff. Hai artifact SFT tồn tại nhưng bị ignore; thay đổi ban đầu của người dùng vẫn được giữ.

@@ -155,8 +155,9 @@ def train(config: TrainingConfig, approve: bool, resume: str | None = None, run_
 def _prepare_training_data(config: TrainingConfig, resume, run_id):
     paths = dataset_paths(config)
     train_records, validation_records = read_jsonl(paths["train"]), read_jsonl(paths["validation"])
-    source_counts = {"train": len(train_records), "validation": len(validation_records),
-                     "test": len(read_jsonl(paths["test"]))}
+    source_counts = {"train": len(train_records), "validation": len(validation_records)}
+    if "test" in paths:
+        source_counts["test"] = len(read_jsonl(paths["test"]))
     smoke_limit = (config.execution.max_samples if config.execution else None)
     if smoke_limit:
         train_records, validation_records = train_records[:smoke_limit], validation_records[:max(1, smoke_limit // 2)]

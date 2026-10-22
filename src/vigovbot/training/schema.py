@@ -24,7 +24,7 @@ class ModelSettings(StrictModel):
 class Splits(StrictModel):
     train: str = Field(min_length=1)
     validation: str = Field(min_length=1)
-    test: str = Field(min_length=1)
+    test: str | None = Field(default=None, min_length=1)
 
 
 class DataSettings(StrictModel):

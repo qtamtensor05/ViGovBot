@@ -94,6 +94,21 @@ def data_check(config: Path = typer.Option(Path("configs/training/base.yaml"), "
     _module("vigovbot.training.validate_data", *args)
 
 
+@data_app.command("golden-to-sft")
+def golden_to_sft(
+    source_dir: Path = typer.Option(Path("Data/golden_dataset"), "--source-dir"),
+    output_dir: Path = typer.Option(Path("Data/golden_dataset_sft"), "--output-dir"),
+) -> None:
+    """Convert Golden train/val to lossless SFT JSONL without reading test."""
+    from vigovbot.training.golden_sft import convert_golden
+
+    try:
+        report = convert_golden(_path(source_dir), _path(output_dir))
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(json.dumps(report, ensure_ascii=False))
+
+
 @data_app.command("stats")
 def data_stats(config: Path = typer.Option(Path("configs/training/base.yaml"), "--config")) -> None:
     """Print record counts and file sizes without loading a tokenizer or model."""

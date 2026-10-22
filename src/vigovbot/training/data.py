@@ -136,7 +136,8 @@ def analyze_splits(splits: dict[str, list[dict]], near_threshold: float = 0.92) 
 
 def dataset_paths(config: TrainingConfig) -> dict[str, Path]:
     from vigovbot.training.config import resolve_path
-    return {name: resolve_path(config, value) for name, value in config.data.splits.model_dump().items()}
+    return {name: resolve_path(config, value)
+            for name, value in config.data.splits.model_dump(exclude_none=True).items()}
 
 
 def iter_text(records: Iterable[dict]) -> Iterable[str]:
