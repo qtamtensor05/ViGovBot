@@ -68,6 +68,7 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
     action = evidence = None
     generation_diagnostics = {"attempts": 1, "validation_errors": []}
     citations = []
+    citations_status = "validated_references_not_semantic_support" if citation_ids is not None else "disabled"
     def parse_generation(text):
         parsed = parse_answer(text, require_evidence=routing_enabled)
         from vigovbot.rag.routing import parse_citations
@@ -97,5 +98,16 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
             except ValueError as retry_exc:
                 generation_diagnostics["validation_errors"].append(str(retry_exc))
                 generation_diagnostics["retry_text"] = answer[:2000]
-                raise StructuredAnswerError(generation_diagnostics) from retry_exc
-    return answer, raw, generation_s, action, evidence, generation_diagnostics, citations, citation_ids
+                # A citation-format failure is a measured citation failure, not a reason to
+                # discard an otherwise valid answer and all of its runtime trace.
+                try:
+                    answer, action, evidence = parse_answer(answer, require_evidence=routing_enabled)
+                except ValueError:
+                    raise StructuredAnswerError(generation_diagnostics) from retry_exc
+                if "Citation" not in str(retry_exc) and "citation" not in str(retry_exc):
+                    raise StructuredAnswerError(generation_diagnostics) from retry_exc
+                citations = []
+                citations_status = "invalid_model_output"
+                generation_diagnostics["citation_fallback"] = "invalid_after_retry"
+    return (answer, raw, generation_s, action, evidence, generation_diagnostics,
+            citations, citation_ids, citations_status)

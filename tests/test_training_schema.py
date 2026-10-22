@@ -19,6 +19,15 @@ class TrainingSchemaTests(unittest.TestCase):
             with self.subTest(path=str(path)):
                 self.assertIsInstance(load_config(path), TrainingConfig)
 
+    def test_v100_throughput_profile_keeps_effective_batch(self):
+        config = load_config("configs/training/environments/v100_32gb_golden_sft.yaml")
+        self.assertEqual(config.training.per_device_train_batch_size * config.training.gradient_accumulation_steps, 8)
+        self.assertEqual(config.training.per_device_eval_batch_size, 4)
+        self.assertFalse(config.training.gradient_checkpointing)
+        self.assertEqual(config.training.dataloader_num_workers, 4)
+        self.assertTrue(config.training.dataloader_pin_memory)
+        self.assertTrue(config.training.dataloader_persistent_workers)
+
     def test_experimental_models_need_explicit_opt_in(self):
         with patch.dict("os.environ", {}, clear=True):
             for name in ("Qwen/Qwen2.5-1.5B-Instruct", "Qwen/Qwen2.5-14B-Instruct", "custom/PhoGPT", "custom/Llama-3"):
@@ -40,6 +49,10 @@ class TrainingSchemaTests(unittest.TestCase):
                            "lora.target_modules=[q_proj,q_proj]", "execution.max_steps=0"):
             with self.subTest(override=expression), self.assertRaises(ValidationError):
                 load_config("configs/training/base.yaml", [expression])
+
+    def test_persistent_workers_require_worker_processes(self):
+        with self.assertRaisesRegex(ValidationError, "Persistent dataloader workers"):
+            load_config("configs/training/base.yaml", ["training.dataloader_persistent_workers=true"])
 
     def test_snapshot_preserves_omitted_defaults_and_private_paths(self):
         import tempfile

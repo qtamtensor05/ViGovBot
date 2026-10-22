@@ -133,7 +133,7 @@ def load_config(path):
         config.evaluation.baseline_summary_path = (path.parent / config.evaluation.baseline_summary_path).resolve()
     for model in config.web.models:
         if model.adapter_path is not None:
-            override = os.environ.get("QLORA_ADAPTER_PATH") if model.mode == "qlora" else None
+            override = os.environ.get("QLORA_ADAPTER_PATH") if model.provider == "local_transformers" else None
             if override:
                 model.adapter_path = Path(override).expanduser().resolve()
             else:

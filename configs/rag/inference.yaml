@@ -5,7 +5,7 @@ data:
 embedding:
   model: BAAI/bge-m3
   revision: null  # Resolved from the verified corpus manifest.
-  device: cpu
+  device: cuda  # V100 32 GB can keep the query encoder beside quantized Qwen.
 llm:
   model: qwen2.5:7b
   ollama_url: &ollama_url http://localhost:11434
@@ -30,6 +30,17 @@ web:
       model: Qwen/Qwen2.5-7B-Instruct
       base_url: local
       mode: qlora
+      adapter_path: ../../outputs/qlora/best_adapter
+      load_in_4bit: true
+      allow_multiple_models: false
+      cpu_offload: false
+      force_single_gpu: true
+    - id: qwen-qlora-rag
+      label: Qwen 2.5 7B + QLoRA + RAG
+      provider: local_transformers
+      model: Qwen/Qwen2.5-7B-Instruct
+      base_url: local
+      mode: rag
       adapter_path: ../../outputs/qlora/best_adapter
       load_in_4bit: true
       allow_multiple_models: false

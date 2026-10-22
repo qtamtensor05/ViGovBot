@@ -184,6 +184,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     answer_fn = answer_fn or ollama_answer
     started = time.perf_counter()
     routing_enabled = settings.get("routing_enabled", True)
+    sub_queries, sub_retrieval = None, None
     route, routing_raw, routing_s, routing_tokens, routing_attempts, fallback_reason = resolve_route(
         question, history, tokenizer, settings, answer_fn, routing_enabled)
 
@@ -192,6 +193,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
             "actual_route": {"no_context": "rag_search", "out_of_scope": "out_of_scope",
                              "ambiguous_question": "clarify", "routing_fallback": "routing_error"}.get(reason),
             "prediction": text, "action": action, "decision_reason": reason,
+            "actual_sub_queries": sub_queries, "sub_query_retrieval": sub_retrieval,
+            "retrieval_top_k": settings["top_k"],
             "routing": route, "routing_s": routing_s, "routing_prompt_tokens_estimated": routing_tokens,
             "routing_attempts": routing_attempts, "fallback_reason": fallback_reason,
             "raw_routing": routing_raw, "retrieval_query": None if not hits else retrieval_query,
@@ -268,7 +271,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         result["retrieval_query"] = retrieval_query
         result["rewrite_s"] = rewrite_s
         return result
-    answer, raw, generation_s, action, evidence, generation_diagnostics, citations, citation_ids = generate_answer(
+    (answer, raw, generation_s, action, evidence, generation_diagnostics,
+     citations, citation_ids, citations_status) = generate_answer(
         messages, used, tokenizer, settings, answer_fn, structured, routing_enabled)
     return {
         "actual_route": "rag_search",
@@ -278,7 +282,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         "rewrite_s": rewrite_s,
         "prediction": answer,
         "citations": citations,
-        "citations_status": "validated_references_not_semantic_support" if citation_ids is not None else "disabled",
+        "citations_status": citations_status,
         "generation_diagnostics": generation_diagnostics,
         "action": action,
         "routing": route,

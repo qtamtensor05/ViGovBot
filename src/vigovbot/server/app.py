@@ -17,13 +17,27 @@ from vigovbot.server.providers import answerer_for
 
 LOG = logging.getLogger(__name__)
 MAX_BODY_BYTES = 1_000_000
+EVALUATION_COMPLETE_VERSION = 2
+EVALUATION_COMPLETE_CAPABILITIES = {
+    "automatic_complete_trace": True,
+    "retrieval_top_k_10": True,
+    "sub_query_retrieval": True,
+    "claim_citations": True,
+    "provider_call_token_usage": True,
+    "provider_call_ttft": True,
+    "provider_call_latency": True,
+    "provider_call_gpu_samples": True,
+    "runtime_identity": True,
+    "noise_replay": True,
+    "gpu_release_before_offline_scoring": True,
+}
 
 
 def evaluation_trace(result, mode):
     """Expose measured evaluation fields only; never expose raw provider replies."""
     citation_status = result.get("citations_status", "unavailable")
     citations = result.get("citations")
-    available = (citation_status == "validated_references_not_semantic_support"
+    available = (citation_status in {"validated_references_not_semantic_support", "invalid_model_output"}
                  and isinstance(citations, list))
     raw = result.get("raw_ollama") or {}
     prompt_tokens, completion_tokens = raw.get("prompt_eval_count"), raw.get("eval_count")
@@ -55,7 +69,7 @@ def evaluation_trace(result, mode):
             "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
             "total_tokens": prompt_tokens + completion_tokens if isinstance(prompt_tokens, int) and isinstance(completion_tokens, int) else None,
             "generation_tokens_per_second": completion_tokens / (duration / 1e9) if isinstance(duration, (int, float)) and duration > 0 and isinstance(completion_tokens, int) else None,
-            "peak_allocated_vram_gb": None, "peak_reserved_vram_gb": None,
+            "peak_allocated_vram_gb": raw.get("peak_allocated_vram_gb"), "peak_reserved_vram_gb": raw.get("peak_reserved_vram_gb"),
             "gpu_utilization_percent": None, "cost_usd": None,
         },
         "mode": mode,
@@ -98,6 +112,31 @@ class ChatApplication:
             for item in self.models.values()
         ]
 
+    def evaluation_identity(self):
+        from vigovbot.rag.pipeline import source_fingerprint
+        from vigovbot.artifacts import file_hash
+        from pathlib import Path
+        import requests
+        models = {}
+        for mid, model in self.models.items():
+            if model.provider == "ollama":
+                reply = requests.get(model.base_url.rstrip("/") + "/api/tags", timeout=20)
+                reply.raise_for_status()
+                match = next((m for m in reply.json().get("models", []) if m["name"] == model.model), None)
+                models[mid] = {"digest": match.get("digest") if match else None, "provider": model.provider}
+            elif model.provider == "local_transformers" and model.adapter_path:
+                from huggingface_hub import snapshot_download
+                snapshot = Path(snapshot_download(model.model, local_files_only=True))
+                root = Path(model.adapter_path)
+                models[mid] = {"provider": model.provider, "base_model": model.model,
+                               "base_snapshot_commit": snapshot.name,
+                               "adapter_files": {p.name: file_hash(p) for p in sorted(root.glob("*")) if p.is_file()}}
+            else:
+                models[mid] = {"provider": model.provider, "identity_status": "unverifiable"}
+            models[mid]["settings"] = model.model_dump(mode="json", exclude={"api_key_env"})
+        return {"source_sha256": source_fingerprint(), "retrieval": getattr(self.retriever, "evaluation_identity", None),
+                "models": models, "settings": self.config.inference_settings()}
+
     def _settings(self, model):
         settings = self.config.inference_settings()
         settings["model"] = model.model
@@ -135,10 +174,33 @@ class ChatApplication:
                     seen.add(key)
         self._active_provider = provider
 
+    def release_models(self):
+        """Release generation weights after capture so offline scorers own the GPU."""
+        from vigovbot.training.inference import release_local_transformers_models
+        from vigovbot.llm.llm_client import unload_model
+
+        release_local_transformers_models()
+        released = []
+        seen = set()
+        for model in self.models.values():
+            if model.provider != "ollama":
+                continue
+            key = (model.base_url, model.model)
+            if key in seen:
+                continue
+            unload_model(*key)
+            seen.add(key)
+            released.append(model.id)
+        self._active_provider = None
+        return {"status": "released", "models": released}
+
     def chat(self, payload):
         if not isinstance(payload, dict):
             raise ValueError("Dữ liệu gửi lên phải là một JSON object")
         trace_requested = payload.get("evaluation_trace", False)
+        complete_requested = payload.get("evaluation_complete", False)
+        if type(complete_requested) is not bool:
+            raise ValueError("evaluation_complete must be boolean")
         if type(trace_requested) is not bool:
             raise ValueError("evaluation_trace must be a boolean")
         question = payload.get("question")
@@ -167,7 +229,44 @@ class ChatApplication:
                         self._switch_provider(model)
                     answer_fn = answerer_for(model.provider)
                     settings = self._settings(model)
-                    if mode in {"base", "qlora"}:
+                    if complete_requested:
+                        settings.update(measure_ttft=True, top_k=10, citations_enabled=True, decompose_queries=True)
+                    calls = []
+                    provider_answer = answer_fn
+                    def measured_answer(messages, call_settings):
+                        from .gpu_metrics import GPUSampler
+                        with GPUSampler() as gpu:
+                            answer, raw, elapsed = provider_answer(messages, call_settings)
+                        raw = raw or {}
+                        calls.append({"latency_seconds": elapsed, "model": call_settings.get("model"),
+                                      "prompt_tokens": raw.get("prompt_eval_count"), "completion_tokens": raw.get("eval_count"),
+                                      "ttft_seconds": raw.get("ttft_seconds"), "eval_duration_ns": raw.get("eval_duration"),
+                                      "finish_reason": raw.get("done_reason"), "gpu": gpu.report(),
+                                      "peak_allocated_vram_gb": raw.get("peak_allocated_vram_gb"),
+                                      "peak_reserved_vram_gb": raw.get("peak_reserved_vram_gb"),
+                                      "messages": messages, "response_format": call_settings.get("response_format")})
+                        return answer, raw, elapsed
+                    if complete_requested:
+                        answer_fn = measured_answer
+                    replay = payload.get("evaluation_replay")
+                    if replay is not None:
+                        if not complete_requested or not isinstance(replay, dict):
+                            raise ValueError("Replay requires complete evaluation")
+                        messages = replay.get("messages")
+                        if not isinstance(messages, list) or any(not isinstance(m, dict) or m.get("role") not in {"system", "user", "assistant"} or not isinstance(m.get("content"), str) for m in messages):
+                            raise ValueError("Invalid replay messages")
+                        if len(self.tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True)) > settings["num_ctx"] - settings["num_predict"] - 256:
+                            raise ValueError("Noise prompt exceeds budget; clean context must not be truncated")
+                        settings["response_format"] = replay.get("response_format")
+                        answer, raw, generation_s = answer_fn(messages, settings)
+                        action = evidence = None
+                        if settings["response_format"]:
+                            from vigovbot.rag.routing import parse_answer
+                            answer, action, evidence = parse_answer(answer, require_evidence=True)
+                        result = {"prediction": answer, "action": action, "evidence_status": evidence,
+                                  "raw_ollama": raw, "generation_s": generation_s, "latency_s": generation_s,
+                                  "context_used": replay.get("context_used", [])}
+                    elif mode in {"base", "qlora"}:
                         started = time.perf_counter()
                         messages = [
                             *clean_histories[model_id],
@@ -201,6 +300,9 @@ class ChatApplication:
                     }
                     if trace_requested:
                         public_result["evaluation_trace"] = evaluation_trace(result, mode)
+                        public_result["evaluation_trace"]["provider_calls"] = calls
+                        public_result["evaluation_trace"]["effective_settings"] = {
+                            key: settings.get(key) for key in ("model", "top_k", "measure_ttft", "citations_enabled", "decompose_queries", "num_ctx", "num_predict", "seed", "temperature")}
                     if mode == "rag":
                         route = result.get("routing") or {}
                         public_result["routing_diagnostics"] = {
@@ -248,13 +350,34 @@ def make_handler(app):
                 self.end_headers()
                 self.wfile.write(index)
             elif self.path == "/api/health":
-                self.send_json(200, {"status": "ok"})
+                self.send_json(200, {
+                    "status": "ok",
+                    "evaluation_complete_version": EVALUATION_COMPLETE_VERSION,
+                    "evaluation_complete_capabilities": EVALUATION_COMPLETE_CAPABILITIES,
+                })
             elif self.path == "/api/models":
                 self.send_json(200, {"models": app.public_models()})
+            elif self.path == "/api/evaluation-identity":
+                try:
+                    self.send_json(200, app.evaluation_identity())
+                except Exception:
+                    self.send_json(503, {"error": "Evaluation identity unavailable"})
+            elif self.path == "/api/evaluation-gpu":
+                from .gpu_metrics import GPUSampler
+                collector = GPUSampler()
+                collector.collect()
+                self.send_json(200, collector.report())
             else:
                 self.send_json(404, {"error": "Không tìm thấy đường dẫn"})
 
         def do_POST(self):
+            if self.path == "/api/evaluation-release":
+                try:
+                    self.send_json(200, app.release_models())
+                except Exception:
+                    LOG.exception("Khong the giai phong model evaluation")
+                    self.send_json(500, {"error": "Evaluation model release failed"})
+                return
             if self.path != "/api/chat":
                 self.send_json(404, {"error": "Không tìm thấy đường dẫn"})
                 return

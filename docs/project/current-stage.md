@@ -1,4 +1,37 @@
+# TASK-20261023-04 - completed source, chờ người dùng chạy container
+
+- Đã bổ sung profile `qwen-qlora-rag`, adapter override chung, CLI `noise-v2`
+  để capture nhiễu và `score-noise-v2` để tổng hợp robustness offline.
+- Không chạy model, train hoặc benchmark trong lượt triển khai; người dùng sẽ
+  gọi lệnh trên container V100.
+
+## Mốc trước
+
+# TASK-20261023-02 — completed, complete-v2 tự khóa đủ trace
+
+- `complete-v2` tự bật complete trace và yêu cầu web capability version 2: top-10, sub-query retrieval, citation, token, TTFT, latency, GPU samples, runtime identity và noise replay.
+- Thiếu bất kỳ capability nào thì dừng trước inference. Không cần chỉnh YAML hoặc nhớ cờ thủ công.
+- Đã đồng bộ lên `/workspace/ViGovBot`; remote 26 test PASS, Ruff PASS, compileall PASS. Không chạy model/evaluation.
+
+## Mốc trước
+# TASK-20261023-01 — triển khai V100 đã kiểm chứng, chưa chạy model
+
+- Source, Golden train/validation và Golden evaluation đã được triển khai tại `/workspace/ViGovBot`; không truyền `.env`, checkpoint, cache hoặc vector index.
+- Container dùng Python 3.11.17 trong `.venv-v100`, PyTorch 2.9.1+cu128; CUDA nhận Tesla V100-SXM2-32GB, SM70. Readiness `READY`, 2.200 train và 550 validation hợp lệ.
+- Kiểm chứng remote: 41 test PASS, Ruff PASS, compileall PASS. Không tải model weights, không chạy smoke/train/evaluation/judge.
+- Còn điều kiện vận hành có chủ đích: lần chạy model đầu sẽ tải tokenizer/weights; RAG cần đồng bộ `Data/vector/unified`; complete-v2 cần web service và Ollama judge model do người dùng chọn.
+- Lệnh kích hoạt dùng `export PATH="/workspace/ViGovBot/.venv-v100/bin:$PATH"`; người dùng chủ động gọi smoke trước full training.
+
+## Mốc trước
+
 # TASK-20261022-03 — triển khai mở rộng, kiểm chứng offline
+
+- Mốc bổ sung mới nhất: METEOR exact-Vietnamese/cosine, GPU sampling device-wide, local Transformers token/TTFT/allocator peaks, identity endpoint và resume khóa digest/config/index, noise replay có nhãn và paired scoring đã được nối complete-v2.
+- Resume retry chỉ ca prediction lỗi, giữ backup lỗi; human riêng. Preflight chặn collector/dependency/judge thiếu trước inference. Chưa chạy model benchmark theo yêu cầu.
+- Kiểm chứng cuối: 63 test offline PASS, gồm schema/docs, preflight thiếu GPU không inference, cosine/METEOR fixture, resume và noise replay; Ruff/compileall/diff-check PASS. Giới hạn có chủ đích: allocator Ollama/cost không có nguồn đo; noise không áp dụng ca không có distractor; exact METEOR không dùng tài nguyên synonym tiếng Anh.
+
+- Mốc mới: complete-v2 điều phối prediction → judge resume → supplemental (thêm chrF++) → export; complete.json tổng hợp hai nhóm metric. Capability preflight, complete trace opt-in và provider_calls được lưu.
+- Prediction resume và judge hash-bound giữ kết quả cũ; 58 test liên quan PASS trước mốc cập nhật cuối. Human riêng. Chưa hoàn thiện METEOR/cosine, hardware collectors, controlled noise; không cam kết toàn bộ schema có số.
 
 - Đã nối judge-v2 → export-v2 --judgments; claim extraction, sub-query/mapping, MAP@10, citation IDs, TTFT/token usage Ollama và human pairwise.
 - Schema result v2 mở rộng tương thích, hướng dẫn: docs/guides/evaluation-extended.md. Config bật tính năng theo hướng dẫn trên máy chạy, giữ mặc định hiện tại.
@@ -8,7 +41,6 @@
 - Bước tiếp theo: người dùng chạy inference và judge trên máy cấu hình cao theo hướng dẫn; kiểm tra chất lượng judge trước khi công bố metric.
 
 ## Mốc trước
-
 # TASK-20261022-02 — completed
 
 - Đã thêm profile Golden SFT và test tùy chọn trong schema/loader/training.
@@ -134,3 +166,21 @@
 - Docker Desktop đang tắt nên không chạy test container; kiểm chứng dùng môi
   trường `uv` tạm. Không chạy model, GPU hoặc benchmark.
 - [Lịch sử triển khai](implementation-history.md) · [Stage archive](stage-history-20261018.md).
+# TASK-20261023-03 — completed, profile throughput đã đồng bộ
+
+- Container đo thực tế: V100-SXM2 32 GB P0/300 W, 10 vCPU, 94 GiB RAM, còn 79 GB disk.
+- Training: batch 2, eval batch 4, accumulation 4, checkpointing tắt, 4 worker pinned/persistent; effective batch vẫn 8.
+- Evaluation: query encoder CUDA, BERTScore mặc định batch 16, complete-v2 tự giải phóng generation/judge trước offline GPU scoring.
+- Remote: 48 test PASS, Ruff PASS, compileall PASS, config hiệu lực đã kiểm tra. Không chạy smoke/train/evaluation nên throughput và peak VRAM thực tế chưa đo.
+
+# TASK-20261023-05 - partial, chờ test và resume Base + RAG trên container
+
+- Runtime container xác nhận 21 lỗi đều là `HTTP 502`; web health OK, Ollama và
+  GPU hoạt động. Log gốc: citation không tham chiếu exact answer span sau retry.
+- Đang giữ contract structured answer nhưng chuyển lỗi thuần citation thành
+  prediction thành công có `citations_status=invalid_model_output`; ca thành
+  công cũ sẽ được giữ bởi `run-v2 --resume`.
+- Local Ruff, compileall và diff-check PASS; chưa kiểm chứng runtime/model sau
+  bản vá. Cần đồng bộ 6 file source/test, restart web rồi chạy test tập trung.
+
+## Mốc trước

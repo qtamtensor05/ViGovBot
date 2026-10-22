@@ -118,6 +118,7 @@ class EvaluationV2Tests(unittest.TestCase):
             ({"citations": [], "web_model_id": "qwen-rag"}, None),
             ({}, None),
             ({"citations": [], "citations_status": "validated_references_not_semantic_support"}, 0.0),
+            ({"citations": [], "citations_status": "invalid_model_output"}, 0.0),
             ({"citations": [{"source_id": "chunk-1"}]}, 1.0),
         ]
         for fields, expected in variants:
@@ -317,6 +318,16 @@ class EvaluationV2Tests(unittest.TestCase):
             ]), 0)
         runner.assert_called_once()
         self.assertEqual(runner.call_args.kwargs["model_id"], None)
+        self.assertEqual(runner.call_args.kwargs["endpoint"], "http://localhost:8001/api/chat")
+
+    def test_cli_noise_v2_routes_to_resumable_noise_runner(self):
+        with patch("vigovbot.evaluation.noise.run_noise", return_value={"TC_1": "cached"}) as runner:
+            self.assertEqual(evaluation_main([
+                "noise-v2", "--model-id", "qwen-rag", "--predictions", "predictions.jsonl",
+                "--out", "noise-predictions.jsonl",
+            ]), 0)
+        runner.assert_called_once()
+        self.assertEqual(runner.call_args.kwargs["model_id"], "qwen-rag")
         self.assertEqual(runner.call_args.kwargs["endpoint"], "http://localhost:8001/api/chat")
 
 

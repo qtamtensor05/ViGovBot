@@ -1014,3 +1014,29 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - TASK-20261022-03: host Python thiếu filelock, test validator lỗi do eager import v2. Chuyển import loader vào hàm runtime để validator kiểm thử độc lập; runtime vẫn cần dependency evaluation.
 - GET localhost:11434/api/tags timeout sau 3 giây. Chưa xác định daemon tắt hay phản hồi chậm; chưa chạy judge.
 - Bổ sung: đường dẫn venv task18 không có executable; dùng vigov-sft-check. Cài requests/sacrebleu/jsonschema vào venv kiểm thử. Sửa import normalization, depth null guard và dấu đóng JSON qua regression. Test config CLI cần faiss chưa chạy trong venv này.
+# ERR-20261023-01 — Không có kênh xác thực SSH non-interactive
+
+- TASK-20261023-01. TCP tới SSH port thành công; `ssh -o BatchMode=yes` bị từ chối publickey/password.
+- SCP qua unified exec chờ password nhưng công cụ không cung cấp prompt an toàn; đã dừng session, không thử lặp password từ ảnh và không tạo file chứa secret.
+- Cần password được cung cấp dạng text cho phiên tạm hoặc public key được container chấp nhận. Sau đó tiếp tục từ archive đã chuẩn bị, không chạy lại phần local.
+- Đã giải quyết bằng helper Paramiko đọc password qua `getpass`/stdin, không lưu credential. Hai lỗi triển khai tiếp theo đã được khắc phục: Python hệ thống 3.10 không thỏa NumPy khóa phiên bản, và Conda env không có `bin/activate`; setup hiện tự tạo Python 3.11 và thêm env `bin` vào PATH.
+- Lần verify đầu có 1/41 lỗi do thiếu `jsonschema`; bổ sung dependency test, cài lại và verify lần cuối 41/41 PASS.
+# ERR-20261023-02 — Venv local thiếu FAISS khi regression throughput
+
+- TASK-20261023-03: bộ 48 test local dừng tại `test_retrieval_batches_sql_and_preserves_faiss_rank` với `ModuleNotFoundError: faiss`; 47 ca trước đó đạt và 1 ca skip.
+- Nguyên nhân là venv `%TEMP%/vigov-sft-check` không có `faiss-cpu`, không phải lỗi logic của thay đổi throughput. Không cài thêm vào host; kiểm chứng lại bộ tương ứng trên container đã có dependency đầy đủ.
+# ERR-20261023-04 - Base + RAG trả 502 khi citation sai sau retry
+
+- Task: `TASK-20261023-05`.
+- Triệu chứng: capture dừng sau khoảng 36 ca với 21 dòng lỗi
+  `HTTPError: HTTP Error 502: Bad Gateway`.
+- Bằng chứng runtime: health version 2 vẫn OK; Ollama `qwen2.5:7b` trên GPU;
+  server log báo `Citation must refer to used context and an exact answer span`
+  ở cả generation đầu và retry, sau đó `StructuredAnswerError`.
+- Nguyên nhân xác nhận: citation validator đang gộp lỗi citation với lỗi toàn bộ
+  structured answer, khiến answer/action/evidence hợp lệ cũng bị bỏ và API trả
+  502. `BrokenPipeError` xuất hiện sau khi client ngắt, chỉ là hậu quả.
+- Cách sửa: retry vẫn giữ nguyên; sau retry chỉ fallback nếu `parse_answer` hợp
+  lệ và lỗi còn lại là citation. Ghi `invalid_model_output`, citation rỗng và
+  invalid-citation rate 1 thay vì biến thành missing input.
+- Trạng thái kiểm chứng: đang chờ test và runtime resume trên container.

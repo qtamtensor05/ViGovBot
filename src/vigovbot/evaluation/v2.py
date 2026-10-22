@@ -17,7 +17,12 @@ from vigovbot.artifacts import file_hash as _sha256
 from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
 ARCHITECTURES = {"base", "finetuned", "rag_base", "rag_finetuned"}
-DEFAULT_WEB_MODELS = {"base": "qwen-base", "finetuned": "qwen-qlora", "rag_base": "qwen-rag"}
+DEFAULT_WEB_MODELS = {
+    "base": "qwen-base",
+    "finetuned": "qwen-qlora",
+    "rag_base": "qwen-rag",
+    "rag_finetuned": "qwen-qlora-rag",
+}
 OFFLINE_SCORER_VERSION = "2"
 REFERENCE_KEYS = [
     "exact_match", "normalized_exact_match", "token_precision", "token_recall", "token_f1",
@@ -160,7 +165,7 @@ def _post_json(endpoint: str, payload: dict, timeout: float) -> dict:
 
 def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit: int | None = None,
            endpoint: str = "http://localhost:8001/api/chat", model_id: str | None = None,
-           timeout: float = 300, post_json=None) -> dict:
+           timeout: float = 300, post_json=None, resume=False, complete_trace=False) -> dict:
     """Run selected Golden questions through an existing web endpoint without exposing gold labels."""
     if architecture not in ARCHITECTURES:
         raise ValueError(f"Unsupported architecture_type: {architecture}")
@@ -181,8 +186,30 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
     started_at = datetime.now().astimezone()
     progress_started = time.perf_counter()
     last_progress = progress_started
-    with output.open("x", encoding="utf-8") as handle:
+    from .review import fingerprint
+    run_identity = fingerprint({"cases": selected, "model": model_id, "endpoint": endpoint,
+                                "architecture": architecture, "complete_trace": complete_trace})
+    cached = {}
+    if resume and output.exists():
+        cached, _ = load_predictions(output)
+        if any(p.get("run_identity") != run_identity for p in cached.values()):
+            raise ValueError("Resume requires matching dataset, model, endpoint and trace contract")
+        if any(p.get("execution_status") != "success" for p in cached.values()):
+            import shutil
+            import os
+            backup = Path(str(output) + ".failed-attempt-" + datetime.now().strftime("%Y%m%d%H%M%S%f"))
+            shutil.copy2(output, backup)
+            cached = {cid: p for cid, p in cached.items() if p.get("execution_status") == "success"}
+            temporary = Path(str(output) + ".retry-tmp")
+            with temporary.open("x", encoding="utf-8") as pending:
+                for row in cached.values():
+                    pending.write(json.dumps(row, ensure_ascii=False) + "\n")
+            os.replace(temporary, output)
+    with output.open("a" if resume else "x", encoding="utf-8") as handle:
         for index, golden in enumerate(selected, 1):
+            if golden["test_id"] in cached:
+                counts[cached[golden["test_id"]]["execution_status"]] += 1
+                continue
             # Intentionally exclude ground_truth, taxonomy and all evaluation labels.
             payload = {
                 "question": golden["input"]["question"],
@@ -190,6 +217,8 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
                 "histories": {model_id: golden["input"].get("chat_history") or []},
                 "evaluation_trace": True,
             }
+            if complete_trace:
+                payload["evaluation_complete"] = True
             started = time.perf_counter()
             try:
                 response = send(endpoint, payload, timeout)
@@ -221,7 +250,7 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
                     prediction["evaluation_trace"] = trace
                     for key in ("actual_route", "routing", "retrieval_query", "decision_reason",
                                 "evidence_status", "context_used", "citations", "citations_status", "telemetry",
-                                "actual_sub_queries", "sub_query_retrieval", "retrieval_top_k", "finish_reason"):
+                                "actual_sub_queries", "sub_query_retrieval", "retrieval_top_k", "finish_reason", "provider_calls", "effective_settings"):
                         if key in trace:
                             prediction[key] = trace[key]
                 counts["success"] += 1
@@ -235,6 +264,7 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
                     "web_model_id": model_id, "evaluation_trace_status": "unavailable",
                 }
                 counts["error"] += 1
+            prediction["run_identity"] = run_identity
             trace_counts[prediction["evaluation_trace_status"]] += 1
             handle.write(json.dumps(prediction, ensure_ascii=False, allow_nan=False) + "\n")
             handle.flush()
@@ -471,8 +501,9 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
         citation_hits = len(expected_sources & actual_sources)
         generation["citation_precision"] = citation_hits / len(actual_sources) if actual_sources else 0.0
         generation["citation_recall"] = citation_hits / len(expected_sources)
-        generation["invalid_citation_rate"] = (len(actual_sources - expected_sources) / len(actual_sources)
-                                                   if actual_sources else 0.0)
+        generation["invalid_citation_rate"] = (1.0 if citation_status == "invalid_model_output" else
+                                                   (len(actual_sources - expected_sources) / len(actual_sources)
+                                                    if actual_sources else 0.0))
         computed.update({"citation_precision", "citation_recall", "invalid_citation_rate"})
     elif not expected_sources:
         not_applicable.update({"citation_precision", "citation_recall", "invalid_citation_rate"})
@@ -517,6 +548,8 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
                 "finish_reason": prediction.get("finish_reason"),
             },
             "performance": performance,
+            "provider_calls": prediction.get("provider_calls", []),
+            "effective_settings": prediction.get("effective_settings"),
             "execution_status": execution_status,
         },
         "evaluation_results": {

@@ -35,6 +35,17 @@ def application(models):
 
 
 class RuntimeSafetyTests(unittest.TestCase):
+    def test_release_models_frees_both_local_and_ollama_backends(self):
+        app = application([model("ollama-model", provider="ollama")])
+        app._active_provider = "ollama"
+        with patch("vigovbot.training.inference.release_local_transformers_models") as release_local, \
+                patch("vigovbot.llm.llm_client.unload_model") as unload:
+            result = app.release_models()
+        release_local.assert_called_once_with()
+        unload.assert_called_once_with("http://unused", "ollama-model")
+        self.assertEqual(result, {"status": "released", "models": ["ollama-model"]})
+        self.assertIsNone(app._active_provider)
+
     def test_remote_requests_overlap_without_changing_gpu_owner(self):
         app = application([model("remote")])
         app._active_provider = "local_transformers"

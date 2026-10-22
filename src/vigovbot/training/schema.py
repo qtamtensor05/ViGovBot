@@ -59,6 +59,9 @@ class TrainerSettings(StrictModel):
     warmup_ratio: float = Field(ge=0, le=1)
     max_grad_norm: float = Field(gt=0)
     gradient_checkpointing: bool
+    dataloader_num_workers: int = Field(default=0, ge=0)
+    dataloader_pin_memory: bool = True
+    dataloader_persistent_workers: bool = False
     optim: Literal["paged_adamw_8bit"]
     seed: int
     logging_steps: int = Field(gt=0)
@@ -145,4 +148,6 @@ class TrainingConfig(StrictModel):
             raise ValueError("Evaluation and checkpoint cadence must align")
         if self.early_stopping.enabled and not self.training.load_best_model_at_end:
             raise ValueError("Early stopping requires load_best_model_at_end=true")
+        if self.training.dataloader_persistent_workers and self.training.dataloader_num_workers == 0:
+            raise ValueError("Persistent dataloader workers require dataloader_num_workers > 0")
         return self

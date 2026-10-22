@@ -1437,3 +1437,52 @@ SHA-256 artifact:
 - Bổ sung: TTFT streaming Ollama, token usage final-call, citation source/claim ID, decomposition/RRF và mapping, MAP@10 có depth gate, scorer sub-query exact-normalized, judge claim extraction và merge hash-bound, pairwise human packet/score, schema mở rộng và hướng dẫn evaluation-extended.md.
 - Config mới opt-in; action giữ enum năm nhãn hiện tại. GPU/VRAM/cost không có telemetry vẫn null. Không chạy model hoặc judge; người dùng chạy ở máy cấu hình cao.
 - Kiểm chứng cuối: 57 tests PASS (evaluation v2, judge, extended/schema, documentation, server, routing providers, conversation routing); Ruff PASS; compileall PASS; diff-check PASS. Chưa test rag_config_cli do thiếu faiss; không chạy GPU/model.
+- Bổ sung complete-v2, run-v2 --resume/--complete-trace, judge --resume, chrF++, provider call ledger, context judge guard, rubric error polarity và capability preflight. Test resume xác nhận không gọi lại model cho prediction đã lưu. Kết quả cuối cập nhật stage; không chạy inference.
+- Bổ sung lần cuối: exact METEOR (identity stem/no synonyms), cosine SentenceTransformer, GPU nvidia-smi collector, PyTorch allocator peaks/token/TTFT, runtime identity source/config/Ollama digest/adapter/base snapshot/index/corpus, noise replay fixed prompt + labeled distractors và paired correctness. Retry ca lỗi với backup, không inference lại ca thành công.
+- Regression mới: units GPU và scope, noise giữ prompt/bỏ gold answer/resume, retry chỉ ca lỗi. 61 tests offline PASS; Ruff PASS. Không chạy model/GPU/judge thực; mọi đo GPU ở test là fixture.
+- Chốt bổ sung: 63 tests PASS sau thêm scorer extended fixture và preflight không gọi inference khi GPU không đo được. Đây là kiểm chứng code/fixture, không xác nhận chất lượng model hay benchmark hardware.
+# TASK-20261023-01 — Chuẩn bị triển khai V100 thuê
+
+- Thêm profile `v100_32gb_golden_sft.yaml` dùng FP16 cho SM70 và smoke profile 4 step riêng.
+- Thêm script Linux setup/verify, không tự chạy train/evaluation; thêm hướng dẫn lệnh người dùng chủ động chạy và lưu ý vector RAG 6,8 GB.
+- Đóng gói source + Golden data thành archive 2,3 MB; kiểm tra không có `.env`, outputs hoặc Data/vector. Không chép secret/checkpoint/cache.
+- SSH TCP pass nhưng BatchMode/key fail `Permission denied`; SCP non-interactive không có credential channel. Chưa thay đổi container.
+- Kiểm chứng local: 14 test PASS; Ruff PASS; config resolve ra float16/train Golden/test null; diff-check PASS. Linux/CUDA/container NOT VERIFIED.
+- Đã triển khai thật vào `/workspace/ViGovBot`: Conda Python 3.11.17, PyTorch 2.9.1+cu128, CUDA/V100 SM70 nhận đủ 32 GB; dataset report xác nhận 2.200 train và 550 validation, readiness `READY`.
+- Sửa setup tương thích image chỉ có Python 3.10: tự tạo môi trường Conda Python 3.11 và dùng PATH trực tiếp thay vì giả định có `bin/activate`. Thêm `jsonschema` vào test extra theo import thực tế.
+- Kiểm chứng remote cuối: 41 test PASS, Ruff PASS, compileall PASS. Không tải model weights và không chạy smoke/train/evaluation/judge. RAG vector và Ollama judge vẫn là dependency vận hành riêng.
+# TASK-20261023-02 — Khóa complete-v2 tự đủ trace
+
+- Health endpoint công bố capability contract version 2 cho complete trace: top-10, sub-query retrieval, citation, token/TTFT/latency, GPU samples, runtime identity và noise replay.
+- `complete-v2` kiểm tra toàn bộ capability trước GPU/judge/identity và trước prediction đầu tiên; server cũ hoặc thiếu trường bị từ chối, không cần người dùng chỉnh YAML.
+- Đã đồng bộ ba file source/test lên container V100. Kiểm chứng local và remote: 26 test PASS, Ruff PASS, compileall PASS; không chạy model/evaluation.
+# TASK-20261023-03 — Tối ưu throughput V100 32 GB
+
+- Profile V100 đổi train batch 1→2, eval batch 1→4, accumulation 8→4, giữ effective batch 8; tắt gradient checkpointing và dùng 4 dataloader worker với pinned/persistent memory.
+- RAG query encoder chuyển CPU→CUDA. BERTScore mặc định batch 16. Web thêm endpoint release model; complete-v2 tự unload generation/judge sau mọi inference và trước BERTScore/cosine để tái sử dụng VRAM.
+- Đồng bộ source/config lên container. Remote 48 test PASS, Ruff PASS, compileall PASS; config resolve đúng batch 2/eval 4/accum 4/effective 8/checkpoint false/workers 4. Local focused 15 test PASS; full local có 1 lỗi môi trường thiếu FAISS đã ghi journal.
+- Không chạy model nên chưa tuyên bố tốc độ/peak VRAM thực đo; smoke profile kế thừa đúng cấu hình full và là gate trước full training.
+# TASK-20261023-04 - Tách capture bốn cấu hình trước khi chấm
+
+- Thêm web profile `qwen-qlora-rag`: cùng base/adapter local Transformers với
+  QLoRA thuần nhưng chạy qua retrieval/prompt/context RAG.
+- `QLORA_ADAPTER_PATH` giờ khóa đồng thời hai profile QLoRA, tránh đánh giá nhầm
+  adapter. `rag_finetuned` có default model ID `qwen-qlora-rag`.
+- Thêm `noise-v2` resume độc lập để toàn bộ inference sạch/nhiễu được thu trong
+  pha prediction; thêm `score-noise-v2` chỉ đọc judgment sạch/nhiễu và ghi report
+  kèm SHA-256. Human/pairwise vẫn tách riêng.
+- Kiểm chứng local: Ruff PASS; compileall PASS; `git diff --check` PASS. Pytest
+  chưa chạy local vì các venv hiện có thiếu pytest/filelock; cần chạy bộ test
+  tập trung bằng `.venv-v100` trên container sau khi đồng bộ source. Không chạy
+  model, train hoặc evaluation.
+# TASK-20261023-05 - Giữ answer khi chỉ citation sai sau retry
+
+- Tách lỗi citation khỏi lỗi structured answer cốt lõi: vẫn retry như cũ; chỉ
+  khi answer/action/evidence của retry hợp lệ mới giữ prediction và đánh dấu
+  `citations_status=invalid_model_output`. JSON/action/evidence sai vẫn thất bại.
+- Trace công khai citation rỗng có trạng thái lỗi; scorer tính citation recall 0
+  và invalid-citation rate 1, không biến lỗi quan sát được thành missing input.
+- Không đổi prompt/retrieval/generation cho các ca đã thành công, nên resume giữ
+  chúng và chỉ chạy lại 21 ca 502. Thêm regression test cho fallback và metric.
+- Kiểm chứng local: Ruff PASS, compileall PASS, `git diff --check` PASS. Pytest và
+  HTTP/model runtime chờ chạy trên `.venv-v100` sau khi đồng bộ.

@@ -52,7 +52,10 @@ def select_rows(rows, dataset, view, split, limit=None):
 def main(argv=None):
     configure_console()
     parser = argparse.ArgumentParser(description="Run unified ViGovBot evaluation workflows")
-    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "run-v2", "export-v2", "score-v2-offline", "judge-v2", "pairwise-v2"])
+    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "run-v2", "noise-v2", "score-noise-v2", "export-v2", "score-v2-offline", "judge-v2", "pairwise-v2", "complete-v2"])
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--complete-trace", action="store_true")
+    parser.add_argument("--extended-metrics", action="store_true", help="Offline Vietnamese exact METEOR and sentence embedding cosine")
     parser.add_argument("--other-predictions", type=Path)
     parser.add_argument("--judge-model", help="Explicit installed Ollama judge model name")
     parser.add_argument("--judge-endpoint", default="http://localhost:11434")
@@ -100,8 +103,38 @@ def main(argv=None):
     bert_options.add_argument('--bert-cache', type=Path, help='Validated per-case BERT cache bound to input fingerprint')
     parser.add_argument('--bert-model', default='xlm-roberta-large')
     parser.add_argument('--bert-device', default='cpu')
-    parser.add_argument('--bert-batch-size', type=int, default=1)
+    parser.add_argument('--bert-batch-size', type=int, default=16)
     args = parser.parse_args(argv)
+    if args.command == "noise-v2":
+        if not args.predictions or not args.out or not args.model_id or args.split == "dev":
+            parser.error("noise-v2 requires --predictions, --out and --model-id")
+        from .noise import run_noise
+        statuses = run_noise(
+            dataset=args.golden_dir, split=args.split or "test", predictions=args.predictions,
+            output=args.out, endpoint=args.endpoint or "http://localhost:8001/api/chat",
+            model_id=args.model_id,
+        )
+        counts = {status: list(statuses.values()).count(status) for status in sorted(set(statuses.values()))}
+        print(json.dumps({"output": str(args.out), "case_status": counts}, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "score-noise-v2":
+        if not args.judgments or not args.other_predictions or not args.out:
+            parser.error("score-noise-v2 requires --judgments, --other-predictions and --out")
+        from .noise import score_noise
+        print(json.dumps(score_noise(
+            clean_judgments=args.judgments, noise_judgments=args.other_predictions, output=args.out,
+        ), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "complete-v2":
+        if not args.architecture or not args.out or not args.judge_model or args.split == "dev":
+            parser.error("complete-v2 requires --architecture, --out and --judge-model")
+        from .complete import complete
+        print(json.dumps(complete(dataset=args.golden_dir, split=args.split or "test", architecture=args.architecture,
+                                  output=args.out, model_id=args.model_id, judge_model=args.judge_model,
+                                  endpoint=args.endpoint or "http://localhost:8001/api/chat", judge_endpoint=args.judge_endpoint,
+                                  bert_model=args.bert_model, bert_device=args.bert_device,
+                                  bert_batch_size=args.bert_batch_size), ensure_ascii=False, indent=2))
+        return 0
     if args.command == "pairwise-v2":
         if not args.predictions or not args.other_predictions or not args.out or args.split == "dev":
             parser.error("pairwise-v2 requires two predictions and --out")
@@ -116,7 +149,8 @@ def main(argv=None):
         print(json.dumps(judge(dataset=args.golden_dir, split=args.split or "test",
                                predictions=args.predictions, output=args.out,
                                model=args.judge_model, endpoint=args.judge_endpoint,
-                               limit=args.limit), ensure_ascii=False, indent=2))
+                               limit=args.limit, resume=args.resume,
+                               allow_partial=args.allow_partial), ensure_ascii=False, indent=2))
         return 0
     if args.command == "run-v2":
         missing = [name for name, value in (("--architecture", args.architecture), ("--out", args.out)) if not value]
@@ -128,7 +162,7 @@ def main(argv=None):
         report = run_v2(
             dataset=args.golden_dir, split=args.split or "test", architecture=args.architecture,
             output=args.out, limit=args.limit, endpoint=args.endpoint or "http://localhost:8001/api/chat",
-            model_id=args.model_id, timeout=args.timeout,
+            model_id=args.model_id, timeout=args.timeout, resume=args.resume, complete_trace=args.complete_trace,
         )
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return int(report["execution_status"].get("error", 0) > 0)
@@ -160,6 +194,7 @@ def main(argv=None):
             dataset=args.golden_dir, split=args.split or "test", predictions=args.predictions,
             architecture=args.architecture, output=args.out, bertscore=args.bertscore,
             bert_model=args.bert_model, bert_device=args.bert_device, bert_batch_size=args.bert_batch_size,
+            extended=args.extended_metrics,
         )
         print(json.dumps({"output": str(args.out), "metrics": summary["metrics"]}, ensure_ascii=False, indent=2))
         return 0

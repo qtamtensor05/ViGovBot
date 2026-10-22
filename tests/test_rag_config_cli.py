@@ -77,13 +77,13 @@ class ConfigTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         with patch.dict(os.environ, {}, clear=True):
             config = load_config(root / "configs/rag/inference.yaml")
-            adapter = next(m for m in config.web.models if m.mode == "qlora")
-            self.assertEqual(adapter.adapter_path, root / "outputs/qlora/best_adapter")
+            adapters = [m for m in config.web.models if m.adapter_path is not None]
+            self.assertEqual(len(adapters), 2)
+            self.assertTrue(all(m.adapter_path == root / "outputs/qlora/best_adapter" for m in adapters))
         with patch.dict(os.environ, {"QLORA_ADAPTER_PATH": "custom-adapter"}):
             config = load_config(root / "configs/rag/inference.yaml")
-            adapter = next(m for m in config.web.models if m.mode == "qlora")
-            self.assertEqual(adapter.adapter_path, Path("custom-adapter").resolve())
-            self.assertTrue(all(m.adapter_path is None for m in config.web.models if m.mode != "qlora"))
+            adapters = [m for m in config.web.models if m.adapter_path is not None]
+            self.assertTrue(all(m.adapter_path == Path("custom-adapter").resolve() for m in adapters))
 
     def test_config_rejects_typos_and_invalid_budget(self):
         data = {"unified_source": "unified.zip", "dataset_path": "qa.jsonl"}

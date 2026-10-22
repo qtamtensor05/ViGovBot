@@ -76,11 +76,34 @@ def local_transformers_answer(messages, settings):
             model_inputs = {"input_ids": encoded.to(model.device)}
             prompt_length = model_inputs["input_ids"].shape[-1]
         started = time.perf_counter()
+        measure = settings.get("measure_ttft", False)
+        class FirstToken:
+            def __init__(self):
+                self.prompt = True
+                self.seconds = None
+            def put(self, value):
+                if self.prompt:
+                    self.prompt = False
+                elif self.seconds is None:
+                    self.seconds = time.perf_counter() - started
+            def end(self):
+                pass
+        first = FirstToken()
+        devices = list(range(torch.cuda.device_count())) if measure and torch.cuda.is_available() else []
+        for device in devices:
+            torch.cuda.reset_peak_memory_stats(device)
         with torch.inference_mode():
             output = model.generate(**model_inputs, max_new_tokens=settings["num_predict"], temperature=settings.get("temperature", 0.0),
-                                    do_sample=settings.get("temperature", 0.0) > 0)
+                                    do_sample=settings.get("temperature", 0.0) > 0,
+                                    **({"streamer": first} if measure else {}))
         answer = tokenizer.decode(output[0, prompt_length:], skip_special_tokens=True).strip()
-        return answer, {"provider": "local_transformers", "adapter_path": settings.get("adapter_path")}, time.perf_counter() - started
+        elapsed = time.perf_counter() - started
+        raw = {"provider": "local_transformers", "adapter_path": settings.get("adapter_path"),
+               "prompt_eval_count": prompt_length, "eval_count": int(output.shape[-1] - prompt_length),
+               "eval_duration": elapsed * 1e9, "ttft_seconds": first.seconds,
+               "peak_allocated_vram_gb": sum(torch.cuda.max_memory_allocated(d) for d in devices) / 2**30 if devices else None,
+               "peak_reserved_vram_gb": sum(torch.cuda.max_memory_reserved(d) for d in devices) / 2**30 if devices else None}
+        return answer, raw, elapsed
 
 
 def local_transformers_batch_answer(messages_batch, settings):

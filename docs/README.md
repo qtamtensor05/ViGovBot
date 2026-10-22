@@ -11,6 +11,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [Môi trường thực thi và khả năng tái lập](setup/environments.md)
 - [Thiết lập GPU cho QLoRA](setup/gpu-setup.md)
 - [Chạy ViGovBot bằng Docker Desktop](setup/docker.md)
+- [Triển khai container Tesla V100 32 GB](setup/remote-v100.md)
 - [Quy trình đóng góp](../CONTRIBUTING.md)
 
 ## Kiến trúc và migration

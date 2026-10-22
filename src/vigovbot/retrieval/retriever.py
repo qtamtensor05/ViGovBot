@@ -8,6 +8,8 @@ from pathlib import Path
 class Retriever:
     def __init__(self, index_path, db_path, encoder):
         import faiss
+        from vigovbot.artifacts import file_hash
+        self.evaluation_identity = {"index_sha256": file_hash(Path(index_path)), "corpus_sha256": file_hash(Path(db_path))}
 
         with Path(index_path).open("rb") as handle:
             self.index = faiss.read_index(faiss.PyCallbackIOReader(handle.read))

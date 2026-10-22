@@ -35,6 +35,19 @@ class RoutingTests(unittest.TestCase):
         schema = llm.call_args_list[-1].args[1]['response_format']
         self.assertIn('citations', schema['anyOf'][0]['required'])
 
+    def test_invalid_citations_after_retry_keep_answer_as_measured_failure(self):
+        self.settings['citations_enabled'] = True
+        invalid = json.dumps({
+            'answer': 'Phí 0 đồng', 'action': 'answer', 'evidence_status': 'sufficient',
+            'citations': [{'chunk_id': 'c1', 'claim': 'claim không nằm trong answer'}],
+        })
+        result, llm = self.run_answer([route(), invalid, invalid])
+        self.assertEqual(result['prediction'], 'Phí 0 đồng')
+        self.assertEqual(result['citations'], [])
+        self.assertEqual(result['citations_status'], 'invalid_model_output')
+        self.assertEqual(result['generation_diagnostics']['citation_fallback'], 'invalid_after_retry')
+        self.assertEqual(llm.call_count, 3)
+
     def setUp(self):
         self.settings = dict(top_k=5, num_ctx=8192, num_predict=512, max_chunk_tokens=1200)
         self.history = [{"role": "user", "content": "OLD_TOPIC: giấy khai sinh"},

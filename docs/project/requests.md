@@ -23,7 +23,7 @@
 - Phạm vi: cài Python/Ollama local, tạo môi trường RAG, chuẩn bị corpus nếu dữ liệu nguồn sẵn có, khởi động web local và chạy `run-v2`/`export-v2` trên split Golden phù hợp. Không huấn luyện lại, không sửa Golden, không chạy Docker hoặc benchmark tải cao.
 - Tiêu chí hoàn thành: runtime local phản hồi qua HTTP, model được xác minh, evaluation ghi artifact có provenance và metric; ghi rõ mọi điều kiện không thể xác minh.
 - Giả định: model mặc định `qwen2.5:7b`, cấu hình `configs/rag/inference.yaml`, và split `test` là tập đánh giá cuối.
-- Trạng thái: in_progress.
+- Trạng thái: completed; đã đồng bộ và kiểm chứng trên container, chưa chạy model.
 - Bổ sung phạm vi: người dùng yêu cầu chỉ chuẩn bị môi trường và gửi lệnh chấm `base` trước; không khởi động Web Chat, không tải model và không chạy Golden trong lượt này.
 - Bổ sung phạm vi: chấm tiếp offline từ prediction Base/RAG đã có; thêm MAP@5 (không suy diễn MAP@10) và các metric lexical/BERTScore khả dụng. Không chạy lại inference hoặc ghi đè artifact đã xuất.
 
@@ -355,8 +355,7 @@
 - Yêu cầu: thực hiện theo thứ tự các bước hoàn thiện đánh giá RAG, AI duyệt dựa trên Data/pdf gốc.
 - Phạm vi: single_1500; duyệt nguồn/case, mapping retrieval, CLI metric, chấm ngữ nghĩa, provenance/citations và cấu hình so sánh baseline/RAG/oracle.
 - Tiêu chí: artifact duyệt truy vết được; không nhầm AI review với human gold; metric có mẫu số và mapping kiểm chứng; test và tài liệu tái lập; chạy phần khả thi, nêu rõ phần cần runtime model.
-- Trạng thái: in_progress.
-
+- Trạng thái: completed; đã đồng bộ và kiểm chứng source/config, chưa chạy model.
 ## TASK-20261005-01
 
 - Yêu cầu: đánh giá hai kết quả mới multi và cover đã lưu; không chạy lại RAG.
@@ -375,8 +374,7 @@
 - Yêu cầu: tổng kết ba kết quả single/multi/cover, tính kết quả cuối hiện có, giải thích cách tính từng chỉ số và có sử dụng AI chấm hay không.
 - Phạm vi: tổng hợp offline, không chạy lại RAG/BERT; giữ riêng mẫu số và giới hạn của ba view. Không tự đặt composite score.
 - Tiêu chí: bảng điểm từng bộ và phép tổng hợp truy vết được; công thức, AI provenance, mức độ hoàn tất và Markdown báo cáo.
-- Trạng thái: in_progress.
-
+- Trạng thái: completed về source; chưa chạy train/evaluation theo yêu cầu.
 ## TASK-20261006-01
 
 - Ngày: 2026-10-06 (Asia/Saigon).
@@ -1082,3 +1080,45 @@
 - Yêu cầu: sub-query/mapping, top-10/MAP, citation claim, telemetry, action chuẩn hóa, groundedness/semantic/robustness judge và human/pairwise.
 - Quyết định: judge chạy local qua Ollama, model cấu hình riêng.
 - Trạng thái: triển khai mở rộng và kiểm chứng offline; người dùng sẽ chạy model trên máy mạnh. Không benchmark tại máy này.
+- Bổ sung: human để riêng; một lệnh tự động lưu prediction/trace và resume scoring nhằm tránh sinh lại câu trả lời. Triển khai complete-v2, chưa tuyên bố mọi metric schema có scorer.
+- Yêu cầu tiếp: hoàn thiện METEOR/cosine, GPU/VRAM, noise, identity trước run. Đã triển khai các nhánh tự động; kiểm chứng offline, chưa inference thực.
+# TASK-20261023-01 — Triển khai container thuê Tesla V100
+
+- Ngày: 2026-10-23 (Asia/Saigon). Trạng thái: in_progress.
+- Yêu cầu: kết nối container thuê, triển khai môi trường training và evaluation; không chạy train/evaluation, người dùng sẽ chủ động gọi lệnh.
+- Phạm vi: không chép `.env`/secret; profile V100 Golden SFT, script setup/verify Linux, source và Golden data; RAG vector 6,8 GB cần đồng bộ riêng nếu chạy RAG.
+- Tiêu chí: container nhận code/data cần thiết, dependency và CUDA/preflight hợp lệ, lệnh train/evaluate được tài liệu hóa, không có job model được khởi chạy.
+# TASK-20261023-02 — Khóa complete-v2 thành một lệnh tự đủ trace
+
+- Yêu cầu: người dùng chỉ gọi lệnh chạy; hệ thống phải tự bật toàn bộ trace cần cho chấm offline và từ chối trước inference nếu web server chưa hỗ trợ đủ token, TTFT, GPU, retrieval top-10, sub-query, citation và runtime identity.
+- Phạm vi: bổ sung capability contract tại health endpoint, preflight bắt buộc trong `complete-v2`, test regression và đồng bộ thay đổi lên container V100; không chạy model/evaluation.
+- Tiêu chí: không cần sửa YAML hoặc nhớ cờ thủ công; server cũ/thiếu capability bị chặn trước prediction đầu tiên.
+- Trạng thái: completed; đã đồng bộ và kiểm chứng trên container, chưa chạy model.
+# TASK-20261023-03 — Tối ưu throughput V100 32 GB
+
+- Yêu cầu: cấu hình lại training và evaluation để tận dụng tối đa container V100 32 GB, 10 vCPU, 94 GiB RAM mà vẫn giữ đầy đủ trace/metric và người dùng chỉ gọi lệnh.
+- Phạm vi: profile V100, TrainingArguments I/O, encoder RAG, BERTScore batch và giải phóng model GPU giữa inference với offline scoring; không chạy train/evaluation.
+- Tiêu chí: effective train batch không đổi, profile smoke/full đồng nhất, complete-v2 tự giải phóng GPU trước scoring, kiểm chứng source/config trên local và container.
+- Trạng thái: completed; đã đồng bộ và kiểm chứng source/config, chưa chạy model.
+# TASK-20261023-04 - Tách capture bốn cấu hình trước khi chấm
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: chạy theo thứ tự Base, Base + RAG, train QLoRA, QLoRA, QLoRA + RAG;
+  ưu tiên thu prediction/trace đầy đủ trước, sau đó mới judge và chấm offline để
+  không phải chạy lại model sinh đáp án.
+- Phạm vi: thêm profile QLoRA + RAG, cho phép cùng adapter override, tách noise
+  replay thành CLI resume độc lập và cung cấp lệnh vận hành container. Human để
+  riêng; không chạy train/evaluation trong lượt triển khai.
+- Tiêu chí: bốn kiến trúc capture được complete trace; hai nhánh RAG capture cả
+  noise prediction; judge/offline/export chỉ đọc artifact đã lưu.
+- Trạng thái: completed về source; chưa chạy train/evaluation theo yêu cầu.
+# TASK-20261023-05 - Không làm mất prediction khi citation sai định dạng
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu phát sinh khi capture Base + RAG: 21 ca trả HTTP 502 do citation claim
+  không phải exact span sau cả lần sinh đầu và retry; cần sửa rồi resume, không
+  chạy lại các ca thành công.
+- Phạm vi: vẫn retry và vẫn kiểm tra answer/action/evidence nghiêm ngặt; nếu chỉ
+  citation còn sai sau retry thì giữ answer/telemetry, ghi citation rỗng với
+  `invalid_model_output` để metric tính đây là lỗi quan sát được.
+- Trạng thái: partial; source/lint/compile hoàn tất, chờ test và resume trên container.

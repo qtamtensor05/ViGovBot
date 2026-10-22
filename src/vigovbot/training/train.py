@@ -237,6 +237,9 @@ def _training_arguments(config: TrainingConfig, run_dir, bf16, fp16):
         save_total_limit=values.save_total_limit, load_best_model_at_end=values.load_best_model_at_end,
         metric_for_best_model=values.metric_for_best_model, greater_is_better=values.greater_is_better,
         report_to=["tensorboard"] if config.reporting.tensorboard else [], bf16=bf16, fp16=fp16,
+        dataloader_num_workers=values.dataloader_num_workers,
+        dataloader_pin_memory=values.dataloader_pin_memory,
+        dataloader_persistent_workers=values.dataloader_persistent_workers,
         remove_unused_columns=False, restore_callback_states_from_checkpoint=True, ignore_data_skip=False,
         save_only_model=False, include_num_input_tokens_seen=True)
     return args

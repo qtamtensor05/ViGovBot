@@ -1,0 +1,17 @@
+extends: ../experiments/golden_sft.yaml
+# Tesla V100 (SM70) does not provide native BF16 tensor cores.
+quantization:
+  bnb_4bit_compute_dtype: float16
+training:
+  # Keep effective batch 8 while reducing synchronization/optimizer overhead.
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 4
+  gradient_checkpointing: false
+  dataloader_num_workers: 4
+  dataloader_pin_memory: true
+  dataloader_persistent_workers: true
+execution:
+  approved: false
+  artifact_label: v100_32gb_golden_sft
+

@@ -63,8 +63,22 @@ def _corpus_lexical(predictions: list[str], references: list[str]) -> dict:
 
     return {
         "chrf": sacrebleu.corpus_chrf(predictions, [references]).score,
+        "chrf_pp": sacrebleu.corpus_chrf(predictions, [references], word_order=2).score,
         "sacrebleu": sacrebleu.corpus_bleu(predictions, [references], tokenize="none").score,
     }
+
+
+def meteor_vi(prediction, reference):
+    """METEOR exact-token variant: no English stemmer/WordNet for Vietnamese."""
+    from nltk.translate.meteor_score import single_meteor_score
+    class IdentityStemmer:
+        def stem(self, word):
+            return word
+    class NoSynonyms:
+        def synsets(self, word):
+            return []
+    return single_meteor_score(_tokens(reference), _tokens(prediction),
+                               stemmer=IdentityStemmer(), wordnet=NoSynonyms())
 
 
 def _bertscore(predictions: list[str], references: list[str], *, model: str, device: str, batch_size: int,
@@ -87,7 +101,8 @@ def _bertscore(predictions: list[str], references: list[str], *, model: str, dev
 
 def score_offline_v2(*, dataset: Path, split: str, predictions: Path, architecture: str, output: Path,
                      bertscore: bool = False, bert_model: str = "xlm-roberta-large", bert_device: str = "cpu",
-                     bert_batch_size: int = 8, bert_score_fn=None) -> dict:
+                     bert_batch_size: int = 8, bert_score_fn=None, extended=False,
+                     embedding_model="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2") -> dict:
     """Score cached v2 predictions without model inference or modifying exported results."""
     if architecture not in ARCHITECTURES:
         raise ValueError(f"Unsupported architecture_type: {architecture}")
@@ -165,6 +180,20 @@ def score_offline_v2(*, dataset: Path, split: str, predictions: Path, architectu
     }.items():
         lexical[key] = None
         details[key] = {"status": "unavailable", "reason": reason}
+    if extended:
+        from sentence_transformers import SentenceTransformer
+        encoder = SentenceTransformer(embedding_model, device=bert_device)
+        left = encoder.encode(ordered_predictions, normalize_embeddings=True, batch_size=bert_batch_size)
+        right = encoder.encode(references, normalize_embeddings=True, batch_size=bert_batch_size)
+        cosine = (left * right).sum(axis=1).tolist()
+        meteor = [meteor_vi(p, r) for p, r in zip(ordered_predictions, references)]
+        for row, m, c in zip(per_case, meteor, cosine):
+            row.update(meteor=float(m), embedding_cosine_similarity=float(c))
+        lexical.update(meteor=_mean(meteor), embedding_cosine_similarity=_mean(cosine))
+        details["meteor"] = {"status": "computed", "contract": "vi-normalized-exact METEOR, identity stemmer, no synonyms, nltk defaults"}
+        details["embedding_cosine_similarity"] = {"status": "computed", "model": embedding_model, "device": bert_device,
+                                                   "revision": getattr(encoder[0].auto_model.config, "_commit_hash", None),
+                                                   "contract": "L2-normalized sentence embeddings, dot product, macro mean"}
 
     report = {
         "schema_version": "2.0.0-supplement-1", "architecture_type": architecture, "split": split,

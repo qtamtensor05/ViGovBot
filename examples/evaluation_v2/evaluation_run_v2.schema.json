@@ -114,6 +114,18 @@
         "performance": {
           "type": "object"
         },
+        "provider_calls": {
+          "type": "array", "items": {"type": "object", "properties": {
+            "gpu": {"type": "object", "properties": {
+              "status": {"enum": ["measured", "unavailable"]},
+              "scope": {"type": "string"},
+              "samples": {"type": "array", "items": {"type": "object", "required": ["uuid", "memory_used_gib", "utilization_percent", "monotonic_s"]}}
+            }},
+            "messages": {"type": "array"},
+            "prompt_tokens": {"type": ["integer", "null"]},
+            "completion_tokens": {"type": ["integer", "null"]}
+          }}
+        },
         "execution_status": {
           "enum": [
             "success",
