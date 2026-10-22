@@ -1009,3 +1009,8 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Bổ sung guard dependency trong test theo convention repository để discovery tối giản skip đúng; kiểm chứng thực dùng venv đầy đủ, kết quả ghi tại implementation-history.
 - Lỗi công cụ đọc ban đầu: PowerShell profile cảnh báo PSReadLine và encoding; chuyển `login=false`, đọc UTF-8. `rg tests/test*` không hợp lệ trên Windows, chuyển tìm trong directory `tests`. Không thay đổi dữ liệu do các lỗi này.
 - Lượt `git diff --check` đầu phát hiện dòng trống EOF trong bốn tài liệu; loại dòng trống thừa và kiểm tra lại trước bàn giao.
+# ERR-20261022-03 — Preflight judge
+
+- TASK-20261022-03: host Python thiếu filelock, test validator lỗi do eager import v2. Chuyển import loader vào hàm runtime để validator kiểm thử độc lập; runtime vẫn cần dependency evaluation.
+- GET localhost:11434/api/tags timeout sau 3 giây. Chưa xác định daemon tắt hay phản hồi chậm; chưa chạy judge.
+- Bổ sung: đường dẫn venv task18 không có executable; dùng vigov-sft-check. Cài requests/sacrebleu/jsonschema vào venv kiểm thử. Sửa import normalization, depth null guard và dấu đóng JSON qua regression. Test config CLI cần faiss chưa chạy trong venv này.

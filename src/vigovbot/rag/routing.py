@@ -130,7 +130,8 @@ def parse_citations(text, used):
                 or c['claim'] not in payload.get('answer', ''):
             raise ValueError('Citation must refer to used context and an exact answer span')
         context = contexts[c['chunk_id']]
-        result.append({**c, **{k: context[k] for k in ('source_file', 'source_code', 'pages', 'source_sha256')
+        result.append({**c, 'source_id': c['chunk_id'], 'claim_id': f'claim_{len(result) + 1}',
+                       **{k: context[k] for k in ('source_file', 'source_code', 'pages', 'source_sha256')
                               if k in context}})
     return result
 

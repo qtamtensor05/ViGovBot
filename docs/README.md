@@ -22,6 +22,8 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 ## Hướng dẫn sử dụng
 
+- [Evaluation mở rộng và judge Ollama](guides/evaluation-extended.md)
+
 - [Tham chiếu CLI `vigov`](guides/cli.md)
 - [Vận hành pipeline RAG](guides/trien-khai-rag-co-ban.md)
 - [RAG nhiều lượt](guides/rag-multi-turn.md)

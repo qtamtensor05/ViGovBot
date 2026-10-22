@@ -28,6 +28,7 @@ class EmbeddingConfig(StrictModel):
 
 
 class LLMConfig(StrictModel):
+    measure_ttft: bool = False
     model: str = "qwen2.5:7b"
     ollama_url: str = "http://localhost:11434"
     tokenizer: str = "Qwen/Qwen2.5-7B-Instruct"
@@ -52,6 +53,7 @@ class RetrievalConfig(StrictModel):
 
 
 class ConversationConfig(StrictModel):
+    decompose_queries: bool = False
     routing_enabled: bool = True
     citations_enabled: bool = False
 

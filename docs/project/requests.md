@@ -1077,3 +1077,8 @@
 - Yêu cầu: tạo train_sft (2.200) và validation_sft (550), ánh xạ nguyên văn history + question → expected_answer; giữ ID/thứ tự/Unicode và mọi ca unanswerable.
 - Phạm vi: converter canonical, CLI, unit test, kiểm chứng artifact và hồ sơ. Không tạo test_sft, sửa Golden/config training, chạy model/GPU hoặc commit/push.
 - Tiêu chí: validator training, mapping toàn bộ, deterministic bytes, thống kê/overlap, SHA-256 nguồn trước/sau, Ruff, compileall, documentation và diff-check.
+# TASK-20261022-03 — Mở rộng evaluation và judge Ollama
+
+- Yêu cầu: sub-query/mapping, top-10/MAP, citation claim, telemetry, action chuẩn hóa, groundedness/semantic/robustness judge và human/pairwise.
+- Quyết định: judge chạy local qua Ollama, model cấu hình riêng.
+- Trạng thái: triển khai mở rộng và kiểm chứng offline; người dùng sẽ chạy model trên máy mạnh. Không benchmark tại máy này.

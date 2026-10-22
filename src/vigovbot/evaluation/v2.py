@@ -220,7 +220,8 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
                     prediction["evaluation_trace_status"] = "available"
                     prediction["evaluation_trace"] = trace
                     for key in ("actual_route", "routing", "retrieval_query", "decision_reason",
-                                "evidence_status", "context_used", "citations", "citations_status", "telemetry"):
+                                "evidence_status", "context_used", "citations", "citations_status", "telemetry",
+                                "actual_sub_queries", "sub_query_retrieval", "retrieval_top_k", "finish_reason"):
                         if key in trace:
                             prediction[key] = trace[key]
                 counts["success"] += 1
@@ -502,6 +503,8 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
                 "actual_sub_queries": prediction.get("actual_sub_queries", []),
             },
             "retrieval_output": {
+                "retrieval_top_k": prediction.get("retrieval_top_k"),
+                "sub_query_retrieval": prediction.get("sub_query_retrieval"),
                 "retrieved_context_ids": retrieved_ids,
                 "retrieved_scores": prediction.get("retrieved_scores", []),
                 "retrieved_contexts": prediction.get("context_used", []),
@@ -556,9 +559,12 @@ def validate_record(record: dict) -> None:
 
 
 def export_v2(*, dataset: Path, split: str, predictions: Path | None, architecture: str, model_name: str,
-              run_id: str, output: Path, model_config_path: Path | None = None, allow_partial: bool = False) -> dict:
+              run_id: str, output: Path, model_config_path: Path | None = None, allow_partial: bool = False,
+              judgments: Path | None = None) -> dict:
     golden_path, golden_rows = load_golden(dataset, split)
     prediction_rows, prediction_path = load_predictions(predictions)
+    from .extended import load_reviews, extend_record
+    reviews = load_reviews(judgments, golden_rows, prediction_rows)
     golden_ids = {row["test_id"] for row in golden_rows}
     prediction_ids = set(prediction_rows)
     extra = sorted(prediction_ids - golden_ids)
@@ -575,6 +581,8 @@ def export_v2(*, dataset: Path, split: str, predictions: Path | None, architectu
         "golden_dataset": str(golden_path), "golden_sha256": _sha256(golden_path),
         "predictions": str(prediction_path) if prediction_path else None,
         "predictions_sha256": _sha256(prediction_path) if prediction_path else None,
+        "judgments": str(judgments) if judgments else None,
+        "judgments_sha256": _sha256(Path(judgments)) if judgments else None,
         "model_config": str(model_config_path) if model_config_path else None,
         "model_config_sha256": _sha256(Path(model_config_path)) if model_config_path else None,
         "scorer_versions": {"offline_v2": OFFLINE_SCORER_VERSION},
@@ -591,6 +599,7 @@ def export_v2(*, dataset: Path, split: str, predictions: Path | None, architectu
         for index, golden in enumerate(golden_rows, 1):
             record = build_record(golden, prediction_rows.get(golden["test_id"]), split=split, run_id=run_id,
                                   architecture=architecture, model_config=config, provenance=provenance)
+            extend_record(record, prediction_rows.get(golden["test_id"], {}), reviews.get(golden["test_id"]))
             handle.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
             status = record["system_execution_output"]["execution_status"]
             counts[status] += 1

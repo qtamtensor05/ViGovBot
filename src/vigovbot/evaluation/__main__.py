@@ -52,7 +52,10 @@ def select_rows(rows, dataset, view, split, limit=None):
 def main(argv=None):
     configure_console()
     parser = argparse.ArgumentParser(description="Run unified ViGovBot evaluation workflows")
-    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "run-v2", "export-v2", "score-v2-offline"])
+    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "run-v2", "export-v2", "score-v2-offline", "judge-v2", "pairwise-v2"])
+    parser.add_argument("--other-predictions", type=Path)
+    parser.add_argument("--judge-model", help="Explicit installed Ollama judge model name")
+    parser.add_argument("--judge-endpoint", default="http://localhost:11434")
     parser.add_argument("--dataset", type=Path, default=Path("Data/qa_test_v4/rag_tthc_v4_1"),
                         help="Dataset directory or alias: rag_v4_small, rag_tthc_three_1500, rag_tthc_v4_1")
     parser.add_argument("--question")
@@ -99,6 +102,22 @@ def main(argv=None):
     parser.add_argument('--bert-device', default='cpu')
     parser.add_argument('--bert-batch-size', type=int, default=1)
     args = parser.parse_args(argv)
+    if args.command == "pairwise-v2":
+        if not args.predictions or not args.other_predictions or not args.out or args.split == "dev":
+            parser.error("pairwise-v2 requires two predictions and --out")
+        from .pairwise import pairwise
+        print(json.dumps(pairwise(dataset=args.golden_dir, split=args.split or "test", predictions=args.predictions,
+                                  other=args.other_predictions, output=args.out, judgments=args.judgments), ensure_ascii=False))
+        return 0
+    if args.command == "judge-v2":
+        if not args.judge_model or not args.predictions or not args.out or args.split == "dev":
+            parser.error("judge-v2 requires --judge-model, --predictions, --out and Golden split")
+        from .ollama_judge import judge
+        print(json.dumps(judge(dataset=args.golden_dir, split=args.split or "test",
+                               predictions=args.predictions, output=args.out,
+                               model=args.judge_model, endpoint=args.judge_endpoint,
+                               limit=args.limit), ensure_ascii=False, indent=2))
+        return 0
     if args.command == "run-v2":
         missing = [name for name, value in (("--architecture", args.architecture), ("--out", args.out)) if not value]
         if missing:
@@ -125,6 +144,7 @@ def main(argv=None):
             dataset=args.golden_dir, split=args.split or "test", predictions=args.predictions,
             architecture=args.architecture, model_name=args.model_name, run_id=args.run_id,
             output=args.out, model_config_path=args.model_config, allow_partial=args.allow_partial,
+            judgments=args.judgments,
         )
         print(json.dumps(summary, ensure_ascii=False, indent=2))
         return 0

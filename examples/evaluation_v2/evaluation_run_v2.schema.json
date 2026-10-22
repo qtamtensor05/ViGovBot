@@ -78,10 +78,21 @@
           ]
         },
         "query_processing": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "actual_sub_queries": {
+              "type": ["array", "null"],
+              "items": {"type": "object", "required": ["sub_query_id", "query"],
+                "properties": {"sub_query_id": {"type": "string"}, "query": {"type": "string", "minLength": 1}}}
+            }
+          }
         },
         "retrieval_output": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "retrieval_top_k": {"type": ["integer", "null"], "minimum": 1},
+            "sub_query_retrieval": {"type": ["object", "null"], "additionalProperties": {"type": "array", "items": {"type": "string"}}}
+          }
         },
         "generation_output": {
           "type": "object",
@@ -94,7 +105,10 @@
                 "string",
                 "null"
               ]
-            }
+            },
+            "extracted_claims": {"type": "array", "items": {"type": "object", "required": ["text", "source_ids", "verdict"],
+              "properties": {"text": {"type": "string", "minLength": 1}, "source_ids": {"type": "array", "items": {"type": "string"}},
+                "verdict": {"enum": ["supported", "contradicted", "unknown"]}}}}
           }
         },
         "performance": {

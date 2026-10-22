@@ -1429,3 +1429,11 @@ SHA-256 artifact:
 Đề xuất commit: `feat(data): convert Golden train and validation to lossless SFT`
 
 - Chốt: `git diff --check` PASS; `git status --short` gồm 6 file sửa và 2 file code/test mới, không có Golden/config trong diff. Hai artifact SFT tồn tại nhưng bị ignore; thay đổi ban đầu của người dùng vẫn được giữ.
+# TASK-20261022-03 — Judge local, giai đoạn đầu
+
+- Thêm ollama_judge.py và CLI judge-v2: chỉ endpoint loopback, model explicit, schema score, hash input/rubric và digest model; output tạo mới, flush từng ca.
+- Giới hạn: judgment AI nhị phân có null; chưa nối scorer v2, chưa claim extraction/human/pairwise, chưa triển khai trace mới.
+- Compileall đã chạy; test ban đầu lỗi filelock khi import v2, đã chuyển import vào hàm runtime. Ollama preflight timeout, chưa inference.
+- Bổ sung: TTFT streaming Ollama, token usage final-call, citation source/claim ID, decomposition/RRF và mapping, MAP@10 có depth gate, scorer sub-query exact-normalized, judge claim extraction và merge hash-bound, pairwise human packet/score, schema mở rộng và hướng dẫn evaluation-extended.md.
+- Config mới opt-in; action giữ enum năm nhãn hiện tại. GPU/VRAM/cost không có telemetry vẫn null. Không chạy model hoặc judge; người dùng chạy ở máy cấu hình cao.
+- Kiểm chứng cuối: 57 tests PASS (evaluation v2, judge, extended/schema, documentation, server, routing providers, conversation routing); Ruff PASS; compileall PASS; diff-check PASS. Chưa test rag_config_cli do thiếu faiss; không chạy GPU/model.

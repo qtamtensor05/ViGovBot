@@ -1,3 +1,14 @@
+# TASK-20261022-03 — triển khai mở rộng, kiểm chứng offline
+
+- Đã nối judge-v2 → export-v2 --judgments; claim extraction, sub-query/mapping, MAP@10, citation IDs, TTFT/token usage Ollama và human pairwise.
+- Schema result v2 mở rộng tương thích, hướng dẫn: docs/guides/evaluation-extended.md. Config bật tính năng theo hướng dẫn trên máy chạy, giữ mặc định hiện tại.
+- PASS: 57 tests evaluation/schema/server/routing/providers/docs; Ruff; compileall; git diff --check.
+- Runtime model/GPU/judge chưa chạy theo yêu cầu. Test rag_config_cli chưa chạy vì thiếu faiss trong venv kiểm thử.
+- Giới hạn: semantic scores là judge binary/null, sub-query exact-normalized; GPU/VRAM/cost không đo vẫn null; token usage chỉ final generation call. Human calibration cần người thực sự review, không tạo điểm giả.
+- Bước tiếp theo: người dùng chạy inference và judge trên máy cấu hình cao theo hướng dẫn; kiểm tra chất lượng judge trước khi công bố metric.
+
+## Mốc trước
+
 # TASK-20261022-02 — completed
 
 - Đã thêm profile Golden SFT và test tùy chọn trong schema/loader/training.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+import json
 
 
 def check_model(base_url, model):
@@ -29,7 +30,7 @@ def ollama_answer(messages, settings):
         json={
             "model": settings["model"],
             "messages": messages,
-            "stream": False,
+            "stream": bool(settings.get("measure_ttft", False)),
             **({"format": settings["response_format"]} if settings.get("response_format") else {}),
             "options": {
                 "temperature": settings["temperature"],
@@ -40,9 +41,32 @@ def ollama_answer(messages, settings):
             "keep_alive": settings["keep_alive"],
         },
         timeout=settings["timeout"],
+        stream=bool(settings.get("measure_ttft", False)),
     )
     response.raise_for_status()
-    raw = response.json()
+    if settings.get("measure_ttft", False):
+        parts, raw, ttft = [], {}, None
+        try:
+            for line in response.iter_lines():
+                if not line:
+                    continue
+                event = json.loads(line)
+                if event.get("error"):
+                    raise RuntimeError("Ollama streaming failed")
+                content = event.get("message", {}).get("content", "")
+                if content and ttft is None:
+                    ttft = time.perf_counter() - started
+                parts.append(content)
+                if event.get("done"):
+                    raw = event
+            if not raw:
+                raise RuntimeError("Ollama stream ended without completion")
+            raw["message"] = {"content": "".join(parts)}
+            raw["ttft_seconds"] = ttft
+        finally:
+            response.close()
+    else:
+        raw = response.json()
     answer = raw.get("message", {}).get("content", "").strip()
     if raw.get("error") or not answer:
         raise RuntimeError(f"Ollama không trả lời: {raw}")

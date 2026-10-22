@@ -25,11 +25,18 @@ def evaluation_trace(result, mode):
     citations = result.get("citations")
     available = (citation_status == "validated_references_not_semantic_support"
                  and isinstance(citations, list))
+    raw = result.get("raw_ollama") or {}
+    prompt_tokens, completion_tokens = raw.get("prompt_eval_count"), raw.get("eval_count")
+    duration = raw.get("eval_duration")
     return {
         "schema_version": "1.0",
         "actual_route": result.get("actual_route"),
         "routing": result.get("routing"),
         "retrieval_query": result.get("retrieval_query"),
+        "actual_sub_queries": result.get("actual_sub_queries"),
+        "sub_query_retrieval": result.get("sub_query_retrieval"),
+        "retrieval_top_k": result.get("retrieval_top_k"),
+        "finish_reason": raw.get("done_reason"),
         "decision_reason": result.get("decision_reason"),
         "evidence_status": result.get("evidence_status"),
         "routing_attempts": result.get("routing_attempts"),
@@ -44,9 +51,10 @@ def evaluation_trace(result, mode):
             "rewrite_seconds": result.get("rewrite_s"),
             "retrieval_seconds": result.get("retrieval_s"),
             "generation_seconds": result.get("generation_s"),
-            "rerank_seconds": None, "ttft_seconds": None,
-            "prompt_tokens": None, "completion_tokens": None, "total_tokens": None,
-            "generation_tokens_per_second": None,
+            "rerank_seconds": None, "ttft_seconds": raw.get("ttft_seconds"),
+            "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens if isinstance(prompt_tokens, int) and isinstance(completion_tokens, int) else None,
+            "generation_tokens_per_second": completion_tokens / (duration / 1e9) if isinstance(duration, (int, float)) and duration > 0 and isinstance(completion_tokens, int) else None,
             "peak_allocated_vram_gb": None, "peak_reserved_vram_gb": None,
             "gpu_utilization_percent": None, "cost_usd": None,
         },
@@ -165,9 +173,10 @@ class ChatApplication:
                             *clean_histories[model_id],
                             {"role": "user", "content": question.strip()},
                         ]
-                        answer, _, generation_s = answer_fn(messages, settings)
+                        answer, raw, generation_s = answer_fn(messages, settings)
                         result = {
                             "prediction": answer,
+                            "raw_ollama": raw,
                             "action": None,
                             "retrieved": [],
                             "generation_s": generation_s,
