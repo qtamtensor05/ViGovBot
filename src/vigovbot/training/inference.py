@@ -93,7 +93,9 @@ def local_transformers_answer(messages, settings):
         for device in devices:
             torch.cuda.reset_peak_memory_stats(device)
         with torch.inference_mode():
-            output = model.generate(**model_inputs, max_new_tokens=settings["num_predict"], temperature=settings.get("temperature", 0.0),
+            output = model.generate(**model_inputs, max_new_tokens=settings["num_predict"],
+                                    min_new_tokens=settings.get("min_new_tokens", 0),
+                                    temperature=settings.get("temperature", 0.0),
                                     do_sample=settings.get("temperature", 0.0) > 0,
                                     **({"streamer": first} if measure else {}))
         answer = tokenizer.decode(output[0, prompt_length:], skip_special_tokens=True).strip()
@@ -134,6 +136,7 @@ def local_transformers_batch_answer(messages_batch, settings):
         with torch.inference_mode():
             output = model.generate(
                 **model_inputs, max_new_tokens=settings["num_predict"],
+                min_new_tokens=settings.get("min_new_tokens", 0),
                 temperature=settings.get("temperature", 0.0),
                 do_sample=settings.get("temperature", 0.0) > 0,
             )

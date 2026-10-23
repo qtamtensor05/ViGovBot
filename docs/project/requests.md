@@ -1,5 +1,22 @@
 # Yêu cầu dự án
 
+## TASK-20261023-08
+
+- Ngày tiếp nhận: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: Bổ sung báo cáo phân tích chuyên sâu cho mô hình kết hợp QLoRA + RAG vừa được chấm thực tế; tích hợp đầy đủ vào hệ thống tài liệu docs.
+- Phạm vi: Khai thác kết quả đánh giá thực tế qlora-rag (run qlora-rag-partial-682-20261023, 682 test cases đã chấm) từ thư mục sao lưu ackups/vigovbot-qlora-rag-partial-682-20261023-041931/; đối sánh trên cùng tập 682 mẫu với Base, Base+RAG và QLoRA Standalone; phân tích hiện tượng phân luồng router và hiệu năng vượt trội của luồng rag_search (Key Fact 51,30%, Token F1 67,40%); xuất báo cáo chuyên sâu docs/reports/bao-cao-danh-gia-chi-tiet-model-qlora-rag.md; cập nhật bảng so sánh 4 mô hình trong docs/reports/bao-cao-so-sanh-tong-hop-3-model-base-rag-qlora.md và mục lục docs/README.md.
+- Tiêu chí hoàn thành: Có bài báo cáo chi tiết đầy đủ số liệu thực tế, bảng so sánh đối đầu 4 mô hình trên lát cắt 682 mẫu, phân tích định tính case study và khuyến nghị tối ưu router; cập nhật liên kết docs và test documentation PASS.
+- Trạng thái: completed. Đã xuất báo cáo chi tiết bao-cao-danh-gia-chi-tiet-model-qlora-rag.md, cập nhật báo cáo tổng hợp và docs/README.md; kiểm chứng test_documentation PASS.
+
+## TASK-20261023-07
+
+- Ngày tiếp nhận: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: Phân tích toàn diện kết quả đánh giá, quá trình training và kết quả sinh thực tế từ thư mục sao lưu backups/vigovbot-stage-offline-pass-20261023-005223; viết 3 bài báo cáo chi tiết cho từng mô hình (base, base + rag, finetuning/qlora) và 1 bài báo cáo so sánh tổng hợp cả 3 mô hình.
+- Phạm vi: Khai thác toàn bộ 1.100 test case độc lập (test_golden.jsonl), ma trận metric đầy đủ (SacreBLEU, chrF/chrF++, ROUGE-1/2/L, BERTScore F1, Key Fact Coverage, CER/WER, METEOR, Cosine Embedding Similarity, Latency TTFT/Gen/Total, Throughput, VRAM), phân tích taxonomy (single_hop vs multi_intent, difficulty, turn type), phân tích khả năng phòng chống ảo giác trên 100 ca unanswerable, phân tích quá trình huấn luyện QLoRA (loss progression, perplexity, V100 VRAM, early stopping), trích xuất case studies định tính và khuyến nghị chiến lược triển khai hệ thống. Viết 4 bài báo cáo hoàn chỉnh vào docs/reports/ và cập nhật mục lục tài liệu docs/README.md. Không sửa đổi dữ liệu thô hoặc chạy lại inference không cần thiết.
+- Tiêu chí hoàn thành: Có 4 tài liệu báo cáo chuyên sâu hoàn chỉnh, khách quan, số liệu đối chiếu 100% từ kết quả offline/training trong backup; kèm sơ đồ mermaid, bảng ma trận chi tiết và case study thực tế; hồ sơ dự án được cập nhật đúng quy ước.
+- Giả định: Bộ dữ liệu đối sánh là split test gồm 1.100 mẫu chuẩn (Data/golden_dataset/test_golden.jsonl, SHA256: 5bf3606d...); mô hình nền là Qwen2.5-7B-Instruct; quá trình training được thực hiện trên GPU Tesla V100-SXM2-32GB.
+- Trạng thái: completed. Đã xuất 4 bài báo cáo chuyên sâu tại docs/reports/, cập nhật docs/README.md; kiểm chứng liên kết test_documentation PASS.
+
 ## TASK-20261022-02
 
 - Yêu cầu: thêm profile Golden SFT train/validation mới; test tùy chọn khi training.
@@ -1082,7 +1099,7 @@
 - Trạng thái: triển khai mở rộng và kiểm chứng offline; người dùng sẽ chạy model trên máy mạnh. Không benchmark tại máy này.
 - Bổ sung: human để riêng; một lệnh tự động lưu prediction/trace và resume scoring nhằm tránh sinh lại câu trả lời. Triển khai complete-v2, chưa tuyên bố mọi metric schema có scorer.
 - Yêu cầu tiếp: hoàn thiện METEOR/cosine, GPU/VRAM, noise, identity trước run. Đã triển khai các nhánh tự động; kiểm chứng offline, chưa inference thực.
-# TASK-20261023-01 — Triển khai container thuê Tesla V100
+# TASK-20261023-07 — Triển khai container thuê Tesla V100
 
 - Ngày: 2026-10-23 (Asia/Saigon). Trạng thái: in_progress.
 - Yêu cầu: kết nối container thuê, triển khai môi trường training và evaluation; không chạy train/evaluation, người dùng sẽ chủ động gọi lệnh.
@@ -1122,3 +1139,22 @@
   citation còn sai sau retry thì giữ answer/telemetry, ghi citation rỗng với
   `invalid_model_output` để metric tính đây là lỗi quan sát được.
 - Trạng thái: partial; source/lint/compile hoàn tất, chờ test và resume trên container.
+
+# TASK-20261023-06 - Vẽ biểu đồ training QLoRA từ backup
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: vẽ các biểu đồ training cho run QLoRA trong thư mục backup.
+- Phạm vi: đọc artifact đã có của `qlora-v100-optimized`, xuất biểu đồ và manifest
+  vào chính run; không chạy lại training/model, không sửa checkpoint hoặc metric gốc.
+- Tiêu chí: biểu đồ chỉ dùng trường đo được trong log; file PNG đọc được, có kích
+  thước khác 0; manifest ghi rõ biểu đồ tạo được và metric không có dữ liệu.
+- Trạng thái: completed; đã tạo 9 PNG và manifest từ log đo thực tế, kiểm tra
+  định dạng/kích thước và test plotting. Không có post-training test artifact nên
+  không tạo `evaluation_comparison.png`.
+# TASK-20261023-08 - Điều tra Web QLoRA treo và thông báo 404
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: xác định vì sao chọn QLoRA trên Web không trả lời và trình duyệt báo `404 (Not Found)`.
+- Phạm vi: kiểm tra local Docker Web/API, log request, cấu hình QLoRA, adapter/model cache và GPU; không chạy benchmark/load test, không sửa hoặc di chuyển checkpoint.
+- Tiêu chí: phân biệt endpoint 404 với lỗi QLoRA, xác định bước đang treo bằng bằng chứng runtime và đưa cách xử lý an toàn.
+- Trạng thái: completed; 404 chỉ thuộc favicon/Chrome DevTools, QLoRA tải model nền 7 phút 48 giây, nạp checkpoint rồi trả `/api/chat` 200.

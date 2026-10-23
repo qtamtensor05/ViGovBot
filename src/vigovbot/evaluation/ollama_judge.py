@@ -63,10 +63,13 @@ def judge(*, dataset, split, predictions, output, model, endpoint="http://localh
     if identity is None:
         raise ValueError("Judge model is not installed in Ollama: " + model)
     schema = {"type": "object", "required": ["scores", "reason", "claims"], "properties": {
-        "claims": {"type": "array", "items": {"type": "object", "required": ["text", "source_ids", "verdict"], "properties": {
-            "text": {"type": "string"}, "source_ids": {"type": "array", "items": {"type": "string"}},
+        "claims": {"type": "array", "maxItems": 12, "items": {"type": "object", "required": ["text", "source_ids", "verdict"], "properties": {
+            "text": {"type": "string", "maxLength": 200},
+            "source_ids": {"type": "array", "maxItems": 3,
+                           "items": {"type": "string", "maxLength": 120}},
             "verdict": {"enum": ["supported", "contradicted", "unknown"]}}}},
-        "reason": {"type": "string"}, "scores": {"type": "object", "required": list(METRICS),
+        "reason": {"type": "string", "maxLength": 600},
+        "scores": {"type": "object", "required": list(METRICS),
         "properties": {key: {"enum": [0, 1, None]} for key in METRICS}, "additionalProperties": False}}}
     output.parent.mkdir(parents=True, exist_ok=True)
     completed = {}
@@ -102,6 +105,10 @@ def judge(*, dataset, split, predictions, output, model, endpoint="http://localh
             if raw.get("done_reason") == "length":
                 raise ValueError("Judge response was truncated")
             result = validate(json.loads(raw["message"]["content"]))
+            allowed_sources = set(case["ground_truth"].get("ground_truth_context_ids", []))
+            allowed_sources.update(item.get("chunk_id") for item in prediction.get("context_used", [])
+                                   if isinstance(item, dict) and isinstance(item.get("chunk_id"), str))
+            normalize_missing_claim_evidence(result, prediction["answer"], allowed_sources)
             validate_claims(result.get("claims"), prediction["answer"])
             row = {"id": case["test_id"], "input_sha256": fingerprint(payload),
                    "rubric_sha256": fingerprint(RUBRIC), "reviewer_kind": "ai",
@@ -111,6 +118,42 @@ def judge(*, dataset, split, predictions, output, model, endpoint="http://localh
             handle.flush()
             count += 1
     return {"judged": count, "cached": len(completed), "expected": len(cases), "output": str(output)}
+
+
+def normalize_missing_claim_evidence(result, answer=None, allowed_source_ids=None):
+    """Conservatively normalize malformed claim output without aborting a run."""
+    claims = result.get("claims")
+    if not isinstance(claims, list):
+        return
+    if isinstance(answer, str):
+        seen = set()
+        invalid_span = False
+        for claim in claims:
+            text = claim.get("text") if isinstance(claim, dict) else None
+            source_ids = claim.get("source_ids") if isinstance(claim, dict) else None
+            verdict = claim.get("verdict") if isinstance(claim, dict) else None
+            if (not isinstance(text, str) or not text.strip() or text not in answer or text in seen
+                    or verdict not in {"supported", "contradicted", "unknown"}
+                    or not isinstance(source_ids, list)
+                    or any(not isinstance(source_id, str) for source_id in source_ids)
+                    or (allowed_source_ids is not None and set(source_ids) - set(allowed_source_ids))):
+                invalid_span = True
+                break
+            seen.add(text)
+        if invalid_span:
+            result["claims"] = []
+            result["scores"]["source_groundedness"] = None
+            result["scores"]["retrieved_context_faithfulness"] = None
+            return
+    missing = [claim for claim in claims if isinstance(claim, dict)
+               and claim.get("verdict") == "supported" and claim.get("source_ids") == []]
+    if not missing:
+        return
+    for claim in missing:
+        claim["verdict"] = "unknown"
+    # Without claim-level evidence IDs, groundedness cannot be asserted safely.
+    result["scores"]["source_groundedness"] = None
+    result["scores"]["retrieved_context_faithfulness"] = None
 
 
 def validate_claims(claims, answer):

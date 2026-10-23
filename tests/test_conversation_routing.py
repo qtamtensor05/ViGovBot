@@ -48,6 +48,19 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(result['generation_diagnostics']['citation_fallback'], 'invalid_after_retry')
         self.assertEqual(llm.call_count, 3)
 
+    def test_truncated_retry_gets_one_bounded_final_repair(self):
+        truncated = '{"answer":"Nội dung bị cắt'
+        valid = json.dumps({
+            'answer': 'Phí 0 đồng', 'action': 'answer', 'evidence_status': 'sufficient',
+        })
+        result, llm = self.run_answer([route(), truncated, truncated, valid])
+        self.assertEqual(result['prediction'], 'Phí 0 đồng')
+        self.assertEqual(result['generation_diagnostics']['attempts'], 3)
+        self.assertEqual(llm.call_count, 4)
+        self.assertIn('answer tối đa 600 ký tự', llm.call_args_list[-1].args[0][0]['content'])
+        for branch in llm.call_args_list[-1].args[1]['response_format']['anyOf']:
+            self.assertEqual(branch['properties']['answer']['maxLength'], 600)
+
     def setUp(self):
         self.settings = dict(top_k=5, num_ctx=8192, num_predict=512, max_chunk_tokens=1200)
         self.history = [{"role": "user", "content": "OLD_TOPIC: giấy khai sinh"},
@@ -81,6 +94,40 @@ class RoutingTests(unittest.TestCase):
         self.assertIn(resolved, str(llm.call_args_list[1].args[0]))
         self.assertNotIn("OLD_CLAIM", str(llm.call_args_list[1].args[0]))
         self.assertEqual(result["evidence_status"], "missing")
+
+    def test_invalid_sub_query_json_falls_back_to_original_query(self):
+        self.settings["decompose_queries"] = True
+        result, _ = self.run_answer([
+            route(), "not json",
+            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient")),
+        ])
+        self.assertEqual(result["decomposition_status"], "invalid_model_output_fallback_original_query")
+        self.assertEqual(result["actual_sub_queries"], [{"sub_query_id": "sq_1", "query": "Phí cấp hộ chiếu?"}])
+        self.retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", 5)
+
+    def test_structured_calls_prevent_empty_eos_and_bound_decomposition(self):
+        self.settings["decompose_queries"] = True
+        valid = json.dumps(dict(answer="ok", action="answer", evidence_status="sufficient"))
+        _, llm = self.run_answer([route(), '{"queries":["query"]}', valid])
+        self.assertEqual(llm.call_args_list[0].args[1]["min_new_tokens"], 8)
+        self.assertEqual(llm.call_args_list[1].args[1]["num_predict"], 128)
+        self.assertEqual(llm.call_args_list[1].args[1]["min_new_tokens"], 8)
+        self.assertEqual(llm.call_args_list[2].args[1]["min_new_tokens"], 8)
+
+    def test_empty_retry_does_not_waste_a_third_generation(self):
+        with self.assertRaises(StructuredAnswerError) as caught:
+            self.run_answer([route(), "", ""])
+        self.assertEqual(caught.exception.diagnostics["attempts"], 2)
+
+    def test_local_qlora_plain_answer_is_preserved_without_invented_labels(self):
+        self.settings["provider"] = "local_transformers"
+        result, llm = self.run_answer([route(), "Linh vuc duoc cong bo la: Dat dai."])
+        self.assertEqual(result["prediction"], "Linh vuc duoc cong bo la: Dat dai.")
+        self.assertIsNone(result["action"])
+        self.assertIsNone(result["evidence_status"])
+        self.assertEqual(result["decision_reason"], "plain_text_fallback")
+        self.assertEqual(result["generation_diagnostics"]["output_contract"], "plain_text_fallback")
+        self.assertEqual(llm.call_count, 2)
 
     def test_ambiguous_and_out_of_scope_skip_retrieval_and_generation(self):
         for response, action, reason in [

@@ -1040,3 +1040,50 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   lệ và lỗi còn lại là citation. Ghi `invalid_model_output`, citation rỗng và
   invalid-citation rate 1 thay vì biến thành missing input.
 - Trạng thái kiểm chứng: đang chờ test và runtime resume trên container.
+
+# ERR-20261023-05 - Bốn ca RAG bị cắt JSON sau cả retry
+
+- Task: `TASK-20261023-05`.
+- Triệu chứng: sau resume timeout 2000 giây vẫn còn 4 HTTP 502 cố định.
+- Nguyên nhân xác nhận từ log: retry output bị cắt giữa chuỗi JSON ở khoảng ký
+  tự 1.400-1.650 (`JSONDecodeError: Unterminated string`); không phải timeout hay
+  citation. Tăng timeout không thay đổi giới hạn output token.
+- Cách sửa: thêm đúng một final repair chỉ cho `JSONDecodeError`, giữ nguyên
+  `num_predict=512`, yêu cầu answer/citation ngắn và JSON hoàn chỉnh; ghi attempts
+  và lỗi trong diagnostics. Các lỗi structured khác vẫn thất bại.
+- Kiểm chứng: local Ruff/compileall/diff-check PASS; chờ unittest và bốn ca thật
+  trên container.
+
+- Bổ sung runtime: 3/4 ca phục hồi; `TC_P3_014386` vẫn bị cắt ở final repair vì
+  model không tuân giới hạn chỉ viết trong prompt. Bản sửa tiếp theo đưa giới hạn
+  vào JSON Schema của riêng final repair (`answer.maxLength=600`, tối đa 3
+  citation, `claim.maxLength=160`) để provider cưỡng chế.
+
+# ERR-20261023-06 - QLoRA + RAG 502 khi tách sub-query
+
+- Task: `TASK-20261023-05`.
+- Triệu chứng: 4/7 ca đầu QLoRA + RAG nhận HTTP 502; GPU/adapter vẫn hoạt động,
+  các ca xen kẽ trả HTTP 200.
+- Nguyên nhân xác nhận: complete trace bật `decompose_queries`; local QLoRA trả
+  JSON rỗng/không hợp lệ, pipeline gọi `json.loads` trực tiếp ở auxiliary
+  decomposition và hủy toàn bộ request.
+- Cách sửa: malformed decomposition fallback về đúng một sub-query là truy vấn
+  gốc; trace ghi `invalid_model_output_fallback_original_query`. Answer/retrieval
+  vẫn chạy, không giả là decomposition hợp lệ.
+- Kiểm chứng local: Ruff, compileall và diff-check PASS; runtime resume chờ
+  container.
+
+# ERR-20261023-07 - Môi trường host thiếu dependency plotting
+
+- Task: `TASK-20261023-06`.
+- Triệu chứng: lần chạy đầu của `vigovbot.training.plot` lỗi
+  `ModuleNotFoundError: No module named 'matplotlib'`; sau khi cài hai package
+  plotting, import tiếp tục cần `pydantic` qua schema training. Thư mục tạm đầu
+  tiên bị cài chồng không nhất quán và trả `ImportError` cho `BaseModel`.
+- Nguyên nhân: Python host không có optional plotting/project dependencies; pip
+  ghi đè target cũ trên Windows gặp `PermissionError` ở `annotated_types`.
+- Xử lý: không xóa cưỡng bức target lỗi; tạo target sạch
+  `%TEMP%/vigov-plot-deps-v2`, cài trọn bộ matplotlib, pandas, pydantic và PyYAML
+  một lần rồi đặt `PYTHONPATH` chỉ cho lệnh plotting/test.
+- Kiểm chứng: pipeline exit 0, tạo 9 PNG; Pillow đọc được toàn bộ và unit test
+  plotting 2/2 PASS. Không sửa dependency của project hoặc môi trường runtime.

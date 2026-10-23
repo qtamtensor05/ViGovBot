@@ -102,7 +102,8 @@ def _bertscore(predictions: list[str], references: list[str], *, model: str, dev
 def score_offline_v2(*, dataset: Path, split: str, predictions: Path, architecture: str, output: Path,
                      bertscore: bool = False, bert_model: str = "xlm-roberta-large", bert_device: str = "cpu",
                      bert_batch_size: int = 8, bert_score_fn=None, extended=False,
-                     embedding_model="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2") -> dict:
+                     embedding_model="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                     allow_partial=False) -> dict:
     """Score cached v2 predictions without model inference or modifying exported results."""
     if architecture not in ARCHITECTURES:
         raise ValueError(f"Unsupported architecture_type: {architecture}")
@@ -111,8 +112,13 @@ def score_offline_v2(*, dataset: Path, split: str, predictions: Path, architectu
     golden_ids = {row["test_id"] for row in golden_rows}
     extra_ids = set(prediction_rows) - golden_ids
     missing_ids = golden_ids - set(prediction_rows)
-    if extra_ids or missing_ids:
+    if extra_ids or (missing_ids and not allow_partial):
         raise ValueError(f"Predictions must cover the Golden split exactly; extra={len(extra_ids)}, missing={len(missing_ids)}")
+    expected = len(golden_rows)
+    if allow_partial:
+        golden_rows = [row for row in golden_rows if row["test_id"] in prediction_rows]
+        if not golden_rows:
+            raise ValueError("Partial predictions do not match any Golden case")
 
     ordered_predictions = []
     references = []
@@ -197,7 +203,9 @@ def score_offline_v2(*, dataset: Path, split: str, predictions: Path, architectu
 
     report = {
         "schema_version": "2.0.0-supplement-1", "architecture_type": architecture, "split": split,
-        "expected": len(golden_rows), "prediction_records": len(prediction_rows),
+        "expected": expected, "scored_records": len(golden_rows),
+        "prediction_records": len(prediction_rows), "missing_predictions": len(missing_ids),
+        "partial": bool(missing_ids),
         "metric_contract": {
             "normalization_version": NORMALIZATION_VERSION,
             "sacrebleu": "corpus BLEU, tokenize=none, scale 0-100",

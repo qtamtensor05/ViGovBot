@@ -49,6 +49,7 @@ def evaluation_trace(result, mode):
         "retrieval_query": result.get("retrieval_query"),
         "actual_sub_queries": result.get("actual_sub_queries"),
         "sub_query_retrieval": result.get("sub_query_retrieval"),
+        "decomposition_status": result.get("decomposition_status"),
         "retrieval_top_k": result.get("retrieval_top_k"),
         "finish_reason": raw.get("done_reason"),
         "decision_reason": result.get("decision_reason"),
@@ -140,6 +141,7 @@ class ChatApplication:
     def _settings(self, model):
         settings = self.config.inference_settings()
         settings["model"] = model.model
+        settings["provider"] = model.provider
         settings["api_key_env"] = model.api_key_env
         if model.provider == "local_transformers":
             adapter_path = getattr(model, "adapter_path", None)
@@ -315,6 +317,10 @@ class ChatApplication:
                             public_result["raw_routing"] = result.get("raw_routing")
                     results.append(public_result)
                 except Exception as exc:
+                    diagnostics = getattr(exc, "diagnostics", None)
+                    if isinstance(diagnostics, dict):
+                        LOG.error("Structured generation diagnostics for %s: %s", model_id,
+                                  json.dumps(diagnostics, ensure_ascii=False))
                     LOG.exception("Model %s không trả lời được", model_id)
                     results.append({"model_id": model_id, "error": str(exc)})
         failures = sum("error" in result for result in results)

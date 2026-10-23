@@ -1,3 +1,47 @@
+# TASK-20261023-08 - in_progress, viết báo cáo phân tích mô hình QLoRA + RAG
+
+- Nhiệm vụ: Phân tích kết quả thực tế từ đợt chấm qlora-rag (run qlora-rag-partial-682-20261023) trong ackups/vigovbot-qlora-rag-partial-682-20261023-041931/ và bổ sung vào hệ thống docs.
+- Tiến độ: Đã trích xuất số liệu 682 mẫu, ma trận metrics offline, phân tích router vs rag_search subset (Key Fact 51,30%); đang biên soạn báo cáo chi tiết.
+- Việc còn lại: Xuất báo cáo docs/reports/bao-cao-danh-gia-chi-tiet-model-qlora-rag.md, cập nhật tài liệu tổng hợp và mục lục docs/README.md.
+
+## Mốc trước
+
+# TASK-20261023-07 - completed, hoàn thành 4 báo cáo phân tích chi tiết 3 mô hình Base, Base+RAG, QLoRA
+
+- Đã hoàn tất 4 bài báo cáo phân tích chuyên sâu tại `docs/reports/`:
+  1. `docs/reports/bao-cao-danh-gia-chi-tiet-model-base.md` (Đánh giá chi tiết Standalone Base)
+  2. `docs/reports/bao-cao-danh-gia-chi-tiet-model-base-rag.md` (Đánh giá chi tiết Base + RAG)
+  3. `docs/reports/bao-cao-danh-gia-chi-tiet-model-qlora-finetuning.md` (Quá trình huấn luyện V100 & đánh giá QLoRA)
+  4. `docs/reports/bao-cao-so-sanh-tong-hop-3-model-base-rag-qlora.md` (So sánh tổng hợp & đối sánh đa chiều 3 model)
+- Toàn bộ ma trận số liệu (30+ metrics) được trích xuất 100% từ artifact thật trong `backups/vigovbot-stage-offline-pass-20261023-005223/`.
+- Đã cập nhật mục lục tài liệu tại `docs/README.md`; kiểm chứng link test `test_documentation` PASS 100%.
+- Hồ sơ dự án tại `docs/project/requests.md`, `docs/project/current-stage.md`, `docs/project/implementation-history.md` đã cập nhật đầy đủ.
+
+## Mốc trước
+
+# TASK-20261023-05 - partial, tối ưu capture QLoRA + RAG
+
+- Runtime ghi nhận 18/53 HTTP 502 do câu trả lời structured của QLoRA rỗng;
+  decomposition fallback đã hoạt động, lỗi nằm ở generation chính.
+- Đã thêm `min_new_tokens=8` cho các lượt structured, giới hạn decomposition
+  còn 128 token và bỏ lượt repair thứ ba khi retry vẫn rỗng.
+- Local compileall/diff-check PASS; unit test local SKIPPED do thiếu `filelock`.
+  Cần đồng bộ ba source và test một case lỗi thật trên container trước khi resume.
+
+## Mốc trước
+
+# TASK-20261023-06 - completed, đã vẽ biểu đồ training QLoRA
+
+- Đã xác định run thực tế tại
+  `backups/vigovbot-stage-offline-pass-20261023-005223/outputs/qlora/qlora-v100-optimized`.
+- Đã tạo 9 PNG và `plot_manifest.json` trong thư mục `plots/` của run, gồm loss,
+  learning rate, gradient norm, GPU memory, thời gian/epoch, throughput và tỷ lệ
+  tham số. Toàn bộ PNG đọc được; test plotting 2/2 PASS.
+- `evaluation_comparison.png` không tạo vì run chưa có post-training test artifact;
+  manifest ghi rõ unavailable. Không chạy lại training/model hoặc sửa checkpoint.
+
+## Mốc trước
+
 # TASK-20261023-04 - completed source, chờ người dùng chạy container
 
 - Đã bổ sung profile `qwen-qlora-rag`, adapter override chung, CLI `noise-v2`
@@ -184,3 +228,10 @@
   bản vá. Cần đồng bộ 6 file source/test, restart web rồi chạy test tập trung.
 
 ## Mốc trước
+# TASK-20261023-08 - completed, QLoRA không treo và đã trả API 200
+
+- Web/Ollama đang healthy; `/` và `/api/models` trả 200.
+- Hai 404 quan sát được là `/favicon.ico` và `/.well-known/appspecific/com.chrome.devtools.json`, chưa liên quan endpoint chat.
+- Lần gọi đầu tải đủ 4 shard `Qwen/Qwen2.5-7B-Instruct` trong 7 phút 48 giây, sau đó nạp 4/4 checkpoint shard trong khoảng 27 giây.
+- Khi sinh câu trả lời, GPU RTX 4050 dùng 5.884/6.141 MiB; không có OOM, container không restart và request kết thúc bằng `POST /api/chat HTTP/1.1 200`.
+- Adapter 170 MB mount đúng tại `/app/models/qlora`; không sửa code, checkpoint hoặc adapter. Cache Hugging Face được giữ trong volume nên lần gọi sau không cần tải lại các shard này.

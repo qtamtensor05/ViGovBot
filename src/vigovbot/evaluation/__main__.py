@@ -194,7 +194,7 @@ def main(argv=None):
             dataset=args.golden_dir, split=args.split or "test", predictions=args.predictions,
             architecture=args.architecture, output=args.out, bertscore=args.bertscore,
             bert_model=args.bert_model, bert_device=args.bert_device, bert_batch_size=args.bert_batch_size,
-            extended=args.extended_metrics,
+            extended=args.extended_metrics, allow_partial=args.allow_partial,
         )
         print(json.dumps({"output": str(args.out), "metrics": summary["metrics"]}, ensure_ascii=False, indent=2))
         return 0

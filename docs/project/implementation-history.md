@@ -1,5 +1,54 @@
 # Lịch sử triển khai
 
+## TASK-20261023-08 — Báo cáo phân tích chuyên sâu mô hình QLoRA + RAG (completed)
+
+- Khai thác dữ liệu đánh giá thực tế của mô hình kết hợp `qlora-rag` (run `qlora-rag-partial-682-20261023`, 682 mẫu thuộc cohort answerable) từ thư mục `backups/vigovbot-qlora-rag-partial-682-20261023-041931/`.
+- Thực hiện phân tích định lượng đa chiều và đối sánh trực diện trên cùng lát cắt 682 test cases với 3 cấu hình Base, Base+RAG, QLoRA Standalone:
+  - SacreBLEU: 41,97 (gấp 1,78 lần Base+RAG 23,5).
+  - Token F1: 0,5715 (cao hơn Base+RAG 0,4251, +34,4%).
+  - ROUGE-L F1: 0,5638 (cao hơn Base+RAG 0,4005).
+  - BERTScore F1: 0,9215 (cao hơn Base+RAG 0,9037).
+  - Character Error Rate (CER): 0,7229 (giảm gần một nửa lỗi so với Base+RAG 1,3192).
+  - Độ dài câu trả lời: 36,57 tokens/câu (ngắn gọn nhất trong 4 cấu hình).
+- Phân tích bóc tách luồng định tuyến (Router Breakdown):
+  - Luồng `rag_search` thực tế (346 ca): Key Fact Coverage vọt lên **51,30%** (kỷ lục cao nhất toàn bộ dự án, vượt Base+RAG 49,63%), Token F1 đạt **67,40%**.
+  - Luồng `clarify` (279 ca) và `out_of_scope` (56 ca): Router phân loại quá phòng thủ, kéo Key Fact trung bình toàn tập 682 ca xuống 36,58%.
+  - Kết luận: Khi router được tối ưu lên >95%, QLoRA+RAG sẽ dẫn đầu toàn diện cả về độ chính xác sự kiện lẫn phong cách súc tích.
+- Xuất bản báo cáo chuyên sâu:
+  - `docs/reports/bao-cao-danh-gia-chi-tiet-model-qlora-rag.md`
+  - Cập nhật mục 6.1 thực chứng 4 mô hình trong `docs/reports/bao-cao-so-sanh-tong-hop-3-model-base-rag-qlora.md`.
+  - Cập nhật mục lục `docs/README.md`.
+- Kiểm chứng: `python -m unittest discover -s tests -p test_doc*.py` PASS.
+
+## TASK-20261023-07 — Báo cáo phân tích chuyên sâu 3 mô hình Base, Base+RAG, QLoRA (completed)
+
+- Phân tích toàn diện 1.100 mẫu kiểm thử (1.000 answerable, 100 unanswerable) từ thư mục sao lưu backups/vigovbot-stage-offline-pass-20261023-005223/ cho 3 mô hình:
+  1. base (Qwen2.5-7B-Instruct zero-retrieval)
+  2. base-rag (Qwen2.5-7B-Instruct + ViGovBot Hybrid FAISS/BM25 RAG)
+  3. qlora (Qwen2.5-7B-Instruct + QLoRA adapter v100-optimized)
+- Khai thác toàn diện dữ liệu huấn luyện QLoRA:
+  - Huấn luyện trên GPU NVIDIA Tesla V100-SXM2-32GB, 2.200 train / 550 val SFT.
+  - Tối ưu 4-bit NF4, rank 16, alpha 32, paged_adamw_8bit, cosine scheduler, warmup 0.03, peak LR 2e-4.
+  - Hội tụ nhanh: 1.255,66s (~20,9 phút), best checkpoint-500 đạt val loss 0.3928 (perplexity 1.4812), early stopping tại step 700. Peak VRAM 17,34 GB allocated / 18,37 GB reserved.
+- Trích xuất ma trận so sánh định lượng đa chiều:
+  - SacreBLEU: Base 1,98 | Base+RAG 23,67 (+1.096%) | QLoRA 55,32 (gấp 28 lần Base, 2,3 lần RAG).
+  - chrF: Base 21,12 | Base+RAG 43,18 | QLoRA 62,72.
+  - Token F1: Base 0,1346 | Base+RAG 0,4318 | QLoRA 0,7431.
+  - Exact Match: Base 0,0% | Base+RAG 0,0% | QLoRA 18,36%.
+  - Tỷ lệ lỗi ký tự (CER): Base 10,05 | Base+RAG 1,23 (-87,8%) | QLoRA 0,42 (-95,8%).
+  - BERTScore F1: Base 0,8536 | Base+RAG 0,9044 | QLoRA 0,9598.
+  - Key Fact Coverage: Base 20,40% | Base+RAG 50,52% (cao nhất) | QLoRA 35,30%.
+  - Chiều dài phản hồi: Base 247,5 tokens (lan man) | Base+RAG 136,8 tokens | QLoRA 43,4 tokens (siêu ngắn gọn).
+  - Phân tích nhóm unanswerable (100 ca): QLoRA đạt Token F1 81,61%, BERTScore 0,9696, CER 0,20; Base+RAG từ chối chuẩn xác (CER 0,75); Base giải thích xã giao dài dòng 170,5 tokens.
+  - Phân tích độ trễ: Base 2,75s (TTFT 85ms) | QLoRA 4,70s (TTFT 319ms) | Base+RAG 7,21s (TTFT 976ms, prompt phình to 3.377 tokens).
+- Xuất 4 bài báo cáo chuyên sâu hoàn chỉnh tại:
+  1. docs/reports/bao-cao-danh-gia-chi-tiet-model-base.md
+  2. docs/reports/bao-cao-danh-gia-chi-tiet-model-base-rag.md
+  3. docs/reports/bao-cao-danh-gia-chi-tiet-model-qlora-finetuning.md
+  4. docs/reports/bao-cao-so-sanh-tong-hop-3-model-base-rag-qlora.md
+- Cập nhật mục lục tại docs/README.md.
+- Kiểm chứng: python -m unittest discover -s tests -p test_doc*.py PASS. Không sửa đổi dữ liệu thô, không chạy lại inference giả lập.
+
 ## TASK-20261022-02 — Golden SFT hai split (completed)
 
 - Thêm `configs/training/experiments/golden_sft.yaml`: kế thừa base, chọn
@@ -1486,3 +1535,45 @@ SHA-256 artifact:
   chúng và chỉ chạy lại 21 ca 502. Thêm regression test cho fallback và metric.
 - Kiểm chứng local: Ruff PASS, compileall PASS, `git diff --check` PASS. Pytest và
   HTTP/model runtime chờ chạy trên `.venv-v100` sau khi đồng bộ.
+
+- Bổ sung theo log runtime: bốn ca cố định không phải timeout mà là JSON bị cắt
+  sau retry. Thêm final repair thứ ba chỉ cho `JSONDecodeError`, cùng budget 512
+  token và prompt giới hạn answer 600 ký tự/tối đa 3 citation. Không thay đổi
+  cấu hình hay chạy lại 1.096 prediction thành công.
+- Sau lượt thật còn một ca model bỏ qua giới hạn prompt; final repair giờ dùng
+  deep-copy response schema và đặt `maxLength`/`maxItems` thật. Hai lần sinh đầu
+  và mọi prediction đã thành công không thay đổi.
+- Sửa QLoRA + RAG: lỗi JSON của optional sub-query decomposition không còn trả
+  502; fallback retrieval query gốc và trace trạng thái fallback. Thêm regression
+  test; không thay đổi generator/retrieval khi decomposition hợp lệ.
+
+# TASK-20261023-06 - Vẽ biểu đồ training QLoRA từ backup
+
+- Run nguồn:
+  `backups/vigovbot-stage-offline-pass-20261023-005223/outputs/qlora/qlora-v100-optimized`;
+  không có `backups/qlora` trực tiếp. Dùng pipeline canonical
+  `vigovbot.training.plot` và log `logs/training_events.jsonl`.
+- Đã tạo 9 biểu đồ trong `plots/`: `training_loss.png`, `validation_loss.png`,
+  `combined_loss.png`, `learning_rate.png`, `gradient_norm.png`, `gpu_memory.png`,
+  `time_per_epoch.png`, `throughput.png`, `parameter_proportions.png`; đồng thời
+  tạo `plot_manifest.json` ghi field/source từng biểu đồ.
+- Dữ liệu quan sát: training `early_stopped` ở step 700; best validation loss
+  `0.3928232789039612` tại checkpoint/step 500. Biểu đồ kết hợp đánh dấu cả hai mốc.
+- Không tạo `evaluation_comparison.png` vì không có artifact post-training test;
+  giữ trạng thái `unavailable` trong manifest, không suy diễn metric.
+- Kiểm chứng PASS: 9 PNG mở được bằng Pillow, 8 file 1280x720 và biểu đồ tham số
+  960x720, mọi file khác 0 byte; xem trực quan `combined_loss.png`; unit test
+  `tests.test_qlora_plot` 2/2 PASS. `git diff --check` exit 0 nhưng báo warning
+  quyền đọc `outputs/.gitkeep` đã tồn tại từ worktree.
+- Dependency plotting được cài riêng vào `%TEMP%/vigov-plot-deps-v2`, không sửa
+  môi trường dự án. Không chạy training, model, evaluation hoặc sửa artifact gốc.
+
+Đề xuất commit: `docs(qlora): add training plots from V100 backup`
+# TASK-20261023-08 - Điều tra Web QLoRA treo và thông báo 404
+
+- Kiểm tra trực tiếp `docker compose ps`, log `web`, `/api/models`, cache Hugging Face, adapter mount, tài nguyên container và GPU.
+- Hai request 404 là `/favicon.ico` và `/.well-known/appspecific/com.chrome.devtools.json`, không phải `/api/chat`.
+- QLoRA lần đầu tải bốn shard model nền trong 7 phút 48 giây; cache tăng trong lúc chờ và các file `.incomplete` biến mất sau khi hoàn tất.
+- Model nạp 4/4 checkpoint shard trong khoảng 27 giây; adapter `/app/models/qlora` có đủ cấu hình và weights, dung lượng khoảng 170 MB.
+- Trong pha generation, RTX 4050 dùng 5.884/6.141 MiB; không ghi nhận OOM/restart. Request thực tế kết thúc HTTP 200.
+- Không thay đổi source, cấu hình, checkpoint hoặc cache. Không thêm lỗi vào failure journal vì đây là độ trễ cold start, không phải runtime failure.

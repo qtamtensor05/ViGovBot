@@ -73,6 +73,25 @@ class EvaluationV2Tests(unittest.TestCase):
         self.assertEqual(report["metrics"]["metric_details"]["map_at_5"]["n"], 1)
         self.assertTrue(output_exists)
 
+    def test_supplemental_offline_scores_explicit_partial_subset(self):
+        from vigovbot.evaluation.offline_v2 import score_offline_v2
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            other = golden()
+            other["test_id"] = "TC_2"
+            write_jsonl(root / "test_golden.jsonl", [golden(), other])
+            predictions = root / "predictions.jsonl"
+            write_jsonl(predictions, [{"id": "TC_1", "answer": "partial"}])
+            report = score_offline_v2(
+                dataset=root, split="test", predictions=predictions,
+                architecture="base", output=root / "offline.json", allow_partial=True,
+            )
+        self.assertEqual(report["expected"], 2)
+        self.assertEqual(report["scored_records"], 1)
+        self.assertEqual(report["missing_predictions"], 1)
+        self.assertTrue(report["partial"])
+
     def test_run_v2_sends_only_question_history_and_records_trace(self):
         captured = []
 
