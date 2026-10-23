@@ -112,6 +112,48 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(hits[0]["chunk_id"], "chunk_1")
         self.assertAlmostEqual(hits[0]["score"], 1.0)
 
+    def test_exact_source_code_limits_candidates_before_semantic_ranking(self):
+        self.records[0]["source_code"] = "1.116222"
+        self.records[0]["text_content"] = "Số quyết định 3826/QĐ-UBND"
+        self.records[1]["source_code"] = "1.116223_D"
+        self.write_metadata(self.records)
+        index, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
+
+        class Encoder:
+            def encode(self, texts, **kwargs):
+                result = np.zeros((1, 1024), dtype=np.float32)
+                result[0, 1] = 1
+                return result
+
+        retriever = Retriever(index, database, Encoder())
+        self.addCleanup(retriever.close)
+        hits = retriever.search("Số quyết định của mã 1.116222 là gì?", top_k=5)
+
+        self.assertEqual([hit["source_code"] for hit in hits], ["1.116222"])
+        self.assertIn("3826/QĐ-UBND", hits[0]["text_content"])
+
+    def test_unknown_source_code_does_not_fall_back_to_similar_codes(self):
+        index, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
+
+        class Encoder:
+            def encode(self, texts, **kwargs):
+                result = np.zeros((1, 1024), dtype=np.float32)
+                result[0, 1] = 1
+                return result
+
+        retriever = Retriever(index, database, Encoder())
+        self.addCleanup(retriever.close)
+        hits = retriever.search("Mã 9.999999 không tồn tại", top_k=1)
+
+        self.assertEqual(hits, [])
+
+    def test_source_code_index_is_created_in_sqlite_cache(self):
+        _, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
+        with sqlite3.connect(database) as connection:
+            indexes = {row[1] for row in connection.execute("PRAGMA index_list(chunks)")}
+
+        self.assertIn("idx_chunks_source_code", indexes)
+
     def test_retriever_can_search_from_http_worker_thread(self):
         index, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
 

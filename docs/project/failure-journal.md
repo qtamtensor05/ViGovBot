@@ -1101,3 +1101,12 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Cách sửa: thêm format policy có điều kiện vào prompt; trình tự dùng mỗi bước một dòng, hồ sơ và phí/thời hạn dùng từng mục riêng; câu hỏi giải thích giữ văn xuôi.
 - Kiểm chứng bản sửa: 3 test hồi quy prompt PASS, trong đó mẫu `Bước 1` và `Bước 2` ở hai dòng khác nhau; Ruff, compileall và diff-check PASS. Bộ `test_rag_pipeline` chưa chạy vì host thiếu `faiss`.
 - Tránh lặp lại: giữ test prompt/response format cho câu hỏi dạng bước và thành phần; audit ranh giới `Bước N` trong corpus trước khi quyết định rebuild.
+# ERR-20261023-11 - Mã TTHC chính xác không vào top-5 semantic retrieval
+
+- Task: TASK-20261023-11.
+- Triệu chứng: hỏi số quyết định của mã `1.116222` nhưng RAG trả không tìm thấy.
+- Tái hiện: API thành công nhưng top-5 không có mã cần tìm; điểm khoảng 0,578-0,589 thuộc các mã gần/khác. Corpus thực tế có đáp án `3826/QĐ-UBND` tại row 93672.
+- Nguyên nhân xác nhận: retriever chỉ dùng embedding + FAISS top-k; chuỗi mã số không được exact-match theo metadata `source_code`, nên semantic similarity làm rơi đúng tài liệu trước generation.
+- Cách sửa: nhận diện mã TTHC có kiểm soát, exact lookup theo `source_code`, rồi semantic-rank chỉ các chunk của đúng mã. Mã không tồn tại không fallback sang mã gần giống; mã hậu tố như `_D` được giữ nguyên.
+- SQLite cache được thêm expression index `idx_chunks_source_code`; migration chỉ chạy sau kiểm tra checksum và cập nhật lại provenance cache.
+- Kiểm chứng: query planner dùng index; API mã `1.116222` trả `3826/QĐ-UBND` với 5/5 source đúng mã; mã `9.999999` không trả source gần giống. Ruff, compileall và diff-check PASS.

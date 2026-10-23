@@ -10,6 +10,33 @@ from vigovbot.utils.helpers import json_hash
 from vigovbot.schemas import CACHE_VERSION
 from vigovbot.artifacts import file_hash, output_lock
 
+SOURCE_CODE_INDEX = "idx_chunks_source_code"
+
+
+def _ensure_source_code_index(db_path):
+    """Add the exact-code lookup index to a verified derived cache."""
+    connection = sqlite3.connect(db_path)
+    try:
+        exists = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?", (SOURCE_CODE_INDEX,)
+        ).fetchone()
+        if exists:
+            return False
+        connection.execute(
+            f"CREATE INDEX {SOURCE_CODE_INDEX} "
+            "ON chunks(json_extract(payload, '$.source_code') COLLATE NOCASE)"
+        )
+        connection.commit()
+        return True
+    finally:
+        connection.close()
+
+
+def _write_ready_marker(marker, info):
+    pending_marker = marker.with_name("ready.partial")
+    pending_marker.write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
+    pending_marker.replace(marker)
+
 
 def prepare_corpus(source, cache_root, *, allow_legacy=False):
     identity, manifest = verify_corpus(source, allow_legacy=allow_legacy)
@@ -33,13 +60,19 @@ def _prepare_corpus(source, cache, identity, manifest):
             info = {}
         if not isinstance(info, dict):
             info = {}
+        cache_hashes_match = info.get("cache_sha256") == {
+            "index": file_hash(index_path), "database": file_hash(db_path)
+        }
         if (
             info.get("identity") == identity
             and info.get("version") == CACHE_VERSION
             and info.get("embedding") == (manifest["embedding"] if manifest else None)
             and (manifest is None or info.get("count") == manifest["count"])
-            and info.get("cache_sha256") == {"index": file_hash(index_path), "database": file_hash(db_path)}
+            and cache_hashes_match
         ):
+            if _ensure_source_code_index(db_path):
+                info["cache_sha256"]["database"] = file_hash(db_path)
+                _write_ready_marker(marker, info)
             return index_path, db_path, info
     if index_path.exists() and file_hash(index_path) != identity["tthc_unified.index"]:
         index_path.unlink()
@@ -109,6 +142,11 @@ def _prepare_corpus(source, cache, identity, manifest):
             connection.commit()
         if count != expected:
             raise ValueError(f"FAISS có {expected} dòng nhưng metadata có {count}")
+        connection.execute(
+            f"CREATE INDEX {SOURCE_CODE_INDEX} "
+            "ON chunks(json_extract(payload, '$.source_code') COLLATE NOCASE)"
+        )
+        connection.commit()
         connection.close()
         temporary.replace(db_path)
         # Verify again after streaming: never mark a corpus changed mid-build as ready.
@@ -123,9 +161,7 @@ def _prepare_corpus(source, cache, identity, manifest):
             "embedding": manifest["embedding"] if manifest else None,
             "cache_sha256": {"index": file_hash(index_path), "database": file_hash(db_path)},
         }
-        pending_marker = cache / "ready.partial"
-        pending_marker.write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
-        pending_marker.replace(marker)
+        _write_ready_marker(marker, info)
         return index_path, db_path, info
     finally:
         connection.close()

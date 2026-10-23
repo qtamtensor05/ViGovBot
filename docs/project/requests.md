@@ -1173,3 +1173,18 @@
 - Tiêu chí hoàn thành: câu hỏi trình tự yêu cầu mỗi bước một dòng; hồ sơ và phí/thời hạn yêu cầu từng mục riêng; câu hỏi giải thích không bị ép thành danh sách; test hồi quy và kiểm tra tĩnh pass.
 - Bổ sung theo yêu cầu người dùng: triển khai ba quy tắc trình bày và test `Bước 1`/`Bước 2` khác dòng.
 - Trạng thái: completed.
+# TASK-20261023-11 - Điều tra tra cứu số quyết định theo mã TTHC
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: xác định vì sao câu hỏi `Số quyết định của thủ tục mã 1.116222 là gì?` trả lời không tìm thấy.
+- Phạm vi: kiểm tra corpus/cache, tái hiện `/api/chat`, bổ sung exact lookup theo `source_code`, nâng cấp SQLite cache dẫn xuất và test hồi quy; không sửa corpus/index FAISS gốc.
+- Tiêu chí: mã tồn tại chỉ trả chunk đúng mã; mã không tồn tại không lấy mã gần giống; truy vấn không có mã giữ semantic retrieval; cache cũ nâng cấp không rebuild corpus.
+- Bổ sung theo yêu cầu người dùng: triển khai exact lookup và giải thích vai trò SQLite.
+- Trạng thái: completed.
+# TASK-20261023-12 - Đánh giá continuous batching với vLLM/SGLang
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: đánh giá khả năng thay Ollama bằng vLLM hoặc SGLang để tăng throughput benchmark bằng continuous batching/PagedAttention.
+- Phạm vi: review kiến trúc/provider/evaluation hiện tại, GPU local và tài liệu chính thức; không cài engine, tải model, sửa Compose hay chạy benchmark tốn tài nguyên.
+- Tiêu chí: nêu tính khả thi theo từng GPU, blocker tích hợp, giới hạn của tuyên bố 3-8x và lộ trình benchmark có thể kiểm chứng.
+- Trạng thái: completed (architecture assessment only).

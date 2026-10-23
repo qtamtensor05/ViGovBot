@@ -1,8 +1,16 @@
 from __future__ import annotations
 import json
+import re
 import sqlite3
 import threading
 from pathlib import Path
+
+SOURCE_CODE_RE = re.compile(r"(?<![\w.])\d+\.\d{6}(?:[_-][A-Za-z0-9]+)?(?![\w.])", re.IGNORECASE)
+
+
+def extract_source_codes(question):
+    """Return unique TTHC identifiers without treating nearby numeric text as a code."""
+    return list(dict.fromkeys(match.group(0) for match in SOURCE_CODE_RE.finditer(question)))
 
 
 class Retriever:
@@ -48,6 +56,9 @@ class Retriever:
         vector = np.ascontiguousarray(vector)
         vector /= np.max(np.abs(vector))
         faiss.normalize_L2(vector)
+        exact = self._search_source_codes(extract_source_codes(question), vector, top_k)
+        if exact is not None:
+            return exact
         scores, ids = self.index.search(vector, min(top_k, self.index.ntotal))
         ranked = [(float(score), int(row_id)) for score, row_id in zip(scores[0], ids[0]) if row_id >= 0]
         metadata = {}
@@ -66,6 +77,31 @@ class Retriever:
                 raise ValueError(f"Thiếu metadata cho dòng FAISS {row_id}")
             hits.append({"row_id": row_id, "score": score, **json.loads(metadata[row_id])})
         return hits
+
+    def _search_source_codes(self, source_codes, vector, top_k):
+        """Rank exact-code chunks; return None only when the question contains no code."""
+        if not source_codes:
+            return None
+        placeholders = ",".join("?" for _ in source_codes)
+        with self._db_lock:
+            rows = self.db.execute(
+                "SELECT row_id, payload FROM chunks "
+                f"WHERE json_extract(payload, '$.source_code') COLLATE NOCASE IN ({placeholders})",
+                source_codes,
+            ).fetchall()
+        if not rows:
+            return []
+        ranked = []
+        query = vector[0]
+        for row_id, payload in rows:
+            candidate = self.index.reconstruct(row_id)
+            score = float(candidate @ query)
+            ranked.append((score, row_id, payload))
+        ranked.sort(key=lambda item: (-item[0], item[1]))
+        return [
+            {"row_id": row_id, "score": score, **json.loads(payload)}
+            for score, row_id, payload in ranked[:top_k]
+        ]
 
     def close(self):
         with self._db_lock:

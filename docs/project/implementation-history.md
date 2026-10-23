@@ -1593,3 +1593,19 @@ SHA-256 artifact:
 - Thêm `tests/test_prompt_templates.py`: kiểm tra Bước 1 và Bước 2 ở hai dòng riêng, nhánh hồ sơ + phí/thời hạn và nhánh giải thích không có list policy.
 - PASS: 3/3 test prompt mới; multi-turn 5 pass, 1 skip; Ruff; compileall; `git diff --check`.
 - NOT VERIFIED: `tests.test_rag_pipeline` không chạy trên host vì thiếu `faiss`; chưa restart Web container hoặc gọi model lại sau bản sửa. Không sửa corpus/cache và không kết luận lỗi retrieval.
+# TASK-20261023-11 - Chẩn đoán exact lookup mã TTHC
+
+- Corpus runtime có 15 chunk của `source_code=1.116222`; chunk `tthc_1_116222_sec_metadata_identity_1_p1` ghi `Số quyết định: 3826/QĐ-UBND`.
+- Request thật `/api/chat` với `qwen-rag` truy xuất top-5 lần lượt các mã `1.011672`, `1.014955_D`, `1.115572`, `1.014775`, `3.000681`; không có `1.116222`, nên generation đánh giá `evidence_status=missing` và abstain đúng với context nhận được.
+- `Retriever.search()` hiện chỉ encode toàn câu hỏi và tìm top-k bằng FAISS semantic; SQLite chỉ được dùng để lấy payload sau khi FAISS đã chọn row. Không có exact lookup/filter/boost theo `source_code`.
+- Triển khai `extract_source_codes()` hỗ trợ mã chuẩn và hậu tố như `_D`; khi có mã, retriever exact-filter SQLite rồi xếp hạng semantic các chunk trong đúng thủ tục bằng vector FAISS. Mã không tồn tại trả rỗng, không fallback sang mã gần giống; truy vấn không có mã giữ luồng semantic cũ.
+- `prepare_corpus()` tạo expression index `idx_chunks_source_code` trên JSON payload. Cache cũ chỉ được nâng cấp sau khi checksum hợp lệ, sau đó cập nhật hash trong `ready.json`; không rebuild corpus 6,3 GB hay FAISS.
+- Runtime: SQLite query plan dùng `SEARCH chunks USING INDEX idx_chunks_source_code`, tìm đủ 15 chunk của `1.116222`. API thật trả `3826/QĐ-UBND`, evidence sufficient, top-5 đều là `1.116222`; mã `9.999999` không có source và không lấy mã gần giống.
+- PASS: Ruff, compileall, parser mã thường/hậu tố, diff-check, cache migration/index plan và Web API end-to-end. Test FAISS unit mới đã thêm nhưng chưa chạy trên host do thiếu `faiss`; hành vi tương ứng đã được xác minh bằng container runtime thực.
+# TASK-20261023-12 - Đánh giá backend continuous batching
+
+- Source xác nhận `openai_compatible` đã gọi `/chat/completions` và truyền JSON schema; provider này không đi qua khóa tuần tự dành cho `ollama|local_transformers`, nên phù hợp để nối vLLM/SGLang mà không viết lại RAG.
+- Blocker chính: evaluation v2 hiện gửi Golden tuần tự; chỉ đổi backend sẽ không tạo đủ request đồng thời để continuous batching phát huy. RAG còn có routing + generation, có thể thêm rewrite/retry, và query encoder đang có lock nên throughput end-to-end không chỉ phụ thuộc decoder.
+- RTX 4050 hiện tại được đo là 6.141 MiB VRAM, compute capability 8.9; Qwen 7B 4-bit gần kín VRAM nên concurrency 8-16 với context 8.192 không thực tế. V100 32 GB là môi trường từ hồ sơ trước, chưa xác minh live ở lượt này; có thể thử GPTQ/FP16 và concurrency cao hơn nhưng cần pin engine/kernel phù hợp Volta.
+- Khuyến nghị PoC vLLM trước vì protocol, structured output và LoRA có đường tương thích trực tiếp. SGLang là phương án benchmark thứ hai, không triển khai song song ngay.
+- Không xác nhận mức tăng 3-8x. Cần A/B cùng model/quantization/prompt/output/seed tại concurrency 1/2/4/8/16, đo req/s, output tok/s, p50/p95, lỗi, VRAM và chất lượng/structured-output validity.

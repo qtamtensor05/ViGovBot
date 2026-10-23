@@ -249,3 +249,16 @@
 - Đã thêm contract trình bày theo ý định câu hỏi: trình tự/các bước tách từng dòng; hồ sơ và phí/thời hạn tách từng mục; câu hỏi giải thích không bị ép thành danh sách.
 - PASS: 3 test mới, multi-turn 5 pass + 1 skip, Ruff, compileall và diff-check. `test_rag_pipeline` chưa chạy do host thiếu `faiss`; chưa restart container/chạy model sau sửa.
 - Không sửa ingestion hoặc rebuild corpus; một số PDF chunk vẫn có thể dính ranh giới bước từ dữ liệu nguồn và cần audit riêng nếu còn tái diễn.
+# TASK-20261023-11 - completed, exact lookup source_code đã chạy runtime
+
+- Đáp án có trong corpus: mã `1.116222` có số quyết định `3826/QĐ-UBND`.
+- Request thực tế không lấy chunk `1.116222` vào top-5; model abstain đúng vì context thiếu bằng chứng.
+- Đã thêm exact filter theo mã, semantic ranking trong đúng thủ tục và SQLite expression index tự nâng cấp cache cũ sau checksum.
+- Runtime PASS: `1.116222` trả `3826/QĐ-UBND`, top-5 đều đúng mã; `9.999999` không lấy mã gần giống. Web healthy sau restart.
+- Ruff, compileall, parser mã và diff-check PASS. Unit FAISS mới chưa chạy trên host vì thiếu dependency, nhưng đường chạy thực trong container đã được xác minh end-to-end.
+# TASK-20261023-12 - completed assessment, chưa triển khai engine
+
+- vLLM khả thi nhất cho PoC nhờ adapter OpenAI-compatible sẵn có; SGLang để so sánh sau.
+- Chưa thể kỳ vọng tăng throughput ở evaluation v2 vì client hiện gửi tuần tự; cần concurrency có giới hạn trước khi continuous batching có tải để gom batch.
+- RTX 4050 6 GB không phù hợp mục tiêu 8-16 request Qwen 7B/context 8k; V100 32 GB có triển vọng hơn nhưng là thông tin lịch sử, chưa xác minh runtime hiện tại.
+- Không cài dependency, tải model, sửa Docker hoặc chạy benchmark. Bước tiếp theo nếu được duyệt: PoC riêng vLLM + concurrency 1/2/4/8, khóa contract JSON schema và đo A/B với Ollama.
