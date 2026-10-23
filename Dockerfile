@@ -6,12 +6,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml ./
 COPY locks/inference-linux-py312.txt ./locks/inference-linux-py312.txt
 
-# Resolve Linux/Python 3.12 dependencies separately from Windows environments.
-RUN python -m pip install --no-cache-dir -r locks/inference-linux-py312.txt
+# Keep the large Torch/CUDA layer independent from web and source changes.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install -r locks/inference-linux-py312.txt
 
+COPY locks/web-linux-py312.txt ./locks/web-linux-py312.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install -r locks/web-linux-py312.txt
+
+COPY pyproject.toml ./
 COPY README.md LICENSE ./
 COPY src ./src
 

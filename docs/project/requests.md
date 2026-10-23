@@ -1158,3 +1158,18 @@
 - Phạm vi: kiểm tra local Docker Web/API, log request, cấu hình QLoRA, adapter/model cache và GPU; không chạy benchmark/load test, không sửa hoặc di chuyển checkpoint.
 - Tiêu chí: phân biệt endpoint 404 với lỗi QLoRA, xác định bước đang treo bằng bằng chứng runtime và đưa cách xử lý an toàn.
 - Trạng thái: completed; 404 chỉ thuộc favicon/Chrome DevTools, QLoRA tải model nền 7 phút 48 giây, nạp checkpoint rồi trả `/api/chat` 200.
+# TASK-20261023-09 - Nâng cấp Web API và HTTP client evaluation
+
+- Ngày: 2026-10-23 (Asia/Saigon). Trạng thái: in_progress.
+- Yêu cầu: thay `ThreadingHTTPServer` bằng FastAPI + Uvicorn và tái sử dụng kết nối HTTP khi evaluation gọi RAG endpoint.
+- Phạm vi: giữ nguyên URL/status/payload API công khai; dùng ASGI cho web server; dùng connection pool sống theo `http_rag` session; cập nhật dependency, test và tài liệu kiến trúc. Không chạy model/GPU, production hay load test.
+- Tiêu chí: regression endpoint HTTP thật pass; xác nhận client dùng lại session và đóng session; Ruff, compileall, test liên quan và `git diff --check` pass.
+- Cập nhật: partial; đã triển khai source, còn kiểm chứng HTTP khi đủ dependency.
+# TASK-20261023-10 - Điều tra RAG trả lời thành một đoạn dài
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: xác định câu trả lời RAG không ổn định về xuống dòng, bước và thành phần có phải do chunk làm mất cấu trúc hay không.
+- Phạm vi: đọc chuỗi chunk → prompt → generation → Web UI; sau khi xác nhận nguyên nhân, thêm format policy có điều kiện và test hồi quy. Không sửa/rebuild corpus, không chạy benchmark.
+- Tiêu chí hoàn thành: câu hỏi trình tự yêu cầu mỗi bước một dòng; hồ sơ và phí/thời hạn yêu cầu từng mục riêng; câu hỏi giải thích không bị ép thành danh sách; test hồi quy và kiểm tra tĩnh pass.
+- Bổ sung theo yêu cầu người dùng: triển khai ba quy tắc trình bày và test `Bước 1`/`Bước 2` khác dòng.
+- Trạng thái: completed.

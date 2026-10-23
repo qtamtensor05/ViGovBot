@@ -6,18 +6,18 @@ import sqlite3
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from http.server import ThreadingHTTPServer
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 try:
+    from tests.http_server import HTTPServer as ThreadingHTTPServer
     import numpy as np
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 import requests
 
 try:
-    from vigovbot.server.app import ChatApplication, make_handler
+    from vigovbot.server.app import ChatApplication, create_asgi_app as make_handler
     from vigovbot.server.providers import openai_compatible_answer
     from vigovbot.retrieval.retriever import Retriever
 except ModuleNotFoundError as exc:

@@ -1,4 +1,4 @@
-"""Dependency-free HTTP application for an already embedded RAG corpus."""
+"""ASGI HTTP application for an already embedded RAG corpus."""
 
 from __future__ import annotations
 
@@ -8,8 +8,11 @@ import json
 import logging
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from vigovbot.prompts.prompt_templates import validate_history
 from vigovbot.rag.pipeline import answer_question, inference_session, prepare
@@ -331,91 +334,88 @@ class ChatApplication:
         return response
 
 
-def make_handler(app):
-    index = files("vigovbot.server").joinpath("static/index.html").read_bytes()
+def create_asgi_app(application):
+    """Build the ASGI surface while keeping model and retrieval state long-lived."""
+    web = FastAPI(title="ViGovBot", docs_url=None, redoc_url=None, openapi_url=None)
+    @web.exception_handler(404)
+    async def not_found(request, exc):
+        return JSONResponse({"error": "Không tìm thấy đường dẫn"}, status_code=404,
+                            headers={"Cache-Control": "no-store"})
+    index = files("vigovbot.server").joinpath("static/index.html").read_text(encoding="utf-8")
 
-    class Handler(BaseHTTPRequestHandler):
-        server_version = "ViGovBot/0.2"
+    def json_response(value, status_code=200):
+        return JSONResponse(value, status_code=status_code, headers={"Cache-Control": "no-store"})
 
-        def send_json(self, status, value):
-            body = json.dumps(value, ensure_ascii=False).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
+    @web.get("/", response_class=HTMLResponse)
+    async def index_page():
+        return HTMLResponse(index, headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
-        def do_GET(self):
-            if self.path == "/":
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Content-Length", str(len(index)))
-                self.send_header("Cache-Control", "no-store")
-                self.send_header("X-Content-Type-Options", "nosniff")
-                self.end_headers()
-                self.wfile.write(index)
-            elif self.path == "/api/health":
-                self.send_json(200, {
-                    "status": "ok",
-                    "evaluation_complete_version": EVALUATION_COMPLETE_VERSION,
-                    "evaluation_complete_capabilities": EVALUATION_COMPLETE_CAPABILITIES,
-                })
-            elif self.path == "/api/models":
-                self.send_json(200, {"models": app.public_models()})
-            elif self.path == "/api/evaluation-identity":
-                try:
-                    self.send_json(200, app.evaluation_identity())
-                except Exception:
-                    self.send_json(503, {"error": "Evaluation identity unavailable"})
-            elif self.path == "/api/evaluation-gpu":
-                from .gpu_metrics import GPUSampler
-                collector = GPUSampler()
-                collector.collect()
-                self.send_json(200, collector.report())
-            else:
-                self.send_json(404, {"error": "Không tìm thấy đường dẫn"})
+    @web.get("/api/health")
+    async def health():
+        return json_response({
+            "status": "ok",
+            "evaluation_complete_version": EVALUATION_COMPLETE_VERSION,
+            "evaluation_complete_capabilities": EVALUATION_COMPLETE_CAPABILITIES,
+        })
 
-        def do_POST(self):
-            if self.path == "/api/evaluation-release":
-                try:
-                    self.send_json(200, app.release_models())
-                except Exception:
-                    LOG.exception("Khong the giai phong model evaluation")
-                    self.send_json(500, {"error": "Evaluation model release failed"})
-                return
-            if self.path != "/api/chat":
-                self.send_json(404, {"error": "Không tìm thấy đường dẫn"})
-                return
-            try:
-                length = int(self.headers.get("Content-Length", "0"))
-                if length <= 0 or length > MAX_BODY_BYTES:
+    @web.get("/api/models")
+    async def models():
+        return json_response({"models": application.public_models()})
+
+    @web.get("/api/evaluation-identity")
+    async def evaluation_identity():
+        try:
+            value = await run_in_threadpool(application.evaluation_identity)
+            return json_response(value)
+        except Exception:
+            LOG.exception("Evaluation identity unavailable")
+            return json_response({"error": "Evaluation identity unavailable"}, 503)
+
+    @web.get("/api/evaluation-gpu")
+    async def evaluation_gpu():
+        from .gpu_metrics import GPUSampler
+
+        collector = GPUSampler()
+        await run_in_threadpool(collector.collect)
+        return json_response(collector.report())
+
+    @web.post("/api/evaluation-release")
+    async def evaluation_release():
+        try:
+            value = await run_in_threadpool(application.release_models)
+            return json_response(value)
+        except Exception:
+            LOG.exception("Khong the giai phong model evaluation")
+            return json_response({"error": "Evaluation model release failed"}, 500)
+
+    @web.post("/api/chat")
+    async def chat(request: Request):
+        try:
+            body = bytearray()
+            async for chunk in request.stream():
+                body.extend(chunk)
+                if len(body) > MAX_BODY_BYTES:
                     raise ValueError("Kích thước yêu cầu không hợp lệ")
-                payload = json.loads(self.rfile.read(length))
-                result = app.chat(payload)
-                self.send_json(502 if result["status"] == "failed" else 200, result)
-            except (ValueError, TypeError, json.JSONDecodeError) as exc:
-                self.send_json(400, {"error": str(exc)})
-            except Exception:
-                LOG.exception("Lỗi khi trả lời câu hỏi")
-                self.send_json(500, {"error": "Không thể xử lý câu hỏi. Hãy xem log của server."})
+            if not body or len(body) > MAX_BODY_BYTES:
+                raise ValueError("Kích thước yêu cầu không hợp lệ")
+            payload = json.loads(body)
+            result = await run_in_threadpool(application.chat, payload)
+            return json_response(result, 502 if result["status"] == "failed" else 200)
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            return json_response({"error": str(exc)}, 400)
+        except Exception:
+            LOG.exception("Lỗi khi trả lời câu hỏi")
+            return json_response({"error": "Không thể xử lý câu hỏi. Hãy xem log của server."}, 500)
 
-        def log_message(self, fmt, *args):
-            LOG.info("%s - %s", self.address_string(), fmt % args)
-
-    return Handler
+    return web
 
 
 def serve(config, host="127.0.0.1", port=8000):
     """Load the corpus/models once, then serve until Ctrl+C."""
+    import uvicorn
+
     paths = prepare(config)
     with inference_session(config, paths) as (retriever, tokenizer):
-        app = ChatApplication(config, retriever, tokenizer)
-        server = ThreadingHTTPServer((host, port), make_handler(app))
+        application = ChatApplication(config, retriever, tokenizer)
         LOG.info("ViGovBot đang chạy tại http://%s:%d", host, port)
-        try:
-            server.serve_forever()
-        except KeyboardInterrupt:
-            LOG.info("Đang dừng web server")
-        finally:
-            server.server_close()
+        uvicorn.run(create_asgi_app(application), host=host, port=port, log_level="info")

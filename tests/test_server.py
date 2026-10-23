@@ -39,7 +39,7 @@ class WebChatTests(unittest.TestCase):
         self.assertNotIn("raw_ollama", response["results"][0])
         answer.assert_called_once_with(
             "Cần giấy tờ gì?", "retriever", "tokenizer",
-            {"top_k": 5, "model": "qwen", "api_key_env": None, "ollama_url": "http://localhost:11434"},
+            {"top_k": 5, "model": "qwen", "provider": "ollama", "api_key_env": None, "ollama_url": "http://localhost:11434"},
             history=history, answer_fn=unittest.mock.ANY,
         )
 
@@ -110,7 +110,7 @@ class WebChatTests(unittest.TestCase):
         rag_answer.assert_not_called()
         answer_fn.assert_called_once_with(
             [*history, {"role": "user", "content": "Câu hiện tại?"}],
-            {"top_k": 5, "model": "qwen", "api_key_env": None, "ollama_url": "http://localhost:11434"},
+            {"top_k": 5, "model": "qwen", "provider": "ollama", "api_key_env": None, "ollama_url": "http://localhost:11434"},
         )
 
     def test_qlora_mode_calls_local_adapter_without_retrieval(self):

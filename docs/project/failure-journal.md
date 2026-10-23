@@ -1087,3 +1087,17 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
   một lần rồi đặt `PYTHONPATH` chỉ cho lệnh plotting/test.
 - Kiểm chứng: pipeline exit 0, tạo 9 PNG; Pillow đọc được toàn bộ và unit test
   plotting 2/2 PASS. Không sửa dependency của project hoặc môi trường runtime.
+# ERR-20261023-09 - Kiểm chứng migration ASGI
+
+- TASK-20261023-09: PowerShell encoding ban đầu làm patch Unicode không khớp; đọc lại UTF-8 và patch thành công.
+- Test local thiếu dependency server và sacrebleu; chưa chứng minh HTTP runtime. Ruff/compileall/documentation pass; cần môi trường đủ test extras để hoàn tất regression.
+# ERR-20261023-10 - Câu trả lời RAG đôi khi thành một đoạn dài
+
+- Task: TASK-20261023-10.
+- Triệu chứng: retrieval đúng nhưng câu trả lời có thể không tách bước/thành phần.
+- Bằng chứng: corpus/cache vẫn giữ newline và UI vẫn render newline; prompt generation không có quy tắc format bắt buộc. Một số chunk PDF cũng có ranh giới bước bị dính trong cùng dòng/đoạn.
+- Nguyên nhân xác nhận: thiếu contract trình bày ở generation. Yếu tố dữ liệu phụ: cấu trúc PDF không đồng nhất ở một số chunk; không phải toàn bộ chunk bị mất newline.
+- Kiểm chứng: một request RAG trực tiếp cho thủ tục 1.000005 đã tách được 3 bước, cho thấy lỗi không nằm ở lớp hiển thị và không xảy ra bắt buộc ở mọi lượt.
+- Cách sửa: thêm format policy có điều kiện vào prompt; trình tự dùng mỗi bước một dòng, hồ sơ và phí/thời hạn dùng từng mục riêng; câu hỏi giải thích giữ văn xuôi.
+- Kiểm chứng bản sửa: 3 test hồi quy prompt PASS, trong đó mẫu `Bước 1` và `Bước 2` ở hai dòng khác nhau; Ruff, compileall và diff-check PASS. Bộ `test_rag_pipeline` chưa chạy vì host thiếu `faiss`.
+- Tránh lặp lại: giữ test prompt/response format cho câu hỏi dạng bước và thành phần; audit ranh giới `Bước N` trong corpus trước khi quyết định rebuild.

@@ -235,3 +235,17 @@
 - Lần gọi đầu tải đủ 4 shard `Qwen/Qwen2.5-7B-Instruct` trong 7 phút 48 giây, sau đó nạp 4/4 checkpoint shard trong khoảng 27 giây.
 - Khi sinh câu trả lời, GPU RTX 4050 dùng 5.884/6.141 MiB; không có OOM, container không restart và request kết thúc bằng `POST /api/chat HTTP/1.1 200`.
 - Adapter 170 MB mount đúng tại `/app/models/qlora`; không sửa code, checkpoint hoặc adapter. Cache Hugging Face được giữ trong volume nên lần gọi sau không cần tải lại các shard này.
+# TASK-20261023-09 - in_progress, nâng cấp ASGI và HTTP pooling
+
+- Đang thay `ThreadingHTTPServer` bằng FastAPI/Uvicorn, giữ nguyên contract Web API.
+- Đang chuyển adapter evaluation sang connection pool sống theo context `http_rag`.
+- Source và fixture Uvicorn đã cập nhật; Ruff, compileall và documentation pass. Runtime server chưa xác nhận do thiếu dependency; evaluation-v2 có 2 lỗi thiếu sacrebleu. Trạng thái partial.
+- Bổ sung FastAPI/Uvicorn và dependency trực tiếp vào lock inference Docker sau khi runtime báo `ModuleNotFoundError: fastapi`; đang rebuild riêng service web và chờ readiness.
+- Tách dependency FastAPI/Uvicorn sang `locks/web-linux-py312.txt` và di chuyển `pyproject.toml` xuống sau layer inference; thay đổi source/web sau này không còn invalid layer Torch/CUDA.
+# TASK-20261023-10 - completed, đã thêm format policy có điều kiện
+
+- Đã xác nhận retrieval/corpus không làm mất toàn bộ xuống dòng: 117.871 chunk runtime đều có newline; chunk mẫu còn tiêu đề, bảng và nhãn Bước.
+- Web UI giữ newline bằng `white-space: pre-wrap`; request RAG mẫu trả 3 bước tách đoạn đúng.
+- Đã thêm contract trình bày theo ý định câu hỏi: trình tự/các bước tách từng dòng; hồ sơ và phí/thời hạn tách từng mục; câu hỏi giải thích không bị ép thành danh sách.
+- PASS: 3 test mới, multi-turn 5 pass + 1 skip, Ruff, compileall và diff-check. `test_rag_pipeline` chưa chạy do host thiếu `faiss`; chưa restart container/chạy model sau sửa.
+- Không sửa ingestion hoặc rebuild corpus; một số PDF chunk vẫn có thể dính ranh giới bước từ dữ liệu nguồn và cần audit riêng nếu còn tái diễn.

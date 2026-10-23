@@ -4,6 +4,7 @@ import importlib
 from functools import wraps
 
 DEPENDENCIES = frozenset({
+    "fastapi", "uvicorn", "starlette",
     "faiss", "pydantic", "filelock", "numpy", "typer", "yaml", "psutil",
     "huggingface_hub", "requests", "tqdm", "ijson", "pandas", "matplotlib",
     "nltk", "rouge_score", "sacrebleu", "torch", "transformers", "peft",

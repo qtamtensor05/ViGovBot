@@ -2,8 +2,9 @@
 
 from contextlib import contextmanager
 import logging
-import json
-from urllib.request import Request, urlopen
+
+import requests
+
 from vigovbot.console import configure_console
 
 
@@ -348,13 +349,18 @@ def ollama_oracle(config_path):
 
 @contextmanager
 def http_rag(endpoint, timeout=300, unit_mapping=None):
-    def answer(question, history=None):
-        request = Request(
-            endpoint,
-            data=json.dumps({"question": question, "history": history or []}, ensure_ascii=False).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-        )
-        with urlopen(request, timeout=timeout) as response:
-            return normalize_result(json.load(response), unit_mapping)
+    client = requests.Session()
 
-    yield answer
+    def answer(question, history=None):
+        response = client.post(
+            endpoint,
+            json={"question": question, "history": history or []},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return normalize_result(response.json(), unit_mapping)
+
+    try:
+        yield answer
+    finally:
+        client.close()

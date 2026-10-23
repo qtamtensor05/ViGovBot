@@ -1577,3 +1577,19 @@ SHA-256 artifact:
 - Model nạp 4/4 checkpoint shard trong khoảng 27 giây; adapter `/app/models/qlora` có đủ cấu hình và weights, dung lượng khoảng 170 MB.
 - Trong pha generation, RTX 4050 dùng 5.884/6.141 MiB; không ghi nhận OOM/restart. Request thực tế kết thúc HTTP 200.
 - Không thay đổi source, cấu hình, checkpoint hoặc cache. Không thêm lỗi vào failure journal vì đây là độ trễ cold start, không phải runtime failure.
+# TASK-20261023-09 - ASGI và HTTP pooling
+
+- Thay server bằng FastAPI/Uvicorn; inference đồng bộ chạy worker thread, health dùng event loop. Giới hạn body khi đọc stream; giữ status chat và khóa GPU.
+- http_rag dùng requests.Session theo context và đóng trong finally. Fixture HTTP đổi sang Uvicorn.
+- PASS: Ruff, compileall, documentation. Evaluation-v2: 16 test, 2 lỗi thiếu sacrebleu, 1 skip; server skip vì dependency. Chưa xác nhận runtime/model hoặc mức tăng throughput. Trạng thái partial.
+# TASK-20261023-10 - Điều tra định dạng câu trả lời RAG
+
+- Chunker hiện tại giữ newline, blank line và hàng bảng; cache runtime có 117.871/117.871 chunk chứa newline, median 6 newline/chunk, 4.958 chunk có từ khóa bước.
+- Web UI dùng `white-space: pre-wrap`; API không xóa newline khỏi `answer`.
+- Prompt hệ thống chỉ yêu cầu trả lời ngắn gọn, đúng trọng tâm, chưa yêu cầu định dạng theo cấu trúc câu hỏi hoặc giữ các bước/thành phần thành danh sách.
+- Một số cấu trúc đã dính từ nguồn PDF: chunk `tthc_1_000005_sec_procedure_step_2_p1` có Bước 1 và Bước 2 tách đoạn nhưng Bước 3 nằm cuối cùng đoạn Bước 2.
+- Gọi `/api/chat` với `qwen-rag` cho chính thủ tục 1.000005 trả HTTP thành công, retrieval đúng chunk và model chủ động tách Bước 1/2/3 bằng blank line. Điều này chứng minh đường truyền/API/UI hỗ trợ newline nhưng format chưa có contract nên không bảo đảm cho mọi câu hỏi.
+- Thêm `_presentation_instruction()` vào `src/vigovbot/prompts/prompt_templates.py`, chuẩn hóa câu hỏi có/không dấu rồi chỉ thêm format policy tương ứng: trình tự/các bước, hồ sơ/giấy tờ/thành phần, phí/lệ phí/thời hạn. Câu hỏi giải thích thông thường giữ prompt cũ và không bị ép liệt kê.
+- Thêm `tests/test_prompt_templates.py`: kiểm tra Bước 1 và Bước 2 ở hai dòng riêng, nhánh hồ sơ + phí/thời hạn và nhánh giải thích không có list policy.
+- PASS: 3/3 test prompt mới; multi-turn 5 pass, 1 skip; Ruff; compileall; `git diff --check`.
+- NOT VERIFIED: `tests.test_rag_pipeline` không chạy trên host vì thiếu `faiss`; chưa restart Web container hoặc gọi model lại sau bản sửa. Không sửa corpus/cache và không kết luận lỗi retrieval.

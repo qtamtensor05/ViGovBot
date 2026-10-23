@@ -85,7 +85,8 @@ từ nguồn đáng tin cậy. Chế độ legacy không thể chứng minh mode
 ## Phạm vi hệ thống
 
 Hiện phục vụ nghiên cứu qua CLI, notebook Colab và web UI/API cục bộ. Web dùng
-`ThreadingHTTPServer`, nạp một encoder/FAISS/SQLite dùng chung; encoder và SQLite
+FastAPI trên Uvicorn (ASGI), nạp một encoder/FAISS/SQLite dùng chung; các tác vụ
+inference đồng bộ được chuyển sang worker thread để không chặn event loop, encoder và SQLite
 có khóa riêng. Ollama/QLoRA tuần tự hóa theo model call để bảo vệ GPU và switching;
 API ngoài không dùng khóa GPU. SQLite mở read-only để truy hồi từ thread request. Lịch sử nằm trong
 trình duyệt và được gửi lại theo từng model/chế độ. Chưa có lưu phiên phía server,

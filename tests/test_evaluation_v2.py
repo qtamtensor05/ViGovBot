@@ -151,10 +151,10 @@ class EvaluationV2Tests(unittest.TestCase):
 
     def test_local_http_trace_reaches_export_without_gold_leakage(self):
         import threading
-        from http.server import ThreadingHTTPServer
+        from tests.http_server import HTTPServer as ThreadingHTTPServer
         from types import SimpleNamespace
         try:
-            from vigovbot.server.app import ChatApplication, make_handler
+            from vigovbot.server.app import ChatApplication, create_asgi_app as make_handler
         except ModuleNotFoundError as exc:
             skip_missing_dependency(exc)
         model = SimpleNamespace(id="qwen-rag", provider="openai_compatible", model="fixture",
