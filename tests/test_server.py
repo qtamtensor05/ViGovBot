@@ -23,7 +23,8 @@ class WebChatTests(unittest.TestCase):
         result = {
             "prediction": "Hồ sơ gồm hai giấy tờ.",
             "action": "answer",
-            "retrieved": [{"source_code": "TTHC-01"}],
+            "retrieved": [{"source_code": "TTHC-01", "chunk_id": "c1", "rerank_rank": 1,
+                           "reranker_score": 0.9, "text_content": "Nội dung nguồn"}],
             "latency_s": 1.25,
             "raw_ollama": {"private": True},
         }
@@ -37,6 +38,7 @@ class WebChatTests(unittest.TestCase):
             })
         self.assertEqual(response["results"][0]["answer"], result["prediction"])
         self.assertNotIn("raw_ollama", response["results"][0])
+        self.assertEqual(response["results"][0]["sources"], result["retrieved"])
         answer.assert_called_once_with(
             "Cần giấy tờ gì?", "retriever", "tokenizer",
             {"top_k": 5, "model": "qwen", "provider": "ollama", "api_key_env": None, "ollama_url": "http://localhost:11434"},

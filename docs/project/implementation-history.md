@@ -1689,3 +1689,12 @@ SHA-256 artifact:
 - Kiểm chứng: 60 test host liên quan PASS; Ruff toàn package PASS; compileall, documentation và `git diff --check` PASS. Config inference thật load đúng 20→3. `test_rag_config_cli` host bị chặn bởi FAISS thiếu sẵn; container runtime thay thế phần xác minh thực, còn image không chứa thư mục test.
 
 Đề xuất commit: `feat(rag): rerank top-20 candidates to top-3 with MiniLM`
+
+# TASK-20261024-05 - Hiển thị Top-3 context sau rerank trên Web
+
+- Mở rộng source payload của đúng các hit sau rerank với `procedure_name`, `section_type`, `pages`, `text_content` cùng provenance FAISS/MiniLM; không gửi candidate bị loại.
+- Web thêm panel `details` mở mặc định dưới mỗi câu trả lời có nguồn. Ba card theo rerank rank hiển thị mã, section, điểm MiniLM/FAISS và nội dung chunk trong vùng cuộn; Base/QLoRA không source không hiện panel.
+- Nội dung tài liệu và metadata được gán bằng DOM `textContent`, không dùng `innerHTML`; bố cục giữ card answer hiện tại và co giãn trên mobile.
+- Runtime xác nhận API trả 3/3 source có text/rank và HTML thực tế chứa bundle mới. Unit UI/server/routing PASS; visual screenshot NOT VERIFIED vì Computer Use không có browser surface trong phiên.
+
+Đề xuất commit: `feat(web): show reranked top-3 context beside RAG answers`

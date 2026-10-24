@@ -331,3 +331,9 @@
 - Hai profile inference hiện dùng candidate Top-20, MiniLM CUDA FP16 và final Top-3. Runtime Docker healthy; smoke warm generic 20 candidate có rerank 61 ms, smoke exact-code warm 31-57 ms, không CUDA OOM.
 - Smoke đầu phát hiện MiniLM loại chunk số quyết định của mã `1.116222`; đã bảo toàn ưu tiên `section_type` theo ý định trước điểm cross-encoder. Smoke sau sửa lấy ba chunk metadata và trả đúng `3826/QĐ-UBND`.
 - PASS: 60 test host liên quan, thêm 4 test reranker/pipeline trong nhóm 44 test, Ruff toàn `src/vigovbot`, compileall, documentation và diff-check. `tests.test_rag_config_cli` host vẫn không import do thiếu FAISS; config thật được load trực tiếp và runtime Docker xác nhận. Image Web không đóng gói thư mục `tests`, nên không chạy unit suite bên trong container.
+
+# TASK-20261024-05 - completed, panel Top-3 context trên Web
+
+- API công khai đúng ba chunk đã đưa vào prompt, gồm rank, mã, section, điểm FAISS/MiniLM, tên thủ tục và toàn văn chunk. Không công khai Top-20 candidate hoặc raw model response.
+- Web hiển thị panel `Top-3 context sau rerank` mở mặc định dưới answer; từng card có metadata và vùng nội dung cuộn, render bằng `textContent`, responsive trên màn hình hẹp.
+- Runtime API xác nhận `source_count=3`, rank `1,2,3`, cả ba có text; HTML đang phục vụ chứa panel/stylesheet/script mới. Visual browser QA chưa chạy vì Computer Use trả `browsers: []`.

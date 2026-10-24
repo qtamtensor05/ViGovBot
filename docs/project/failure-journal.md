@@ -1143,3 +1143,11 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Nguyên nhân: Docker Desktop được cài per-user tại `%LOCALAPPDATA%/Programs/DockerDesktop`; Python host không có extras FAISS và Docker image runtime cố ý không chứa test source.
 - Xử lý: tìm installation qua registry/candidate path, khởi động Docker Desktop nền, dùng host fixture cho unit test và container API thật cho E2E. Không cài dependency host, không rebuild image và không xóa cache/model.
 - Kiểm chứng: Docker Web healthy, API RAG trả success với trace 20→3; 60 test host liên quan, Ruff, compileall, docs và diff-check PASS.
+
+# ERR-20261024-04 - Không có browser surface để visual QA Web
+
+- Task: `TASK-20261024-05`.
+- Triệu chứng: Computer Use không mở được `chrome` hoặc `iab`; inventory trả `apps: [], browsers: []`.
+- Nguyên nhân: phiên công cụ hiện tại không cung cấp browser surface, không phải lỗi HTTP/Web ViGovBot.
+- Xử lý: xác minh API runtime, JavaScript bằng Node unit test và bundle HTML thực tế từ `http://localhost:8001/`; không giả lập tuyên bố screenshot/browser pass.
+- Kết quả: panel và source payload đã chạy; visual layout trong browser thật được ghi `NOT VERIFIED` cho phiên này.

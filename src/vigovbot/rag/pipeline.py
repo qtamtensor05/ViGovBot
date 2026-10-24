@@ -204,7 +204,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
             "evidence_status": "missing" if reason in ("no_context", "unknown_source_code") else None,
             "retrieved": [{key: h[key] for key in (
                 "row_id", "score", "chunk_id", "source_file", "source_code", "faiss_rank", "faiss_score",
-                "reranker_score", "rerank_rank") if key in h}
+                "reranker_score", "rerank_rank", "procedure_name", "section_type", "pages", "text_content")
+                           if key in h}
                           for h in hits],
             "context_used": list(used), "prompt_tokens_estimated": tokens,
             "retrieval_s": retrieval_s, "rerank_s": rerank_s, "generation_s": 0.0,
@@ -342,7 +343,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         "retrieved": [
             {key: h[key] for key in (
                 "row_id", "score", "chunk_id", "source_file", "source_code", "faiss_rank", "faiss_score",
-                "reranker_score", "rerank_rank") if key in h} for h in hits
+                "reranker_score", "rerank_rank", "procedure_name", "section_type", "pages", "text_content")
+             if key in h} for h in hits
         ],
         "context_used": used,
         "prompt_tokens_estimated": tokens,

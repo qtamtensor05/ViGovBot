@@ -31,6 +31,7 @@ assert.match(routingStatus(clarify.routing_diagnostics),/Cần làm rõ câu h�
 assert.equal(historyAnswer(clarify),clarify.answer);
 assert.equal(routingStatus(undefined),'');
 assert.equal(historyAnswer({answer:'Trả lời base'}),'Trả lời base');
+assert.equal(contextMeta({rerank_rank:1,source_code:'1.116222',section_type:'metadata_identity',reranker_score:0.5,faiss_score:0.25},0),'Hạng 1 · Mã 1.116222 · Mục metadata_identity · MiniLM 0.5000 · FAISS 0.2500');
 `,{assert});
 """
         import json

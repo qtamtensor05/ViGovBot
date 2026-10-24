@@ -1257,3 +1257,11 @@
 - Phạm vi: cấu hình, runtime retrieval/rerank, telemetry và test hồi quy; giữ nguyên corpus/index, router, prompt generation và artifact benchmark.
 - Tiêu chí: RAG lấy 20 candidate, MiniLM xếp hạng và cắt còn 3 context; trace phân biệt candidate/final k và đo rerank; cấu hình lỗi bị từ chối; test và kiểm tra tĩnh liên quan pass.
 - Trạng thái: completed; runtime Docker đã xác nhận Top-20 → MiniLM CUDA → Top-3, trace có timing và smoke exact-code trả đúng sau khi bảo toàn ưu tiên section theo ý định.
+
+# TASK-20261024-05 - Hiển thị Top-3 context sau rerank trên Web
+
+- Ngày: 2026-10-24 (Asia/Saigon).
+- Yêu cầu: khi chạy RAG, hiển thị trọn Top-3 chunk sau rerank tại khu vực riêng để người dùng đối chiếu với câu trả lời trên Web.
+- Phạm vi: bổ sung metadata/nội dung của ba source đã chọn vào response công khai và render panel context an toàn bằng DOM `textContent`; không hiển thị Top-20 candidate, raw provider/router hay context ngoài phần thực sự đưa vào LLM.
+- Tiêu chí: mỗi answer RAG có panel Top-3 theo đúng thứ hạng, mã/section/điểm và nội dung; Base/QLoRA không retrieval không hiện panel; responsive và test API/UI pass.
+- Trạng thái: completed; API runtime trả đúng ba source có nội dung/điểm/thứ hạng và Web đang phục vụ panel mở mặc định. Visual browser QA chưa thực hiện vì phiên Computer Use không có browser surface.
