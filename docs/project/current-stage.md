@@ -262,3 +262,51 @@
 - Chưa thể kỳ vọng tăng throughput ở evaluation v2 vì client hiện gửi tuần tự; cần concurrency có giới hạn trước khi continuous batching có tải để gom batch.
 - RTX 4050 6 GB không phù hợp mục tiêu 8-16 request Qwen 7B/context 8k; V100 32 GB có triển vọng hơn nhưng là thông tin lịch sử, chưa xác minh runtime hiện tại.
 - Không cài dependency, tải model, sửa Docker hoặc chạy benchmark. Bước tiếp theo nếu được duyệt: PoC riêng vLLM + concurrency 1/2/4/8, khóa contract JSON schema và đo A/B với Ollama.
+# TASK-20261023-13 - completed measurement, không cleanup
+
+- Docker logic: images 25,43 GB + volumes 25,94 GB + containers 0,08 GB + build cache 17,08 GB.
+- ViGovBot chiếm chính: web image 12,63 GB unique, Ollama image 9,375 GB, HF cache 19,81 GB, model Ollama 4,683 GB, RAG cache 1,164 GB.
+- Docker Desktop VHDX thực tế 93,99 GB. Build cache 17,08 GB được báo reclaimable; chưa xóa vì người dùng mới yêu cầu kiểm tra.
+- Compose ViGovBot hiện dừng; không suy diễn trạng thái inference từ artifact còn trên disk.
+# TASK-20261023-14 - completed cleanup, volume được bảo toàn
+
+- Đã thu hồi 17,08 GB build cache và xóa 1,31 GB image không còn container tham chiếu.
+- Trạng thái logic sau dọn: images 24,12 GB; volumes 25,94 GB; containers 80,01 MB; build cache 0 B.
+- Ba volume ViGovBot model/HF/RAG vẫn nguyên vẹn. Không xóa container, database volume hoặc adapter/checkpoint host.
+- VHDX Docker Desktop vẫn 93,99 GB; chưa compact vì thao tác đó cần dừng Docker/WSL và nằm ngoài cleanup cache hiện tại.
+
+# TASK-20261023-15 - completed, Web healthy sau cold start
+
+- Docker Desktop đã khởi động Compose; Web không crash/restart mà đang nạp FAISS, 117.871 vector và `BAAI/bge-m3` trước khi mở cổng HTTP.
+- Trong pha này, `health: starting`, `ConnectionRefusedError` và PowerShell `ResponseEnded` là do server chưa bind cổng, không phải Ollama hay model bị xóa.
+- Đã chờ không restart; Web tự chuyển `healthy` và `/api/health` trả `status: ok`.
+- Không sửa source/config, rebuild image hay xóa volume.
+
+# TASK-20261023-16 - completed diagnosis, chưa sửa ranking
+
+- Exact lookup đúng mã nhưng semantic ranking trong 10 chunk cùng mã đặt `procedure_step` ở hạng 7, ngoài top-5.
+- Corpus giữ nguyên đủ Bước 1-3; top-5 chỉ có thời hạn/phí, metadata và hồ sơ nên model ghép sai chúng thành bốn bước.
+- Kết luận: retrieval ranking failure kéo theo unsupported generation; format policy chỉ làm câu trả lời sai trông có cấu trúc rõ hơn, không tạo ra lỗi dữ liệu.
+- Chưa sửa code/index. Hướng tiếp theo: intent-aware section filtering/boosting sau exact-code filter và regression mã `1.000020`.
+
+# TASK-20261023-17 - completed, intent-aware exact lookup
+
+- Exact-code retrieval nay ưu tiên section theo ý định cho trình tự, hồ sơ và phí/thời hạn/cách thức; semantic score vẫn xếp trong nhóm và lấp top-k bằng các chunk còn lại.
+- Runtime mã `1.000020`: `procedure_step` từ hạng thô 7 lên nguồn đầu; API trả đúng ba bước trong corpus, 5/5 nguồn cùng mã. Web healthy sau restart.
+- PASS: Ruff, compileall, diff-check, mapping container và API end-to-end. Unit FAISS host skip do thiếu dependency; không rebuild corpus/index.
+# TASK-20261024-01 - Phân luồng RAG đã triển khai, chờ runtime
+
+- Ngoài phạm vi trả thông báo cố định, không hỏi lại; mixed truy hồi phần thủ tục và thông báo phần ngoài phạm vi; thiếu đối tượng vẫn clarify.
+- Không có hit cho mã cụ thể: thông báo giới hạn dữ liệu; retriever kiểm tra SQLite trước embedding. Thiếu context bỏ qua generation; prompt phân biệt thiếu nội dung với thiếu đối tượng.
+- Kiểm chứng: 40 test pass, 1 skip do thiếu dataset v4; Ruff pass. Docker daemon đang tắt nên chưa restart/đo tốc độ hoặc kiểm chứng phân loại bằng model thật.
+# TASK-20261024-02 - completed source/test, benchmark Retrieval-only
+
+- Đã thêm hai lệnh `retrieval-run` và `retrieval-score` trong namespace evaluation hiện có; artifact giữ ranking, nội dung chunk, provenance và timing, scorer báo Hit/Recall/MRR tại nhiều k.
+- Luồng chạy chỉ nạp query encoder, FAISS và SQLite; không dùng tokenizer/LLM/router/rewrite/decomposition/generation.
+- PASS: 13 test retrieval/review, Ruff evaluation, compileall, documentation test và diff-check. Test cấu hình FAISS/runtime thật SKIPPED vì Python host thiếu `faiss`, `sentence_transformers`, `torch`; dataset `rag_tthc_three_1500` không có trên host.
+- Reranker và tối ưu batch nằm ngoài task này. Bước tiếp theo là chạy `retrieval-run` trên máy có dependency + dataset, duyệt mapping rồi chạy `retrieval-score`; không tuyên bố latency/chất lượng thật ở lượt triển khai source.
+- Mở lại `in_progress`: đang bổ sung và chạy contract Golden file trực tiếp cho 1.100 mẫu `test_golden.jsonl`; Docker daemon hiện chưa chạy và host không có dependency Retrieval.
+- Docker đã sẵn sàng; container Web có FAISS 1.15.1, Sentence Transformers 5.7.0, Torch 2.9.1+cu128 và CUDA. Smoke 2 mẫu Retrieval-only + score hoàn tất, không gọi Ollama; đang chuẩn bị chạy đủ 1.100 mẫu Top-20 vào `outputs/retrieval/golden-test/`.
+- Hoàn tất 1.100/1.100: 1.000 answerable được chấm, 100 unanswerable `not_applicable`. Hit@1/3/5/10/20 = 64,1%/85,7%/92,2%/96,6%/97,3%; Recall tương ứng 63,75%/85,2%/91,7%/96,35%/97,2%; MRR = 0,6410/0,7357/0,7507/0,7569/0,7575.
+- Warm measured region 48,699 giây, 22,588 query/s; mean/p50/p95/p99 = 41,78/37,61/81,86/99,48 ms. Setup/encoder load bị loại khỏi vùng đo; 27/1.000 answerable miss ở Top-20, gồm 16 multi-intent và 11 single-hop.
+- Artifact: `outputs/retrieval/golden-test/golden-test-top20.jsonl`, manifest `.run.json`, và `golden-test-top20-scores.json`. Reranker chưa triển khai.

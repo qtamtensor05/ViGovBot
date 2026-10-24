@@ -3,6 +3,7 @@ import json
 import re
 import sqlite3
 import threading
+import unicodedata
 from pathlib import Path
 
 SOURCE_CODE_RE = re.compile(r"(?<![\w.])\d+\.\d{6}(?:[_-][A-Za-z0-9]+)?(?![\w.])", re.IGNORECASE)
@@ -11,6 +12,23 @@ SOURCE_CODE_RE = re.compile(r"(?<![\w.])\d+\.\d{6}(?:[_-][A-Za-z0-9]+)?(?![\w.])
 def extract_source_codes(question):
     """Return unique TTHC identifiers without treating nearby numeric text as a code."""
     return list(dict.fromkeys(match.group(0) for match in SOURCE_CODE_RE.finditer(question)))
+
+
+def preferred_section_types(question):
+    """Map explicit question intent to the matching corpus section taxonomy."""
+    normalized = unicodedata.normalize("NFD", question.casefold())
+    folded = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    groups = (
+        (("trinh tu", "quy trinh", "cac buoc", "buoc nao"), "procedure_step"),
+        (("ho so", "giay to", "thanh phan"), "required_documents"),
+        (("phi", "le phi", "thoi han", "bao lau", "cach thuc", "hinh thuc nop"),
+         "submission_deadline_fee"),
+    )
+    return tuple(
+        section_type
+        for terms, section_type in groups
+        if any(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", folded) for term in terms)
+    )
 
 
 class Retriever:
@@ -41,6 +59,16 @@ class Retriever:
 
         if top_k < 1:
             raise ValueError("TOP_K phải lớn hơn 0")
+        source_codes = extract_source_codes(question)
+        if source_codes:
+            placeholders = ",".join("?" for _ in source_codes)
+            with self._db_lock:
+                exists = self.db.execute(
+                    "SELECT 1 FROM chunks WHERE json_extract(payload, '$.source_code') "
+                    f"COLLATE NOCASE IN ({placeholders}) LIMIT 1", source_codes,
+                ).fetchone()
+            if exists is None:
+                return []
         # SentenceTransformer shares mutable model/device state. Serialize only encoding;
         # FAISS read-only search can run concurrently and SQLite access has its own lock.
         with self._encoder_lock:
@@ -56,7 +84,9 @@ class Retriever:
         vector = np.ascontiguousarray(vector)
         vector /= np.max(np.abs(vector))
         faiss.normalize_L2(vector)
-        exact = self._search_source_codes(extract_source_codes(question), vector, top_k)
+        exact = self._search_source_codes(
+            source_codes, vector, top_k, preferred_section_types(question)
+        )
         if exact is not None:
             return exact
         scores, ids = self.index.search(vector, min(top_k, self.index.ntotal))
@@ -78,7 +108,7 @@ class Retriever:
             hits.append({"row_id": row_id, "score": score, **json.loads(metadata[row_id])})
         return hits
 
-    def _search_source_codes(self, source_codes, vector, top_k):
+    def _search_source_codes(self, source_codes, vector, top_k, preferred_sections=()):
         """Rank exact-code chunks; return None only when the question contains no code."""
         if not source_codes:
             return None
@@ -94,13 +124,15 @@ class Retriever:
         ranked = []
         query = vector[0]
         for row_id, payload in rows:
+            metadata = json.loads(payload)
             candidate = self.index.reconstruct(row_id)
             score = float(candidate @ query)
-            ranked.append((score, row_id, payload))
-        ranked.sort(key=lambda item: (-item[0], item[1]))
+            priority = 0 if metadata.get("section_type") in preferred_sections else 1
+            ranked.append((priority, score, row_id, metadata))
+        ranked.sort(key=lambda item: (item[0], -item[1], item[2]))
         return [
-            {"row_id": row_id, "score": score, **json.loads(payload)}
-            for score, row_id, payload in ranked[:top_k]
+            {"row_id": row_id, "score": score, **metadata}
+            for _, score, row_id, metadata in ranked[:top_k]
         ]
 
     def close(self):

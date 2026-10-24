@@ -1609,3 +1609,60 @@ SHA-256 artifact:
 - RTX 4050 hiện tại được đo là 6.141 MiB VRAM, compute capability 8.9; Qwen 7B 4-bit gần kín VRAM nên concurrency 8-16 với context 8.192 không thực tế. V100 32 GB là môi trường từ hồ sơ trước, chưa xác minh live ở lượt này; có thể thử GPTQ/FP16 và concurrency cao hơn nhưng cần pin engine/kernel phù hợp Volta.
 - Khuyến nghị PoC vLLM trước vì protocol, structured output và LoRA có đường tương thích trực tiếp. SGLang là phương án benchmark thứ hai, không triển khai song song ngay.
 - Không xác nhận mức tăng 3-8x. Cần A/B cùng model/quantization/prompt/output/seed tại concurrency 1/2/4/8/16, đo req/s, output tok/s, p50/p95, lỗi, VRAM và chất lượng/structured-output validity.
+# TASK-20261023-13 - Đo Docker disk footprint
+
+- `docker system df`: images 25,43 GB; containers 80,01 MB; local volumes 25,94 GB; build cache 17,08 GB. Docker đánh dấu reclaimable: images 1,31 GB, containers 80,01 MB, volumes 67,5 MB, build cache 17,08 GB.
+- ViGovBot: image web 12,63 GB unique; Ollama 9,375 GB; volumes Hugging Face 19,81 GB, Ollama models 4,683 GB, RAG cache 1,164 GB; writable container layers khoảng 80 MB. Tổng logic chính khoảng 47,74 GB, hoặc khoảng 64,82 GB nếu quy toàn bộ build cache hiện tại vào footprint phát triển.
+- Docker Desktop VHDX trên host là `C:/Users/quangTam/AppData/Local/Docker/wsl/disk/docker_data.vhdx`, kích thước file 93,99 GB. VHDX không bằng tổng object đang dùng vì có filesystem overhead và dung lượng đã giải phóng nhưng chưa compact.
+- Cả ba container ViGovBot đang dừng; web exit 137, Ollama exit 0. Không xóa/prune/compact hoặc khởi động service.
+# TASK-20261023-14 - Cleanup Docker có giới hạn
+
+- Chạy `docker builder prune -a --force`, thu hồi 17,08 GB BuildKit cache. Cache này có thể tái tạo khi build nhưng lần build sau sẽ chậm và tải/cài lại layer cần thiết.
+- `docker image prune --force` không có dangling image. Sau preflight xác nhận không container nào tham chiếu, xóa chính xác `cassandra:5.0`, `hedayati/kassandra:latest`, `redis:8-alpine`, giảm images từ 25,43 GB xuống 24,12 GB.
+- Giữ nguyên mọi container và volume, đặc biệt `vigovbot_huggingface-cache` 19,81 GB, `vigovbot_ollama-models` 4,683 GB, `vigovbot_rag-cache` 1,164 GB, MySQL/Redis và volume Cassandra 67,5 MB.
+- Sau dọn: build cache 0 B, image reclaimable 0 B; VHDX vẫn 93,99 GB vì chưa compact. Image đã xóa có thể pull/build lại; cache build không khôi phục trực tiếp nhưng được tái tạo.
+
+# TASK-20261023-15 - Chẩn đoán Web sau khi mở Docker
+
+- `web` và `ollama` đều running, không restart; Web có `RestartCount=0`.
+- Trong giai đoạn `health: starting`, Web đang nạp FAISS, corpus 117.871 vector và model embedding `BAAI/bge-m3`; server chưa bind cổng 8000 nên health check nội bộ báo `ConnectionRefusedError`, còn PowerShell phía host báo `ResponseEnded`.
+- Không restart container vì restart sẽ làm quá trình cold start bắt đầu lại. Sau khi nạp xong, health tự chuyển `healthy` và `http://localhost:8001/api/health` trả JSON `status: ok`.
+- Không sửa source/config, không rebuild image và không xóa cache/model.
+
+# TASK-20261023-16 - Xác minh retrieval mã 1.000020
+
+- API tái hiện đúng câu trả lời sai trong ảnh. Parser nhận mã và exact-filter đúng: 5/5 nguồn trả về đều có `source_code=1.000020`.
+- Exact lookup hiện encode toàn câu hỏi một lần, lấy toàn bộ 10 chunk cùng mã từ SQLite rồi dùng tích vô hướng với vector FAISS để xếp hạng; chỉ trả `top_k=5` cho generation.
+- Chunk đúng `procedure_step`, row 45, còn nguyên đủ Bước 1-3 nhưng chỉ đứng hạng 7, score `0.510893`, nên bị loại khỏi context. Top-5 lần lượt là thời hạn/phí, ba metadata và hồ sơ.
+- Model biến các trường top-5 thành chuỗi bước: nơi nộp, thời hạn, phí, kết quả. Các dữ kiện riêng có trong corpus nhưng cách gắn chúng thành “trình tự thực hiện” không có bằng chứng và trái chunk trình tự chính thức.
+- Phân loại: retrieval ranking failure dẫn đến generation hallucination/unsupported synthesis; không phải format policy làm mất dòng hoặc chunking mất nội dung.
+- Chưa sửa source/index. Hướng sửa nên ưu tiên hoặc lọc `section_type=procedure_step` khi câu hỏi mang ý định trình tự, sau exact `source_code`, rồi mới semantic-rank trong nhóm phù hợp; cần regression cho mã này.
+
+# TASK-20261023-17 - Intent-aware exact source lookup
+
+- Thêm `preferred_section_types()` nhận diện tiếng Việt có/không dấu cho ba nhóm: trình tự → `procedure_step`; hồ sơ/giấy tờ/thành phần → `required_documents`; phí/thời hạn/cách thức → `submission_deadline_fee`.
+- Chỉ áp dụng ưu tiên sau khi câu hỏi có exact `source_code`. Các chunk thuộc nhóm đúng ý định đứng trước và vẫn xếp theo semantic score trong nhóm; chunk khác tiếp tục lấp phần top-k còn lại. Không có ý định hoặc không có mã thì giữ thứ tự semantic cũ.
+- Thêm regression dựng tình huống chunk phí có score cao hơn chunk trình tự: câu hỏi trình tự vẫn lấy `procedure_step` đầu tiên, còn câu hỏi tổng quát vẫn lấy chunk score cao nhất.
+- PASS: Ruff cho source/test; compileall; `git diff --check`; mapping bốn nhánh trong container; Web restart và healthy; API thật mã `1.000020` trả đúng Bước 1-3, nguồn đầu là `procedure_step`, 5/5 nguồn đúng mã.
+- SKIPPED: ba unit FAISS trên host vì Python 3.14 thiếu `faiss`; hành vi tương ứng đã được kiểm chứng end-to-end trong container có FAISS thật. Không rebuild corpus/index hoặc sửa cache.
+# TASK-20261024-01 - Phân luồng phản hồi RAG
+
+- Sửa thông báo out_of_scope bỏ câu hỏi mời tra thủ tục; schema/parser chỉ cho out_of_scope/new_question, thêm mixed cho yêu cầu có cả phần trong và ngoài phạm vi.
+- Mixed chỉ gửi phần thủ tục vào retrieval/generation; thông báo phần ngoài phạm vi được thêm tại pipeline, kết quả đầy đủ phần thủ tục được đánh dấu partial cho toàn câu hỏi.
+- Mã không thấy có decision_reason riêng; SQLite kiểm tra tồn tại trước embedding. Không context/mã không thấy bỏ generation, ngoài phạm vi/ambiguous bỏ cả retrieval và generation.
+- Prompt hướng dẫn trả phần có bằng chứng và nêu nội dung thiếu, không hỏi lại tên thủ tục đã xác định. Độ chính xác phân loại vẫn phụ thuộc model, chưa có benchmark tăng tốc.
+- `python -m unittest tests.test_conversation_routing tests.test_prompt_templates tests.test_multiturn`: 40 pass, 1 skip (dataset v4 không có). Ruff pass; unit FAISS chưa chạy trên host thiếu faiss; Docker đang tắt nên chưa thử model/API thật.
+# TASK-20261024-02 - Benchmark Retrieval-only không gọi LLM
+
+- Thêm `src/vigovbot/evaluation/retrieval_benchmark.py`: session riêng chỉ chuẩn bị corpus, nạp BGE-M3, FAISS và SQLite; không dùng `inference_session`, tokenizer, Ollama hoặc `answer_question`.
+- `retrieval-run` đọc query theo dataset/view/split, gửi thẳng câu hỏi vào retriever, ghi top-k cùng score/metadata/full chunk text và manifest có hash query/case/config/index/database, throughput và latency. Vùng timing loại setup/encoder load.
+- `retrieval-score` chỉ đọc ranking đã cache và mapping reviewed, kiểm tra source hash của knowledge unit, rồi tính judged Hit/Recall/MRR cho nhiều k bằng contract hiện có. Coverage hoặc mapping chưa đủ không được biến thành điểm 0 giả.
+- CLI công khai: `vigov eva retrieval-run` và `vigov eva retrieval-score`; hướng dẫn tại `docs/guides/qa-rag-evaluation.md`. Chưa thêm reranker, batch search hoặc gọi generation.
+- Kiểm chứng PASS: `python -m unittest tests.test_retrieval_benchmark tests.test_qa_v4_review` (13 test), Ruff toàn package evaluation, compileall evaluation, `tests.test_documentation`, CLI help và `git diff --check`.
+- NOT VERIFIED: retrieval runtime/model/index thật và số liệu 1.500 câu; host không có `faiss`, `sentence_transformers`, `torch`, đồng thời không có `Data/qa_test_v4/rag_tthc_three_1500`. Không cài hoặc tải thêm trong task này.
+- Bổ sung Golden-file contract: nhận trực tiếp JSONL có `test_id`, `input.question` và `ground_truth_context_ids`; query chỉ dùng câu hỏi gốc, relevance chỉ được đọc ở scorer. Chunk ID Golden được đối chiếu trực tiếp, không cần mapping QA-v4.
+- Chạy thật bằng container Web `--no-deps`, không khởi động/gọi Ollama. Runtime: FAISS 1.15.1, Sentence Transformers 5.7.0, Torch 2.9.1+cu128, CUDA available; corpus BGE-M3 revision `5617a9f...`, index hash `e61fa408...`.
+- Kết quả 1.100 mẫu: 1.000 eligible + 100 unanswerable not-applicable. Hit@1/3/5/10/20 = 0,641/0,857/0,922/0,966/0,973; judged Recall = 0,6375/0,852/0,917/0,9635/0,972; MRR = 0,641/0,735667/0,750717/0,756940/0,757481.
+- Hiệu năng vùng warm: 48,699 giây cho 1.100 query, 22,588 query/s; mean 41,78 ms, p50 37,61 ms, p95 81,86 ms, p99 99,48 ms, max 1.793,27 ms. Vùng này gồm encode + FAISS/SQLite + ghi JSONL, loại setup/model load.
+- 27/1.000 answerable không hit ở Top-20: 16 multi-intent, 11 single-hop; 24 medium, 3 hard. Đây là candidate-generation miss mà reranker không thể tự khôi phục nếu chỉ rerank Top-20.
+- SHA-256: Golden `5bf3606d...a127`, ranking `0d17d548...e0d5`, score `0019f46c...1643`.

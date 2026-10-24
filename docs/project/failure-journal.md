@@ -1110,3 +1110,20 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Cách sửa: nhận diện mã TTHC có kiểm soát, exact lookup theo `source_code`, rồi semantic-rank chỉ các chunk của đúng mã. Mã không tồn tại không fallback sang mã gần giống; mã hậu tố như `_D` được giữ nguyên.
 - SQLite cache được thêm expression index `idx_chunks_source_code`; migration chỉ chạy sau kiểm tra checksum và cập nhật lại provenance cache.
 - Kiểm chứng: query planner dùng index; API mã `1.116222` trả `3826/QĐ-UBND` với 5/5 source đúng mã; mã `9.999999` không trả source gần giống. Ruff, compileall và diff-check PASS.
+
+# ERR-20261023-12 - Đúng mã nhưng sai loại mục trong top-k
+
+- Task: `TASK-20261023-16`.
+- Triệu chứng: hỏi trình tự mã `1.000020`, câu trả lời biến nơi nộp, thời hạn, phí và kết quả thành Bước 1-4 thay vì dùng trình tự chính thức.
+- Tái hiện: 5/5 hit đúng `source_code`, nhưng chunk `procedure_step` row 45 đứng hạng 7/10 với score `0.510893`, ngoài `top_k=5`; chunk thời hạn/phí đứng hạng 1.
+- Nguyên nhân xác nhận: exact filter theo mã chỉ giới hạn tập ứng viên, sau đó semantic ranking không xét ý định/`section_type`. Context thiếu chunk trả lời trực tiếp nên generation tổng hợp các metadata không phù hợp thành danh sách bước.
+- Cách sửa: sau exact-code filter, nhận diện ý định và đưa section phù hợp lên trước khi cắt top-k; vẫn semantic-rank trong nhóm và fallback bằng các chunk còn lại. Regression bao phủ cả ưu tiên trình tự và hành vi semantic cũ cho câu hỏi tổng quát.
+- Kiểm chứng: runtime mã `1.000020` đưa `procedure_step` lên nguồn đầu và trả đúng Bước 1-3; Web healthy, không rebuild corpus/index. Unit FAISS host skip vì thiếu dependency nhưng API container dùng FAISS thật đã pass end-to-end.
+# ERR-20261024-01 - Host không chạy được Retrieval runtime test
+
+- Task: `TASK-20261024-02`.
+- Triệu chứng: `tests.test_rag_config_cli` dừng lúc import với `ModuleNotFoundError: No module named 'faiss'`; kiểm tra môi trường cho thấy `faiss`, `sentence_transformers` và `torch` đều không có. Dataset alias ba bộ 1.500 cũng không tồn tại trên host.
+- Nguyên nhân: Python 3.14 host hiện tại chưa cài extras RAG/test và máy chỉ có corpus vector, không có bộ QA 1.500 cần cho benchmark.
+- Xử lý: không tự cài dependency hoặc tải dataset/model; dùng unit fixture để kiểm chứng runner/scorer, chạy Ruff/compileall/docs/diff-check và ghi runtime thật là chưa xác minh.
+- Cách tiếp tục: dùng môi trường dự án có `.[rag,test,dev]` và dataset QA, chạy smoke `--limit 2` trước full benchmark; không dùng kết quả unit test làm số đo latency/chất lượng.
+- Cập nhật: Docker Desktop được tìm thấy qua registry tại cài đặt per-user và khởi động thành công; container Web có đủ dependency/CUDA. Smoke rồi full 1.100 mẫu đều hoàn tất. Giới hạn chỉ còn áp dụng cho Python host, không còn chặn benchmark container.

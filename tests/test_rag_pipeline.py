@@ -137,15 +137,37 @@ class PipelineTests(unittest.TestCase):
 
         class Encoder:
             def encode(self, texts, **kwargs):
-                result = np.zeros((1, 1024), dtype=np.float32)
-                result[0, 1] = 1
-                return result
+                raise AssertionError("Unknown codes must skip embedding")
 
         retriever = Retriever(index, database, Encoder())
         self.addCleanup(retriever.close)
         hits = retriever.search("Mã 9.999999 không tồn tại", top_k=1)
 
         self.assertEqual(hits, [])
+
+    def test_exact_source_code_prioritizes_section_intent_before_semantic_score(self):
+        for record in self.records:
+            record["source_code"] = "1.000020"
+        self.records[0]["section_type"] = "procedure_step"
+        self.records[1]["section_type"] = "submission_deadline_fee"
+        self.records[2]["section_type"] = "metadata_identity"
+        self.write_metadata(self.records)
+        index, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
+
+        class Encoder:
+            def encode(self, texts, **kwargs):
+                result = np.zeros((1, 1024), dtype=np.float32)
+                result[0, 1] = 1
+                return result
+
+        retriever = Retriever(index, database, Encoder())
+        self.addCleanup(retriever.close)
+
+        steps = retriever.search("Trình tự thực hiện của thủ tục mã 1.000020", top_k=2)
+        generic = retriever.search("Thông tin thủ tục mã 1.000020", top_k=2)
+
+        self.assertEqual(steps[0]["section_type"], "procedure_step")
+        self.assertEqual(generic[0]["section_type"], "submission_deadline_fee")
 
     def test_source_code_index_is_created_in_sqlite_cache(self):
         _, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)

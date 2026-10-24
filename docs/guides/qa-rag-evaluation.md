@@ -284,3 +284,55 @@ inference và dùng bản sao tokenizer riêng, không sửa padding của token
 Retrieval đọc metadata bằng IN theo batch tối đa 900 ID, sau đó khôi phục thứ tự
 FAISS; top-k thông thường chỉ dùng một SELECT. Cleanup unload lỗi ghi warning
 loại exception, không nuốt im lặng và không che exception generation ban đầu.
+# Benchmark Retrieval-only không gọi LLM
+
+Dùng hai lệnh dưới đây để đo riêng query encoder + FAISS/SQLite. Luồng này không
+khởi tạo tokenizer Qwen, Ollama, router, rewrite, decomposition hoặc generation.
+Reranker chưa nằm trong benchmark này.
+
+```powershell
+env\Scripts\python.exe -m vigovbot eva retrieval-run `
+  --dataset rag_tthc_three_1500 `
+  --view views_single_1500.json `
+  --split test `
+  --config configs/rag/inference.yaml `
+  --top-k 20 `
+  --out outputs/retrieval/faiss-top20.jsonl
+
+env\Scripts\python.exe -m vigovbot eva retrieval-score `
+  --dataset rag_tthc_three_1500 `
+  --view views_single_1500.json `
+  --split test `
+  --predictions outputs/retrieval/faiss-top20.jsonl `
+  --unit-map outputs/retrieval/mapping-reviewed.json `
+  --ks 1 3 5 10 20 `
+  --out outputs/retrieval/faiss-top20-scores.json
+```
+
+`retrieval-run` ghi ranking và file `<output>.run.json` chứa hash corpus/index,
+cấu hình, tập ID, latency và throughput. Vùng đo không gồm thời gian chuẩn bị
+corpus hoặc tải encoder. Câu hỏi được gửi thẳng vào retriever; benchmark không
+đo router/rewrite và không dùng đáp án/evidence khi truy hồi.
+
+`retrieval-score` chỉ đọc artifact đã lưu và mapping chunk → knowledge unit đã
+duyệt. Mapping thiếu hoặc sai source không được tự tính là negative. Báo cáo giữ
+riêng Hit@k, judged evidence Recall@k và MRR@k cho từng `k`.
+
+Golden evaluation v2 có thể chấm trực tiếp vì `ground_truth_context_ids` dùng
+đúng chunk ID của corpus. Runner chỉ gửi `input.question` vào retriever; không
+dùng `expected_answer`, context chuẩn hoặc standalone query chuẩn. Trường hợp này
+không truyền `--unit-map`:
+
+```powershell
+vigov eva retrieval-run `
+  --dataset Data/golden_dataset/test_golden.jsonl `
+  --config configs/rag/inference.yaml `
+  --top-k 20 `
+  --out outputs/retrieval/golden-test/golden-test-top20.jsonl
+
+vigov eva retrieval-score `
+  --dataset Data/golden_dataset/test_golden.jsonl `
+  --predictions outputs/retrieval/golden-test/golden-test-top20.jsonl `
+  --ks 1 3 5 10 20 `
+  --out outputs/retrieval/golden-test/golden-test-top20-scores.json
+```

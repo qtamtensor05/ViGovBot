@@ -1188,3 +1188,55 @@
 - Phạm vi: review kiến trúc/provider/evaluation hiện tại, GPU local và tài liệu chính thức; không cài engine, tải model, sửa Compose hay chạy benchmark tốn tài nguyên.
 - Tiêu chí: nêu tính khả thi theo từng GPU, blocker tích hợp, giới hạn của tuyên bố 3-8x và lộ trình benchmark có thể kiểm chứng.
 - Trạng thái: completed (architecture assessment only).
+# TASK-20261023-13 - Đo dung lượng Docker hiện tại
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: kiểm tra Docker hiện chiếm dung lượng như thế nào.
+- Phạm vi: đo read-only images, containers, volumes, build cache, Compose ViGovBot và VHDX Docker Desktop; không prune/xóa dữ liệu.
+- Tiêu chí: tách tổng Docker với phần ViGovBot, chỉ rõ phần lớn nhất và dung lượng có thể thu hồi theo Docker.
+- Trạng thái: completed (measurement only).
+# TASK-20261023-14 - Dọn Docker cache và image không còn tham chiếu
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: giải phóng các mục/cache cũ không còn sử dụng.
+- Phạm vi: xóa build cache được Docker đánh dấu reclaimable và ba image không có container tham chiếu; giữ toàn bộ container và volume dữ liệu/model/cache đang có link.
+- Tiêu chí: build cache về 0, images reclaimable về 0, volume ViGovBot còn nguyên và báo dung lượng sau dọn.
+- Trạng thái: completed.
+
+# TASK-20261023-15 - Kiểm tra Web sau khi mở Docker Desktop
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: xác định vì sao Docker đã chạy nhưng Web ViGovBot chưa truy cập được.
+- Phạm vi: kiểm tra Compose, log Web, health check nội bộ, cổng host và quá trình khởi động; không rebuild, restart, sửa source hay xóa cache.
+- Tiêu chí: xác định service crash hay đang cold start và xác minh `/api/health` trả thành công.
+- Trạng thái: completed.
+
+# TASK-20261023-16 - Xác minh retrieval theo mã 1.000020
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: xác minh câu trả lời trình tự mã `1.000020` có bịa dữ kiện sau thay đổi format hay không và exact lookup có thực hiện semantic ranking trong các chunk cùng `source_code` hay không.
+- Phạm vi: tái hiện API/runtime, ghi nhận top-k với score/metadata, đối chiếu corpus và trace parser/filter/ranking/generation; chưa sửa source hoặc rebuild index.
+- Tiêu chí: phân loại rõ lỗi retrieval hay generation, xác nhận chính xác luồng theo mã và chỉ ra dữ kiện nào không có trong bằng chứng.
+- Trạng thái: completed (chẩn đoán, chưa sửa thuật toán).
+
+# TASK-20261023-17 - Ưu tiên section theo ý định sau exact source_code
+
+- Ngày: 2026-10-23 (Asia/Saigon).
+- Yêu cầu: triển khai thử luồng exact `source_code` → nhận diện ý định → ưu tiên `section_type` phù hợp → semantic ranking → top-k.
+- Phạm vi: thay đổi tối thiểu retriever và test hồi quy; giữ API/index/cache hiện tại, không rebuild corpus. Sau kiểm chứng tĩnh sẽ restart Web và tái hiện mã `1.000020`.
+- Tiêu chí: câu hỏi trình tự đưa `procedure_step` lên trước dù điểm semantic thô thấp hơn; câu hỏi không nhận diện ý định giữ thứ tự semantic cũ; exact-code và unknown-code không hồi quy; API trả đúng ba bước từ tài liệu.
+- Trạng thái: completed.
+# TASK-20261024-01 - Phân luồng phản hồi RAG
+
+- Yêu cầu: ngoài phạm vi trả giới hạn phục vụ; phân biệt thiếu đối tượng, mã không thấy, thiếu bằng chứng và câu hỏi hỗn hợp.
+- Phạm vi: router, pipeline, prompt và test; tiêu chí: nhánh kết luận sớm bỏ qua generation, câu hỏi hỗn hợp giữ phần có bằng chứng.
+- Trạng thái: completed source/test; runtime Docker chưa kiểm chứng vì daemon đang tắt.
+# TASK-20261024-02 - Benchmark Retrieval-only không gọi LLM
+
+- Ngày: 2026-10-24 (Asia/Saigon).
+- Yêu cầu: trước mắt triển khai luồng đánh giá khả năng truy hồi độc lập; reranker sẽ làm sau khi có baseline Retrieval.
+- Phạm vi: thêm runner và scorer dưới `src/vigovbot/evaluation`, dùng encoder + FAISS + SQLite hiện có; không gọi router, rewrite, decomposition, tokenizer Qwen, Ollama hoặc generation; không sửa index/corpus và chưa thêm reranker.
+- Tiêu chí: CLI tạo artifact xếp hạng có provenance/timing, CLI chấm Hit/Recall/MRR tại nhiều k bằng mapping đã duyệt, test chứng minh không đi qua LLM, kiểm tra tĩnh và test liên quan pass.
+- Trạng thái: completed source/test; chưa chạy benchmark thật vì host thiếu FAISS/encoder dependencies và không có dataset ba bộ 1.500.
+- Bổ sung 2026-10-24: người dùng yêu cầu chấm trực tiếp `Data/golden_dataset/test_golden.jsonl`. Mở rộng contract để dùng `input.question` làm query và `ground_truth_context_ids` làm relevance chunk IDs; không dùng đáp án hoặc standalone query chuẩn trong retrieval.
+- Trạng thái bổ sung: completed; đã chấm đủ 1.100 mẫu Top-20 trong container CUDA, không gọi LLM.

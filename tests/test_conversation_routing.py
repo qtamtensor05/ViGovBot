@@ -154,6 +154,45 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(result["actual_route"], "rag_search")
         self.assertEqual(llm.call_count, 1)
 
+    def test_outside_scope_is_final_notice_without_question(self):
+        result, llm = self.run_answer([route(scope="out_of_scope", query="")], question="Viết bài thơ")
+        self.assertNotIn("?", result["prediction"])
+        self.assertIn("ngoài phạm vi", result["prediction"])
+        self.retriever.search.assert_not_called()
+        self.assertEqual(llm.call_count, 1)
+
+    def test_unknown_code_reports_dataset_limit_without_generation(self):
+        self.retriever.search.return_value = []
+        result, llm = self.run_answer([route()], question="Phí thủ tục 9.999999?")
+        self.assertEqual(result["decision_reason"], "unknown_source_code")
+        self.assertIn("9.999999", result["prediction"])
+        self.assertIn("dữ liệu hiện có", result["prediction"])
+        self.assertEqual(llm.call_count, 1)
+
+    def test_mixed_question_retrieves_only_supported_part_and_returns_partial(self):
+        result, llm = self.run_answer([
+            route(scope="mixed", query="Phí cấp hộ chiếu?"),
+            json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient")),
+        ], question="Phí cấp hộ chiếu và viết bài thơ?")
+        self.retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", 5)
+        self.assertNotIn("viết bài thơ", str(llm.call_args_list[1].args[0]))
+        self.assertEqual(result["action"], "partial")
+        self.assertEqual(result["evidence_status"], "partial")
+        self.assertIn("0 đồng", result["prediction"])
+        self.assertIn("ngoài phạm vi", result["prediction"])
+        self.assertEqual(llm.call_count, 2)
+
+    def test_mixed_no_context_does_not_generate(self):
+        self.retriever.search.return_value = []
+        result, llm = self.run_answer([route(scope="mixed")])
+        self.assertEqual(result["action"], "abstain")
+        self.assertIn("ngoài phạm vi", result["prediction"])
+        self.assertEqual(llm.call_count, 1)
+
+    def test_outside_scope_cannot_be_ambiguous(self):
+        with self.assertRaises(ValueError):
+            parse_route(route("ambiguous", scope="out_of_scope", query=""), [])
+
     def test_partial_correction_and_clarification_after_retrieval(self):
         for evidence, action in [("partial", "partial"), ("contradictory_premise", "correct_premise"),
                                  ("ambiguous", "clarify")]:

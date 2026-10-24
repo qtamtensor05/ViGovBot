@@ -14,7 +14,7 @@ from vigovbot.llm.llm_client import check_model, unload_model
 from vigovbot.prompts.prompt_templates import SYSTEM_PROMPT
 from vigovbot.rag.version import PIPELINE_VERSION
 from vigovbot.rag.response import resolve_route, generate_answer
-from vigovbot.retrieval.retriever import Retriever
+from vigovbot.retrieval.retriever import Retriever, extract_source_codes
 from vigovbot.utils.helpers import json_hash
 from vigovbot.experiments import ensure_run, runtime_identity
 from vigovbot.vectordb.vector_store import prepare_corpus
@@ -190,7 +190,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
 
     def early_answer(text, action, reason, *, hits=(), used=(), tokens=0, retrieval_s=0.0):
         return {
-            "actual_route": {"no_context": "rag_search", "out_of_scope": "out_of_scope",
+            "actual_route": {"no_context": "rag_search", "unknown_source_code": "rag_search", "out_of_scope": "out_of_scope",
                              "ambiguous_question": "clarify", "routing_fallback": "routing_error"}.get(reason),
             "prediction": text, "action": action, "decision_reason": reason,
             "actual_sub_queries": sub_queries, "sub_query_retrieval": sub_retrieval,
@@ -198,7 +198,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
             "routing": route, "routing_s": routing_s, "routing_prompt_tokens_estimated": routing_tokens,
             "routing_attempts": routing_attempts, "fallback_reason": fallback_reason,
             "raw_routing": routing_raw, "retrieval_query": None if not hits else retrieval_query,
-            "evidence_status": "missing" if reason == "no_context" else None,
+            "evidence_status": "missing" if reason in ("no_context", "unknown_source_code") else None,
             "retrieved": [{key: h[key] for key in ("row_id", "score", "chunk_id", "source_file", "source_code")}
                           for h in hits],
             "context_used": list(used), "prompt_tokens_estimated": tokens,
@@ -207,10 +207,14 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         }
 
     if route and route["scope"] == "out_of_scope":
-        return early_answer("Mình hỗ trợ tra cứu thủ tục hành chính Việt Nam. Bạn cần tìm hiểu thủ tục nào?",
+        return early_answer("Hệ thống hỗ trợ tra cứu thủ tục hành chính Việt Nam, gồm trình tự, hồ sơ, "
+                            "phí và thời hạn giải quyết. Nội dung bạn hỏi nằm ngoài phạm vi hỗ trợ.",
                             "abstain", "out_of_scope")
     if route and route["relation"] == "ambiguous":
-        return early_answer(route["clarification"], "clarify",
+        clarification = route["clarification"]
+        if route["scope"] == "mixed":
+            clarification += " Phần yêu cầu ngoài thủ tục hành chính nằm ngoài phạm vi hỗ trợ."
+        return early_answer(clarification, "clarify",
                             "routing_fallback" if fallback_reason else "ambiguous_question")
     # Rewrite follow-ups using only the supplied conversation, never evaluation labels.
     retrieval_query = question
@@ -218,9 +222,13 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     if route:
         # A new question must not inherit any previous subject, even via a rewritten query.
         retrieval_query = question if route["relation"] == "new_question" else route["query"]
+        if route["scope"] == "mixed":
+            retrieval_query = route["query"]
         # The resolved query is sufficient for generation; old topics/assistant claims stay out.
         question = (retrieval_query if route["relation"] == "new_question" else
                     f"Câu hỏi gốc: {original_question}\nNgữ cảnh được giải quyết từ lịch sử: {retrieval_query}")
+        if route["scope"] == "mixed":
+            question = retrieval_query
         history = []
     elif history:
         rewrite_messages = [
@@ -275,14 +283,24 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         citations=settings.get('citations_enabled', False),
     )
     if routing_enabled and not used:
-        result = early_answer("Chưa tìm thấy thông tin trong tài liệu để trả lời câu hỏi này.",
-                              "abstain", "no_context", hits=hits, used=used, tokens=tokens, retrieval_s=retrieval_s)
+        codes = extract_source_codes(retrieval_query)
+        unknown_code = bool(codes) and not hits and not settings.get("decompose_queries", False)
+        text = ("Chưa tìm thấy thủ tục mã " + ", ".join(codes) + " trong dữ liệu hiện có. Bạn vui lòng kiểm tra lại mã."
+                if unknown_code else "Tài liệu hiện có chưa cung cấp đủ thông tin để trả lời nội dung bạn hỏi.")
+        if route and route["scope"] == "mixed":
+            text += " Phần yêu cầu ngoài thủ tục hành chính nằm ngoài phạm vi hỗ trợ."
+        result = early_answer(text, "abstain", "unknown_source_code" if unknown_code else "no_context",
+                              hits=hits, used=used, tokens=tokens, retrieval_s=retrieval_s)
         result["retrieval_query"] = retrieval_query
         result["rewrite_s"] = rewrite_s
         return result
     (answer, raw, generation_s, action, evidence, generation_diagnostics,
      citations, citation_ids, citations_status) = generate_answer(
         messages, used, tokenizer, settings, answer_fn, structured, routing_enabled)
+    if route and route["scope"] == "mixed":
+        answer += "\n\nPhần yêu cầu ngoài thủ tục hành chính nằm ngoài phạm vi hỗ trợ của hệ thống."
+        if action == "answer":
+            action, evidence = "partial", "partial"
     return {
         "actual_route": "rag_search",
         "actual_sub_queries": sub_queries,
