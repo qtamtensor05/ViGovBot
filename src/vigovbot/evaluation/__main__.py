@@ -65,7 +65,7 @@ def main(argv=None):
     parser.add_argument("--run-id", help="Completed QLoRA run ID for test, or immutable run ID for export-v2")
     parser.add_argument("--golden-dir", type=Path, default=Path("Data/golden_dataset"),
                         help="Golden train/val/test directory for offline export-v2")
-    parser.add_argument("--architecture", choices=["base", "finetuned", "rag_base", "rag_finetuned"],
+    parser.add_argument("--architecture", choices=["base", "finetuned", "rag_base"],
                         help="Model architecture recorded by export-v2")
     parser.add_argument("--model-name", help="Model/checkpoint label recorded by export-v2")
     parser.add_argument("--model-id", help="Web model ID for run-v2; defaults from architecture")

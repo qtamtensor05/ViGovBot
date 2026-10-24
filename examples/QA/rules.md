@@ -14,7 +14,7 @@
 Xây dựng Golden Dataset phục vụ hai mục đích chính:
 
 1. **Supervised Fine-tuning (SFT):** Huấn luyện mô hình ngôn ngữ trả lời câu hỏi liên quan đến thủ tục hành chính.
-2. **Shared QA Benchmark:** Sử dụng chung bộ test để đánh giá Base Model, Fine-tuned Model, RAG và RAG kết hợp Fine-tuned Model.
+2. **Shared QA Benchmark:** Sử dụng chung bộ test để đánh giá Base Model, Fine-tuned Model và RAG Base như các cấu hình độc lập.
 
 Dữ liệu được cung cấp theo nhiều đợt (batch). Mỗi batch có thể bao gồm từ 10 đến 100 PDF và metadata tương ứng.
 
@@ -728,7 +728,6 @@ Dữ liệu phục vụ:
 - Đánh giá Base Model.
 - Đánh giá Fine-tuned Model.
 - Đánh giá RAG.
-- Đánh giá RAG kết hợp Fine-tuned Model.
 
 ## 10.2. Tỷ lệ mục tiêu
 

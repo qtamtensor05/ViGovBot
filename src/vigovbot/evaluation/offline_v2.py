@@ -144,7 +144,7 @@ def score_offline_v2(*, dataset: Path, split: str, predictions: Path, architectu
         for key in lexical
     }
     retrieval = {"map_at_5": None}
-    if architecture in {"rag_base", "rag_finetuned"}:
+    if architecture == "rag_base":
         map_rows = []
         for golden in golden_rows:
             relevant = [item for item in golden["ground_truth"].get("ground_truth_context_ids", []) if isinstance(item, str)]

@@ -11,7 +11,15 @@ from unittest.mock import patch
 try:
     from vigovbot.evaluation.__main__ import main as evaluation_main
     from vigovbot.evaluation.io import read_jsonl
-    from vigovbot.evaluation.v2 import build_record, export_v2, load_golden, load_predictions, run_v2
+    from vigovbot.evaluation.v2 import (
+        ARCHITECTURES,
+        DEFAULT_WEB_MODELS,
+        build_record,
+        export_v2,
+        load_golden,
+        load_predictions,
+        run_v2,
+    )
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 
@@ -48,6 +56,10 @@ def write_jsonl(path, rows):
 
 
 class EvaluationV2Tests(unittest.TestCase):
+    def test_supported_architectures_exclude_combined_qlora_rag(self):
+        self.assertEqual(ARCHITECTURES, {"base", "finetuned", "rag_base"})
+        self.assertNotIn("rag_finetuned", DEFAULT_WEB_MODELS)
+
     def test_supplemental_offline_scores_cached_predictions_without_inference(self):
         from vigovbot.evaluation.offline_v2 import score_offline_v2
 

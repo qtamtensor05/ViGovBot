@@ -1730,3 +1730,9 @@ SHA-256 artifact:
 - Báo cáo và lệnh kiểm chứng: `docs/reports/rag-evidence-hardening-20261024.md`. Lỗi môi trường và lần thử không đạt được ghi failure journal.
 
 Đề xuất commit: `feat(rag): preserve dynamic evidence metadata and harden prompt boundaries`
+## TASK-20261025-04 — Gỡ luồng triển khai kết hợp fine-tuning + RAG (completed)
+
+- Gỡ profile Web `qwen-qlora-rag` khỏi `configs/rag/inference.yaml`; giữ `qwen-qlora` độc lập và `qwen-rag` độc lập.
+- Thu hẹp Evaluation v2 còn `base`, `finetuned`, `rag_base`; CLI, scorer offline, schema/example và regression test không còn nhận `rag_finetuned`/`RAG_FineTuned`.
+- Xóa báo cáo riêng QLoRA + RAG, liên kết mục lục và hướng dẫn capture; sửa tài liệu hiện hành để không còn đề xuất triển khai luồng kết hợp. Nhật ký cũ và artifact lịch sử được giữ nguyên.
+- Kiểm chứng: `python -m unittest tests.test_evaluation_v2.EvaluationV2Tests.test_supported_architectures_exclude_combined_qlora_rag` PASS; `tests.test_documentation` 1/1 PASS; Ruff và compileall PASS; `git diff --check` PASS. Suite evaluation rộng hơn chạy 23 test với 3 lỗi dependency thiếu `sacrebleu`/`jsonschema` trên Python hệ thống.

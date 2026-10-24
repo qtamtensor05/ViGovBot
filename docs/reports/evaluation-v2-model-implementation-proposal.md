@@ -8,9 +8,8 @@
 - `examples/QA/golden_test_cases.jsonl` là JSON mẫu mô tả Golden Schema.
   Golden thật đã được bổ sung tại `Data/golden_dataset`: 2.200 train,
   550 val và 1.100 test, tổng 3.850 case.
-- Runtime canonical hiện nằm tại `src/vigovbot/evaluation`: đã chạy được Base
-  không retrieval, RAG dùng model nền và QLoRA không retrieval. Chưa có adapter
-  QLoRA + RAG dùng chung retriever với RAG Base.
+- Runtime canonical hiện nằm tại `src/vigovbot/evaluation`: hỗ trợ Base không
+  retrieval, RAG dùng model nền và QLoRA không retrieval.
 - Prediction/scorer hiện tại dùng contract QA-v4 (`id`, `answer`, `action`,
   `citations`, telemetry...). Nó chưa sinh trực tiếp đầy đủ Evaluation Run v2.
 
@@ -25,10 +24,9 @@ ghép Golden với prediction đã có theo ID và không chạy model.
 | Base | `base` | Chỉ question + history | `null`, `not_applicable` | Chấm theo nguồn Golden nếu có judge/evidence; không giả lập citation |
 | QLoRA | `finetuned` | Chỉ question + history | `null`, `not_applicable` | Như Base; ghi adapter revision/hash |
 | RAG Base | `rag_base` | Context do retriever thực tế trả về | Chấm khi ID index ánh xạ được sang relevance label | Chấm claim trên context đã retrieve và citation thực tế |
-| QLoRA + RAG | `rag_finetuned` | Cùng retriever/prompt/context với RAG Base, chỉ đổi generator | Chấm như RAG Base | Chấm như RAG Base; ghi cả corpus/index và adapter revision |
 
 Nên có thêm `oracle_evidence` như run chẩn đoán upper-bound, nhưng không xếp nó
-vào bảng thắng/thua của bốn kiến trúc production.
+vào bảng thắng/thua của ba kiến trúc production.
 
 ## 3. Nội dung cần ghi cho mỗi case
 
@@ -92,15 +90,14 @@ Thêm module dưới `src/vigovbot/evaluation/` để:
 Điều kiện đạt: fixture Base/RAG/QLoRA sinh đúng schema; lỗi, timeout và metric N/A
 được biểu diễn rõ; không ghi đè artifact cũ.
 
-### Phase 2 - Bốn adapter model công bằng
+### Phase 2 - Ba adapter model công bằng
 
-Giữ `vigov eva` làm CLI duy nhất. Mở rộng adapter hiện có thành bốn profile; bổ
-sung QLoRA + RAG bằng cách tái sử dụng cùng query processor/retriever/reranker và
-chỉ thay generator. RAG Base và QLoRA + RAG phải khóa cùng corpus/index/top-k,
-prompt context và decoding khi so sánh tác động của fine-tuning.
+Giữ `vigov eva` làm CLI duy nhất cho ba profile Base, QLoRA độc lập và RAG Base.
+Các run phải khóa dataset, prompt và decoding phù hợp với contract của từng
+profile; RAG Base ghi thêm corpus/index/top-k và retrieval trace.
 
 Điều kiện đạt: smoke cùng tập ID, không lộ Golden, provenance đầy đủ; Base/QLoRA
-không có retrieval trace giả; RAG Base/QLoRA+RAG trả trace ID có thể đối chiếu.
+không có retrieval trace giả; RAG Base trả trace ID có thể đối chiếu.
 
 ### Phase 3 - Scorer v2
 
@@ -117,7 +114,7 @@ Không triển khai MAP/precision/nDCG nếu relevance label không đầy đủ
 
 ### Phase 4 - Báo cáo và nghiệm thu
 
-- Báo bốn nhóm tách biệt: generation, retrieval, groundedness và performance.
+- Báo ba cấu hình theo các nhóm generation, retrieval, groundedness và performance.
 - Mỗi bảng có `n`, denominator, số missing/failed và khoảng tin cậy khi so cặp.
 - Slice tối thiểu: domain, difficulty, complexity, turn type, in/OOD,
   answerable/unanswerable và adversarial type.
@@ -129,7 +126,7 @@ Không triển khai MAP/precision/nDCG nếu relevance label không đầy đủ
 Nên tách thành ba PR để dễ kiểm chứng:
 
 1. **Contract/data:** Golden loader, validator, schema/config v2 và fixtures.
-2. **Execution:** v2 trace writer, bốn model profile, QLoRA + RAG và CLI.
+2. **Execution:** v2 trace writer, ba model profile và CLI.
 3. **Scoring/report:** metric registry, aggregate/slice/pairwise report và docs.
 
 Không chạy full 3.850 case ở PR đầu. Mỗi PR dùng fixture CPU/mocked telemetry;
@@ -139,7 +136,6 @@ lệnh dài và lưu rõ trạng thái chưa chạy/chạy lỗi/chạy xong.
 ## 6. Quyết định cần chốt trước khi code
 
 1. Vị trí và manifest của Golden 3.850 case thật.
-2. QLoRA + RAG dùng prompt format nào và có yêu cầu citation bắt buộc hay không.
-3. ID relevance ở cấp chunk hay knowledge unit; đây là denominator của retrieval.
-4. Judge/human rubric cho factuality, faithfulness và unsupported claim.
-5. Metric bắt buộc cho quality gate; không dùng một điểm tổng hợp duy nhất.
+2. ID relevance ở cấp chunk hay knowledge unit; đây là denominator của retrieval.
+3. Judge/human rubric cho factuality, faithfulness và unsupported claim.
+4. Metric bắt buộc cho quality gate; không dùng một điểm tổng hợp duy nhất.

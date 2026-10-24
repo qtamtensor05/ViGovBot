@@ -1303,3 +1303,10 @@
 - Đã khảo sát ingest → chunk → index → rerank → prompt → API; giữ chính sách router và thuật toán xếp hạng hiện có. Nới trường metadata tùy chọn theo cách tương thích dữ liệu cũ; cache v2 riêng, không ghi đè v1.
 - Đã triển khai formatter JSON, budget metadata, prompt tổng quát, bảo vệ cấu trúc bảng, log không chứa raw generation và test thực FAISS/SQLite cùng tokenizer Qwen.
 - Phần còn giới hạn: chưa có A/B generation mới, semantic injection/độ đầy đủ câu trả lời không được bảo đảm từ unit test; xem `docs/reports/rag-evidence-hardening-20261024.md`.
+# TASK-20261025-04 - Gỡ luồng triển khai kết hợp fine-tuning + RAG
+
+- Ngày: 2026-10-25 (Asia/Saigon).
+- Yêu cầu: gỡ toàn bộ các luồng nội dung triển khai liên quan đến fine-tuning + RAG.
+- Phạm vi: gỡ profile runtime `qwen-qlora-rag`, architecture evaluation `rag_finetuned`, hướng dẫn và báo cáo đề xuất/đánh giá riêng cho mô hình kết hợp; giữ QLoRA độc lập, RAG độc lập, dữ liệu, checkpoint, backup và artifact lịch sử.
+- Tiêu chí: không còn entry point có thể chọn/chạy luồng kết hợp; tài liệu hiện hành không còn hướng dẫn hoặc khuyến nghị triển khai luồng này; test evaluation, tài liệu, Ruff, compileall và diff-check pass.
+- Trạng thái: completed. Đã gỡ entry point runtime/evaluation và nội dung tài liệu hiện hành của luồng kết hợp; giữ nguyên QLoRA độc lập, RAG độc lập và artifact lịch sử.

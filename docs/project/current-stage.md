@@ -380,3 +380,10 @@
 - Kiểm chứng: 77 test host PASS; container tập trung 90 PASS/1 SKIP, hai test ngoại phạm vi bị loại công khai; Ruff toàn source, compileall và diff-check PASS.
 - Docker services đang dừng trong phiên này; không xác nhận Web/GPU generation đang chạy. Test rộng còn lỗi dependency và notebook thiếu đã ghi báo cáo; không có số liệu A/B chất lượng mới.
 - Bước vận hành tiếp: dùng source mới; lần prepare đầu tạo cache v2 riêng, cần dung lượng cho index/cache mới. Chấm lại generation trên input/config cố định trước khi kết luận chất lượng.
+# TASK-20261025-04 - completed, gỡ luồng fine-tuning + RAG
+
+- Nhiệm vụ: gỡ profile runtime, architecture evaluation và nội dung tài liệu hiện hành của luồng kết hợp `qwen-qlora-rag` / `rag_finetuned`.
+- Giữ nguyên: QLoRA độc lập, RAG độc lập, dataset, checkpoint, backup, artifact lịch sử và các mục nhật ký cũ.
+- Đã xong: gỡ profile `qwen-qlora-rag`, architecture `rag_finetuned`, enum/schema mẫu, hướng dẫn capture, báo cáo riêng và khuyến nghị triển khai kết hợp; thêm regression test khóa ba architecture còn lại.
+- Kiểm chứng: regression mới PASS; documentation 1/1 PASS; Ruff PASS; compileall PASS; `git diff --check` PASS. Bộ evaluation chạy 23 test, 20 hoàn tất và 3 lỗi môi trường do thiếu `sacrebleu`/`jsonschema`, không phải assertion hồi quy của thay đổi.
+- Không kiểm chứng: model/GPU/Web runtime vì luồng đã bị gỡ và task không yêu cầu chạy inference.

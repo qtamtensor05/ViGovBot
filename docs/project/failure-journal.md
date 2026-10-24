@@ -1168,3 +1168,10 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Ruff phát hiện lambda assignment (E731), đã sửa thành hàm. Apply-patch trùng target/thứ tự hunk đã bị từ chối, đã áp dụng lại với thứ tự đúng; không mất dữ liệu.
 - Tokenizer `local_files_only=True` qua model ID vẫn gọi model_info trong bản Transformers của image: network disabled chặn đúng; dùng đường dẫn snapshot local giải quyết, không tải model.
 - Container suite rộng còn đúng hai errors ngoại phạm vi (notebook/matplotlib), nên lượt tập trung công khai loại đúng hai test đó và giữ skip dataset v4 sẵn có. Không sửa/xóa test cũ để che lỗi.
+# ERR-20261025-01 - Môi trường host thiếu virtualenv và dependency evaluation
+
+- Task: `TASK-20261025-04`.
+- Triệu chứng: đường dẫn `env/Scripts/python.exe` không tồn tại; chạy suite bằng Python hệ thống thì 3/23 test lỗi import `sacrebleu` hoặc `jsonschema`.
+- Nguyên nhân xác nhận: checkout hiện không có thư mục `env`; Python hệ thống `C:\Python314\python.exe` không cài hai dependency nói trên.
+- Xử lý: chạy riêng regression không cần dependency, documentation test, Ruff, compileall và diff-check; tất cả đều PASS. Không cài thêm dependency vì task không yêu cầu thay đổi môi trường.
+- Tránh lặp lại: xác định interpreter tồn tại trước khi chạy; dùng môi trường evaluation đã cài extras khi cần full suite.

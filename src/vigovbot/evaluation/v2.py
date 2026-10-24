@@ -16,12 +16,11 @@ from .io import read_jsonl
 from vigovbot.artifacts import file_hash as _sha256
 from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
-ARCHITECTURES = {"base", "finetuned", "rag_base", "rag_finetuned"}
+ARCHITECTURES = {"base", "finetuned", "rag_base"}
 DEFAULT_WEB_MODELS = {
     "base": "qwen-base",
     "finetuned": "qwen-qlora",
     "rag_base": "qwen-rag",
-    "rag_finetuned": "qwen-qlora-rag",
 }
 OFFLINE_SCORER_VERSION = "2"
 REFERENCE_KEYS = [
@@ -476,7 +475,7 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
 
     retrieved_ids = _retrieved_ids(prediction)
     relevant_ids = [value for value in ground_truth.get("ground_truth_context_ids", []) if isinstance(value, str)]
-    is_rag = architecture in {"rag_base", "rag_finetuned"}
+    is_rag = architecture == "rag_base"
     if not is_rag:
         not_applicable.update(RETRIEVAL_KEYS)
     elif golden["taxonomy"].get("is_unanswerable") or not relevant_ids:

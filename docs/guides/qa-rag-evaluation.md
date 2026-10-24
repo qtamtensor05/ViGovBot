@@ -29,9 +29,8 @@ vigov eva export-v2 `
 
 Mặc định `run-v2` gọi `http://localhost:8001/api/chat` và ánh xạ
 `base -> qwen-base`, `finetuned -> qwen-qlora`, `rag_base -> qwen-rag` theo
-`configs/rag/inference-docker.yaml`. Dùng `--model-id` nếu cần ghi đè;
-`rag_finetuned` bắt buộc chỉ định model ID vì Docker chưa có profile
-mặc định. Request model chỉ gồm question/history, không có ground truth.
+`configs/rag/inference-docker.yaml`. Dùng `--model-id` nếu cần ghi đè.
+Request model chỉ gồm question/history, không có ground truth.
 
 `run-v2` gửi thêm `evaluation_trace=true` tới Web Chat. Đây là cờ quan sát
 ở API, không truyền vào prompt/model và không thay đổi inference settings.
@@ -80,8 +79,8 @@ Mặc định lệnh yêu cầu đủ coverage và từ chối ID ngoài benchma
 `qa2_*` thuộc benchmark khác nên không được ghép vào Golden này.
 
 Không truyền `--predictions` sẽ tạo skeleton `not_run` cho việc kiểm tra
-schema/coverage, không tạo kết quả model. Bốn giá trị architecture hợp lệ
-là `base`, `finetuned`, `rag_base`, `rag_finetuned`. Base/fine-tuned có metric
+schema/coverage, không tạo kết quả model. Ba giá trị architecture hợp lệ
+là `base`, `finetuned`, `rag_base`. Base/fine-tuned có metric
 retrieval `null` + `not_applicable`; RAG chỉ có retrieval score khi prediction
 chứa trace ID và Golden có relevance label. Metric semantic, groundedness,
 BERTScore hoặc constraint không đủ bằng chứng được giữ `null` kèm

@@ -46,17 +46,6 @@ web:
       allow_multiple_models: false
       cpu_offload: false
       force_single_gpu: true
-    - id: qwen-qlora-rag
-      label: Qwen 2.5 7B + QLoRA + RAG
-      provider: local_transformers
-      model: Qwen/Qwen2.5-7B-Instruct
-      base_url: local
-      mode: rag
-      adapter_path: ../../outputs/qlora/best_adapter
-      load_in_4bit: true
-      allow_multiple_models: false
-      cpu_offload: false
-      force_single_gpu: true
     # Ví dụ API chuẩn OpenAI-compatible:
     # - id: model-api
     #   label: Model qua API
