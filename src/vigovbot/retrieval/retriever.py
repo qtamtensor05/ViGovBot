@@ -107,7 +107,7 @@ class Retriever:
         for score, row_id in ranked:
             if row_id not in metadata:
                 raise ValueError(f"Thiếu metadata cho dòng FAISS {row_id}")
-            hits.append({"row_id": row_id, "score": score, **json.loads(metadata[row_id])})
+            hits.append({**json.loads(metadata[row_id]), "row_id": row_id, "score": score})
         return hits
 
     def _search_source_codes(self, source_codes, vector, top_k, preferred_sections=()):
@@ -133,7 +133,7 @@ class Retriever:
             ranked.append((priority, score, row_id, metadata))
         ranked.sort(key=lambda item: (item[0], -item[1], item[2]))
         return [
-            {"row_id": row_id, "score": score, **metadata}
+            {**metadata, "row_id": row_id, "score": score}
             for _, score, row_id, metadata in ranked[:top_k]
         ]
 

@@ -45,6 +45,19 @@ class WebChatTests(unittest.TestCase):
             history=history, answer_fn=unittest.mock.ANY,
         )
 
+    def test_generation_failure_does_not_log_source_or_rejected_output(self):
+        from vigovbot.rag.routing import StructuredAnswerError
+        canary = 'PRIVATE_SYNTHETIC_SOURCE_CANARY'
+        error = StructuredAnswerError({'attempts': 2, 'initial_text': canary,
+                                       'validation_errors': [canary]})
+        error.__cause__ = ValueError(canary)
+        with patch('vigovbot.server.app.answer_question', side_effect=error):
+            with self.assertLogs('vigovbot.server.app', level='ERROR') as logs:
+                result = self.app.chat({'question': 'test'})
+        self.assertNotIn(canary, str(logs.output))
+        self.assertNotIn(canary, str(result))
+        self.assertEqual(result['status'], 'failed')
+
     def test_chat_rejects_invalid_input(self):
         for payload in (
             None, {}, {"question": " "}, {"question": "x", "models": ["missing"]},

@@ -24,4 +24,11 @@ Khóa SQLite `row_id` giữ đúng vị trí 0-based của metadata trong FAISS.
 - FAISS sử dụng inner product trên vector đã chuẩn hóa L2.
 - Cache chỉ được tái sử dụng khi identity, version, embedding và checksum khớp.
 
+Cache v2 giữ mọi metadata JSON từ corpus, trừ `parent_section` là bản sao nội
+dung dài. Chỉ `chunk_id` và `text_content` bắt buộc; metadata nghiệp vụ tùy chọn.
+`row_id` và score truy hồi luôn do FAISS/SQLite xác định, không lấy từ payload.
+Version nằm trong khóa thư mục cache: lần chạy đầu tạo cache mới từ corpus đã
+xác minh, không ghi đè cache v1 và không tạo lại embedding. Cần dung lượng cho
+bản sao index/cache mới; cache cũ chỉ xóa khi người vận hành chủ động quyết định.
+
 [Đặc tả embedding](../../../docs/architecture/embedding.md) · [Kiến trúc hệ thống](../../../docs/architecture/architecture.md)

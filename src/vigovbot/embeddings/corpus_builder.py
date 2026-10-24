@@ -75,7 +75,10 @@ def safe_extract(archive: Path, destination: Path, max_bytes: int) -> None:
 
 
 def embedding_text(record: dict) -> str:
-    text, prefix = record["text_content"], record["context_prefix"].strip()
+    text, prefix = record["text_content"], record.get("context_prefix") or ""
+    if not isinstance(prefix, str):
+        raise ValueError("context_prefix must be text when supplied")
+    prefix = prefix.strip()
     return text if not prefix or text.lstrip().startswith(prefix) else prefix + "\n\n" + text
 
 

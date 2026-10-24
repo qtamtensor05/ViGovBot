@@ -1151,3 +1151,12 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Nguyên nhân: phiên công cụ hiện tại không cung cấp browser surface, không phải lỗi HTTP/Web ViGovBot.
 - Xử lý: xác minh API runtime, JavaScript bằng Node unit test và bundle HTML thực tế từ `http://localhost:8001/`; không giả lập tuyên bố screenshot/browser pass.
 - Kết quả: panel và source payload đã chạy; visual layout trong browser thật được ghi `NOT VERIFIED` cho phiên này.
+
+# ERR-20261024-05 - Giới hạn kiểm chứng và regression budget khi tổng quát hóa prompt
+
+- Task: `TASK-20261024-07`.
+- Host full discovery: thiếu numpy, sacrebleu, jsonschema (4 errors, 17 skips / 242 test tại thời điểm chạy). Docker runtime thiếu matplotlib; test notebook tham chiếu file `ipynb/base/lqwen2_5_7B.ipynb` không có trong checkout. Không giả lập dependency hoặc báo suite toàn bộ pass.
+- Hai test CharacterTokenizer dùng 2048 ký tự không đủ cho prompt mới: sửa fixture đo overhead thực, vẫn kiểm tra trần token, có context và không lộ gold. Test bảng/metadata/budget mới PASS.
+- Ruff phát hiện lambda assignment (E731), đã sửa thành hàm. Apply-patch trùng target/thứ tự hunk đã bị từ chối, đã áp dụng lại với thứ tự đúng; không mất dữ liệu.
+- Tokenizer `local_files_only=True` qua model ID vẫn gọi model_info trong bản Transformers của image: network disabled chặn đúng; dùng đường dẫn snapshot local giải quyết, không tải model.
+- Container suite rộng còn đúng hai errors ngoại phạm vi (notebook/matplotlib), nên lượt tập trung công khai loại đúng hai test đó và giữ skip dataset v4 sẵn có. Không sửa/xóa test cũ để che lỗi.

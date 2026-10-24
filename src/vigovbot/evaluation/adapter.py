@@ -313,6 +313,7 @@ def ollama_oracle(config_path):
                 structured=True,
                 evidence_check=True,
                 citations=enabled,
+                max_metadata_tokens=settings.get('max_metadata_tokens', 256),
             )
             text, raw, seconds = ollama_answer(
                 messages,

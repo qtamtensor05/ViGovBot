@@ -337,3 +337,13 @@
 - API công khai đúng ba chunk đã đưa vào prompt, gồm rank, mã, section, điểm FAISS/MiniLM, tên thủ tục và toàn văn chunk. Không công khai Top-20 candidate hoặc raw model response.
 - Web hiển thị panel `Top-3 context sau rerank` mở mặc định dưới answer; từng card có metadata và vùng nội dung cuộn, render bằng `textContent`, responsive trên màn hình hẹp.
 - Runtime API xác nhận `source_count=3`, rank `1,2,3`, cả ba có text; HTML đang phục vụ chứa panel/stylesheet/script mới. Visual browser QA chưa chạy vì Computer Use trả `browsers: []`.
+
+# TASK-20261024-07 - completed, đóng gói bằng chứng và prompt tổng quát
+
+- Core prompt theo nhóm bằng chứng/đối tượng/bảo toàn/thiếu-mâu thuẫn/an toàn; JSON từng source, metadata động giữ scope và trace, ngân sách metadata cấu hình được.
+- Cache v2 bảo toàn metadata mở rộng; chỉ bắt buộc ID/nội dung chuỗi; cache cũ giữ nguyên. Chunker sửa bảng không có pipe cuối; formatter không cắt giữa bảng/JSON và báo omission/truncation.
+- FAISS/SQLite thực và test prompt/router/API đã kiểm tra trong image Docker có sẵn, network disabled; không tải dependency/model, không rebuild corpus hoặc service.
+- Tokenizer Qwen thật với chunk `tthc_1_000183_sec_required_documents_3_p1`: nội dung nguyên vẹn, metadata không bị bỏ, 1.103 token prompt, 0 LLM call.
+- Kiểm chứng: 77 test host PASS; container tập trung 90 PASS/1 SKIP, hai test ngoại phạm vi bị loại công khai; Ruff toàn source, compileall và diff-check PASS.
+- Docker services đang dừng trong phiên này; không xác nhận Web/GPU generation đang chạy. Test rộng còn lỗi dependency và notebook thiếu đã ghi báo cáo; không có số liệu A/B chất lượng mới.
+- Bước vận hành tiếp: dùng source mới; lần prepare đầu tạo cache v2 riêng, cần dung lượng cho index/cache mới. Chấm lại generation trên input/config cố định trước khi kết luận chất lượng.

@@ -296,6 +296,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         question, hits, tokenizer, settings["num_ctx"], settings["num_predict"], settings["max_chunk_tokens"],
         history=history, structured=structured, evidence_check=routing_enabled,
         citations=settings.get('citations_enabled', False),
+        max_metadata_tokens=settings.get('max_metadata_tokens', 256),
     )
     if routing_enabled and not used:
         codes = extract_source_codes(retrieval_query)

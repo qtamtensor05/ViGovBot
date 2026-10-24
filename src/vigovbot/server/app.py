@@ -311,7 +311,7 @@ class ChatApplication:
                             key: settings.get(key) for key in (
                                 "model", "top_k", "candidate_top_k", "reranker", "measure_ttft",
                                 "citations_enabled", "decompose_queries", "num_ctx", "num_predict", "seed",
-                                "temperature")}
+                                "temperature", "max_metadata_tokens")}
                     if mode == "rag":
                         route = result.get("routing") or {}
                         public_result["routing_diagnostics"] = {
@@ -326,9 +326,11 @@ class ChatApplication:
                 except Exception as exc:
                     diagnostics = getattr(exc, "diagnostics", None)
                     if isinstance(diagnostics, dict):
-                        LOG.error("Structured generation diagnostics for %s: %s", model_id,
-                                  json.dumps(diagnostics, ensure_ascii=False))
-                    LOG.exception("Model %s không trả lời được", model_id)
+                        LOG.error("Structured generation failed for %s: attempts=%s, validation_errors=%d",
+                                  model_id, diagnostics.get("attempts"),
+                                  len(diagnostics.get("validation_errors", [])))
+                    else:
+                        LOG.exception("Model %s không trả lời được", model_id)
                     results.append({"model_id": model_id, "error": str(exc)})
         failures = sum("error" in result for result in results)
         status = "failed" if failures == len(results) else "partial" if failures else "success"

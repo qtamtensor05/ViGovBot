@@ -1698,3 +1698,14 @@ SHA-256 artifact:
 - Runtime xác nhận API trả 3/3 source có text/rank và HTML thực tế chứa bundle mới. Unit UI/server/routing PASS; visual screenshot NOT VERIFIED vì Computer Use không có browser surface trong phiên.
 
 Đề xuất commit: `feat(web): show reranked top-3 context beside RAG answers`
+
+# TASK-20261024-07 - Tổng quát hóa bằng chứng RAG
+
+- Khảo sát cho thấy corpus giữ record gốc nhưng SQLite bỏ metadata ngoài whitelist; prompt yêu cầu trường TTHC và cắt giữa bảng. Đã thêm `prompts/evidence.py`, sửa prompt, schema, cache và adapter dùng chung; không có luồng generation thứ hai.
+- Metadata động, giá trị JSON có kiểu, scope nested, budget 256 token/source cấu hình được; marker cho dữ liệu bỏ/cắt; ID không bị tự tạo. Nội dung bảng/JSON nguyên khối; bảng không vừa sẽ không được đưa vào prompt và model được báo context thiếu.
+- Cache v2 dùng namespace riêng, giữ cache cũ; không thay database table schema hoặc dữ liệu gốc. Retriever giữ quyền sở hữu row_id/score thay vì cho payload ghi đè.
+- Sửa splitter lặp header cho bảng thiếu pipe cuối. API vẫn giữ response hiện tại; trace thêm metadata thực dùng. Log StructuredAnswerError chỉ chứa số lần/thống kê, không raw response/cause nhạy cảm.
+- Baseline host 49 test PASS. Test FAISS/SQLite chạy trong Docker offline; tokenizer Qwen từ snapshot cache với ca hồ sơ 1.000183 giữ đủ nội dung, 1.103 token. Không đo generation/Recall/MRR mới.
+- Báo cáo và lệnh kiểm chứng: `docs/reports/rag-evidence-hardening-20261024.md`. Lỗi môi trường và lần thử không đạt được ghi failure journal.
+
+Đề xuất commit: `feat(rag): preserve dynamic evidence metadata and harden prompt boundaries`

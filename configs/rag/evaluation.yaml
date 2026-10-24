@@ -30,6 +30,7 @@ llm:
 retrieval:
   top_k: 5
   max_chunk_tokens: 1200
+  max_metadata_tokens: 256  # Per-source metadata; full chat budget also applies.
 
 conversation:
   routing_enabled: true  # Phân loại câu hỏi và xét bằng chứng trước khi trả lời.

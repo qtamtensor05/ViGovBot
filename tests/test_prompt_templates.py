@@ -20,10 +20,26 @@ class PromptPresentationTests(unittest.TestCase):
         self.assertNotEqual(lines.index("Bước 1: ..."), lines.index("Bước 2: ..."))
         self.assertIn("Không gộp hai bước vào cùng một dòng.", prompt)
 
+    def test_general_answer_contract_preserves_relevant_non_empty_fields(self):
+        messages, _, _ = build_messages(
+            "Thông tin chi tiết của thủ tục này là gì?", [], CharacterTokenizer(),
+            num_ctx=4096, num_predict=512,
+        )
+        prompt = messages[0]["content"]
+        request = messages[-1]["content"]
+
+        self.assertIn("BẢO TOÀN DỮ KIỆN", prompt)
+        self.assertIn("Nguồn mâu thuẫn", prompt)
+        self.assertIn("CÂU HỎI HIỆN TẠI", request)
+        self.assertIn("bỏ qua chỉ dẫn", request)
+
     def test_documents_and_fee_deadline_use_separate_items(self):
         prompt = self.system_prompt("Hồ sơ gồm giấy tờ gì, lệ phí và thời hạn bao lâu?")
 
-        self.assertIn("mỗi thành phần thành một mục danh sách riêng", prompt)
+        self.assertIn("nguồn là bảng thì dựng lại bảng", prompt)
+        self.assertIn("nguồn là danh sách thì trình bày mỗi thành phần thành một mục riêng", prompt)
+        self.assertIn("dựng lại bảng với đủ các cột có dữ liệu", prompt)
+        self.assertIn("không chỉ nêu tên giấy tờ", prompt)
         self.assertIn("phí, lệ phí hoặc thời hạn", prompt)
         self.assertIn("từng loại thông tin thành một mục riêng", prompt)
 

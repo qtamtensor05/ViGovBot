@@ -1265,3 +1265,11 @@
 - Phạm vi: bổ sung metadata/nội dung của ba source đã chọn vào response công khai và render panel context an toàn bằng DOM `textContent`; không hiển thị Top-20 candidate, raw provider/router hay context ngoài phần thực sự đưa vào LLM.
 - Tiêu chí: mỗi answer RAG có panel Top-3 theo đúng thứ hạng, mã/section/điểm và nội dung; Base/QLoRA không retrieval không hiện panel; responsive và test API/UI pass.
 - Trạng thái: completed; API runtime trả đúng ba source có nội dung/điểm/thứ hạng và Web đang phục vụ panel mở mặc định. Visual browser QA chưa thực hiện vì phiên Computer Use không có browser surface.
+
+# TASK-20261024-07 - Tổng quát hóa bằng chứng và prompt RAG
+
+- Ngày: 2026-10-24 (Asia/Saigon); trạng thái: completed (triển khai và kiểm chứng khả thi; generation thật chưa đo lại).
+- Yêu cầu: triển khai nội dung tệp đính kèm về metadata động, phân tách nguồn, bảo toàn dữ kiện, thiếu/mâu thuẫn bằng chứng và chống chỉ dẫn nhúng.
+- Đã khảo sát ingest → chunk → index → rerank → prompt → API; giữ chính sách router và thuật toán xếp hạng hiện có. Nới trường metadata tùy chọn theo cách tương thích dữ liệu cũ; cache v2 riêng, không ghi đè v1.
+- Đã triển khai formatter JSON, budget metadata, prompt tổng quát, bảo vệ cấu trúc bảng, log không chứa raw generation và test thực FAISS/SQLite cùng tokenizer Qwen.
+- Phần còn giới hạn: chưa có A/B generation mới, semantic injection/độ đầy đủ câu trả lời không được bảo đảm từ unit test; xem `docs/reports/rag-evidence-hardening-20261024.md`.

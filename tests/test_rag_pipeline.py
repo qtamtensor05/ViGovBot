@@ -112,6 +112,41 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(hits[0]["chunk_id"], "chunk_1")
         self.assertAlmostEqual(hits[0]["score"], 1.0)
 
+    def test_dynamic_metadata_survives_real_cache_and_retrieval(self):
+        self.records = [
+            {'chunk_id': f'manual-{i}', 'text_content': f'Manual {i}',
+             'document_metadata': {'version': 1.5, 'regions': ['north']},
+             'chunk_metadata': {'version': 2, 'active': False}, 'count': 0,
+             'row_id': 999, 'score': -999}
+            for i in range(3)
+        ]
+        self.write_metadata(self.records)
+        index, database, info = prepare_corpus(self.source, self.root / 'cache', allow_legacy=True)
+        class Encoder:
+            def encode(self, texts, **kwargs):
+                vector = np.zeros((1, 1024), dtype=np.float32)
+                vector[0, 0] = 1
+                return vector
+        retriever = Retriever(index, database, Encoder())
+        self.addCleanup(retriever.close)
+        hits = retriever.search('Manual', top_k=3)
+        self.assertEqual(hits[0]['document_metadata']['version'], 1.5)
+        self.assertIs(hits[0]['chunk_metadata']['active'], False)
+        self.assertEqual(hits[0]['count'], 0)
+        self.assertEqual(hits[0]['row_id'], 0)
+        self.assertAlmostEqual(hits[0]['score'], 1.0)
+        self.assertNotIn('source_code', hits[0])
+        self.assertEqual(info['version'], 2)
+
+    def test_cache_upgrade_does_not_overwrite_legacy_cache(self):
+        with patch('vigovbot.vectordb.vector_store.CACHE_VERSION', 1):
+            _, old_db, _ = prepare_corpus(self.source, self.root / 'cache', allow_legacy=True)
+        before = old_db.read_bytes()
+        _, new_db, info = prepare_corpus(self.source, self.root / 'cache', allow_legacy=True)
+        self.assertNotEqual(old_db, new_db)
+        self.assertEqual(old_db.read_bytes(), before)
+        self.assertEqual(info['version'], 2)
+
     def test_exact_source_code_limits_candidates_before_semantic_ranking(self):
         self.records[0]["source_code"] = "1.116222"
         self.records[0]["text_content"] = "Số quyết định 3826/QĐ-UBND"
@@ -234,13 +269,16 @@ class PipelineTests(unittest.TestCase):
 
     def test_prompt_budget_and_used_context(self):
         hits = [{**chunk(i), "row_id": i, "score": 1.0, "text_content": "Nội dung dài " * 500} for i in range(3)]
-        messages, used, count = build_messages("Câu hỏi", hits, CharacterTokenizer(overhead=10), 2048, 512, 400)
-        self.assertLessEqual(count, 2048 - 512 - 256)
+        tokenizer = CharacterTokenizer(overhead=10)
+        _, _, overhead = build_messages("Câu hỏi", [], tokenizer, 8192, 512, 400)
+        num_ctx = overhead + 512 + 256 + 700
+        messages, used, count = build_messages("Câu hỏi", hits, tokenizer, num_ctx, 512, 400)
+        self.assertLessEqual(count, num_ctx - 512 - 256)
         self.assertGreater(len(used), 0)
         self.assertTrue(all(len(h["included_text"]) <= 400 for h in used))
         self.assertTrue(all(h["included_text"] in messages[1]["content"] for h in used))
         with self.assertRaises(ValueError):
-            build_messages("x" * 10000, hits, CharacterTokenizer(overhead=10), 2048, 512, 400)
+            build_messages("x" * 10000, hits, tokenizer, num_ctx, 512, 400)
 
     def test_resume_and_no_ground_truth_leakage(self):
         output = self.root / "results"
@@ -297,20 +335,20 @@ class PipelineTests(unittest.TestCase):
             "ollama_url": "http://localhost:11434",
             "model": "qwen2.5:7b",
             "temperature": 0,
-            "num_ctx": 2048,
+            "num_ctx": 4096,
             "num_predict": 100,
             "seed": 42,
             "keep_alive": "10m",
             "timeout": 20,
         }
         messages, _, _ = build_messages(
-            "Câu hỏi", [{**chunk(0), "row_id": 0, "score": 1.0}], CharacterTokenizer(overhead=10), 2048, 100
+            "Câu hỏi", [{**chunk(0), "row_id": 0, "score": 1.0}], CharacterTokenizer(overhead=10), 4096, 100
         )
         with patch("requests.post", return_value=Response()) as post:
             answer, _, _ = ollama_answer(messages, settings)
         self.assertEqual(answer, "Trả lời")
         payload = post.call_args.kwargs["json"]
-        self.assertEqual(payload["options"]["num_ctx"], 2048)
+        self.assertEqual(payload["options"]["num_ctx"], 4096)
         self.assertIn("Nội dung 0", payload["messages"][1]["content"])
         self.assertNotIn("ĐÁP ÁN BÍ MẬT", json.dumps(payload, ensure_ascii=False))
 

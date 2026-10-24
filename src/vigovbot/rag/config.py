@@ -59,6 +59,7 @@ class RetrievalConfig(StrictModel):
     top_k: int = Field(default=5, gt=0)
     candidate_top_k: int | None = Field(default=None, gt=0)
     max_chunk_tokens: int = Field(default=1200, gt=0)
+    max_metadata_tokens: int = Field(default=256, gt=0)
     reranker: RerankerConfig = Field(default_factory=RerankerConfig)
 
     @model_validator(mode="after")

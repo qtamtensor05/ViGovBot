@@ -63,7 +63,7 @@ def resolve_route(question, history, tokenizer, settings, answer_fn, routing_ena
 
 
 def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, routing_enabled):
-    citation_ids = [c['chunk_id'] for c in used] if settings.get('citations_enabled', False) else None
+    citation_ids = [c['chunk_id'] for c in used if c.get('chunk_id')] if settings.get('citations_enabled', False) else None
     generation_settings = ({**settings, "min_new_tokens": 8,
                             "response_format": answer_schema(routing_enabled, citation_ids),
                             "response_schema_name": "answer"} if structured else settings)
