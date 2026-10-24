@@ -1,5 +1,26 @@
 # Lịch sử triển khai
 
+## TASK-20261025-03 — Ràng buộc retrieval theo tên thủ tục (completed)
+
+- Triển khai bước 1 từ chẩn đoán TASK-20261025-02 trong `src/vigovbot/retrieval/retriever.py`: tách `_fold` (casefold + bỏ dấu), thêm `_contains_phrase` (khớp cụm theo ranh giới từ), `MAX_PROCEDURE_NAME_MATCHES = 8`, `_procedure_catalog` (catalog 6.192 cặp `source_code`/`procedure_name` + "Cấp thực hiện" từ `metadata_identity`, dựng một lần 0,81 s/process), `_preferred_codes` và `Retriever._procedure_name_codes`.
+- `search()` có thêm nhánh sau nhánh mã TTHC: nếu câu hỏi nêu đúng tên thủ tục, xếp hạng FAISS trên tập chunk của các mã khớp thay vì toàn index, vẫn giữ `preferred_section_types`; không khớp hoặc khớp trên 8 mã thì giữ nguyên semantic search.
+- Xử lý trùng tên theo lựa chọn của người dùng: khi nhiều mã dùng chung một tên, `_preferred_codes` chọn mã có nhiều "Cấp thực hiện" nhất nếu duy nhất (156 nhóm trùng tên, phân xử được 14, trong đó `1.000148` = Tỉnh+Bộ thắng `2.000140` = Tỉnh); nhóm hòa hoặc thiếu metadata giữ nguyên toàn bộ mã.
+- Không đổi config, không re-embed, không rebuild index, không đụng `Data/`/`outputs/`.
+- Đo trước/sau trên 18 câu có nhãn (kiểm định viên, kiểm toán viên, cấp lại, hộ tịch, câu có mã TTHC), cùng process/encoder/index: top-1 đúng 12/18 → 18/18, có trong top-3 14/18 → 18/18; không hồi quy ở các nhóm ngoài kiểm định.
+- Tối ưu trong lúc triển khai: bản regex-per-name tốn 511 ms/query, thay bằng `str.find` có kiểm tra ranh giới từ → 0,47–0,49 ms/query, equivalence 0 mismatch trên 9 câu.
+- Kiểm chứng: `tests/test_retriever_procedure_name.py` 15/15 pass (matching, ranh giới từ, cấp lại, quá nhiều khớp, trùng tên rộng/hòa/thiếu metadata, section intent); `ruff check` pass; `test_reranker` 3/3, `test_retrieval_benchmark` 4/4, `test_refactor_boundaries` 3/3, `test_documentation` 1/1 pass; `test_rag_pipeline` skip 1.
+- E2E `/api/chat` sau `docker compose restart web`: câu "Thành phần hồ sơ để cấp chứng chỉ kiểm định viên" trả `1.000148` required_documents hạng 1, `action=answer`; câu "Cần những giấy tờ gì để thực hiện thủ tục cấp chứng chỉ kiểm định viên?" trả cả ba hạng `1.000148` (required_documents/other/procedure_step), latency 51,8 s.
+- Chưa làm: "nêu mã còn lại" `2.000140` (cần tầng trả lời/citations) và các bước 2–5 (fuse câu gốc + câu rewrite, đổi sort reranker, bật citations + kiểm tra `procedure_name`, làm sạch bảng markdown).
+
+## TASK-20261025-01 — Triển khai lại stack Docker full CUDA (completed)
+
+- Build sạch service `web` từ `Dockerfile` với `locks/inference-linux-py312.txt` (torch 2.9.1 + CUDA 12.8) và `locks/web-linux-py312.txt`; image `vigovbot-web:latest` 12,7 GB, ~12 phút, layer Torch/CUDA nằm dưới `COPY src`/`COPY configs` nên sửa source không phải rebuild dependency.
+- Khởi động `ollama` + `ollama-model-init` (pull `qwen2.5:7b`, exit 0) + `web`; hai service dài hạn healthy sau cold start ~8 phút.
+- Kiểm chứng: `vigov doctor` PASS (`missing: []`), `/api/health` `status=ok`, CLI `vigov ask` và `POST /api/chat` (`qwen-rag`) trả lời grounded từ `1.000797.pdf` với `actual_route=rag_search`, `evidence_status=sufficient`.
+- Xác nhận cơ chế cache: chỉ một namespace `outputs/rag_cache/718e5988445f08148bbe03e7`, `version=2`, `count=117871`; `CACHE_VERSION=2` khiến namespace v1 (nếu có) không bao giờ được đọc.
+- Dọn an toàn: xóa image test `nvidia/cuda:12.4.1-base-ubuntu22.04`, `docker builder prune -f` thu hồi 4,3 GB; không xóa volume, không `down --volumes`, không đụng `Data/`, `outputs/qlora`, adapter.
+- Chưa kiểm chứng: QLoRA 4-bit runtime (không warm để tránh tải ~15 GB Qwen base), chất lượng câu trả lời trên Golden, và compact VHDX.
+
 ## TASK-20261023-08 — Báo cáo phân tích chuyên sâu mô hình QLoRA + RAG (completed)
 
 - Khai thác dữ liệu đánh giá thực tế của mô hình kết hợp `qlora-rag` (run `qlora-rag-partial-682-20261023`, 682 mẫu thuộc cohort answerable) từ thư mục `backups/vigovbot-qlora-rag-partial-682-20261023-041931/`.

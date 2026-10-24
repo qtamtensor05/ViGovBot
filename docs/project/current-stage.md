@@ -1,3 +1,36 @@
+# TASK-20261025-03 - completed, ràng buộc retrieval theo tên thủ tục
+
+- Thay đổi: thêm `_fold`, `_is_word`, `_contains_phrase`, `IDENTITY_LEVEL_RE`, `MAX_PROCEDURE_NAME_MATCHES = 8`, `Retriever._procedure_names`, `Retriever._procedure_levels`, `_procedure_catalog`, `_preferred_codes`, `Retriever._procedure_name_codes`; nhánh mới trong `search()` sau nhánh mã TTHC. Câu hỏi nêu đúng tên thủ tục (đã bỏ dấu, kiểm tra ranh giới từ) thì tập ứng viên là chunk của các mã khớp, xếp hạng bằng FAISS trên cùng vector, giữ nguyên `preferred_section_types`. Không khớp hoặc khớp quá 8 mã thì rơi về semantic search như cũ.
+- Đo trước/sau trên 18 câu có nhãn, cùng process/encoder/index, so với bản baseline lưu tại `/tmp/retriever_baseline.py`: top-1 đúng **12/18 → 18/18**, có trong top-3 **14/18 → 18/18**. Không hồi quy ở câu kiểm toán viên, hộ tịch và câu có mã TTHC.
+- Trùng tên: 156 nhóm tên trùng trong corpus (đa số là thủ tục đất đai lặp theo tỉnh, đã fallback >8 mã). `_preferred_codes` chỉ thu hẹp khi đúng một mã có nhiều "Cấp thực hiện" nhất — phân xử duy nhất 14/156 nhóm, trong đó `1.000148` (Tỉnh, Bộ) thắng `2.000140` (Tỉnh); 142 nhóm hòa giữ nguyên hành vi, 26 nhóm thiếu metadata cũng giữ nguyên.
+- Hiệu năng: catalog dựng một lần 0,81 s/process (names 0,33 s + identity 0,30 s + parse 0,01 s); matching 0,47–0,49 ms/query. Bản regex-per-name đầu tiên tốn 511 ms/query nên đã thay bằng `str.find` + kiểm tra ranh giới từ, 0 mismatch so với regex trên 9 câu kiểm tra.
+- Kiểm chứng: 15 unit test (`tests/test_retriever_procedure_name.py`) pass; `ruff` pass; `test_reranker` 3/3, `test_retrieval_benchmark` 4/4, `test_refactor_boundaries` 3/3, `test_documentation` 1/1 pass. E2E `/api/chat` câu "Thành phần hồ sơ để cấp chứng chỉ kiểm định viên" trả `1.000148` required_documents hạng 1; câu "Cần những giấy tờ gì để thực hiện thủ tục cấp chứng chỉ kiểm định viên?" nay trả cả ba hạng `1.000148` (trước sửa: `1.007380`/`1.007380`/`1.002589`).
+- Chưa làm: "nêu mã còn lại" `2.000140` (cần tầng trả lời/citations) và các bước 2–5 (fuse câu gốc + câu rewrite, đổi sort reranker, bật citations + kiểm tra `procedure_name`, làm sạch bảng markdown).
+
+## Mốc trước
+
+# TASK-20261025-02 - diagnosis completed, top-3 sai thủ tục "cấp chứng chỉ kiểm định viên"
+
+- Triệu chứng: web trả top-3 `1.007380` (kiểm toán viên) + `2.000066` (cấp lại) với FAISS ~0,72 / MiniLM ~5,0, trong khi câu hỏi là "thủ tục cấp chứng chỉ kiểm định viên".
+- Đo trong container (chỉ đọc): câu hỏi nguyên văn → `1.000148` hạng 1 FAISS 0,8034 · MiniLM 7,9531; top-3 = `1.000148` (procedure_step), `1.000148` (other), `1.002589` (procedure_step). Nghĩa là corpus, FAISS và `candidate_top_k=20` đều đủ.
+- Nguyên nhân 1 (query): `route["relation"]="follow_up"` khiến pipeline dùng `route["query"]` thay câu gốc; bản viết lại thêm "giấy tờ/hồ sơ" và làm loãng tên thủ tục. Các biến thể có "giấy tờ/hồ sơ" cho FAISS 0,72–0,79, MiniLM 3,1–5,7, không tái tạo đúng ba số của web nhưng cùng miền giá trị.
+- Nguyên nhân 2 (ưu tiên mục): `retriever.py:25` thấy "giấy tờ/hồ sơ" → `preferred_section_types=('required_documents',)`; `reranker.py:75-78` sort hai tầng cứng nên chunk `procedure_step` điểm 7,95 không thể vào top-3.
+- Nguyên nhân 3 (reranker, quyết định): trong nhóm `required_documents` với câu "Thành phần hồ sơ…", chunk đúng `tthc_1_000148_sec_required_documents_3_p1` chỉ 2,75 (hạng 8/8), thấp hơn `1.007380` 5,23/5,16 và `2.000066` 4,46. Chunk đúng dài 1.098 ký tự ≈371 token < `max_length: 512`, nên không phải truncation.
+- Nhập nhằng dữ liệu: ba thủ tục cùng tên "Cấp chứng chỉ kiểm định viên" — `1.000148`, `2.000140` (An toàn vệ sinh lao động, 01/QĐ-BCT), `1.002589` (xây dựng). Kể cả lọc đúng tên vẫn cần luật chọn/hỏi lại.
+- Kết luận: không thêm ngưỡng điểm (chunk sai đang điểm cao hơn chunk đúng nên ngưỡng sẽ chặn mất đáp án đúng); không tăng `candidate_top_k`, không đổi `max_length` cho ca này.
+- Phương án đề xuất (chưa triển khai): (1) ràng buộc theo `procedure_name` trong `retriever.py` như `_search_source_codes`; (2) đổi sort hai tầng thành score + bonus có biên trong `reranker.py:73-79`; (3) retrieval bằng cả câu gốc và câu rewrite rồi fuse RRF (`pipeline.py:273-282` đã có sẵn cho decompose); (4) bật `citations_enabled` + kiểm tra nhất quán `procedure_name` trước khi cho `sufficient`.
+- Bước tiếp theo: chờ duyệt phương án, sau đó triển khai từng biến một và đo trên tập câu hỏi có nhãn (kiểm định vs kiểm toán vs cấp lại).
+
+# TASK-20261025-01 - completed, stack Docker full CUDA đã chạy và kiểm chứng
+
+- Kết quả dung lượng: `vigovbot-web:latest` 12,7 GB (build ~12 phút), `ollama/ollama:latest` 9,37 GB, volume `ollama-models` 4,68 GB, `huggingface-cache` 5,07 GB, `rag-cache` 788 MB.
+- Runtime: `vigovbot-web-1` và `vigovbot-ollama-1` healthy, `vigovbot-ollama-model-init-1` exit 0, `qwen2.5:7b` 4,7 GB có trong volume.
+- Kiểm chứng: `vigov doctor` PASS; `/api/health` trả `ok`; `/api/chat` model `qwen-rag` trả lời grounded từ `1.000797.pdf` (route `rag_search`, evidence `sufficient`); CLI `vigov ask` cùng kết quả.
+- Cache: chỉ một namespace `outputs/rag_cache/718e5988445f08148bbe03e7` với `ready.json` `version=2`, `count=117871`; không có v1.
+- Đo dung lượng: images 23,18 GB (gồm image project khác), volumes 10,86 GB, build cache 12,75 GB (0 reclaimable); ổ C: còn 24,2 GB sau khi prune 4,3 GB và xóa image test `nvidia/cuda`.
+- Quan sát: mỗi lệnh `vigov ask` là process mới nên nạp lại model (cold ~136 s, warm ~47 s theo `latency_s`); `/api/chat` qua web service ~34,5 s. `citations_status=disabled` theo cấu hình, không phải lỗi triển khai.
+- Bước tiếp theo: sửa `src`/`configs` chỉ cần `docker compose restart web`; compact VHDX khi cần lấy lại dung lượng; không warm QLoRA để tránh tải thêm ~15 GB.
+
 # TASK-20261023-08 - in_progress, viết báo cáo phân tích mô hình QLoRA + RAG
 
 - Nhiệm vụ: Phân tích kết quả thực tế từ đợt chấm qlora-rag (run qlora-rag-partial-682-20261023) trong ackups/vigovbot-qlora-rag-partial-682-20261023-041931/ và bổ sung vào hệ thống docs.

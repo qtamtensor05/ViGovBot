@@ -1,5 +1,13 @@
 # Nhật ký vấp ngã
 
+## ERR-20261025-01 — PowerShell 5.1 làm sai lệch UTF-8 và báo exit code giả
+
+- Task: TASK-20261025-01. Hai triệu chứng cùng gốc PowerShell 5.1 khi gọi Docker.
+- Triệu chứng 1: `docker compose build --progress plain web` thành công nhưng shell trả exit 1 kèm `NativeCommandError`, do cảnh báo `--progress is a global compose flag` ghi vào stderr. Kiểm tra lại bằng `docker image ls vigovbot-web` và dòng `Image vigovbot-web Built` để xác nhận thành công.
+- Triệu chứng 2: `Invoke-RestMethod` gửi câu hỏi tiếng Việt tới `/api/chat` bị server trả `'utf-8' codec can't decode byte 0xec in position 40` vì body bị encode theo codepage hệ thống.
+- Cách sửa đã kiểm chứng: dùng `docker compose --progress plain build web`; với HTTP POST, chuyển body sang byte UTF-8 (`[Text.Encoding]::UTF8.GetBytes($json)`) và `Content-Type: application/json; charset=utf-8`.
+- Cách tránh lặp lại: không kết luận build lỗi chỉ từ exit code của PowerShell khi stderr có cảnh báo; kiểm tra artifact/image thật.
+
 ## ERR-20261022-02 — Môi trường kiểm thử thiếu dependency
 
 - Task: TASK-20261022-02. Python 3.12 và 3.14 host báo ModuleNotFoundError: pydantic.

@@ -1,5 +1,35 @@
 # Yêu cầu dự án
 
+## TASK-20261025-03
+
+- Ngày tiếp nhận: 2026-10-25 (Asia/Saigon).
+- Yêu cầu: Triển khai bước 1 của phương án ở TASK-20261025-02 — ràng buộc retrieval theo tên thủ tục lấy từ `procedure_name` trong corpus.
+- Phạm vi: chỉ `src/vigovbot/retrieval/retriever.py` và test mới; không đổi config, không re-embed/rebuild index, không tải model, không sửa `Data/` hay `outputs/`.
+- Tiêu chí hoàn thành: câu hỏi nêu đúng tên thủ tục thì tập ứng viên bị ràng buộc vào các mã khớp tên; câu không nêu tên giữ nguyên hành vi cũ; đo trước/sau trên tập 18 câu có nhãn (kiểm định / kiểm toán / cấp lại / hộ tịch / câu có mã TTHC); chi phí mỗi query chấp nhận được so với thời gian embed + rerank.
+- Kết quả: top-1 đúng 12/18 → 18/18, có trong top-3 14/18 → 18/18; nhóm kiểm toán viên, hộ tịch và câu có mã TTHC không đổi kết quả. Matcher 0,71–0,74 ms/query (bản regex đầu tiên 511 ms/query đã được thay bằng tìm chuỗi có kiểm tra ranh giới từ, 0 sai lệch so với regex trên 9 câu). E2E `/api/chat` trả `1.000148` hạng 1.
+- Trùng tên: corpus có 156 nhóm tên trùng, phần lớn là thủ tục đất đai lặp theo 63 tỉnh nên đã rơi vào fallback >8 mã. Quy tắc "nhiều cấp thực hiện nhất" chỉ phân xử duy nhất 14/156 nhóm, trong đó có `1.000148` (Tỉnh + Bộ) vs `2.000140` (Tỉnh); 142 nhóm còn lại hòa nên giữ nguyên hành vi cũ. Với `1.000148`/`2.000140`, câu "Cần những giấy tờ gì để thực hiện thủ tục cấp chứng chỉ kiểm định viên?" nay trả cả ba hạng đều `1.000148`.
+- Tồn tại: "nêu mã còn lại" (`2.000140`) chưa làm được ở tầng retriever vì chunk của thủ tục thứ hai không còn trong ngữ cảnh; cần bước 4–5 (citations + kiểm tra nhất quán `procedure_name`) mới hiển thị được.
+- Trạng thái: implemented và đã commit; các bước 2–5 để task sau.
+
+## TASK-20261025-02
+
+- Ngày tiếp nhận: 2026-10-25 (Asia/Saigon).
+- Yêu cầu: Xác định nguyên nhân top-3 sau rerank trên web đều sai thủ tục với câu hỏi "thủ tục cấp chứng chỉ kiểm định viên" (thay vì `1.000148` lại trả `1.007380` kiểm toán viên và `2.000066` cấp lại), và chỉ ra chỗ cần sửa.
+- Phạm vi: chẩn đoán chỉ-đọc trong container `web` (không gọi LLM sinh câu trả lời, không rebuild index, không tải model, không sửa config). Đo FAISS top-200, mô phỏng đúng logic sort của `reranker.py`, gọi router để lấy `route["query"]`, đối chiếu metadata corpus.
+- Tiêu chí hoàn thành: xác định được chunk đúng có/không có trong candidate và tầng gây lỗi (query rewrite / section priority / reranker / corpus), kèm số đo; đề xuất thay đổi một-biến-một-lần, không tinh chỉnh trên một câu.
+- Kết quả chẩn đoán: corpus có thủ tục đúng `1.000148`; câu hỏi nguyên văn cho `1.000148` hạng 1 (FAISS 0,8034 · MiniLM 7,9531) nên index/embedding/`candidate_top_k=20` không phải nguyên nhân. Web dùng query khác (FAISS ~0,72, MiniLM ~5,0) do router viết lại follow-up; sau đó `preferred_section_types` ép cứng `required_documents` lên trước, và trong nhóm này reranker chấm chunk đúng của `1.000148` chỉ 2,75–3,65 trong khi chấm `1.007380` 4,64–5,73. Chunk đúng 371 token < `max_length: 512` nên truncation không phải nguyên nhân.
+- Trạng thái: diagnosis completed; bước 1 (ràng buộc tên thủ tục) đã triển khai ở TASK-20261025-03.
+
+## TASK-20261025-01
+
+- Ngày tiếp nhận: 2026-10-25 (Asia/Saigon).
+- Yêu cầu: Triển khai lại stack Docker bản "full CUDA" (web + Ollama) một cách an toàn trên máy RTX 4050 6 GB, sau khi đã xác định Docker là runtime cho web/RAG/QLoRA và môi trường local chỉ dùng cho dev/test.
+- Phạm vi: build một lần service `web` từ `Dockerfile` + `locks/inference-linux-py312.txt`; khởi động `ollama`, `ollama-model-init`, `web`; kiểm chứng readiness, `vigov doctor`, một truy vấn RAG và `/api/health`; đo dung lượng image/volume và dọn build cache. Không warm QLoRA (tránh tải thêm khoảng 15 GB Qwen base), không huấn luyện, không `down --volumes`, không sửa source/config.
+- Tiêu chí hoàn thành: `web` healthy; RAG trả lời có trích dẫn từ corpus; `/api/health` trả `ok`; số đo dung lượng được ghi lại; `Data/`, `outputs/` và adapter không bị thay đổi.
+- Giả định: `.env` đã trỏ `QLORA_ADAPTER_PATH` tới `outputs/qlora/qlora-full-20261014-153839-desktop-7pkpjrj-ea78be2d/best_adapter`; ổ C: còn đủ chỗ; GPU passthrough WSL2 hoạt động.
+- Kết quả: `vigovbot-web:latest` 12,7 GB build trong ~12 phút; `web` và `ollama` healthy; `vigov doctor` PASS, `/api/health` ok, `/api/chat` trả lời RAG grounded từ mã `1.000797`; cache RAG chỉ có một namespace v2 (117.871 chunk); đã xóa image test `nvidia/cuda` và prune 4,3 GB build cache.
+- Trạng thái: completed.
+
 ## TASK-20261023-08
 
 - Ngày tiếp nhận: 2026-10-23 (Asia/Saigon).
