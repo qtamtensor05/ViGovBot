@@ -17,8 +17,10 @@ def extract_source_codes(question):
 def preferred_section_types(question):
     """Map explicit question intent to the matching corpus section taxonomy."""
     normalized = unicodedata.normalize("NFD", question.casefold())
-    folded = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    folded = "".join(char for char in normalized if unicodedata.category(char) != "Mn").replace("đ", "d")
     groups = (
+        (("so quyet dinh", "linh vuc", "cap thuc hien", "doi tuong", "co quan"),
+         "metadata_identity"),
         (("trinh tu", "quy trinh", "cac buoc", "buoc nao"), "procedure_step"),
         (("ho so", "giay to", "thanh phan"), "required_documents"),
         (("phi", "le phi", "thoi han", "bao lau", "cach thuc", "hinh thuc nop"),

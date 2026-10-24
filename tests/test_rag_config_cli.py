@@ -53,6 +53,18 @@ class ConfigTests(unittest.TestCase):
                 if model["provider"] == "ollama":
                     self.assertEqual(model["base_url"], config["llm"]["ollama_url"])
 
+    def test_inference_profiles_use_minilm_top20_to_top3(self):
+        for name in ("inference.yaml", "inference-docker.yaml"):
+            config = load_config(Path("configs/rag") / name)
+            settings = config.inference_settings()
+            self.assertEqual(settings["candidate_top_k"], 20)
+            self.assertEqual(settings["top_k"], 3)
+            self.assertTrue(settings["reranker"]["enabled"])
+            self.assertEqual(
+                settings["reranker"]["model"],
+                "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+            )
+
     def test_repository_evaluation_profiles_do_not_reference_missing_legacy_dataset(self):
         root = Path(__file__).resolve().parents[1]
         for path in sorted((root / "configs/rag").glob("evaluation*.yaml")):
@@ -89,6 +101,7 @@ class ConfigTests(unittest.TestCase):
         data = {"unified_source": "unified.zip", "dataset_path": "qa.jsonl"}
         for overrides in (
             {"retrieval": {"top_k": 0}},
+            {"retrieval": {"top_k": 3, "candidate_top_k": 2, "reranker": {"enabled": True}}},
             {"llm": {"num_ctx": 500, "num_predict": 512}},
             {"evaluation": {"max_cases": 0}},
             {"web": {"models": [{"id": "x", "label": "X", "provider": "ollama", "model": "qwen",

@@ -250,7 +250,8 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
                     prediction["evaluation_trace"] = trace
                     for key in ("actual_route", "routing", "retrieval_query", "decision_reason",
                                 "evidence_status", "context_used", "citations", "citations_status", "telemetry",
-                                "actual_sub_queries", "sub_query_retrieval", "decomposition_status", "retrieval_top_k", "finish_reason", "provider_calls", "effective_settings"):
+                                "actual_sub_queries", "sub_query_retrieval", "decomposition_status", "retrieval_top_k",
+                                "retrieval_candidate_top_k", "finish_reason", "provider_calls", "effective_settings"):
                         if key in trace:
                             prediction[key] = trace[key]
                 counts["success"] += 1

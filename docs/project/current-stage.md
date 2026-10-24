@@ -323,3 +323,11 @@
 - MiniLM 117.641.089 tham số hoàn tất 1.100 mẫu trong 45,472 giây, 24,191 query/s; mean/p50/p95/p99 = 39,32/42,65/57,98/65,44 ms. Cached model load 3,184 giây; Retrieval + rerank warm = 94,171 giây.
 - Baseline → MiniLM Hit@1/3/5/10/20: 64,1/85,7/92,2/96,6/97,3% → 65,2/87,0/91,2/95,5/97,3%. Recall: 63,75/85,2/91,7/96,35/97,2% → 65,2/86,65/90,85/94,95/97,2%. MRR tăng ở mọi k, MRR@5 = 0,761683.
 - Kết luận: MiniLM đáng thử cho mục tiêu nén xuống Top-3 vì Hit@3 tăng 1,3 điểm phần trăm và MRR@3 tăng 0,0162, nhưng không phù hợp nếu KPI chính là Hit/Recall@5 hoặc @10. Chưa tích hợp runtime/generation.
+
+# TASK-20261024-04 - completed, tích hợp MiniLM vào RAG runtime
+
+- Mục tiêu: `FAISS Top-20 → cross-encoder/mmarco-mMiniLMv2-L12-H384-v1 → Top-3 → LLM`.
+- Đã thêm cấu hình typed, model reranker nạp lười và dùng lại giữa request, telemetry riêng và regression test; không sửa index/corpus hay artifact benchmark.
+- Hai profile inference hiện dùng candidate Top-20, MiniLM CUDA FP16 và final Top-3. Runtime Docker healthy; smoke warm generic 20 candidate có rerank 61 ms, smoke exact-code warm 31-57 ms, không CUDA OOM.
+- Smoke đầu phát hiện MiniLM loại chunk số quyết định của mã `1.116222`; đã bảo toàn ưu tiên `section_type` theo ý định trước điểm cross-encoder. Smoke sau sửa lấy ba chunk metadata và trả đúng `3826/QĐ-UBND`.
+- PASS: 60 test host liên quan, thêm 4 test reranker/pipeline trong nhóm 44 test, Ruff toàn `src/vigovbot`, compileall, documentation và diff-check. `tests.test_rag_config_cli` host vẫn không import do thiếu FAISS; config thật được load trực tiếp và runtime Docker xác nhận. Image Web không đóng gói thư mục `tests`, nên không chạy unit suite bên trong container.

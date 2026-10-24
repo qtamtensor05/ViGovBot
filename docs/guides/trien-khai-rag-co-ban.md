@@ -110,11 +110,13 @@ Lệnh `rag prepare` xác minh corpus, sao chép index vào cache và chuyển m
 4. Câu hỏi mới dùng nguyên văn câu hiện tại. Câu hỏi nối tiếp dùng `query` độc lập
    do router tạo từ lịch sử; lịch sử và câu trả lời cũ không được đưa vào prompt
    sinh cuối để tránh mang theo khẳng định chưa được kiểm chứng.
-5. Encode truy vấn thành vector 1024 chiều, chuẩn hóa L2, lấy tối đa
-   `top_k = 5` kết quả từ FAISS rồi tra nội dung trong SQLite.
-6. Ghép prompt trong ngân sách token. Nếu không có chunk nào thực sự vừa vào
+5. Encode truy vấn thành vector 1024 chiều, chuẩn hóa L2, lấy
+   `candidate_top_k = 20` ứng viên từ FAISS rồi tra nội dung trong SQLite.
+6. Cross-encoder `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` chấm lại 20 cặp
+   câu hỏi/chunk, sắp xếp theo điểm reranker và giữ `top_k = 3` chunk cho LLM.
+7. Ghép prompt trong ngân sách token. Nếu không có chunk nào thực sự vừa vào
    prompt, trả `abstain` mà không gọi sinh.
-7. LLM xét bằng chứng và sinh JSON gồm `answer`, `action`, `evidence_status`.
+8. LLM xét bằng chứng và sinh JSON gồm `answer`, `action`, `evidence_status`.
    Pipeline kiểm tra schema và ánh xạ kết quả vào response cùng nguồn/thời gian.
 
 Các cặp kết quả hợp lệ gồm: `answer/sufficient`, `partial/partial`,
@@ -141,7 +143,10 @@ trong tài liệu. Chi tiết về luồng nhiều lượt và cách đánh giá
 | `llm.num_predict` | `512` | Số token sinh tối đa |
 | `llm.timeout` | `300` giây | Timeout HTTP khi sinh câu trả lời |
 | `llm.keep_alive` | `10m` | Tham số giữ model gửi trong request; pipeline yêu cầu dỡ model khi đóng phiên |
-| `retrieval.top_k` | `5` | Số chunk truy hồi tối đa |
+| `retrieval.candidate_top_k` | `20` | Số ứng viên lấy từ FAISS trước rerank |
+| `retrieval.top_k` | `3` | Số chunk sau rerank tối đa đưa vào LLM |
+| `retrieval.reranker.model` | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | Cross-encoder xếp hạng lại ứng viên |
+| `retrieval.reranker.device` | `cuda` | Dùng FP16 để giữ overhead rerank thấp; cần kiểm tra VRAM cùng model sinh |
 | `retrieval.max_chunk_tokens` | `1200` | Giới hạn token của mỗi chunk đưa vào prompt |
 | `conversation.routing_enabled` | `true` | Bật định tuyến nhiều lượt và xét bằng chứng có cấu trúc |
 | `web.debug_routing` | `false` | Trả raw JSON router trong API và hiển thị mục debug trên UI |

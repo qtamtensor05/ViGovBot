@@ -184,6 +184,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     answer_fn = answer_fn or ollama_answer
     started = time.perf_counter()
     routing_enabled = settings.get("routing_enabled", True)
+    candidate_top_k = settings.get("candidate_top_k") or settings["top_k"]
+    rerank_s = 0.0
     sub_queries, sub_retrieval = None, None
     route, routing_raw, routing_s, routing_tokens, routing_attempts, fallback_reason = resolve_route(
         question, history, tokenizer, settings, answer_fn, routing_enabled)
@@ -195,14 +197,17 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
             "prediction": text, "action": action, "decision_reason": reason,
             "actual_sub_queries": sub_queries, "sub_query_retrieval": sub_retrieval,
             "retrieval_top_k": settings["top_k"],
+            "retrieval_candidate_top_k": candidate_top_k,
             "routing": route, "routing_s": routing_s, "routing_prompt_tokens_estimated": routing_tokens,
             "routing_attempts": routing_attempts, "fallback_reason": fallback_reason,
             "raw_routing": routing_raw, "retrieval_query": None if not hits else retrieval_query,
             "evidence_status": "missing" if reason in ("no_context", "unknown_source_code") else None,
-            "retrieved": [{key: h[key] for key in ("row_id", "score", "chunk_id", "source_file", "source_code")}
+            "retrieved": [{key: h[key] for key in (
+                "row_id", "score", "chunk_id", "source_file", "source_code", "faiss_rank", "faiss_score",
+                "reranker_score", "rerank_rank") if key in h}
                           for h in hits],
             "context_used": list(used), "prompt_tokens_estimated": tokens,
-            "retrieval_s": retrieval_s, "generation_s": 0.0,
+            "retrieval_s": retrieval_s, "rerank_s": rerank_s, "generation_s": 0.0,
             "latency_s": time.perf_counter() - started, "raw_ollama": None,
         }
 
@@ -266,16 +271,25 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         sub_queries = [{"sub_query_id": f"sq_{i + 1}", "query": q.strip()} for i, q in enumerate(queries)]
         sub_retrieval, fused, by_id = {}, {}, {}
         for query in sub_queries:
-            ranked = retriever.search(query["query"], settings["top_k"])
+            ranked = retriever.search(query["query"], candidate_top_k)
             sub_retrieval[query["sub_query_id"]] = [hit["chunk_id"] for hit in ranked]
             for rank, hit in enumerate(ranked, 1):
                 cid = hit["chunk_id"]
                 by_id[cid] = hit
                 fused[cid] = fused.get(cid, 0) + 1 / (60 + rank)
-        hits = [{**by_id[cid], "score": fused[cid]} for cid in sorted(fused, key=fused.get, reverse=True)[:settings["top_k"]]]
+        hits = [{**by_id[cid], "score": fused[cid]} for cid in sorted(
+            fused, key=fused.get, reverse=True)[:candidate_top_k]]
     else:
-        hits = retriever.search(retrieval_query, settings["top_k"])
+        hits = retriever.search(retrieval_query, candidate_top_k)
     retrieval_s = time.perf_counter() - retrieval_started
+    if settings.get("reranker", {}).get("enabled", False) and hits:
+        from vigovbot.retrieval.reranker import rerank_hits
+
+        rerank_started = time.perf_counter()
+        hits = rerank_hits(retrieval_query, hits, settings)
+        rerank_s = time.perf_counter() - rerank_started
+    else:
+        hits = hits[:settings["top_k"]]
     structured = structured or routing_enabled or settings.get('citations_enabled', False)
     messages, used, tokens = build_messages(
         question, hits, tokenizer, settings["num_ctx"], settings["num_predict"], settings["max_chunk_tokens"],
@@ -307,6 +321,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         "sub_query_retrieval": sub_retrieval,
         "decomposition_status": decomposition_status,
         "retrieval_top_k": settings["top_k"],
+        "retrieval_candidate_top_k": candidate_top_k,
         "rewrite_s": rewrite_s,
         "prediction": answer,
         "citations": citations,
@@ -325,11 +340,14 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
                             else "evidence_assessment" if routing_enabled else "routing_disabled"),
         "retrieval_query": retrieval_query,
         "retrieved": [
-            {key: h[key] for key in ("row_id", "score", "chunk_id", "source_file", "source_code")} for h in hits
+            {key: h[key] for key in (
+                "row_id", "score", "chunk_id", "source_file", "source_code", "faiss_rank", "faiss_score",
+                "reranker_score", "rerank_rank") if key in h} for h in hits
         ],
         "context_used": used,
         "prompt_tokens_estimated": tokens,
         "retrieval_s": retrieval_s,
+        "rerank_s": rerank_s,
         "generation_s": generation_s,
         "latency_s": time.perf_counter() - started,
         "raw_ollama": raw,

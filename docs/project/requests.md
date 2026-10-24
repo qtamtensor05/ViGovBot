@@ -1249,3 +1249,11 @@
 - Trạng thái: completed; full 1.100 mẫu và scorer hoàn tất, model này không đạt tiêu chí cải thiện tổng thể nên chưa nối vào Web Chat.
 - Bổ sung: thử đối chứng nhẹ `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` trên cùng artifact/cấu hình timing; model chuẩn Transformers, không dùng `trust_remote_code`.
 - Kết quả bổ sung: completed; đã chạy đủ 1.100 mẫu, không gọi LLM. MiniLM cải thiện Top-1/Top-3 và MRR nhưng giảm Hit/Recall từ Top-5 đến Top-10, nên chỉ là ứng viên cho luồng nén Top-20 xuống Top-3, chưa nối vào Web Chat.
+
+# TASK-20261024-04 - Tích hợp MiniLM reranker vào RAG runtime
+
+- Ngày: 2026-10-24 (Asia/Saigon).
+- Yêu cầu: cập nhật RAG hiện tại dùng FAISS Top-20, rerank bằng `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, rồi chỉ đưa Top-3 vào LLM.
+- Phạm vi: cấu hình, runtime retrieval/rerank, telemetry và test hồi quy; giữ nguyên corpus/index, router, prompt generation và artifact benchmark.
+- Tiêu chí: RAG lấy 20 candidate, MiniLM xếp hạng và cắt còn 3 context; trace phân biệt candidate/final k và đo rerank; cấu hình lỗi bị từ chối; test và kiểm tra tĩnh liên quan pass.
+- Trạng thái: completed; runtime Docker đã xác nhận Top-20 → MiniLM CUDA → Top-3, trace có timing và smoke exact-code trả đúng sau khi bảo toàn ưu tiên section theo ý định.

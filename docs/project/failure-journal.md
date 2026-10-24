@@ -1127,3 +1127,19 @@ Chỉ ghi lỗi quan sát được; phân biệt nguyên nhân đã xác nhận 
 - Xử lý: không tự cài dependency hoặc tải dataset/model; dùng unit fixture để kiểm chứng runner/scorer, chạy Ruff/compileall/docs/diff-check và ghi runtime thật là chưa xác minh.
 - Cách tiếp tục: dùng môi trường dự án có `.[rag,test,dev]` và dataset QA, chạy smoke `--limit 2` trước full benchmark; không dùng kết quả unit test làm số đo latency/chất lượng.
 - Cập nhật: Docker Desktop được tìm thấy qua registry tại cài đặt per-user và khởi động thành công; container Web có đủ dependency/CUDA. Smoke rồi full 1.100 mẫu đều hoàn tất. Giới hạn chỉ còn áp dụng cho Python host, không còn chặn benchmark container.
+
+# ERR-20261024-02 - Reranker làm mất chunk metadata exact-code
+
+- Task: `TASK-20261024-04`.
+- Triệu chứng: smoke đầu tiên đã chạy đúng Top-20 → MiniLM → Top-3 nhưng câu mã `1.116222` chỉ nhận các chunk `procedure_step`, loại chunk `metadata_identity` chứa `3826/QĐ-UBND`; model trả lời sai số quyết định.
+- Nguyên nhân: cross-encoder được phép sắp lại toàn bộ candidate mà không giữ ưu tiên section theo ý định; mapping intent cũng chưa nhận diện câu hỏi số quyết định/metadata. Unicode folding không đổi `đ` thành `d`, làm test câu có dấu không khớp từ khóa không dấu.
+- Cách sửa: thêm nhóm intent `metadata_identity`, chuẩn hóa `đ` thành `d`, và sắp preferred section trước điểm cross-encoder. MiniLM vẫn xếp hạng trong từng nhóm ưu tiên.
+- Kiểm chứng: unit regression PASS; runtime lấy ba chunk metadata và trả đúng `3826/QĐ-UBND`, warm rerank 31-57 ms.
+
+# ERR-20261024-03 - Trở ngại môi trường khi xác minh runtime reranker
+
+- Task: `TASK-20261024-04`.
+- Triệu chứng: Docker daemon ban đầu tắt; đường dẫn cài đặt hệ thống không tồn tại. `tests.test_rag_config_cli` trên host thiếu `faiss`; chạy unit test trong container lỗi vì image không đóng gói thư mục `tests`.
+- Nguyên nhân: Docker Desktop được cài per-user tại `%LOCALAPPDATA%/Programs/DockerDesktop`; Python host không có extras FAISS và Docker image runtime cố ý không chứa test source.
+- Xử lý: tìm installation qua registry/candidate path, khởi động Docker Desktop nền, dùng host fixture cho unit test và container API thật cho E2E. Không cài dependency host, không rebuild image và không xóa cache/model.
+- Kiểm chứng: Docker Web healthy, API RAG trả success với trace 20→3; 60 test host liên quan, Ruff, compileall, docs và diff-check PASS.

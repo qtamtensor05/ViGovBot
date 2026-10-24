@@ -1678,3 +1678,14 @@ SHA-256 artifact:
 - Baseline → MiniLM Hit@1/3/5/10/20: 64,1/85,7/92,2/96,6/97,3% → 65,2/87,0/91,2/95,5/97,3%. Recall: 63,75/85,2/91,7/96,35/97,2% → 65,2/86,65/90,85/94,95/97,2%. MRR: 0,6410/0,7357/0,7507/0,7569/0,7575 → 0,6520/0,7518/0,7617/0,7676/0,7689.
 - Theo ca Hit MiniLM so với baseline: k=1 cải thiện 190/xấu đi 179; k=3 96/83; k=5 44/54; k=10 5/16. Vì vậy MiniLM có lợi cho nén Top-20 xuống Top-3 nhưng giảm coverage ở Top-5/10; chưa nối vào Web Chat.
 - Artifact MiniLM: `outputs/retrieval/golden-test/golden-test-top20-reranked-mmarco-minilm.jsonl`, manifest `.run.json`, và `golden-test-top20-reranked-mmarco-minilm-scores.json`. SHA-256 lần lượt `3c837de4...d61b`, `15f19bac...52b`, `72e80bfc...17d`.
+
+# TASK-20261024-04 - Tích hợp MiniLM reranker vào RAG runtime
+
+- Thêm `RetrievalConfig.candidate_top_k` và cấu hình reranker typed. Hai profile hỏi đáp dùng `candidate_top_k=20`, `top_k=3`, model `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, CUDA FP16, batch 20, max length 512.
+- Thêm `src/vigovbot/retrieval/reranker.py`: model nạp lười, cache theo cấu hình, khóa inference dùng chung và giữ provenance `faiss_rank/faiss_score/reranker_score/rerank_rank`. Pipeline retrieval/decomposition lấy 20 candidate, rerank rồi mới dựng prompt từ tối đa 3 chunk.
+- Trace nay ghi `retrieval_candidate_top_k`, `retrieval_top_k`, `rerank_seconds` và effective reranker settings; scorer v2 giữ trường candidate depth từ API artifact.
+- Giữ ưu tiên cứng theo ý định/`section_type` trước điểm cross-encoder, đồng thời bổ sung nhóm `metadata_identity` cho số quyết định, lĩnh vực, cấp thực hiện, đối tượng và cơ quan. Việc này sửa hồi quy smoke mà MiniLM đẩy chunk số quyết định ra khỏi Top-3.
+- Runtime Docker: Web healthy; exact-code `1.116222` lấy ba chunk metadata và trả đúng `3826/QĐ-UBND`. Rerank cold có cả model load khoảng 4,00 giây; warm 31-57 ms ở exact-code và 61 ms với đủ 20 candidate. GPU 6.141 MiB còn khoảng 459 MiB sau khi giữ cả Qwen và MiniLM; smoke không OOM nhưng tải dài/concurrency cao chưa benchmark.
+- Kiểm chứng: 60 test host liên quan PASS; Ruff toàn package PASS; compileall, documentation và `git diff --check` PASS. Config inference thật load đúng 20→3. `test_rag_config_cli` host bị chặn bởi FAISS thiếu sẵn; container runtime thay thế phần xác minh thực, còn image không chứa thư mục test.
+
+Đề xuất commit: `feat(rag): rerank top-20 candidates to top-3 with MiniLM`
