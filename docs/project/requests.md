@@ -1240,3 +1240,10 @@
 - Trạng thái: completed source/test; chưa chạy benchmark thật vì host thiếu FAISS/encoder dependencies và không có dataset ba bộ 1.500.
 - Bổ sung 2026-10-24: người dùng yêu cầu chấm trực tiếp `Data/golden_dataset/test_golden.jsonl`. Mở rộng contract để dùng `input.question` làm query và `ground_truth_context_ids` làm relevance chunk IDs; không dùng đáp án hoặc standalone query chuẩn trong retrieval.
 - Trạng thái bổ sung: completed; đã chấm đủ 1.100 mẫu Top-20 trong container CUDA, không gọi LLM.
+# TASK-20261024-03 - Rerank artifact Golden Top-20 không gọi LLM
+
+- Ngày: 2026-10-24 (Asia/Saigon).
+- Yêu cầu: dùng lại `outputs/retrieval/golden-test/golden-test-top20.jsonl`, chạy reranker và cộng thời gian rerank với Retrieval để đánh giá tổng overhead; vẫn không chạy LLM.
+- Phạm vi: thêm rerank offline vào namespace evaluation, dùng `BAAI/bge-reranker-v2-m3`, giữ candidate FAISS cố định, xuất ranking/manifest/score mới; không gọi Ollama/Qwen, không generation và không sửa artifact baseline.
+- Tiêu chí: đo riêng model load và rerank, tính tổng warm Retrieval + rerank, chấm lại Hit/Recall/MRR cùng Golden, lưu provenance và so sánh baseline.
+- Trạng thái: completed; full 1.100 mẫu và scorer hoàn tất, model này không đạt tiêu chí cải thiện tổng thể nên chưa nối vào Web Chat.

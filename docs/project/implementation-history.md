@@ -1666,3 +1666,11 @@ SHA-256 artifact:
 - Hiệu năng vùng warm: 48,699 giây cho 1.100 query, 22,588 query/s; mean 41,78 ms, p50 37,61 ms, p95 81,86 ms, p99 99,48 ms, max 1.793,27 ms. Vùng này gồm encode + FAISS/SQLite + ghi JSONL, loại setup/model load.
 - 27/1.000 answerable không hit ở Top-20: 16 multi-intent, 11 single-hop; 24 medium, 3 hard. Đây là candidate-generation miss mà reranker không thể tự khôi phục nếu chỉ rerank Top-20.
 - SHA-256: Golden `5bf3606d...a127`, ranking `0d17d548...e0d5`, score `0019f46c...1643`.
+# TASK-20261024-03 - Rerank Golden Top-20 bằng BGE v2 M3
+
+- Thêm `retrieval-rerank` đọc ranking Top-20 đã cache, không chạy lại FAISS/corpus và không gọi LLM. Runner ghi `faiss_rank`, `faiss_score`, `reranker_score`, hạng mới, per-query latency, model metadata và tổng Retrieval + rerank từ manifest baseline.
+- Model thật: `BAAI/bge-reranker-v2-m3`, 567.755.777 tham số, CUDA FP16, max length 512, batch 20. Lần tải đầu smoke 48,16 giây; full run dùng cache load 3,82 giây.
+- Full 1.100 mẫu: rerank wall 281,010 giây, 3,914 query/s; mean 253,50 ms, p50 281,87 ms, p95 386,82 ms, p99 406,42 ms. Cộng Retrieval warm 48,699 giây thành 329,709 giây; cộng cached model load thành 333,529 giây.
+- Baseline → rerank Hit@1/3/5/10/20: 64,1/85,7/92,2/96,6/97,3% → 62,4/86,4/91,3/96,3/97,3%. Recall: 63,75/85,2/91,7/96,35/97,2% → 62,15/85,85/90,8/95,75/97,2%. MRR giảm ở mọi k; MRR@5 0,750717 → 0,742633.
+- Theo ca Hit: k=1 cải thiện 155/xấu 172; k=3 93/86; k=5 42/51; k=10 5/8. Reranker chỉ tăng nhẹ coverage Top-3 nhưng giảm Top-1/5 và ranking tổng thể, nên không được nối vào Web Chat.
+- Artifact: `outputs/retrieval/golden-test/golden-test-top20-reranked-bge-v2-m3.jsonl`, manifest `.run.json`, và score cùng tên hậu tố `-scores.json`. SHA-256 ranking `1f9176fb...406a`, score `12031d25...4b67`.

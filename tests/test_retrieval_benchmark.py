@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from vigovbot.evaluation.io import read_jsonl
-from vigovbot.evaluation.retrieval_benchmark import run_retrieval, score_retrieval
+from vigovbot.evaluation.retrieval_benchmark import rerank_retrieval, run_retrieval, score_retrieval
 
 
 class RetrievalBenchmarkTests(unittest.TestCase):
@@ -111,6 +111,41 @@ class RetrievalBenchmarkTests(unittest.TestCase):
                          ["judged_hit_rate_at_k"]["mean"], 0)
         self.assertEqual(report["retrieval_evaluation"]["2"]["end_to_end_all_eligible"]
                          ["judged_hit_rate_at_k"]["mean"], 1)
+
+    def test_rerank_reorders_cached_candidates_and_adds_total_time(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)
+            predictions = root / "top20.jsonl"
+            predictions.write_text(json.dumps({
+                "id": "q1", "question": "q", "retrieved_chunk_ids": ["c1", "c2"],
+                "retrieved_scores": [0.9, 0.8],
+                "retrieved": [
+                    {"chunk_id": "c1", "rank": 1, "score": 0.9},
+                    {"chunk_id": "c2", "rank": 2, "score": 0.8},
+                ],
+                "context_used": [
+                    {"chunk_id": "c1", "included_text": "wrong"},
+                    {"chunk_id": "c2", "included_text": "right"},
+                ],
+            }) + "\n", encoding="utf-8")
+            baseline = root / "top20.jsonl.run.json"
+            baseline.write_text('{"wall_seconds": 2.5}', encoding="utf-8")
+            output = root / "reranked.jsonl"
+
+            def loader(*_args):
+                return (lambda pairs: [0.1 if pair[1] == "wrong" else 0.9 for pair in pairs], {
+                    "model": "fake", "model_load_seconds": 0.0,
+                })
+
+            report = rerank_retrieval(
+                predictions=predictions, output=output, model_name="fake", device="cpu",
+                batch_size=2, max_length=32, retrieval_run_manifest=baseline, scorer_loader=loader,
+            )
+            row = next(read_jsonl(output))
+        self.assertEqual(row["retrieved_chunk_ids"], ["c2", "c1"])
+        self.assertEqual(row["retrieved"][0]["faiss_rank"], 2)
+        self.assertGreater(report["retrieval_plus_rerank_wall_seconds"], 2.5)
+        self.assertEqual(report["llm_calls"], 0)
 
 
 if __name__ == "__main__":

@@ -336,3 +336,20 @@ vigov eva retrieval-score `
   --ks 1 3 5 10 20 `
   --out outputs/retrieval/golden-test/golden-test-top20-scores.json
 ```
+
+Có thể rerank lại candidate đã lưu mà không chạy FAISS hoặc LLM:
+
+```powershell
+vigov eva retrieval-rerank `
+  --predictions outputs/retrieval/golden-test/golden-test-top20.jsonl `
+  --out outputs/retrieval/golden-test/golden-test-top20-reranked-bge-v2-m3.jsonl `
+  --reranker-model BAAI/bge-reranker-v2-m3 `
+  --reranker-device cuda `
+  --reranker-batch-size 20 `
+  --reranker-max-length 512 `
+  --retrieval-run-manifest outputs/retrieval/golden-test/golden-test-top20.jsonl.run.json
+```
+
+Manifest rerank tách thời gian tải model khỏi vùng rerank và cộng vùng warm với
+`wall_seconds` của Retrieval manifest. Ranking mới giữ cả hạng/điểm FAISS và
+điểm reranker để audit; chấm lại bằng `retrieval-score` như trên.

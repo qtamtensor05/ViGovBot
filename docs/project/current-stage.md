@@ -310,3 +310,12 @@
 - Hoàn tất 1.100/1.100: 1.000 answerable được chấm, 100 unanswerable `not_applicable`. Hit@1/3/5/10/20 = 64,1%/85,7%/92,2%/96,6%/97,3%; Recall tương ứng 63,75%/85,2%/91,7%/96,35%/97,2%; MRR = 0,6410/0,7357/0,7507/0,7569/0,7575.
 - Warm measured region 48,699 giây, 22,588 query/s; mean/p50/p95/p99 = 41,78/37,61/81,86/99,48 ms. Setup/encoder load bị loại khỏi vùng đo; 27/1.000 answerable miss ở Top-20, gồm 16 multi-intent và 11 single-hop.
 - Artifact: `outputs/retrieval/golden-test/golden-test-top20.jsonl`, manifest `.run.json`, và `golden-test-top20-scores.json`. Reranker chưa triển khai.
+# TASK-20261024-03 - in_progress, rerank Golden Top-20
+
+- Dùng ranking cố định `outputs/retrieval/golden-test/golden-test-top20.jsonl`; không chạy lại FAISS và không gọi LLM.
+- Đang bổ sung runner offline `BAAI/bge-reranker-v2-m3`, đo model-load/rerank riêng và tổng warm bằng retrieval baseline 48,699 giây.
+- Artifact dự kiến nằm cùng `outputs/retrieval/golden-test/`; sau smoke sẽ chạy đủ 1.100 mẫu rồi chấm Top-1/3/5/10/20.
+- Smoke 2 mẫu PASS: model 567.755.777 tham số, CUDA FP16, load lần đầu 48,16 giây; rerank 1,22 giây. Evidence mẫu đầu bị đẩy hạng 1 → 2 nên chưa kết luận cải thiện; bắt đầu full 1.100 mẫu vào `golden-test-top20-reranked-bge-v2-m3.jsonl`.
+- Full 1.100 hoàn tất: rerank warm 281,010 giây, 3,914 query/s, mean/p50/p95/p99 = 253,50/281,87/386,82/406,42 ms; cached model load 3,820 giây. Retrieval + rerank warm = 329,709 giây, cached cold = 333,529 giây.
+- Chất lượng không đạt: Hit@1 64,1% → 62,4%; Hit@3 85,7% → 86,4%; Hit@5 92,2% → 91,3%. Recall@5 91,7% → 90,8%; MRR@5 0,7507 → 0,7426. Tại k=5 có 42 ca cải thiện nhưng 51 ca xấu đi.
+- Kết luận: chưa tích hợp `bge-reranker-v2-m3` vào runtime/generation. Giữ artifact để audit/A-B; cần thử model/cấu hình khác hoặc fine-tune theo TTHC nếu tiếp tục.

@@ -52,7 +52,7 @@ def select_rows(rows, dataset, view, split, limit=None):
 def main(argv=None):
     configure_console()
     parser = argparse.ArgumentParser(description="Run unified ViGovBot evaluation workflows")
-    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "retrieval-run", "retrieval-score", "run-v2", "noise-v2", "score-noise-v2", "export-v2", "score-v2-offline", "judge-v2", "pairwise-v2", "complete-v2"])
+    parser.add_argument("command", choices=["ask", "chat", "run", "score", "test", "retrieval-run", "retrieval-rerank", "retrieval-score", "run-v2", "noise-v2", "score-noise-v2", "export-v2", "score-v2-offline", "judge-v2", "pairwise-v2", "complete-v2"])
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--complete-trace", action="store_true")
     parser.add_argument("--extended-metrics", action="store_true", help="Offline Vietnamese exact METEOR and sentence embedding cosine")
@@ -85,6 +85,12 @@ def main(argv=None):
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--ks", type=int, nargs="+", default=[1, 3, 5],
                         help="Ranks reported by retrieval-score")
+    parser.add_argument("--reranker-model", default="BAAI/bge-reranker-v2-m3")
+    parser.add_argument("--reranker-device", choices=["cpu", "cuda"], default="cuda")
+    parser.add_argument("--reranker-batch-size", type=int, default=20)
+    parser.add_argument("--reranker-max-length", type=int, default=512)
+    parser.add_argument("--retrieval-run-manifest", type=Path,
+                        help="Optional baseline manifest used to report retrieval + rerank wall time")
     parser.add_argument("--timeout", type=float, default=180)
     parser.add_argument("--view", help="ID view file; defaults to main test for the small dataset, balanced otherwise")
     parser.add_argument("--split", choices=["train", "val", "dev", "test"])
@@ -107,17 +113,26 @@ def main(argv=None):
     parser.add_argument('--bert-device', default='cpu')
     parser.add_argument('--bert-batch-size', type=int, default=16)
     args = parser.parse_args(argv)
-    if args.command in {"retrieval-run", "retrieval-score"}:
+    if args.command in {"retrieval-run", "retrieval-rerank", "retrieval-score"}:
         if not args.out:
             parser.error(f"{args.command} requires --out")
         if args.split == "dev":
             parser.error(f"{args.command} uses the selected QA split without generation")
         dataset, view = resolve_dataset(args.dataset, args.view)
-        from .retrieval_benchmark import run_retrieval, score_retrieval
+        from .retrieval_benchmark import rerank_retrieval, run_retrieval, score_retrieval
         if args.command == "retrieval-run":
             report = run_retrieval(
                 dataset=dataset, view=view, split=args.split or "test", config_path=args.config,
                 output=args.out, top_k=args.top_k, limit=args.limit,
+            )
+        elif args.command == "retrieval-rerank":
+            if not args.predictions:
+                parser.error("retrieval-rerank requires --predictions")
+            report = rerank_retrieval(
+                predictions=args.predictions, output=args.out, model_name=args.reranker_model,
+                device=args.reranker_device, batch_size=args.reranker_batch_size,
+                max_length=args.reranker_max_length,
+                retrieval_run_manifest=args.retrieval_run_manifest,
             )
         else:
             missing = [name for name, value in (("--predictions", args.predictions),) if not value]

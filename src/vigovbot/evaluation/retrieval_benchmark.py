@@ -266,3 +266,153 @@ def score_retrieval(*, dataset, view, split, predictions, unit_map, output, ks, 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return report
+
+
+def _load_reranker(model_name, device, batch_size, max_length):
+    import torch
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    if device == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA reranker requested but torch.cuda.is_available() is false")
+    started = time.perf_counter()
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    dtype = torch.float16 if device == "cuda" else torch.float32
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, dtype=dtype)
+    model.to(device)
+    model.eval()
+    load_seconds = time.perf_counter() - started
+
+    def score_pairs(pairs):
+        scores = []
+        for start in range(0, len(pairs), batch_size):
+            batch = pairs[start:start + batch_size]
+            inputs = tokenizer(
+                batch, padding=True, truncation=True, max_length=max_length,
+                return_tensors="pt",
+            )
+            inputs = {key: value.to(device) for key, value in inputs.items()}
+            with torch.inference_mode():
+                logits = model(**inputs, return_dict=True).logits.view(-1).float()
+            scores.extend(float(value) for value in logits.cpu().tolist())
+        return scores
+
+    metadata = {
+        "model": model_name,
+        "device": device,
+        "dtype": str(dtype).replace("torch.", ""),
+        "batch_size": batch_size,
+        "max_length": max_length,
+        "parameters": sum(parameter.numel() for parameter in model.parameters()),
+        "model_load_seconds": load_seconds,
+    }
+    return score_pairs, metadata
+
+
+def _rerank_row(row, scores):
+    chunk_ids = row.get("retrieved_chunk_ids", [])
+    contexts = row.get("context_used", [])
+    retrieved = row.get("retrieved", [])
+    if len(chunk_ids) != len(contexts) or len(chunk_ids) != len(scores):
+        raise ValueError(f"Rerank input {row.get('id')}: candidate/context/score lengths differ")
+    context_by_id = {item["chunk_id"]: item for item in contexts}
+    retrieved_by_id = {item["chunk_id"]: item for item in retrieved}
+    if set(context_by_id) != set(chunk_ids) or set(retrieved_by_id) != set(chunk_ids):
+        raise ValueError(f"Rerank input {row.get('id')}: chunk IDs are missing or duplicated")
+    ranked = sorted(
+        ((chunk_id, float(score), rank) for rank, (chunk_id, score) in enumerate(zip(chunk_ids, scores), 1)),
+        key=lambda item: (-item[1], item[2]),
+    )
+    reranked_retrieved = []
+    reranked_contexts = []
+    for rerank_rank, (chunk_id, score, faiss_rank) in enumerate(ranked, 1):
+        base = retrieved_by_id[chunk_id]
+        reranked_retrieved.append({
+            **base,
+            "faiss_rank": faiss_rank,
+            "faiss_score": base.get("score"),
+            "reranker_score": score,
+            "rerank_rank": rerank_rank,
+        })
+        reranked_contexts.append(context_by_id[chunk_id])
+    return {
+        **row,
+        "retrieved_chunk_ids": [item[0] for item in ranked],
+        "retrieved_scores": [retrieved_by_id[item[0]].get("score") for item in ranked],
+        "reranker_scores": [item[1] for item in ranked],
+        "retrieved": reranked_retrieved,
+        "context_used": reranked_contexts,
+    }
+
+
+def rerank_retrieval(*, predictions, output, model_name, device, batch_size, max_length,
+                     retrieval_run_manifest=None, scorer_loader=_load_reranker):
+    """Rerank cached candidates only; no corpus, retriever or answer model is loaded."""
+    predictions, output = Path(predictions), Path(output)
+    if output.exists():
+        raise FileExistsError(f"Reranked output already exists: {output}")
+    run_path = output.with_suffix(output.suffix + ".run.json")
+    if run_path.exists():
+        raise FileExistsError(f"Rerank manifest already exists: {run_path}")
+    if batch_size < 1 or max_length < 1:
+        raise ValueError("batch_size and max_length must be positive")
+    rows = list(read_jsonl(predictions))
+    if not rows:
+        raise ValueError("Rerank predictions are empty")
+    scorer, model_metadata = scorer_loader(model_name, device, batch_size, max_length)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    latencies = []
+    started_at = datetime.now().astimezone()
+    wall_started = time.perf_counter()
+    with output.open("x", encoding="utf-8") as handle:
+        for row in rows:
+            pairs = [
+                [row["question"], context["included_text"]]
+                for context in row.get("context_used", [])
+            ]
+            tick = time.perf_counter()
+            scores = scorer(pairs)
+            reranked = _rerank_row(row, scores)
+            latency = time.perf_counter() - tick
+            latencies.append(latency)
+            reranked["rerank_latency_ms"] = latency * 1000
+            handle.write(json.dumps(reranked, ensure_ascii=False) + "\n")
+            handle.flush()
+    rerank_wall_seconds = time.perf_counter() - wall_started
+    retrieval_seconds = None
+    retrieval_manifest_sha256 = None
+    if retrieval_run_manifest is not None:
+        retrieval_run_manifest = Path(retrieval_run_manifest)
+        retrieval_manifest_sha256 = file_hash(retrieval_run_manifest)
+        retrieval_seconds = float(json.loads(
+            retrieval_run_manifest.read_text(encoding="utf-8-sig")
+        )["wall_seconds"])
+    manifest = {
+        "schema_version": 1,
+        "benchmark": "retrieval_rerank_only",
+        "llm_calls": 0,
+        "inference_performed": False,
+        "candidate_source": str(predictions),
+        "selected_cases": len(rows),
+        "candidate_top_k": max(len(row.get("retrieved_chunk_ids", [])) for row in rows),
+        "reranker": model_metadata,
+        "started_at": started_at.isoformat(timespec="seconds"),
+        "completed_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "rerank_wall_seconds": rerank_wall_seconds,
+        "queries_per_second": len(rows) / rerank_wall_seconds if rerank_wall_seconds else None,
+        "rerank_latency_ms": {
+            "mean": sum(latencies) * 1000 / len(latencies),
+            "min": min(latencies) * 1000,
+            "max": max(latencies) * 1000,
+        },
+        "retrieval_wall_seconds": retrieval_seconds,
+        "retrieval_plus_rerank_wall_seconds": (
+            retrieval_seconds + rerank_wall_seconds if retrieval_seconds is not None else None
+        ),
+        "provenance": {
+            "predictions_sha256": file_hash(predictions),
+            "retrieval_manifest_sha256": retrieval_manifest_sha256,
+        },
+        "note": "Rerank timing includes tokenization, model inference, sorting and JSONL writes; model load is reported separately.",
+    }
+    run_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    return manifest
