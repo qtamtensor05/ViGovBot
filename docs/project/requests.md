@@ -1247,3 +1247,5 @@
 - Phạm vi: thêm rerank offline vào namespace evaluation, dùng `BAAI/bge-reranker-v2-m3`, giữ candidate FAISS cố định, xuất ranking/manifest/score mới; không gọi Ollama/Qwen, không generation và không sửa artifact baseline.
 - Tiêu chí: đo riêng model load và rerank, tính tổng warm Retrieval + rerank, chấm lại Hit/Recall/MRR cùng Golden, lưu provenance và so sánh baseline.
 - Trạng thái: completed; full 1.100 mẫu và scorer hoàn tất, model này không đạt tiêu chí cải thiện tổng thể nên chưa nối vào Web Chat.
+- Bổ sung: thử đối chứng nhẹ `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` trên cùng artifact/cấu hình timing; model chuẩn Transformers, không dùng `trust_remote_code`.
+- Kết quả bổ sung: completed; đã chạy đủ 1.100 mẫu, không gọi LLM. MiniLM cải thiện Top-1/Top-3 và MRR nhưng giảm Hit/Recall từ Top-5 đến Top-10, nên chỉ là ứng viên cho luồng nén Top-20 xuống Top-3, chưa nối vào Web Chat.

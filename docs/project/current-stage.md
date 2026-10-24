@@ -310,7 +310,7 @@
 - Hoàn tất 1.100/1.100: 1.000 answerable được chấm, 100 unanswerable `not_applicable`. Hit@1/3/5/10/20 = 64,1%/85,7%/92,2%/96,6%/97,3%; Recall tương ứng 63,75%/85,2%/91,7%/96,35%/97,2%; MRR = 0,6410/0,7357/0,7507/0,7569/0,7575.
 - Warm measured region 48,699 giây, 22,588 query/s; mean/p50/p95/p99 = 41,78/37,61/81,86/99,48 ms. Setup/encoder load bị loại khỏi vùng đo; 27/1.000 answerable miss ở Top-20, gồm 16 multi-intent và 11 single-hop.
 - Artifact: `outputs/retrieval/golden-test/golden-test-top20.jsonl`, manifest `.run.json`, và `golden-test-top20-scores.json`. Reranker chưa triển khai.
-# TASK-20261024-03 - in_progress, rerank Golden Top-20
+# TASK-20261024-03 - completed, rerank Golden Top-20
 
 - Dùng ranking cố định `outputs/retrieval/golden-test/golden-test-top20.jsonl`; không chạy lại FAISS và không gọi LLM.
 - Đang bổ sung runner offline `BAAI/bge-reranker-v2-m3`, đo model-load/rerank riêng và tổng warm bằng retrieval baseline 48,699 giây.
@@ -319,3 +319,7 @@
 - Full 1.100 hoàn tất: rerank warm 281,010 giây, 3,914 query/s, mean/p50/p95/p99 = 253,50/281,87/386,82/406,42 ms; cached model load 3,820 giây. Retrieval + rerank warm = 329,709 giây, cached cold = 333,529 giây.
 - Chất lượng không đạt: Hit@1 64,1% → 62,4%; Hit@3 85,7% → 86,4%; Hit@5 92,2% → 91,3%. Recall@5 91,7% → 90,8%; MRR@5 0,7507 → 0,7426. Tại k=5 có 42 ca cải thiện nhưng 51 ca xấu đi.
 - Kết luận: chưa tích hợp `bge-reranker-v2-m3` vào runtime/generation. Giữ artifact để audit/A-B; cần thử model/cấu hình khác hoặc fine-tune theo TTHC nếu tiếp tục.
+- Đã A/B model nhẹ `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` trên cùng Top-20, CUDA FP16, batch 20, max length 512; vẫn không gọi LLM.
+- MiniLM 117.641.089 tham số hoàn tất 1.100 mẫu trong 45,472 giây, 24,191 query/s; mean/p50/p95/p99 = 39,32/42,65/57,98/65,44 ms. Cached model load 3,184 giây; Retrieval + rerank warm = 94,171 giây.
+- Baseline → MiniLM Hit@1/3/5/10/20: 64,1/85,7/92,2/96,6/97,3% → 65,2/87,0/91,2/95,5/97,3%. Recall: 63,75/85,2/91,7/96,35/97,2% → 65,2/86,65/90,85/94,95/97,2%. MRR tăng ở mọi k, MRR@5 = 0,761683.
+- Kết luận: MiniLM đáng thử cho mục tiêu nén xuống Top-3 vì Hit@3 tăng 1,3 điểm phần trăm và MRR@3 tăng 0,0162, nhưng không phù hợp nếu KPI chính là Hit/Recall@5 hoặc @10. Chưa tích hợp runtime/generation.
