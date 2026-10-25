@@ -1,4 +1,4 @@
-"""python -m vigovbot rag --config configs/rag/evaluation.yaml run"""
+"""Inference CLI; Golden evaluation is available through vigov eva."""
 
 import argparse
 import json
@@ -14,7 +14,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Qwen + RAG: unified/SQLite/FAISS và đánh giá qa_test")
     parser.add_argument("--config", default="configs/rag/inference.yaml", help="Đường dẫn cấu hình YAML")
     parser.add_argument(
-        "command", choices=["prepare", "ask", "web", "smoke", "evaluate", "report", "run"], nargs="?", default="run"
+        "command", choices=["prepare", "ask", "web"], nargs="?", default="prepare"
     )
     parser.add_argument("--question", help="Question for the ask command; no evaluation dataset required")
     parser.add_argument("--history", help="JSON file containing prior user/assistant message pairs (ask only)")

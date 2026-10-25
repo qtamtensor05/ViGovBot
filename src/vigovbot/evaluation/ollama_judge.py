@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-from .review import fingerprint
+from .provenance import fingerprint
 
 METRICS = (
     "semantic_correctness", "answer_relevancy", "intent_coverage_score",
@@ -43,7 +43,7 @@ def validate(value):
 
 def judge(*, dataset, split, predictions, output, model, endpoint="http://localhost:11434", limit=None, resume=False, allow_partial=False):
     import requests
-    from .v2 import load_golden, load_predictions
+    from .records import load_golden, load_predictions
 
     parsed = urlparse(endpoint)
     if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1", "::1", "ollama", "host.docker.internal"} or parsed.username:

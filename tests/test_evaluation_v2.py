@@ -9,16 +9,15 @@ from pathlib import Path
 from unittest.mock import patch
 
 try:
-    from vigovbot.evaluation.__main__ import main as evaluation_main
     from vigovbot.evaluation.io import read_jsonl
-    from vigovbot.evaluation.v2 import (
+    from vigovbot.evaluation.records import (
         ARCHITECTURES,
         DEFAULT_WEB_MODELS,
         build_record,
-        export_v2,
+        export_scores,
         load_golden,
         load_predictions,
-        run_v2,
+        capture_predictions,
     )
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
@@ -61,7 +60,7 @@ class EvaluationV2Tests(unittest.TestCase):
         self.assertNotIn("rag_finetuned", DEFAULT_WEB_MODELS)
 
     def test_supplemental_offline_scores_cached_predictions_without_inference(self):
-        from vigovbot.evaluation.offline_v2 import score_offline_v2
+        from vigovbot.evaluation.scoring import score_supplemental
 
         def bert_score(predictions, references, **kwargs):
             self.assertEqual(predictions, ["Lệ phí 10.000 đồng."])
@@ -76,7 +75,7 @@ class EvaluationV2Tests(unittest.TestCase):
             write_jsonl(predictions, [{"id": "TC_1", "answer": "Lệ phí 10.000 đồng.",
                                        "retrieved_chunk_ids": ["chunk-1", "noise"]}])
             output = root / "offline.json"
-            report = score_offline_v2(dataset=root, split="test", predictions=predictions,
+            report = score_supplemental(dataset=root, split="test", predictions=predictions,
                                       architecture="rag_base", output=output, bertscore=True,
                                       bert_model="fixture", bert_score_fn=bert_score)
             output_exists = output.exists()
@@ -86,7 +85,7 @@ class EvaluationV2Tests(unittest.TestCase):
         self.assertTrue(output_exists)
 
     def test_supplemental_offline_scores_explicit_partial_subset(self):
-        from vigovbot.evaluation.offline_v2 import score_offline_v2
+        from vigovbot.evaluation.scoring import score_supplemental
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -95,7 +94,7 @@ class EvaluationV2Tests(unittest.TestCase):
             write_jsonl(root / "test_golden.jsonl", [golden(), other])
             predictions = root / "predictions.jsonl"
             write_jsonl(predictions, [{"id": "TC_1", "answer": "partial"}])
-            report = score_offline_v2(
+            report = score_supplemental(
                 dataset=root, split="test", predictions=predictions,
                 architecture="base", output=root / "offline.json", allow_partial=True,
             )
@@ -104,7 +103,7 @@ class EvaluationV2Tests(unittest.TestCase):
         self.assertEqual(report["missing_predictions"], 1)
         self.assertTrue(report["partial"])
 
-    def test_run_v2_sends_only_question_history_and_records_trace(self):
+    def test_capture_predictions_sends_only_question_history_and_records_trace(self):
         captured = []
 
         def post_json(endpoint, payload, timeout):
@@ -120,7 +119,7 @@ class EvaluationV2Tests(unittest.TestCase):
             output = root / "predictions.jsonl"
             progress = io.StringIO()
             with redirect_stderr(progress):
-                report = run_v2(dataset=root, split="test", architecture="rag_base", output=output,
+                report = capture_predictions(dataset=root, split="test", architecture="rag_base", output=output,
                                 endpoint="http://web/api/chat", post_json=post_json)
             prediction = next(read_jsonl(output))
         self.assertEqual(captured[0], (
@@ -137,7 +136,7 @@ class EvaluationV2Tests(unittest.TestCase):
         self.assertEqual(prediction["retrieved_chunk_ids"], ["chunk-1"])
         self.assertEqual(report["execution_status"], {"success": 1})
         self.assertFalse(report["gold_labels_sent_to_model"])
-        self.assertIn("[run-v2] 1/1 (100.0%)", progress.getvalue())
+        self.assertIn("[run] 1/1 (100.0%)", progress.getvalue())
         self.assertIsNone(prediction["citations"])
         self.assertEqual(prediction["citations_status"], "unavailable")
         self.assertEqual(report["evaluation_trace_status"], {"unavailable": 1})
@@ -191,14 +190,14 @@ class EvaluationV2Tests(unittest.TestCase):
                     root = Path(work)
                     write_jsonl(root / "test_golden.jsonl", [golden()])
                     predictions = root / "predictions.jsonl"
-                    run_v2(dataset=root, split="test", architecture="rag_base", output=predictions,
+                    capture_predictions(dataset=root, split="test", architecture="rag_base", output=predictions,
                            endpoint=f"http://127.0.0.1:{server.server_port}/api/chat")
                     row = next(read_jsonl(predictions))
                     self.assertNotIn("must-not-export", json.dumps(row))
                     self.assertEqual(row["evaluation_trace"]["token_estimates"]["prompt_tokens_estimated"], 123)
                     self.assertIsNone(row["telemetry"]["prompt_tokens"])
                     output = root / "results.jsonl"
-                    export_v2(dataset=root, split="test", architecture="rag_base", predictions=predictions,
+                    export_scores(dataset=root, split="test", architecture="rag_base", predictions=predictions,
                               model_name="fixture", run_id="r", output=output)
                     scores = next(read_jsonl(output))["evaluation_results"]
                     self.assertEqual(scores["query_processing_scores"]["router_accuracy"], 1.0)
@@ -214,7 +213,7 @@ class EvaluationV2Tests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=5)
 
-    def test_run_v2_records_http_failure_without_fabricating_answer(self):
+    def test_capture_predictions_records_http_failure_without_fabricating_answer(self):
         def fail(*_):
             raise TimeoutError("request timed out")
 
@@ -222,7 +221,7 @@ class EvaluationV2Tests(unittest.TestCase):
             root = Path(directory)
             write_jsonl(root / "test_golden.jsonl", [golden()])
             output = root / "predictions.jsonl"
-            report = run_v2(dataset=root, split="test", architecture="base", output=output, post_json=fail)
+            report = capture_predictions(dataset=root, split="test", architecture="base", output=output, post_json=fail)
             prediction = next(read_jsonl(output))
         self.assertEqual(report["execution_status"], {"error": 1})
         self.assertIsNone(prediction["answer"])
@@ -282,11 +281,11 @@ class EvaluationV2Tests(unittest.TestCase):
             write_jsonl(predictions, [{"id": "TC_1", "answer": "Lệ phí 10.000 đồng."}])
             output = root / "run.jsonl"
             with self.assertRaisesRegex(ValueError, "miss 1 Golden IDs"):
-                export_v2(dataset=root, split="test", predictions=predictions, architecture="finetuned",
+                export_scores(dataset=root, split="test", predictions=predictions, architecture="finetuned",
                           model_name="adapter", run_id="run-1", output=output)
             progress = io.StringIO()
             with redirect_stderr(progress):
-                summary = export_v2(
+                summary = export_scores(
                     dataset=root, split="test", predictions=predictions, architecture="finetuned",
                     model_name="adapter", run_id="run-1", output=output, allow_partial=True,
                 )
@@ -296,7 +295,7 @@ class EvaluationV2Tests(unittest.TestCase):
         self.assertEqual(summary["metric_aggregates"]["reference_based_scores"]["normalized_exact_match"]["n"], 1)
         self.assertEqual([row["scoring_status"] for row in rows], ["partial", "not_scored"])
         self.assertFalse(rows[0]["provenance"]["inference_performed"])
-        self.assertIn("[export-v2] 2/2 (100.0%)", progress.getvalue())
+        self.assertIn("[score] 2/2 (100.0%)", progress.getvalue())
 
     def test_export_rejects_prediction_ids_from_another_benchmark(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -305,7 +304,7 @@ class EvaluationV2Tests(unittest.TestCase):
             predictions = root / "predictions.jsonl"
             write_jsonl(predictions, [{"id": "qa2_00007", "answer": "cached"}])
             with self.assertRaisesRegex(ValueError, "outside Golden split"):
-                export_v2(dataset=root, split="test", predictions=predictions, architecture="base",
+                export_scores(dataset=root, split="test", predictions=predictions, architecture="base",
                           model_name="model", run_id="run-1", output=root / "run.jsonl")
 
     def test_export_without_predictions_is_an_explicit_not_run_skeleton(self):
@@ -313,7 +312,7 @@ class EvaluationV2Tests(unittest.TestCase):
             root = Path(directory)
             write_jsonl(root / "test_golden.jsonl", [golden()])
             output = root / "run.jsonl"
-            summary = export_v2(dataset=root, split="test", predictions=None, architecture="base",
+            summary = export_scores(dataset=root, split="test", predictions=None, architecture="base",
                                 model_name="model", run_id="run-1", output=output)
             row = next(read_jsonl(output))
         self.assertEqual(summary["missing_predictions"], 1)
@@ -331,35 +330,6 @@ class EvaluationV2Tests(unittest.TestCase):
             write_jsonl(predictions, [{"id": "TC_1", "answer": "a"}, {"id": "TC_1", "answer": "b"}])
             with self.assertRaisesRegex(ValueError, "duplicate prediction ID"):
                 load_predictions(predictions)
-
-    def test_cli_export_v2_routes_only_to_offline_exporter(self):
-        with patch("vigovbot.evaluation.v2.export_v2", return_value={"status": "ok"}) as exporter:
-            self.assertEqual(evaluation_main([
-                "export-v2", "--run-id", "run-1", "--architecture", "base", "--model-name", "model",
-                "--out", "out.jsonl",
-            ]), 0)
-        exporter.assert_called_once()
-        self.assertIsNone(exporter.call_args.kwargs["predictions"])
-
-    def test_cli_run_v2_routes_to_web_runner(self):
-        report = {"execution_status": {"success": 2}}
-        with patch("vigovbot.evaluation.v2.run_v2", return_value=report) as runner:
-            self.assertEqual(evaluation_main([
-                "run-v2", "--architecture", "base", "--limit", "2", "--out", "predictions.jsonl",
-            ]), 0)
-        runner.assert_called_once()
-        self.assertEqual(runner.call_args.kwargs["model_id"], None)
-        self.assertEqual(runner.call_args.kwargs["endpoint"], "http://localhost:8001/api/chat")
-
-    def test_cli_noise_v2_routes_to_resumable_noise_runner(self):
-        with patch("vigovbot.evaluation.noise.run_noise", return_value={"TC_1": "cached"}) as runner:
-            self.assertEqual(evaluation_main([
-                "noise-v2", "--model-id", "qwen-rag", "--predictions", "predictions.jsonl",
-                "--out", "noise-predictions.jsonl",
-            ]), 0)
-        runner.assert_called_once()
-        self.assertEqual(runner.call_args.kwargs["model_id"], "qwen-rag")
-        self.assertEqual(runner.call_args.kwargs["endpoint"], "http://localhost:8001/api/chat")
 
 
 if __name__ == "__main__":

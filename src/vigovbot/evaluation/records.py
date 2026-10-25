@@ -162,7 +162,7 @@ def _post_json(endpoint: str, payload: dict, timeout: float) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit: int | None = None,
+def capture_predictions(*, dataset: Path, split: str, architecture: str, output: Path, limit: int | None = None,
            endpoint: str = "http://localhost:8001/api/chat", model_id: str | None = None,
            timeout: float = 300, post_json=None, resume=False, complete_trace=False) -> dict:
     """Run selected Golden questions through an existing web endpoint without exposing gold labels."""
@@ -185,7 +185,7 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
     started_at = datetime.now().astimezone()
     progress_started = time.perf_counter()
     last_progress = progress_started
-    from .review import fingerprint
+    from .provenance import fingerprint
     run_identity = fingerprint({"cases": selected, "model": model_id, "endpoint": endpoint,
                                 "architecture": architecture, "complete_trace": complete_trace})
     cached = {}
@@ -270,7 +270,7 @@ def run_v2(*, dataset: Path, split: str, architecture: str, output: Path, limit:
             handle.flush()
             now = time.perf_counter()
             if index == len(selected) or now - last_progress >= 10:
-                _show_progress("run-v2", index, len(selected), progress_started, counts)
+                _show_progress("run", index, len(selected), progress_started, counts)
                 last_progress = now
     report = {
         "architecture_type": architecture, "web_model_id": model_id, "split": split,
@@ -492,7 +492,7 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
     citation_status = prediction.get("citations_status")
     citation_trace = isinstance(prediction.get("citations"), list) or isinstance(
         prediction.get("retrieval_output", {}).get("citations"), list)
-    # Old run-v2 wrote an empty list even when the API had no citation trace.
+    # Old run wrote an empty list even when the API had no citation trace.
     if prediction.get("web_model_id") and citation_status is None and not actual_sources:
         citation_trace = False
     if citation_status in {"unavailable", "disabled"}:
@@ -591,7 +591,7 @@ def validate_record(record: dict) -> None:
             raise ValueError(f"Evaluation v2 keys do not match schema group {group}")
 
 
-def export_v2(*, dataset: Path, split: str, predictions: Path | None, architecture: str, model_name: str,
+def export_scores(*, dataset: Path, split: str, predictions: Path | None, architecture: str, model_name: str,
               run_id: str, output: Path, model_config_path: Path | None = None, allow_partial: bool = False,
               judgments: Path | None = None) -> dict:
     golden_path, golden_rows = load_golden(dataset, split)
@@ -646,7 +646,7 @@ def export_v2(*, dataset: Path, split: str, predictions: Path | None, architectu
                     if isinstance(value, (int, float)) and math.isfinite(value):
                         aggregate_values[group][metric].append(float(value))
             if index % 100 == 0 or index == len(golden_rows):
-                _show_progress("export-v2", index, len(golden_rows), progress_started)
+                _show_progress("score", index, len(golden_rows), progress_started)
     metric_aggregates = {
         group: {metric: {"mean": sum(values) / len(values), "n": len(values)}
                 for metric, values in sorted(metrics.items())}

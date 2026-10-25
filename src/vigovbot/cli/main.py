@@ -200,30 +200,6 @@ def rag_prepare(config: Path = typer.Option(Path("configs/rag/inference.yaml"), 
     _rag("prepare", config)
 
 
-@rag_app.command("smoke")
-def rag_smoke(config: Path = typer.Option(Path("configs/rag/evaluation.yaml"), "--config")) -> None:
-    """Run the bounded RAG evaluation smoke set."""
-    _rag("smoke", config)
-
-
-@rag_app.command("evaluate")
-def rag_evaluate(config: Path = typer.Option(Path("configs/rag/evaluation.yaml"), "--config")) -> None:
-    """Evaluate predictions using the configured RAG evaluation dataset."""
-    _rag("evaluate", config)
-
-
-@rag_app.command("report")
-def rag_report(config: Path = typer.Option(Path("configs/rag/evaluation.yaml"), "--config")) -> None:
-    """Build the RAG evaluation report from persisted results."""
-    _rag("report", config)
-
-
-@rag_app.command("run")
-def rag_run(config: Path = typer.Option(Path("configs/rag/evaluation.yaml"), "--config")) -> None:
-    """Run the complete RAG evaluation workflow."""
-    _rag("run", config)
-
-
 @gpu_app.command("check")
 def gpu_check(output: Optional[Path] = typer.Option(None, "--output")) -> None:
     """Run CUDA, BF16, NF4 and paged-optimizer diagnostics; never load Qwen weights."""

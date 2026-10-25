@@ -1,6 +1,6 @@
 """Offline extensions; review identity is checked before any output is written."""
 from .io import read_jsonl
-from .review import fingerprint
+from .provenance import fingerprint
 from .ollama_judge import validate, validate_claims, judgment_payload
 
 

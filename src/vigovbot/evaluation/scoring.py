@@ -1,422 +1,230 @@
-"""RAG evaluator 4.1. Offline scoring; never calls your RAG endpoint."""
+"""Supplemental offline metrics for immutable Evaluation Run v2 predictions."""
 
-import argparse
-import collections
+from __future__ import annotations
+
 import json
-import math
-import statistics
-import time
-from importlib.util import find_spec
-from importlib.metadata import version, PackageNotFoundError
-from .judgment_scoring import score as score_judgments
-from vigovbot.utils.text import normalize_vietnamese as normalize, word_tokens as tokens
-from .lexical import METRIC_CONTRACT, VietnameseTokenizer, bleu_metric
-from .retrieval_metrics import RETRIEVAL_KEYS, summarize_retrieval
-from .review import fingerprint, validate_judgments
-from .io import read_jsonl
+from datetime import datetime
+from pathlib import Path
+
+from vigovbot.artifacts import file_hash
+from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
+
+from .records import ARCHITECTURES, load_golden, load_predictions
 
 
-def read(path):
-    if not path:
-        return []
-    return list(read_jsonl(path))
+SCORER_VERSION = "1"
 
 
-def unique(rows):
-    out = {}
-    for r in rows:
-        if r["id"] in out:
-            raise ValueError("Duplicate id: " + r["id"])
-        out[r["id"]] = r
-    return out
+def _mean(values: list[float]) -> float | None:
+    return sum(values) / len(values) if values else None
 
 
-def prf(a, b):
-    hit = sum((collections.Counter(a) & collections.Counter(b)).values())
-    p = hit / len(a) if a else float(not b)
-    r = hit / len(b) if b else float(not a)
-    return p, r, 2 * p * r / (p + r) if p + r else 0.0
+def _tokens(value: str) -> list[str]:
+    normalized = normalize_vietnamese(value)
+    return normalized.split() if normalized else []
 
 
-def summary(xs):
-    xs = sorted(x for x in xs if isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x))
-    if not xs:
-        return {"n": 0}
+def _distance(left: list[str], right: list[str]) -> int:
+    row = list(range(len(right) + 1))
+    for left_index, left_value in enumerate(left, 1):
+        previous, row[0] = row[0], left_index
+        for right_index, right_value in enumerate(right, 1):
+            saved = row[right_index]
+            row[right_index] = min(
+                row[right_index] + 1,
+                row[right_index - 1] + 1,
+                previous + (left_value != right_value),
+            )
+            previous = saved
+    return row[-1]
 
-    def q(p):
-        pos = (len(xs) - 1) * p
-        lo = int(pos)
-        hi = math.ceil(pos)
-        return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo)
+
+def _error_rate(prediction: str, reference: str, *, words: bool) -> float:
+    left = _tokens(prediction) if words else list(normalize_vietnamese(prediction))
+    right = _tokens(reference) if words else list(normalize_vietnamese(reference))
+    return _distance(left, right) / len(right) if right else float(bool(left))
+
+
+def _average_precision_at_5(retrieved: list[str], relevant: list[str]) -> float:
+    relevant_set = set(relevant)
+    if not relevant_set:
+        raise ValueError("MAP@5 requires at least one relevant ID")
+    hits = 0
+    precision_sum = 0.0
+    for rank, chunk_id in enumerate(retrieved[:5], 1):
+        if chunk_id in relevant_set:
+            hits += 1
+            precision_sum += hits / rank
+    return precision_sum / min(5, len(relevant_set))
+
+
+def _corpus_lexical(predictions: list[str], references: list[str]) -> dict:
+    import sacrebleu
 
     return {
-        "n": len(xs),
-        "mean": statistics.mean(xs),
-        "min": xs[0],
-        "max": xs[-1],
-        "p50": q(0.5),
-        "p95": q(0.95),
-        "p99": q(0.99),
+        "chrf": sacrebleu.corpus_chrf(predictions, [references]).score,
+        "chrf_pp": sacrebleu.corpus_chrf(predictions, [references], word_order=2).score,
+        "sacrebleu": sacrebleu.corpus_bleu(predictions, [references], tokenize="none").score,
     }
 
 
-def aggregate(rows, keys):
-    result = {}
-    for key in keys:
-        vals = [r[key] for r in rows if isinstance(r.get(key), (float, int))]
-        if vals:
-            result[key] = {"mean": statistics.mean(vals), "n": len(vals)}
-    return result
+def meteor_vi(prediction, reference):
+    """METEOR exact-token variant: no English stemmer/WordNet for Vietnamese."""
+    from nltk.translate.meteor_score import single_meteor_score
+    class IdentityStemmer:
+        def stem(self, word):
+            return word
+    class NoSynonyms:
+        def synsets(self, word):
+            return []
+    return single_meteor_score(_tokens(reference), _tokens(prediction),
+                               stemmer=IdentityStemmer(), wordnet=NoSynonyms())
 
 
-def unpack_bert_score(result):
-    """Normalize bert-score return_hash contracts across supported releases."""
-    if isinstance(result, tuple) and len(result) == 4:
-        return result
-    if isinstance(result, tuple) and len(result) == 2:
-        scores, hashcode = result
-        if isinstance(scores, tuple) and len(scores) == 3:
-            return *scores, hashcode
-    raise ValueError("Unexpected bert-score return value")
+def _bertscore(predictions: list[str], references: list[str], *, model: str, device: str, batch_size: int,
+               score_fn=None) -> tuple[dict, list[dict]]:
+    if batch_size < 1:
+        raise ValueError("bert_batch_size must be positive")
+    if score_fn is None:
+        from bert_score import score as score_fn
 
-
-def evaluate(
-    cases,
-    predictions,
-    judgments,
-    k=5,
-    lexical=True,
-    bert=False,
-    model="bert-base-multilingual-cased",
-    device="cpu",
-    batch_size=8,
-    bert_cache=None,
-    progress=False,
-):
-    started = time.perf_counter()
-    if bert and bert_cache is None and find_spec("bert_score") is None:
-        raise ModuleNotFoundError(
-            "BERTScore requested but bert-score is not installed. Install the evaluation extra or pass --bert-cache."
-        )
-    if progress:
-        print(f"[Score] Chuẩn bị {len(cases)} case và {len(predictions)} prediction...", flush=True)
-    if k < 1:
-        raise ValueError("k must be positive")
-    cs = unique(cases)
-    ps = unique(predictions)
-    unique(judgments)
-    validate_judgments(cases, predictions, judgments)
-    if bert and bert_cache is not None:
-        raise ValueError("Choose BERT computation or a validated cache, not both")
-    valid = [
-        p
-        for p in predictions
-        if p["id"] in cs and not p.get("error") and isinstance(p.get("answer"), str) and p["answer"].strip()
-    ]
-    action_available = bool(valid) and all(
-        p.get("action_status") != "unavailable_model_not_trained_for_action_labels" for p in valid
+    precision, recall, f1 = score_fn(
+        predictions, references, model_type=model, device=device, batch_size=batch_size,
+        lang="vi", verbose=True,
     )
-    vp = unique(valid)
-    output = score_judgments(cases, valid, judgments, k=k)
-    rows = output["per_case"]
-    rowmap = {r["id"]: r for r in rows}
-    retrieval_rows, retrieval_summary = summarize_retrieval(cases, predictions, k)
-    for r in rows:
-        for key in RETRIEVAL_KEYS:
-            r.pop(key, None)
-        r.update(retrieval_rows[r["id"]])
-    output["retrieval_evaluation"] = retrieval_summary
-    output["evaluation_version"] = "4.2.0"
-    output["coverage"] = {
-        "expected": len(cases),
-        "successful_predictions": len(valid),
-        "failed_or_missing": len(cases) - len(valid),
-        "extra_prediction_ids": len(set(ps) - set(cs)),
-    }
-    output["configuration"] = {
-        "k": k,
-        "normalization": "NFC + casefold + Unicode word tokens; Vietnamese syllables, not word segmentation",
-        "bert_enabled": bert,
-        "bert_model": model if bert else None,
-        "bert_device": device if bert else None,
-    }
-    output["metric_contract"] = METRIC_CONTRACT
-    output["packages"] = {}
-    for pkg in ["sacrebleu", "rouge-score", "bert-score", "torch", "transformers", "psutil", "nvidia-ml-py"]:
-        try:
-            output["packages"][pkg] = version(pkg)
-        except PackageNotFoundError:
-            pass
-    if lexical:
-        from sacrebleu.metrics import CHRF, TER
-        from rouge_score.rouge_scorer import RougeScorer
-
-        bleu = bleu_metric()
-        chrf = CHRF(word_order=2)
-        ter = TER()
-        rouge = RougeScorer(["rouge1", "rouge2", "rougeL"], tokenizer=VietnameseTokenizer())
-    if not action_available:
-        for row in rows:
-            row.pop("action_accuracy", None)
-    pairs = []
-    metrics = [
-        "correctness",
-        "completeness",
-        "faithfulness",
-        "citation_support",
-        "behavior_correct",
-        "exact_match",
-        "token_precision",
-        "token_recall",
-        "token_f1",
+    values = [
+        {"bertscore_precision": float(p), "bertscore_recall": float(r), "bertscore_f1": float(f)}
+        for p, r, f in zip(precision, recall, f1)
     ]
-    if action_available:
-        metrics.insert(0, "action_accuracy")
-    if retrieval_summary["available"]:
-        metrics += sorted(RETRIEVAL_KEYS - {"unjudged_retrieved_count"})
-    case_iterator = cases
-    if progress:
-        from tqdm.auto import tqdm
+    return ({key: _mean([item[key] for item in values]) for key in values[0]}, values)
 
-        case_iterator = tqdm(cases, total=len(cases), desc="Lexical/reference", unit="case", dynamic_ncols=True)
-    for c in case_iterator:
-        r = rowmap[c["id"]]
-        p = vp.get(c["id"])
-        r["expected_action"] = c["expected_action"]
-        r["prediction_success"] = int(p is not None)
-        if not p:
-            continue
-        # Reference similarity on substantive responses only, not abstention/clarification templates.
-        if c["expected_action"] not in ["answer", "partial", "correct_premise"]:
-            continue
-        ref = c.get("reference_answer")
-        hyp = p["answer"]
-        if not isinstance(ref, str) or not ref.strip():
-            continue
-        pairs.append((c["id"], hyp, ref))
-        r["exact_match"] = int(normalize(hyp) == normalize(ref))
-        r["token_precision"], r["token_recall"], r["token_f1"] = prf(tokens(hyp), tokens(ref))
-        if lexical:
-            r["sentence_bleu"] = bleu.sentence_score(normalize(hyp), [normalize(ref)]).score
-            r["chrf_plus_plus"] = chrf.sentence_score(hyp, [ref]).score
-            r["ter"] = ter.sentence_score(normalize(hyp), [normalize(ref)]).score
-            for name, s in rouge.score(ref, hyp).items():
-                for label, value in zip(["precision", "recall", "f1"], s):
-                    r[name + "_" + label] = value
-    if lexical:
-        metrics += ["sentence_bleu", "chrf_plus_plus", "ter"] + [
-            n + "_" + x for n in ["rouge1", "rouge2", "rougeL"] for x in ["precision", "recall", "f1"]
-        ]
-        if pairs:
-            hs = [normalize(x[1]) for x in pairs]
-            rs = [normalize(x[2]) for x in pairs]
-            output["corpus_similarity"] = {
-                "n": len(pairs),
-                "bleu": bleu.corpus_score(hs, [rs]).score,
-                "bleu_signature": str(bleu.get_signature()),
-                "chrf_plus_plus": chrf.corpus_score([x[1] for x in pairs], [[x[2] for x in pairs]]).score,
-                "ter": ter.corpus_score(hs, [rs]).score,
-            }
-    if bert_cache is not None:
-        if bert_cache.get("input_sha256") != fingerprint(pairs):
-            raise ValueError("BERT cache does not match current IDs/answers/references")
-        cached = unique(bert_cache["per_case"])
-        if set(cached) != {cid for cid, _, _ in pairs}:
-            raise ValueError("BERT cache coverage mismatch")
-        for cid, _, _ in pairs:
-            for metric in ["precision", "recall", "f1"]:
-                value = cached[cid][metric]
-                if not isinstance(value, (float, int)) or not math.isfinite(value):
-                    raise ValueError("Nonfinite BERT cache score")
-                rowmap[cid]["bertscore_" + metric] = value
-        output["configuration"]["bert_enabled"] = True
-        output["configuration"]["bert_cache_configuration"] = bert_cache["configuration"]
-        metrics += ["bertscore_precision", "bertscore_recall", "bertscore_f1"]
-    elif bert and pairs:
-        from bert_score import score
 
-        if progress:
-            print(
-                f"[Score] BERTScore: {len(pairs)} cặp, model={model}, device={device}, batch={batch_size}.", flush=True
-            )
-            print(
-                "[Score] Đang nạp model; lần đầu có thể im lặng vài phút trước khi progress batch xuất hiện.",
-                flush=True,
-            )
-        bert_started = time.perf_counter()
-        P, R, F, hashcode = unpack_bert_score(
-            score(
-                [x[1] for x in pairs],
-                [x[2] for x in pairs],
-                model_type=model,
-                lang="vi",
-                device=device,
-                batch_size=batch_size,
-                rescale_with_baseline=False,
-                return_hash=True,
-                verbose=True,
-            )
-        )
-        if progress:
-            print(f"[Score] BERTScore hoàn tất sau {time.perf_counter() - bert_started:.1f}s.", flush=True)
-        output["configuration"]["bert_hash"] = hashcode
-        for i, (cid, _, _) in enumerate(pairs):
-            for name, values in [("bertscore_precision", P), ("bertscore_recall", R), ("bertscore_f1", F)]:
-                rowmap[cid][name] = float(values[i])
-        metrics += ["bertscore_precision", "bertscore_recall", "bertscore_f1"]
-    metrics += ["prediction_success"]
-    output["overall_available"] = aggregate(rows, metrics)
-    output["per_field"] = {
-        f: aggregate([r for r in rows if r["field_id"] == f], metrics) for f in sorted({r["field_id"] for r in rows})
+def score_supplemental(*, dataset: Path, split: str, predictions: Path, architecture: str, output: Path,
+                     bertscore: bool = False, bert_model: str = "xlm-roberta-large", bert_device: str = "cpu",
+                     bert_batch_size: int = 8, bert_score_fn=None, extended=False,
+                     embedding_model="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                     allow_partial=False) -> dict:
+    """Score cached v2 predictions without model inference or modifying exported results."""
+    if architecture not in ARCHITECTURES:
+        raise ValueError(f"Unsupported architecture_type: {architecture}")
+    golden_path, golden_rows = load_golden(Path(dataset), split)
+    prediction_rows, prediction_path = load_predictions(Path(predictions))
+    golden_ids = {row["test_id"] for row in golden_rows}
+    extra_ids = set(prediction_rows) - golden_ids
+    missing_ids = golden_ids - set(prediction_rows)
+    if extra_ids or (missing_ids and not allow_partial):
+        raise ValueError(f"Predictions must cover the Golden split exactly; extra={len(extra_ids)}, missing={len(missing_ids)}")
+    expected = len(golden_rows)
+    if allow_partial:
+        golden_rows = [row for row in golden_rows if row["test_id"] in prediction_rows]
+        if not golden_rows:
+            raise ValueError("Partial predictions do not match any Golden case")
+
+    ordered_predictions = []
+    references = []
+    per_case = []
+    for golden in golden_rows:
+        prediction = prediction_rows[golden["test_id"]]
+        answer = prediction.get("answer")
+        if not isinstance(answer, str) or not answer.strip():
+            raise ValueError(f"Prediction {golden['test_id']} has no answer")
+        ordered_predictions.append(answer)
+        references.append(golden["ground_truth"]["expected_answer"])
+        per_case.append({
+            "test_id": golden["test_id"],
+            "character_error_rate": _error_rate(answer, golden["ground_truth"]["expected_answer"], words=False),
+            "word_error_rate": _error_rate(answer, golden["ground_truth"]["expected_answer"], words=True),
+        })
+
+    lexical = _corpus_lexical(ordered_predictions, references)
+    lexical["character_error_rate"] = _mean([row["character_error_rate"] for row in per_case])
+    lexical["word_error_rate"] = _mean([row["word_error_rate"] for row in per_case])
+    details = {
+        key: {"status": "computed", "scorer_version": f"offline-v2-supplement-{SCORER_VERSION}"}
+        for key in lexical
     }
-    output["macro_fields"] = {
-        m: {
-            "mean": statistics.mean([v[m]["mean"] for v in output["per_field"].values() if m in v]),
-            "n_fields": sum(m in v for v in output["per_field"].values()),
-        }
-        for m in metrics
-        if any(m in v for v in output["per_field"].values())
-    }
-    output["per_action"] = {
-        a: aggregate([r for r in rows if r["expected_action"] == a], metrics)
-        for a in sorted({r["expected_action"] for r in rows})
-    }
-    actions = sorted({c["expected_action"] for c in cases})
-    output["action_classification"] = {}
-    output["action_evaluation"] = {
-        "available": action_available,
-        "reason": None
-        if action_available
-        else "QLoRA was trained for plain answers, not action labels; no label was inferred.",
-    }
-    if action_available:
-        for a in actions:
-            tp = sum(c["expected_action"] == a and vp.get(c["id"], {}).get("action") == a for c in cases)
-            fp = sum(c["expected_action"] != a and vp.get(c["id"], {}).get("action") == a for c in cases)
-            fn = sum(c["expected_action"] == a and vp.get(c["id"], {}).get("action") != a for c in cases)
-            p = tp / (tp + fp) if tp + fp else 0
-            r = tp / (tp + fn) if tp + fn else 0
-            output["action_classification"][a] = {
-                "precision": p,
-                "recall": r,
-                "f1": 2 * p * r / (p + r) if p + r else 0,
-                "support": tp + fn,
-            }
-        output["action_accuracy_all_expected"] = (
-            sum(vp.get(c["id"], {}).get("action") == c["expected_action"] for c in cases) / len(cases)
-            if cases
-            else None
-        )
-        output["action_macro_f1"] = (
-            statistics.mean(v["f1"] for v in output["action_classification"].values()) if actions else None
-        )
-        output["action_confusion_matrix"] = {
-            a: dict(
-                collections.Counter(
-                    vp.get(c["id"], {}).get("action", "failed_or_missing") for c in cases if c["expected_action"] == a
-                )
-            )
-            for a in actions
+    retrieval = {"map_at_5": None}
+    if architecture == "rag_base":
+        map_rows = []
+        for golden in golden_rows:
+            relevant = [item for item in golden["ground_truth"].get("ground_truth_context_ids", []) if isinstance(item, str)]
+            if not relevant:
+                continue
+            retrieved = prediction_rows[golden["test_id"]].get("retrieved_chunk_ids") or []
+            value = _average_precision_at_5([item for item in retrieved if isinstance(item, str)], relevant)
+            per_case[golden_rows.index(golden)]["map_at_5"] = value
+            map_rows.append(value)
+        retrieval["map_at_5"] = _mean(map_rows)
+        details["map_at_5"] = {
+            "status": "computed", "n": len(map_rows), "denominator": "min(5, known_relevant)",
+            "scorer_version": f"offline-v2-supplement-{SCORER_VERSION}",
         }
     else:
-        output["action_accuracy_all_expected"] = None
-        output["action_macro_f1"] = None
-        output["action_confusion_matrix"] = None
-    output["semantic_evaluation"] = {
-        "judged_cases": len(judgments),
-        "reviewer_kinds": dict(collections.Counter(j.get("reviewer_kind", "unspecified") for j in judgments)),
-        "sampling_labels": dict(collections.Counter(j.get("sampling", "unspecified") for j in judgments)),
-        "metric_coverage": {
-            m: {"judged": sum(j.get(m) is not None for j in judgments), "expected": len(cases)}
-            for m in ("correctness", "completeness", "faithfulness", "citation_support", "behavior_correct")
+        details["map_at_5"] = {"status": "not_applicable", "reason": "Base architecture has no retrieval"}
+
+    if bertscore:
+        aggregate, values = _bertscore(
+            ordered_predictions, references, model=bert_model, device=bert_device,
+            batch_size=bert_batch_size, score_fn=bert_score_fn,
+        )
+        lexical.update(aggregate)
+        for row, value in zip(per_case, values):
+            row.update(value)
+        for key in aggregate:
+            details[key] = {
+                "status": "computed", "model": bert_model, "device": bert_device,
+                "batch_size": bert_batch_size, "scorer_version": f"offline-v2-supplement-{SCORER_VERSION}",
+            }
+    else:
+        for key in ("bertscore_precision", "bertscore_recall", "bertscore_f1"):
+            lexical[key] = None
+            details[key] = {"status": "unavailable", "reason": "BERTScore was not requested"}
+
+    for key, reason in {
+        "embedding_cosine_similarity": "No configured embedding-judge contract",
+        "meteor": "No Vietnamese METEOR contract or resources are configured",
+    }.items():
+        lexical[key] = None
+        details[key] = {"status": "unavailable", "reason": reason}
+    if extended:
+        from sentence_transformers import SentenceTransformer
+        encoder = SentenceTransformer(embedding_model, device=bert_device)
+        left = encoder.encode(ordered_predictions, normalize_embeddings=True, batch_size=bert_batch_size)
+        right = encoder.encode(references, normalize_embeddings=True, batch_size=bert_batch_size)
+        cosine = (left * right).sum(axis=1).tolist()
+        meteor = [meteor_vi(p, r) for p, r in zip(ordered_predictions, references)]
+        for row, m, c in zip(per_case, meteor, cosine):
+            row.update(meteor=float(m), embedding_cosine_similarity=float(c))
+        lexical.update(meteor=_mean(meteor), embedding_cosine_similarity=_mean(cosine))
+        details["meteor"] = {"status": "computed", "contract": "vi-normalized-exact METEOR, identity stemmer, no synonyms, nltk defaults"}
+        details["embedding_cosine_similarity"] = {"status": "computed", "model": embedding_model, "device": bert_device,
+                                                   "revision": getattr(encoder[0].auto_model.config, "_commit_hash", None),
+                                                   "contract": "L2-normalized sentence embeddings, dot product, macro mean"}
+
+    report = {
+        "schema_version": "2.0.0-supplement-1", "architecture_type": architecture, "split": split,
+        "expected": expected, "scored_records": len(golden_rows),
+        "prediction_records": len(prediction_rows), "missing_predictions": len(missing_ids),
+        "partial": bool(missing_ids),
+        "metric_contract": {
+            "normalization_version": NORMALIZATION_VERSION,
+            "sacrebleu": "corpus BLEU, tokenize=none, scale 0-100",
+            "chrf": "corpus chrF, sacrebleu default configuration, scale 0-100",
+            "character_error_rate": "mean normalized Levenshtein over NFC/casefold characters",
+            "word_error_rate": "mean normalized Levenshtein over NFC/casefold whitespace tokens",
+            "map_at_5": "binary relevance, retrieved top-5, AP denominator min(5, known relevant)",
         },
-        "note": "Means apply only to judged cases; AI judgments are not independent human gold.",
+        "metrics": {"lexical": lexical, "retrieval": retrieval, "metric_details": details},
+        "per_case": per_case,
+        "provenance": {
+            "golden_dataset": str(golden_path), "golden_sha256": file_hash(golden_path),
+            "predictions": str(prediction_path), "predictions_sha256": file_hash(prediction_path),
+            "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "inference_performed": False,
+        },
     }
-    output["latency_seconds_success"] = summary([p.get("latency_seconds") for p in valid])
-    output["latency_seconds_failed"] = summary(
-        [p.get("latency_seconds") for p in predictions if p["id"] in cs and p.get("error")]
-    )
-    output["server_telemetry"] = {
-        key: summary([p.get("telemetry", {}).get(key) for p in valid])
-        for key in [
-            "retrieval_seconds",
-            "generation_seconds",
-            "ttft_seconds",
-            "output_tokens",
-            "generation_tokens_per_second",
-            "cost_usd",
-        ]
-    }
-    conversations = collections.defaultdict(list)
-    for c in cases:
-        if c.get("conversation_id"):
-            conversations[c["conversation_id"]].append(rowmap[c["id"]])
-    fully_judged = [
-        rr for rr in conversations.values() if all("behavior_correct" in r and r["prediction_success"] for r in rr)
-    ]
-    output["conversation_behavior_success"] = {
-        "n_fully_judged_in_selected_view": len(fully_judged),
-        "rate": statistics.mean([all(r["behavior_correct"] == 1 for r in rr) for rr in fully_judged])
-        if fully_judged
-        else None,
-        "note": "Selected view must include every conversation turn for whole-conversation interpretation.",
-    }
-    output["limitations"] += [
-        "Similarity is not factual correctness or faithfulness.",
-        "Reference text metrics exclude abstain and clarify.",
-        "No precision/MAP/nDCG: qrels are non-exhaustive.",
-        "Missing/failed predictions excluded from similarity; see coverage and all-expected action accuracy.",
-        "BERTScore may truncate long texts to model maximum length.",
-        "Scoring is offline; it does not rerun the RAG.",
-    ]
-    if progress:
-        print(f"[Score] Tổng hợp hoàn tất sau {time.perf_counter() - started:.1f}s; đang ghi artifact...", flush=True)
-    return output
-
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cases", default="cases.jsonl")
-    ap.add_argument("--predictions", required=True)
-    ap.add_argument("--judgments")
-    ap.add_argument("--view")
-    ap.add_argument("--split", choices=["dev", "test"])
-    ap.add_argument("--k", type=int, default=5)
-    ap.add_argument("--out", default="scores.json")
-    ap.add_argument("--no-lexical", action="store_true")
-    ap.add_argument("--bertscore", action="store_true")
-    ap.add_argument("--bert-model", default="bert-base-multilingual-cased")
-    ap.add_argument("--bert-device", default="cpu")
-    ap.add_argument("--bert-batch-size", type=int, default=8)
-    a = ap.parse_args()
-    cases = read(a.cases)
-    if a.view:
-        with open(a.view, encoding="utf-8") as f:
-            ids = set(json.load(f))
-        cases = [c for c in cases if c["id"] in ids]
-    if a.split:
-        cases = [c for c in cases if c["split"] == a.split]
-    preds = read(a.predictions)
-    modes = {p.get("history_mode") for p in preds if p.get("history_mode")}
-    if len(modes) > 1:
-        raise ValueError("Do not mix history modes in one report")
-    out = evaluate(
-        cases,
-        preds,
-        read(a.judgments),
-        a.k,
-        not a.no_lexical,
-        a.bertscore,
-        a.bert_model,
-        a.bert_device,
-        a.bert_batch_size,
-        progress=True,
-    )
-    out["configuration"]["history_modes"] = sorted(modes)
-    with open(a.out, "w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False, indent=2, allow_nan=False)
-    print(f"[Score] Hoàn tất: {a.out}", flush=True)
-
-
-if __name__ == "__main__":
-    main()
+    output = Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x", encoding="utf-8") as handle:
+        json.dump(report, handle, ensure_ascii=False, indent=2, allow_nan=False)
+    return report

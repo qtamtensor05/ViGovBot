@@ -12,7 +12,7 @@ class CompleteCaptureTests(unittest.TestCase):
         import sys
         import numpy as np
         from types import SimpleNamespace
-        from vigovbot.evaluation.offline_v2 import score_offline_v2
+        from vigovbot.evaluation.scoring import score_supplemental
         class Encoder:
             def encode(self, texts, **kwargs):
                 return np.array([[1.0, 0.0] for _ in texts])
@@ -22,41 +22,12 @@ class CompleteCaptureTests(unittest.TestCase):
             root = Path(tmp)
             write_jsonl(root / "test_golden.jsonl", [golden()])
             write_jsonl(root / "p.jsonl", [{"id": "TC_1", "answer": "fixture"}])
-            with patch.dict(sys.modules, {"sentence_transformers": SimpleNamespace(SentenceTransformer=lambda *a, **k: Encoder())}), patch("vigovbot.evaluation.offline_v2.meteor_vi", return_value=0.75):
-                report = score_offline_v2(dataset=root, split="test", predictions=root / "p.jsonl",
+            with patch.dict(sys.modules, {"sentence_transformers": SimpleNamespace(SentenceTransformer=lambda *a, **k: Encoder())}), patch("vigovbot.evaluation.scoring.meteor_vi", return_value=0.75):
+                report = score_supplemental(dataset=root, split="test", predictions=root / "p.jsonl",
                                           architecture="base", output=root / "scores.json", extended=True)
             self.assertEqual(report["metrics"]["lexical"]["meteor"], 0.75)
             self.assertEqual(report["metrics"]["lexical"]["embedding_cosine_similarity"], 1.0)
             self.assertIn("chrf_pp", report["metrics"]["lexical"])
-
-    def test_preflight_missing_gpu_prevents_inference(self):
-        from vigovbot.evaluation.complete import complete
-        response = Mock()
-        from vigovbot.evaluation.complete import REQUIRED_WEB_CAPABILITIES
-        response.json.side_effect = [{
-            "evaluation_complete_version": 2,
-            "evaluation_complete_capabilities": {name: True for name in REQUIRED_WEB_CAPABILITIES},
-        }, {"status": "unavailable"}]
-        with tempfile.TemporaryDirectory() as tmp, patch("requests.get", return_value=response), patch("importlib.util.find_spec", return_value=True), patch("vigovbot.evaluation.complete.run_v2") as run:
-            with self.assertRaisesRegex(ValueError, "GPU sampler"):
-                complete(dataset=Path(tmp), split="test", architecture="base", output=Path(tmp), model_id="m",
-                         judge_model="j", endpoint="http://localhost:8001/api/chat", judge_endpoint="http://localhost:11434",
-                         bert_model="b", bert_device="cpu", bert_batch_size=1)
-            run.assert_not_called()
-
-    def test_preflight_missing_trace_capability_prevents_inference(self):
-        from vigovbot.evaluation.complete import complete
-        response = Mock()
-        response.json.return_value = {
-            "evaluation_complete_version": 2,
-            "evaluation_complete_capabilities": {"automatic_complete_trace": True},
-        }
-        with tempfile.TemporaryDirectory() as tmp, patch("requests.get", return_value=response), patch("vigovbot.evaluation.complete.run_v2") as run:
-            with self.assertRaisesRegex(ValueError, "provider_call_token_usage"):
-                complete(dataset=Path(tmp), split="test", architecture="base", output=Path(tmp), model_id="m",
-                         judge_model="j", endpoint="http://localhost:8001/api/chat", judge_endpoint="http://localhost:11434",
-                         bert_model="b", bert_device="cpu", bert_batch_size=1)
-            run.assert_not_called()
 
     def test_gpu_device_units_and_scope(self):
         from vigovbot.server.gpu_metrics import GPUSampler
@@ -103,15 +74,15 @@ class CompleteCaptureTests(unittest.TestCase):
             self.assertIn("noise_judgments_sha256", report["provenance"])
 
     def test_failed_prediction_retries_only_failed_case(self):
-        from vigovbot.evaluation.v2 import run_v2
+        from vigovbot.evaluation.records import capture_predictions
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_jsonl(root / "test_golden.jsonl", [golden("TC_1"), golden("TC_2")])
             send = Mock(side_effect=[{"results": [{"model_id": "qwen-base", "answer": "ok"}]}, RuntimeError("offline")])
             args = dict(dataset=root, split="test", architecture="base", output=root / "predictions.jsonl")
-            run_v2(**args, post_json=send)
+            capture_predictions(**args, post_json=send)
             send = Mock(return_value={"results": [{"model_id": "qwen-base", "answer": "recovered"}]})
-            run_v2(**args, post_json=send, resume=True)
+            capture_predictions(**args, post_json=send, resume=True)
             self.assertEqual(send.call_count, 1)
             self.assertEqual(len((root / "predictions.jsonl").read_text(encoding="utf-8").splitlines()), 2)
             self.assertEqual(len(list(root.glob("*.failed-attempt-*"))), 1)

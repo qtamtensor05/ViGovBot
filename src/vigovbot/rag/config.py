@@ -14,10 +14,7 @@ class StrictModel(BaseModel):
 
 class DataConfig(StrictModel):
     unified_source: Path
-    dataset_path: Path | None = None
-    dataset_zip: Path | None = None
     cache_dir: Path = Path("outputs/rag_cache")
-    output_dir: Path = Path("outputs/rag_results")
     allow_legacy_corpus: bool = False
 
 
@@ -117,15 +114,6 @@ class WebConfig(StrictModel):
         return self
 
 
-class EvaluationConfig(StrictModel):
-    smoke_test_n: int = Field(default=5, ge=0)
-    max_cases: int | None = Field(default=None, gt=0)
-    bertscore_model: str = "xlm-roberta-large"
-    bertscore_device: str = "cpu"
-    bertscore_batch_size: int = Field(default=1, gt=0)
-    baseline_summary_path: Path | None = None
-
-
 class RAGConfig(StrictModel):
     data: DataConfig
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
@@ -133,7 +121,6 @@ class RAGConfig(StrictModel):
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     conversation: ConversationConfig = Field(default_factory=ConversationConfig)
     web: WebConfig = Field(default_factory=WebConfig)
-    evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
 
     def inference_settings(self):
         settings = self.llm.model_dump(exclude={"tokenizer", "tokenizer_revision"})
@@ -145,12 +132,10 @@ class RAGConfig(StrictModel):
 def load_config(path):
     path = Path(path).resolve()
     config = RAGConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8-sig")))
-    for key in ("unified_source", "dataset_path", "dataset_zip", "cache_dir", "output_dir"):
+    for key in ("unified_source", "cache_dir"):
         value = getattr(config.data, key)
         if value is not None:
             setattr(config.data, key, (path.parent / value).resolve())
-    if config.evaluation.baseline_summary_path is not None:
-        config.evaluation.baseline_summary_path = (path.parent / config.evaluation.baseline_summary_path).resolve()
     for model in config.web.models:
         if model.adapter_path is not None:
             override = os.environ.get("QLORA_ADAPTER_PATH") if model.provider == "local_transformers" else None

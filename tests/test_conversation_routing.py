@@ -4,14 +4,10 @@ from tests.dependencies import skip_missing_dependency
 from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
 
 import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 try:
-    from vigovbot.evaluation.multiturn import evaluate_multiturn
-    from vigovbot.experiments import read_results
     from vigovbot.rag.pipeline import answer_question
     from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
 except ModuleNotFoundError as exc:
@@ -352,25 +348,6 @@ class RoutingTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 answer_question("x" * 10000, self.retriever, Tokenizer(), self.settings)
         llm.assert_not_called()
-
-    def test_clarification_is_successful_turn_and_v4_keeps_diagnostics(self):
-        qs = [dict(id=str(i), question=q, conversation_id="cv", turn_index=i, history=[])
-              for i, q in enumerate(["Còn lệ phí?", "Cấp hộ chiếu"], 1)]
-        responses = [route("ambiguous", query="", clarification="Bạn hỏi thủ tục nào?"),
-                     route("follow_up"),
-                     json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))]
-        with tempfile.TemporaryDirectory() as root, patch(
-                "vigovbot.rag.pipeline.ollama_answer", side_effect=[(r, {}, .1) for r in responses]) as llm:
-            def answer(q, history):
-                return answer_question(q, self.retriever, Tokenizer(), self.settings, history)
-            summary = evaluate_multiturn(qs, root, {}, answer)
-            rows = read_results(Path(root) / "predictions.jsonl")
-        self.assertEqual(summary["successful"], 2)
-        self.assertEqual(rows[0]["action"], "clarify")
-        self.assertEqual(rows[1]["routing"]["relation"], "follow_up")
-        self.assertEqual(rows[1]["evidence_status"], "sufficient")
-        self.assertIn("Bạn hỏi thủ tục nào?", str(llm.call_args_list[1].args[0]))
-        self.assertEqual(self.retriever.search.call_count, 1)
 
     def test_router_rejects_nonstring_labels(self):
         for key in ("scope", "relation", "query", "clarification"):

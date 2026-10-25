@@ -2,25 +2,21 @@
 from tests.dependencies import skip_missing_dependency
 
 
-from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
 
-import json
 import os
 import tempfile
-import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 try:
-    import faiss
-    import numpy as np
+    import faiss  # noqa: F401
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 
 try:
     from vigovbot.rag.config import load_config, RAGConfig
-    from vigovbot.rag.pipeline import execute, source_fingerprint
+    from vigovbot.rag.pipeline import source_fingerprint
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 
@@ -65,23 +61,15 @@ class ConfigTests(unittest.TestCase):
                 "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
             )
 
-    def test_repository_evaluation_profiles_do_not_reference_missing_legacy_dataset(self):
-        root = Path(__file__).resolve().parents[1]
-        for path in sorted((root / "configs/rag").glob("evaluation*.yaml")):
-            with self.subTest(path=path.name):
-                config = load_config(path)
-                self.assertIsNone(config.data.dataset_path)
-                self.assertIsNone(config.data.dataset_zip)
-
     def test_relative_paths_resolve_against_yaml(self):
         with tempfile.TemporaryDirectory() as work:
             path = Path(work) / "rag.yaml"
             path.write_text(
-                "data:\n  unified_source: unified.zip\n  dataset_path: qa_test/dataset.jsonl\n", encoding="utf-8"
+                "data:\n  unified_source: unified.zip\n  cache_dir: cache\n", encoding="utf-8"
             )
             config = load_config(path)
             self.assertEqual(config.data.unified_source, Path(work).resolve() / "unified.zip")
-            self.assertEqual(config.data.dataset_path, Path(work).resolve() / "qa_test/dataset.jsonl")
+            self.assertEqual(config.data.cache_dir, Path(work).resolve() / "cache")
             self.assertEqual(config.inference_settings()["top_k"], 5)
             self.assertTrue(config.inference_settings()["routing_enabled"])
 
@@ -120,88 +108,6 @@ class ConfigTests(unittest.TestCase):
         ):
             self.assertEqual(main(["--config", "test.yaml", "prepare"]), 0)
         execute_mock.assert_called_once_with("test", "prepare")
-
-    def test_pipeline_smoke_evaluate_resume_and_report(self):
-        with tempfile.TemporaryDirectory() as work:
-            root = Path(work)
-            corpus = root / "unified"
-            corpus.mkdir()
-            v = np.zeros((1, 1024), dtype=np.float32)
-            v[0, 0] = 1
-            index = faiss.IndexFlatIP(1024)
-            index.add(v)
-            faiss.write_index(index, str(corpus / "tthc_unified.index"))
-            records = [
-                {
-                    "chunk_id": "c1",
-                    "source_code": "1",
-                    "source_file": "1.pdf",
-                    "procedure_name": "Thủ tục",
-                    "section_type": "fees",
-                    "context_prefix": "",
-                    "text_content": "Phí 0 đồng",
-                }
-            ]
-            (corpus / "tthc_unified_metadata.json").write_text(json.dumps(records), encoding="utf-8")
-            dataset = root / "dataset.jsonl"
-            case = {
-                "id": "q1",
-                "question": {"text": "Phí?", "type": "fees", "difficulty": "easy"},
-                "ground_truth": {"answer": "0 đồng"},
-                "rag_context": [{"text": "secret"}],
-            }
-            dataset.write_text(json.dumps(case) + "\n", encoding="utf-8")
-            config = RAGConfig.model_validate(
-                {
-                    "data": {
-                        "unified_source": corpus,
-                        "dataset_path": dataset,
-                        "allow_legacy_corpus": True,
-                        "cache_dir": root / "cache",
-                        "output_dir": root / "out",
-                    }
-                }
-            )
-
-            class Encoder:
-                def encode(self, *args, **kwargs):
-                    return v.copy()
-
-
-            transformers = types.SimpleNamespace(
-                AutoTokenizer=types.SimpleNamespace(from_pretrained=lambda *a, **kw: Tokenizer(serialize_messages=True))
-            )
-            torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False))
-            with (
-                patch.dict("sys.modules", {"transformers": transformers, "torch": torch}),
-                patch("vigovbot.rag.pipeline.load_encoder", return_value=Encoder()),
-                patch("vigovbot.rag.pipeline.check_model", return_value={"digest": "abc"}),
-                patch("vigovbot.rag.pipeline.unload_model"),
-                patch("vigovbot.rag.pipeline.ollama_answer", side_effect=lambda messages, settings: (
-                    json.dumps({"scope": "in_scope", "relation": "new_question", "query": "Phí?", "clarification": ""})
-                    if "scope:" in messages[0]["content"] else
-                    json.dumps({"answer": "0 đồng", "action": "answer", "evidence_status": "sufficient"}),
-                    {}, 0.1)) as chat,
-            ):
-                self.assertEqual(execute(config, "prepare")["count"], 1)
-                self.assertEqual(execute(config, "smoke")["smoke_cases"], 1)
-                result = execute(config, "evaluate")
-                self.assertEqual(result, {"completed": 1, "requested": 1})
-                n = chat.call_count
-                execute(config, "evaluate")
-                self.assertEqual(chat.call_count, n)
-                prompts = chat.call_args.args[0]
-                self.assertNotIn("secret", str(prompts))
-            from vigovbot.evaluation import report as evaluation_report
-            with patch.object(evaluation_report, "compute_bertscore", return_value=([1.0], [1.0], [1.0])):
-                summary = execute(config, "report")
-            self.assertEqual(summary["n_cases"], 1)
-            self.assertTrue((root / "out/metrics.png").exists())
-            self.assertEqual(len(source_fingerprint()), 64)
-            config.retrieval.top_k = 2
-            with self.assertRaisesRegex(ValueError, "không khớp"):
-                execute(config, "report")
-
 
 if __name__ == "__main__":
     unittest.main()
