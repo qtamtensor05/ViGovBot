@@ -63,7 +63,7 @@ class ExtendedEvaluationTests(unittest.TestCase):
         extend_record(record, p)
         self.assertEqual(record["evaluation_results"]["retrieval_scores"]["map_at_10"], 0.5)
         import jsonschema
-        schema = json.loads(Path("examples/evaluation_v2/evaluation_capture_predictions.schema.json").read_text(encoding="utf-8"))
+        schema = json.loads(Path("examples/evaluation_v2/evaluation_run_v2.schema.json").read_text(encoding="utf-8"))
         jsonschema.validate(record, schema)
 
     def test_stale_judgment_is_rejected(self):
