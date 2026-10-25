@@ -66,7 +66,5 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - README gốc là điểm vào cho cài đặt và lệnh cơ bản; tài liệu chuyên sâu nằm tại đây.
 - Hướng dẫn cung cấp lệnh thực thi; kiến trúc mô tả ranh giới và hợp đồng.
 - Báo cáo ghi nhận kết quả tại một thời điểm, không đại diện trạng thái hiện thời.
-- Hồ sơ `project/` là lịch sử append-only; không sửa đường dẫn cũ chỉ vì tài liệu
-  hiện tại đã được di chuyển.
-
-- [Lịch sử snapshot đến 2026-10-18](project/stage-history-20261018.md)
+- Hồ sơ `project/` chỉ ghi thay đổi quan trọng ảnh hưởng hệ thống hoặc vận hành;
+  mỗi mốc dùng `Mục tiêu - Thực hiện - Kết quả`.

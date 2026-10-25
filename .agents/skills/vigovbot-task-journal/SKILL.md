@@ -1,40 +1,36 @@
 ---
 name: vigovbot-task-journal
-description: Maintain Vietnamese requirements, implementation history, current stage and failure journal for substantial tasks in the ViGovBot repository. Use for multi-step changes, investigations and pipeline work; skip trivial edits unless requested.
+description: Cập nhật hồ sơ tiếng Việt khi chỉnh sửa quan trọng làm thay đổi hệ thống hoặc vận hành ViGovBot; không dùng cho báo cáo, dọn dẹp, kiểm tra hay chỉnh sửa nhỏ.
 ---
 
-# Nhật ký task ViGovBot
+# Nhật ký thay đổi quan trọng ViGovBot
 
-Áp dụng trong repository ViGovBot, không ghi hồ sơ của dự án khác vào đây.
-Đọc `docs/project/current-stage.md` và các mục liên quan trước khi làm.
-Đường dẫn dưới đây tính từ gốc repository.
+Chỉ áp dụng khi thay đổi ít nhất một nội dung sau:
+
+- kiến trúc, package, CLI hoặc hợp đồng công khai;
+- luồng runtime, triển khai, Docker, GPU hoặc cache dùng chung;
+- cấu hình nguồn ảnh hưởng nhiều luồng;
+- dữ liệu nguồn, huấn luyện hoặc đánh giá làm đổi khả năng hệ thống;
+- cơ chế retrieval, generation, API hoặc bảo mật ảnh hưởng kết quả vận hành.
+
+Không áp dụng chỉ vì công việc nhiều bước hoặc mất nhiều thời gian. Không ghi hồ
+sơ cho báo cáo/phân tích thuần túy, dọn dẹp, đo dung lượng, chạy kiểm tra, sửa tài
+liệu nhỏ, typo, định dạng hoặc lỗi công cụ không ảnh hưởng hệ thống.
 
 ## Hồ sơ
 
-- `docs/project/requests.md`: thêm ID `TASK-YYYYMMDD-NN`, ngày theo Asia/Saigon,
-  yêu cầu người dùng, phạm vi, tiêu chí hoàn thành, giả định và trạng thái.
-  Giữ yêu cầu gốc; ghi bổ sung nếu người dùng đổi phạm vi.
-- `docs/project/implementation-history.md`: thêm mục theo ID task, nêu hành vi
-  thay đổi, file liên quan, quyết định có ảnh hưởng, lệnh kiểm chứng, kết quả
-  thực tế và phần chưa kiểm chứng. Không chép toàn bộ diff hoặc log.
-- `docs/project/current-stage.md`: cập nhật ảnh chụp hiện tại gồm task đang làm,
-  giai đoạn, việc đã xong, việc còn lại, trở ngại, bước tiếp theo và bằng chứng.
-  Khi tiếp tục phiên cũ, kiểm tra hồ sơ và artifact trước khi chạy lại.
-- `docs/project/failure-journal.md`: thêm `ERR-YYYYMMDD-NN`, ID task, triệu chứng,
-  lệnh/bối cảnh tái hiện, nguyên nhân đã xác nhận hoặc giả thuyết, cách thử sửa,
-  kết quả kiểm chứng và cách tránh lặp lại. Ghi cả lỗi công cụ/môi trường ảnh
-  hưởng công việc. Không tạo lỗi giả khi không có lỗi.
+- `docs/project/requests.md`: mục tiêu thay đổi quan trọng đang thực hiện.
+- `docs/project/current-stage.md`: trạng thái hệ thống hiện tại, không chứa lịch sử.
+- `docs/project/implementation-history.md`: các mốc hệ thống đã hoàn tất.
+- `docs/project/failure-journal.md`: chỉ giữ sự cố vận hành hoặc lỗi thiết kế có
+  ảnh hưởng và bài học phòng ngừa còn giá trị.
 
-## Mốc cập nhật
+## Cách cập nhật
 
-Tạo yêu cầu và đánh dấu `in_progress` trước khi triển khai. Cập nhật stage khi
-đổi giai đoạn, có trở ngại hoặc chuẩn bị chạy công việc dài. Lưu lỗi sau khi có
-đủ dữ kiện; ghi rõ thử sửa chưa thành công. Trước trả lời cuối, ghi triển khai,
-kiểm chứng, stage và trạng thái `completed`, `partial` hoặc `blocked` đúng thực tế.
-Không đánh dấu completed nếu tiêu chí còn thiếu; nêu việc còn lại và lý do.
+Mỗi mục chỉ gồm `Mục tiêu`, `Thực hiện`, `Kết quả`. Gộp các chỉnh sửa cùng một
+outcome thành một mốc; không tạo ID cho từng yêu cầu nhỏ. Ghi đường dẫn hoặc lệnh
+kiểm chứng khi cần, không chép diff, log dài hay diễn giải quá trình.
 
-Giữ lịch sử cũ, chỉ bổ sung kết quả mới hoặc chỉnh sai sót có giải thích.
-Không lưu API key, dữ liệu cá nhân, nội dung .env hay log thô lớn. Dùng đường dẫn
-artifact và trích đoạn lỗi đã loại bí mật. Cập nhật roadmap/README nếu task làm
-thay đổi nội dung ở đó; current-stage theo dõi task, không thay thế roadmap.
-Trả lời cuối nêu kết quả, kiểm chứng và liên kết hồ sơ; chỉ đề xuất commit nếu phù hợp.
+Cập nhật hồ sơ khi bắt đầu và khi kết thúc một chỉnh sửa quan trọng. Chỉ ghi kết
+quả đã kiểm chứng; nêu rõ phần chưa kiểm chứng. Không lưu bí mật, dữ liệu cá nhân,
+giá trị `.env`, checkpoint hoặc artifact lớn trong `docs/`.
