@@ -16,43 +16,359 @@
     .answers{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.answer{background:#f0f5f2;border:1px solid var(--line);border-radius:14px;padding:14px;white-space:pre-wrap}.answer h2{font-size:.95rem;margin:0 0 8px;color:var(--brand)}
     .contexts{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;white-space:normal}.contexts>summary{cursor:pointer;color:var(--brand);font-weight:700}.context-list{display:grid;gap:9px;margin-top:9px}.context{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px}.context h3{font-size:.86rem;margin:0 0 4px}.context .context-meta{font-size:.75rem;color:var(--muted);margin-bottom:7px}.context pre{margin:0;max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
     .meta{font-size:.8rem;color:var(--muted);margin-top:7px}.empty{margin:auto;color:var(--muted);text-align:center}
+    .metrics{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--paper);white-space:normal}
+    .metrics>summary{cursor:pointer;color:var(--brand);font-weight:700}
+    .metrics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+    .metric{padding:10px;border-radius:8px;background:#f0f5f2}
+    .metric-label{color:var(--muted);font-size:.78rem}
+    .metric-value{margin-top:3px;font-size:1rem;font-weight:700;overflow-wrap:anywhere}
     form{padding:12px;display:grid;grid-template-columns:1fr auto;gap:10px}textarea{resize:none;border:1px solid #b9cec5;border-radius:11px;padding:11px;font:inherit;min-height:50px;max-height:150px}
     button{border:0;border-radius:11px;padding:0 22px;background:var(--brand);color:#fff;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}
-    @media(max-width:600px){main{padding:10px 0}.msg{max-width:94%}form{grid-template-columns:1fr}button{height:44px}}
+    @media(max-width:600px){main{padding:10px 0}.msg{max-width:94%}form{grid-template-columns:1fr}button{height:44px}.metrics-grid{grid-template-columns:1fr}}
   </style>
 </head>
-<body><main>
-  <header><h1>ViGovBot Model Lab</h1><p>So sánh Qwen Base, Qwen + RAG và Qwen đã tinh chỉnh QLoRA</p></header>
+<body>
+<main>
+  <header>
+    <h1>ViGovBot Model Lab</h1>
+    <p>So sánh Qwen Base, Qwen + RAG và Qwen đã tinh chỉnh QLoRA</p>
+  </header>
   <section id="models"><strong>Model:</strong><span>Đang tải…</span></section>
   <section id="chat"><div class="empty">Nhập câu hỏi để bắt đầu.</div></section>
-  <form id="form"><textarea id="question" rows="1" placeholder="Ví dụ: Hồ sơ cấp bản sao hộ tịch gồm những gì?" required></textarea><button id="send">Gửi</button></form>
-</main><script>
-const chat=document.querySelector('#chat'),modelsEl=document.querySelector('#models'),form=document.querySelector('#form'),input=document.querySelector('#question'),button=document.querySelector('#send');
-const histories={};let modelInfo={};
-function add(text,kind,meta=''){chat.querySelector('.empty')?.remove();const el=document.createElement('div');el.className='msg '+kind;el.textContent=text;if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;el.appendChild(m)}chat.appendChild(el);chat.scrollTop=chat.scrollHeight}
-function modeLabel(mode){return {base:'không truy hồi',rag:'có truy hồi',qlora:'adapter QLoRA · không truy hồi'}[mode]||mode}
-async function loadModels(){try{const res=await fetch('/api/models'),data=await res.json();if(!res.ok)throw new Error(data.error);modelsEl.innerHTML='<strong>Chế độ:</strong>';for(const m of data.models){modelInfo[m.id]=m;histories[m.id]=[];const label=document.createElement('label');const box=document.createElement('input');box.type='checkbox';box.value=m.id;box.checked=true;label.append(box,document.createTextNode(m.label+' '));const p=document.createElement('span');p.className='provider';p.textContent=`(${modeLabel(m.mode)})`;label.append(p);modelsEl.append(label)}}catch(err){modelsEl.textContent='Không tải được chế độ: '+err.message}}
-function routingStatus(d){if(!d)return '';if(d.fallback_reason)return `Lỗi định dạng phân loại sau ${d.routing_attempts} lần · trả câu mặc định`;const reasons={ambiguous_question:'Cần làm rõ câu hỏi',out_of_scope:'Ngoài phạm vi hỗ trợ',no_context:'Chưa có tài liệu để trả lời',evidence_assessment:'Đã xét bằng chứng tài liệu'};return [reasons[d.decision_reason]||'',d.relation?`Nhãn: ${d.relation}`:'',d.routing_attempts?`Phân loại: ${d.routing_attempts} lần`:''].filter(Boolean).join(' · ')}
-function historyAnswer(data){return data.routing_diagnostics?.fallback_reason?'Chưa có câu trả lời cho lượt này do lỗi xử lý của hệ thống; câu hỏi người dùng vẫn chưa được giải đáp.':data.answer}
-function contextMeta(source,index){const rank=source.faiss_rank||index+1,parts=[`Hạng ${rank}`,source.source_code&&`Mã ${source.source_code}`,source.section_type&&`Mục ${source.section_type}`,source.faiss_score!=null&&`FAISS ${Number(source.faiss_score).toFixed(4)}`];return parts.filter(Boolean).join(' · ')}
-function contextPanel(sources){const selected=(sources||[]).filter(s=>s&&s.text_content);if(!selected.length)return null;const details=document.createElement('details');details.className='contexts';details.open=true;const summary=document.createElement('summary');summary.textContent=`Top-${selected.length} context retrieval`;const list=document.createElement('div');list.className='context-list';selected.forEach((source,index)=>{const item=document.createElement('article');item.className='context';const title=document.createElement('h3');title.textContent=source.procedure_name||source.chunk_id||`Chunk ${index+1}`;const meta=document.createElement('div');meta.className='context-meta';meta.textContent=contextMeta(source,index);const content=document.createElement('pre');content.textContent=source.text_content;item.append(title,meta,content);list.append(item)});details.append(summary,list);return details}
-function addAnswers(results,question){
-  chat.querySelector('.empty')?.remove();const wrap=document.createElement('div');wrap.className='answers';
-  for(const data of results){
-    const el=document.createElement('article');el.className='answer';const title=document.createElement('h2');title.textContent=modelInfo[data.model_id]?.label||data.model_id;el.append(title);
-    const text=document.createElement('div');text.textContent=data.error?'Lỗi: '+data.error:data.answer;el.append(text);
-    if(!data.error){
-      const contexts=contextPanel(data.sources);if(contexts)el.append(contexts);
-      const sources=(data.sources||[]).map(s=>s.source_code||s.source_file).filter(Boolean),meta=document.createElement('div');meta.className='meta';
-      meta.textContent=[data.latency_s!=null?`${data.latency_s.toFixed(1)} giây`:'',routingStatus(data.routing_diagnostics),sources.length?`Nguồn: ${[...new Set(sources)].join(', ')}`:''].filter(Boolean).join(' · ');el.append(meta);
-      if(data.raw_routing){const details=document.createElement('details'),summary=document.createElement('summary'),raw=document.createElement('pre');summary.textContent='Chẩn đoán routing (debug)';raw.textContent=JSON.stringify(data.raw_routing,null,2);details.append(summary,raw);el.append(details)}
-      histories[data.model_id].push({role:'user',content:question},{role:'assistant',content:historyAnswer(data)});
+  <form id="form">
+    <textarea id="question" rows="1" placeholder="Ví dụ: Hồ sơ cấp bản sao hộ tịch gồm những gì?" required></textarea>
+    <button id="send">Gửi</button>
+  </form>
+</main>
+<script>
+const chat = document.querySelector('#chat');
+const modelsEl = document.querySelector('#models');
+const form = document.querySelector('#form');
+const input = document.querySelector('#question');
+const button = document.querySelector('#send');
+
+const histories = {};
+let modelInfo = {};
+
+function add(text, kind, meta = '') {
+  chat.querySelector('.empty')?.remove();
+  const el = document.createElement('div');
+  el.className = 'msg ' + kind;
+  el.textContent = text;
+
+  if (meta) {
+    const m = document.createElement('div');
+    m.className = 'meta';
+    m.textContent = meta;
+    el.appendChild(m);
+  }
+
+  chat.appendChild(el);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function modeLabel(mode) {
+  return {
+    base: 'không truy hồi',
+    rag: 'có truy hồi',
+    qlora: 'adapter QLoRA · không truy hồi'
+  }[mode] || mode;
+}
+
+async function loadModels() {
+  try {
+    const res = await fetch('/api/models');
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Không tải được danh sách model');
+
+    modelsEl.innerHTML = '<strong>Chế độ:</strong>';
+
+    for (const model of data.models || []) {
+      modelInfo[model.id] = model;
+      histories[model.id] = [];
+
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = model.id;
+      box.checked = true;
+
+      label.append(box, document.createTextNode(model.label + ' '));
+
+      const provider = document.createElement('span');
+      provider.className = 'provider';
+      provider.textContent = `(${modeLabel(model.mode)})`;
+      label.append(provider);
+      modelsEl.append(label);
     }
+  } catch (err) {
+    modelsEl.textContent = 'Không tải được chế độ: ' + err.message;
+  }
+}
+
+function routingStatus(data) {
+  if (!data) return '';
+
+  if (data.fallback_reason) {
+    return `Lỗi định dạng phân loại sau ${data.routing_attempts} lần · trả câu mặc định`;
+  }
+
+  const reasons = {
+    ambiguous_question: 'Cần làm rõ câu hỏi',
+    out_of_scope: 'Ngoài phạm vi hỗ trợ',
+    no_context: 'Chưa có tài liệu để trả lời',
+    evidence_assessment: 'Đã xét bằng chứng tài liệu'
+  };
+
+  return [
+    reasons[data.decision_reason] || '',
+    data.relation ? `Nhãn: ${data.relation}` : '',
+    data.routing_attempts ? `Phân loại: ${data.routing_attempts} lần` : ''
+  ].filter(Boolean).join(' · ');
+}
+
+function historyAnswer(data) {
+  return data.routing_diagnostics?.fallback_reason
+    ? 'Chưa có câu trả lời cho lượt này do lỗi xử lý của hệ thống; câu hỏi người dùng vẫn chưa được giải đáp.'
+    : data.answer;
+}
+
+function contextMeta(source, index) {
+  const rank = source.faiss_rank || index + 1;
+  const parts = [
+    `Hạng ${rank}`,
+    source.source_code && `Mã ${source.source_code}`,
+    source.section_type && `Mục ${source.section_type}`,
+    source.faiss_score != null && `FAISS ${Number(source.faiss_score).toFixed(4)}`
+  ];
+
+  return parts.filter(Boolean).join(' · ');
+}
+
+function contextPanel(sources) {
+  const selected = (sources || []).filter(source => source && source.text_content);
+  if (!selected.length) return null;
+
+  const details = document.createElement('details');
+  details.className = 'contexts';
+  details.open = true;
+
+  const summary = document.createElement('summary');
+  summary.textContent = `Top-${selected.length} context retrieval`;
+
+  const list = document.createElement('div');
+  list.className = 'context-list';
+
+  selected.forEach((source, index) => {
+    const item = document.createElement('article');
+    item.className = 'context';
+
+    const title = document.createElement('h3');
+    title.textContent = source.procedure_name || source.chunk_id || `Chunk ${index + 1}`;
+
+    const meta = document.createElement('div');
+    meta.className = 'context-meta';
+    meta.textContent = contextMeta(source, index);
+
+    const content = document.createElement('pre');
+    content.textContent = source.text_content;
+
+    item.append(title, meta, content);
+    list.append(item);
+  });
+
+  details.append(summary, list);
+  return details;
+}
+
+function formatMs(seconds) {
+  return typeof seconds === 'number' && Number.isFinite(seconds)
+    ? `${(seconds * 1000).toFixed(1)} ms`
+    : '—';
+}
+
+function formatNumber(value, digits = 2) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value.toFixed(digits)
+    : '—';
+}
+
+function formatTokens(value) {
+  return Number.isInteger(value) && value >= 0
+    ? value.toLocaleString('vi-VN')
+    : '—';
+}
+
+function metricsPanel(trace) {
+  const telemetry = trace?.telemetry;
+  if (!telemetry) return null;
+
+  const estimates = trace.token_estimates || {};
+  const inputTokens = telemetry.prompt_tokens ?? estimates.prompt_tokens_estimated;
+  const inputLabel = telemetry.prompt_tokens != null
+    ? 'Input tokens'
+    : 'Input tokens (ước tính)';
+
+  const metrics = [
+    ['Routing', formatMs(telemetry.routing_seconds)],
+    ['Retrieval', formatMs(telemetry.retrieval_seconds)],
+    ['Generation', formatMs(telemetry.generation_seconds)],
+    [inputLabel, formatTokens(inputTokens)],
+    ['Output tokens', formatTokens(telemetry.completion_tokens)],
+    ['Total tokens', formatTokens(telemetry.total_tokens)],
+    ['Tokens/second', formatNumber(telemetry.generation_tokens_per_second)]
+  ];
+
+  const details = document.createElement('details');
+  details.className = 'metrics';
+
+  const summary = document.createElement('summary');
+  summary.textContent = 'Hiệu năng & Token';
+
+  const grid = document.createElement('div');
+  grid.className = 'metrics-grid';
+
+  for (const [label, value] of metrics) {
+    const item = document.createElement('div');
+    item.className = 'metric';
+
+    const name = document.createElement('div');
+    name.className = 'metric-label';
+    name.textContent = label;
+
+    const content = document.createElement('div');
+    content.className = 'metric-value';
+    content.textContent = value;
+
+    item.append(name, content);
+    grid.append(item);
+  }
+
+  details.append(summary, grid);
+  return details;
+}
+
+function addAnswers(results, question) {
+  chat.querySelector('.empty')?.remove();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'answers';
+
+  for (const data of results || []) {
+    const el = document.createElement('article');
+    el.className = 'answer';
+
+    const title = document.createElement('h2');
+    title.textContent = modelInfo[data.model_id]?.label || data.model_id || 'Model';
+    el.append(title);
+
+    const answerText = document.createElement('div');
+    answerText.textContent = data.error ? 'Lỗi: ' + data.error : (data.answer || '');
+    el.append(answerText);
+
+    if (!data.error) {
+      const contexts = contextPanel(data.sources);
+      if (contexts) el.append(contexts);
+
+      const sources = (data.sources || [])
+        .map(source => source.source_code || source.source_file)
+        .filter(Boolean);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = [
+        data.latency_s != null ? `${data.latency_s.toFixed(1)} giây` : '',
+        routingStatus(data.routing_diagnostics),
+        sources.length ? `Nguồn: ${[...new Set(sources)].join(', ')}` : ''
+      ].filter(Boolean).join(' · ');
+
+      el.append(meta);
+
+      const metrics = metricsPanel(data.evaluation_trace);
+      if (metrics) el.append(metrics);
+
+      if (data.raw_routing) {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        const raw = document.createElement('pre');
+        summary.textContent = 'Chẩn đoán routing (debug)';
+        raw.textContent = JSON.stringify(data.raw_routing, null, 2);
+        details.append(summary, raw);
+        el.append(details);
+      }
+
+      if (histories[data.model_id]) {
+        histories[data.model_id].push(
+          { role: 'user', content: question },
+          { role: 'assistant', content: historyAnswer(data) }
+        );
+      }
+    }
+
     wrap.append(el);
   }
-  chat.append(wrap);chat.scrollTop=chat.scrollHeight;
+
+  chat.append(wrap);
+  chat.scrollTop = chat.scrollHeight;
 }
-form.addEventListener('submit',async e=>{e.preventDefault();const question=input.value.trim(),models=[...modelsEl.querySelectorAll('input:checked')].map(x=>x.value);if(!question)return;if(!models.length){add('Hãy chọn ít nhất một model.','bot');return}add(question,'user');input.value='';button.disabled=true;button.textContent='Đang so sánh…';try{const selectedHistories=Object.fromEntries(models.map(id=>[id,histories[id]]));const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,models,histories:selectedHistories})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Yêu cầu thất bại');addAnswers(data.results,question)}catch(err){add('Lỗi: '+err.message,'bot')}finally{button.disabled=false;button.textContent='Gửi';input.focus()}});
-input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});
+
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const question = input.value.trim();
+  const models = [...modelsEl.querySelectorAll('input:checked')].map(box => box.value);
+
+  if (!question) return;
+
+  if (!models.length) {
+    add('Hãy chọn ít nhất một model.', 'bot');
+    return;
+  }
+
+  add(question, 'user');
+  input.value = '';
+  button.disabled = true;
+  button.textContent = 'Đang so sánh…';
+
+  try {
+    const selectedHistories = Object.fromEntries(
+      models.map(id => [id, histories[id] || []])
+    );
+
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        models,
+        histories: selectedHistories,
+        evaluation_trace: true
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Yêu cầu thất bại');
+
+    addAnswers(data.results, question);
+  } catch (err) {
+    add('Lỗi: ' + err.message, 'bot');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Gửi';
+    input.focus();
+  }
+});
+
+input.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    form.requestSubmit();
+  }
+});
+
 loadModels();
-</script></body></html>
+</script>
+</body>
+</html>
