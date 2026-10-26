@@ -141,6 +141,8 @@ trong tài liệu. Chi tiết về luồng nhiều lượt và cách đánh giá
 | `llm.seed` | `42` | Seed gửi cho Ollama |
 | `llm.num_ctx` | `8192` | Cửa sổ ngữ cảnh yêu cầu |
 | `llm.num_predict` | `512` | Số token sinh tối đa |
+| `llm.routing_num_ctx` | `4096` | Cửa sổ ngữ cảnh riêng cho routing |
+| `llm.routing_num_predict` | `128` | Số token routing sinh tối đa |
 | `llm.timeout` | `300` giây | Timeout HTTP khi sinh câu trả lời |
 | `llm.keep_alive` | `10m` | Tham số giữ model gửi trong request; pipeline yêu cầu dỡ model khi đóng phiên |
 | `retrieval.candidate_top_k` | `20` | Số ứng viên lấy từ FAISS trước rerank |

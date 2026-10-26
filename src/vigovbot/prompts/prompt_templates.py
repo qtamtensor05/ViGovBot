@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import unicodedata
-from vigovbot.prompts.evidence import bounded_metadata, content_text, dumps, is_atomic, safe_prefix
+from vigovbot.prompts.evidence import (
+    bounded_metadata, bounded_structured_content, content_text, dumps, is_atomic, safe_prefix,
+)
 
 SYSTEM_PROMPT = """VAI TRÒ
 Trả lời tiếng Việt dựa trên bằng chứng được cung cấp, trong phạm vi ứng dụng.
@@ -143,9 +145,9 @@ def build_messages(question, hits, tokenizer, num_ctx=8192, num_predict=512, max
 
         total = len(tokenizer.encode(text, add_special_tokens=False))
         if atomic:
-            if total > max_chunk_tokens or not fits(text):
-                continue  # Never cut a table row or a structured value; try later hits.
-            included = text
+            included = (text if total <= max_chunk_tokens and fits(text)
+                        else bounded_structured_content(
+                            raw_content, text, tokenizer, max_chunk_tokens, fits))
         else:
             low, high = 0, min(total, max_chunk_tokens)
             while low < high:

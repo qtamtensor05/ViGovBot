@@ -14,9 +14,15 @@ def resolve_route(question, history, tokenizer, settings, answer_fn, routing_ena
     fallback_reason = None
     if routing_enabled:
         routing_started = time.perf_counter()
-        route_messages, routing_tokens = routing_messages(question, history, tokenizer, settings)
-        routing_settings = {**settings, "min_new_tokens": 8,
-                            "response_format": routing_schema(history)}
+        routing_settings = {
+            **settings,
+            "num_ctx": settings.get("routing_num_ctx", 4096),
+            "num_predict": settings.get("routing_num_predict", 128),
+            "min_new_tokens": 8,
+            "response_format": routing_schema(history),
+        }
+        route_messages, routing_tokens = routing_messages(
+            question, history, tokenizer, routing_settings)
         routing_attempts = 1
         route_text, routing_raw, _ = answer_fn(route_messages, routing_settings)
         try:
@@ -41,7 +47,7 @@ def resolve_route(question, history, tokenizer, settings, answer_fn, routing_ena
             retry_messages[-1]["content"] += "\n\nDỮ LIỆU KIỂM TRA JSON:\n" + json.dumps(
                 {"validator_error": str(exc), "rejected_json": route_text[:2000]}, ensure_ascii=False)
             retry_tokens = len(tokenizer.apply_chat_template(retry_messages, tokenize=True, add_generation_prompt=True))
-            if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
+            if retry_tokens > routing_settings["num_ctx"] - routing_settings["num_predict"] - 256:
                 raise ValueError("Routing retry exceeds context budget") from exc
             routing_attempts = 2
             retry_text, retry_raw, _ = answer_fn(retry_messages, routing_settings)

@@ -33,6 +33,8 @@ class LLMConfig(StrictModel):
     temperature: float = Field(default=0.0, ge=0)
     num_ctx: int = Field(default=8192, gt=0)
     num_predict: int = Field(default=512, gt=0)
+    routing_num_ctx: int = Field(default=4096, gt=0)
+    routing_num_predict: int = Field(default=128, gt=0)
     seed: int = 42
     timeout: int = Field(default=300, gt=0)
     keep_alive: str = "10m"
@@ -41,6 +43,8 @@ class LLMConfig(StrictModel):
     def check_budget(self):
         if self.num_ctx <= self.num_predict + 256:
             raise ValueError("num_ctx phải lớn hơn num_predict + 256")
+        if self.routing_num_ctx <= self.routing_num_predict + 256:
+            raise ValueError("routing_num_ctx phải lớn hơn routing_num_predict + 256")
         return self
 
 

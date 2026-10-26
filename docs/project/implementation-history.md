@@ -1,5 +1,44 @@
 # Lịch sử thay đổi hệ thống
 
+## Rút gọn evidence có cấu trúc vượt ngân sách - 2026-10-25
+
+### Mục tiêu
+
+Tránh `abstain` giả khi các hit đầu là bảng hoặc JSON có bằng chứng nhưng vượt
+`max_chunk_tokens`.
+
+### Thực hiện
+
+- Chiếu bảng Markdown/HTML theo hàng hoàn chỉnh và JSON theo field/phần tử.
+- Giữ nguyên scalar và giá trị ô; chỉ dùng projection có dữ liệu và còn vừa cả
+  giới hạn chunk lẫn tổng prompt.
+- Cập nhật test hồi quy và hợp đồng module prompt.
+
+### Kết quả
+
+11 test evidence chuyên biệt, full suite 238 test, Ruff, compileall và
+`git diff --check` đạt; 21 test dependency tùy chọn bị skip. Chưa xác minh bằng
+tokenizer Qwen thật hoặc API generation do thiếu Transformers/FAISS.
+
+## Tách ngân sách context cho routing - 2026-10-25
+
+### Mục tiêu
+
+Giảm context và giới hạn đầu ra của routing mà không thu hẹp ngân sách sinh câu
+trả lời.
+
+### Thực hiện
+
+- Thêm `routing_num_ctx=4096` và `routing_num_predict=128` vào schema và hai
+  profile RAG.
+- Áp dụng ngân sách riêng cho request, kiểm tra prompt và routing retry.
+- Giữ `num_ctx=8192` và `num_predict=512` cho generation.
+
+### Kết quả
+
+36 test routing, full suite 234 test và Ruff đạt. Chưa đo latency A/B vì không có
+Ollama hoặc Docker runtime hoạt động.
+
 ## Chuẩn hóa cấu trúc repository và CLI - 2026-10-15 đến 2026-10-18
 
 ### Mục tiêu

@@ -2,6 +2,7 @@
 
 import json
 import math
+import re
 from collections.abc import Mapping
 
 
@@ -92,3 +93,113 @@ def safe_prefix(text, tokenizer, limit):
     if boundary < 0:
         boundary = prefix.rfind(" ")
     return prefix[:boundary].rstrip() if boundary > 0 else ""
+
+
+_MISSING = object()
+
+
+def _json_size(value):
+    return len(dumps(value))
+
+
+def _shrink_json_once(value):
+    """Return a smaller valid JSON value without slicing its serialized form."""
+    if isinstance(value, str):
+        return _MISSING
+    if isinstance(value, list):
+        if not value:
+            return _MISSING
+        index = max(range(len(value)), key=lambda item: _json_size(value[item]))
+        child = _shrink_json_once(value[index])
+        if child is _MISSING or not _nonempty_json(child):
+            return value[:index] + value[index + 1:]
+        result = list(value)
+        result[index] = child
+        return result
+    if isinstance(value, dict):
+        if not value:
+            return _MISSING
+        key = max(value, key=lambda item: _json_size(value[item]))
+        child = _shrink_json_once(value[key])
+        result = dict(value)
+        if child is _MISSING or not _nonempty_json(child):
+            result.pop(key)
+        else:
+            result[key] = child
+        return result
+    return _MISSING
+
+
+def _nonempty_json(value):
+    return not isinstance(value, (dict, list, str)) or bool(value)
+
+
+def _bounded_json(value, accepts):
+    candidate = value
+    while _nonempty_json(candidate):
+        text = dumps(candidate)
+        if accepts(text):
+            return text
+        candidate = _shrink_json_once(candidate)
+        if candidate is _MISSING:
+            break
+    return ""
+
+
+def _bounded_markdown_table(text, accepts):
+    """Keep complete Markdown rows and never change a cell value."""
+    table_lines = []
+    inside = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("|"):
+            inside = True
+            table_lines.append(line)
+        elif inside:
+            break
+    included = []
+    for line in table_lines:
+        candidate = "\n".join([*included, line])
+        if accepts(candidate):
+            included.append(line)
+            continue
+        break
+    header_count = 2 if len(table_lines) >= 2 and all(
+        re.fullmatch(r"\s*:?-{3,}:?\s*", cell)
+        for cell in re.split(r"(?<!\\)\|", table_lines[1].strip().strip("|"))
+    ) else 0
+    if header_count and len(table_lines) > header_count and len(included) <= header_count:
+        return ""
+    return "\n".join(included).rstrip()
+
+
+def _bounded_html_table(text, accepts):
+    rows = list(re.finditer(r"<tr\b[^>]*>.*?</tr\s*>", text, flags=re.IGNORECASE | re.DOTALL))
+    table = re.search(r"<table\b[^>]*>", text, flags=re.IGNORECASE)
+    if not table or not rows:
+        return ""
+    opening = table.group(0)
+    included = []
+    for match in rows:
+        row = match.group(0)
+        candidate = opening + "".join([*included, row]) + "</table>"
+        if accepts(candidate):
+            included.append(row)
+            continue
+        break
+    if len(rows) > 1 and included and re.search(r"<th\b", included[0], flags=re.IGNORECASE) and len(included) == 1:
+        return ""
+    return opening + "".join(included) + "</table>" if included else ""
+
+
+def bounded_structured_content(value, text, tokenizer, max_tokens, fits):
+    """Project an oversized table/JSON value without producing invalid structure."""
+    def accepts(candidate):
+        return (bool(candidate.strip())
+                and len(tokenizer.encode(candidate, add_special_tokens=False)) <= max_tokens
+                and fits(candidate))
+
+    if isinstance(value, (dict, list)):
+        return _bounded_json(value, accepts)
+    if "<table" in text.lower():
+        return _bounded_html_table(text, accepts)
+    return _bounded_markdown_table(text, accepts)

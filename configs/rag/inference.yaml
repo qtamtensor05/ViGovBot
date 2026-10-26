@@ -9,6 +9,8 @@ embedding:
 llm:
   model: qwen2.5:7b
   ollama_url: &ollama_url http://localhost:11434
+  routing_num_ctx: 4096
+  routing_num_predict: 128
 retrieval:
   candidate_top_k: 20
   top_k: 3

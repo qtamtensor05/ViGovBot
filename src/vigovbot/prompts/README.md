@@ -25,11 +25,13 @@ còn vừa ngân sách; ID/phạm vi/phiên bản được ưu tiên bằng heur
 bị cắt thành giá trị khác. Trường bị bỏ được báo bằng `metadata_omitted`.
 
 Văn bản thường có thể lấy prefix theo ranh giới dòng/từ và đánh dấu
-`content_truncated`. Bảng Markdown/HTML và nội dung JSON object/list được coi
-là nguyên khối: nếu không vừa `max_chunk_tokens` hoặc tổng budget, bỏ khối đó
-và thử nguồn sau. `omitted_sources` trong prompt báo số nguồn chưa đưa vào.
-Đây là đánh đổi bảo toàn cấu trúc với độ bao phủ context; cần tăng budget hoặc
-chia nhỏ bảng ở ingestion nếu thường xuyên gặp khối quá lớn.
+`content_truncated`. Bảng Markdown/HTML vượt `max_chunk_tokens` hoặc tổng budget
+được rút gọn theo hàng hoàn chỉnh; header được giữ cùng hàng dữ liệu, không cắt
+hay sửa giá trị trong ô. JSON object/list được thu nhỏ theo trường hoặc phần tử
+hoàn chỉnh rồi serialize lại, không cắt hoặc thay đổi scalar. Nội dung
+rút gọn luôn có `content_truncated=true`. Nếu không tạo được projection có cấu
+trúc và có dữ liệu, khối mới bị bỏ để thử nguồn sau. `omitted_sources` trong
+prompt báo số nguồn chưa đưa vào.
 
 Nguồn được serialize thành JSON, escape ký tự góc để tránh chèn delimiter/chat
 token trực tiếp. Đây là bảo vệ cấu trúc, không bảo đảm model miễn nhiễm injection.
