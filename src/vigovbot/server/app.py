@@ -318,6 +318,9 @@ class ChatApplication:
                             "fallback_reason": result.get("fallback_reason"),
                             "routing_attempts": result.get("routing_attempts", 0),
                             "decision_reason": result.get("decision_reason"),
+                            "backend": result.get("routing_backend"),
+                            "classifier_confidence": result.get("classifier_confidence"),
+                            "classifier_fallback_reason": result.get("classifier_fallback_reason"),
                             "relation": route.get("relation"), "scope": route.get("scope"),
                         }
                         if getattr(self.config.web, "debug_routing", False):

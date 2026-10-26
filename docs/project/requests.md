@@ -1,5 +1,24 @@
 # Thay đổi hệ thống
 
+## Intent classifier cho routing - 2026-10-27
+
+### Mục tiêu
+
+Giảm lượt gọi Qwen chỉ để phân loại intent nhưng vẫn giữ khả năng xử lý
+follow-up, mixed, ambiguous và rollback an toàn.
+
+### Thực hiện
+
+- Thêm backend `llm`, `fasttext`, `hybrid` và artifact FastText có metadata/hash.
+- Thêm dữ liệu contract, lệnh train/evaluate, diagnostics và fallback về Qwen.
+
+### Kết quả
+
+Đã triển khai backend, CLI, artifact validation, Docker packaging và diagnostics;
+backend mặc định vẫn là `llm`. Đã kiểm chứng model FastText thật và regression
+offline; quality gate và API latency chưa được xác nhận vì chưa có dataset routing
+độc lập đã gán nhãn.
+
 ## Đưa trực tiếp top 5 retrieval vào LLM - 2026-10-26
 
 ### Mục tiêu

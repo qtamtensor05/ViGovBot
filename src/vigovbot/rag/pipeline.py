@@ -98,6 +98,12 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     sub_queries, sub_retrieval = None, None
     route, routing_raw, routing_s, routing_tokens, routing_attempts, fallback_reason = resolve_route(
         question, history, tokenizer, settings, answer_fn, routing_enabled)
+    routing_backend = ((routing_raw or {}).get("backend") if isinstance(routing_raw, dict) else None) or (
+        "disabled" if not routing_enabled else "llm")
+    classifier_trace = ((routing_raw or {}).get("classifier") if routing_backend == "hybrid" else routing_raw)
+    classifier_confidence = (classifier_trace or {}).get("confidence") if isinstance(classifier_trace, dict) else None
+    classifier_fallback_reason = ((classifier_trace or {}).get("fallback_reason")
+                                  if isinstance(classifier_trace, dict) else None)
 
     def early_answer(text, action, reason, *, hits=(), used=(), tokens=0, retrieval_s=0.0):
         return {
@@ -108,6 +114,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
             "retrieval_top_k": settings["top_k"],
             "retrieval_candidate_top_k": retrieval_top_k,
             "routing": route, "routing_s": routing_s, "routing_prompt_tokens_estimated": routing_tokens,
+            "routing_backend": routing_backend, "classifier_confidence": classifier_confidence,
+            "classifier_fallback_reason": classifier_fallback_reason,
             "routing_attempts": routing_attempts, "fallback_reason": fallback_reason,
             "raw_routing": routing_raw, "retrieval_query": None if not hits else retrieval_query,
             "evidence_status": "missing" if reason in ("no_context", "unknown_source_code") else None,
@@ -235,6 +243,9 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
         "routing_attempts": routing_attempts,
         "fallback_reason": fallback_reason,
         "routing_s": routing_s,
+        "routing_backend": routing_backend,
+        "classifier_confidence": classifier_confidence,
+        "classifier_fallback_reason": classifier_fallback_reason,
         "routing_prompt_tokens_estimated": routing_tokens,
         "raw_routing": routing_raw,
         "evidence_status": evidence,

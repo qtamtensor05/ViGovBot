@@ -58,6 +58,9 @@ class ConversationConfig(StrictModel):
     decompose_queries: bool = False
     routing_enabled: bool = True
     citations_enabled: bool = False
+    routing_backend: str = Field(default="llm", pattern=r"^(llm|fasttext|hybrid)$")
+    routing_model_path: Path = Path("outputs/routing/intent-router.bin")
+    routing_metadata_path: Path = Path("outputs/routing/intent-router.metadata.json")
 
 
 class WebModelConfig(StrictModel):
@@ -121,6 +124,9 @@ def load_config(path):
         value = getattr(config.data, key)
         if value is not None:
             setattr(config.data, key, (path.parent / value).resolve())
+    for key in ("routing_model_path", "routing_metadata_path"):
+        value = getattr(config.conversation, key)
+        setattr(config.conversation, key, (path.parent / value).resolve())
     for model in config.web.models:
         if model.adapter_path is not None:
             override = os.environ.get("QLORA_ADAPTER_PATH") if model.provider == "local_transformers" else None

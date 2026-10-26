@@ -28,6 +28,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [Tham chiếu CLI `vigov`](guides/cli.md)
 - [Vận hành pipeline RAG](guides/trien-khai-rag-co-ban.md)
 - [RAG nhiều lượt](guides/rag-multi-turn.md)
+- [Intent router FastText/hybrid](guides/intent-router.md)
 - [Đánh giá QA/RAG](guides/qa-rag-evaluation.md)
 - [Vận hành huấn luyện](guides/training.md)
 - [Đánh giá, biểu đồ và báo cáo QLoRA](guides/evaluation.md)

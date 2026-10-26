@@ -61,6 +61,7 @@ services:
       - ./configs:/app/configs:ro
       - ./Data/vector/unified:/app/Data/vector/unified:ro
       - rag-cache:/app/outputs/rag_cache
+      - ./outputs/routing:/app/outputs/routing:ro
       - type: bind
         source: ${QLORA_ADAPTER_PATH:?Set QLORA_ADAPTER_PATH to an existing adapter directory in .env}
         target: /app/models/qlora

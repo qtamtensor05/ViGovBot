@@ -1,5 +1,21 @@
 # Sự cố hệ thống và vận hành
 
+## FastText không có wheel Python 3.12 trong image slim - 2026-10-27
+
+### Mục tiêu
+
+Đóng gói intent classifier CPU mà không đưa toolchain biên dịch vào image runtime.
+
+### Thực hiện
+
+Build đầu tiên thất bại vì `fasttext==0.9.3` cần C++17 nhưng image
+`python:3.12-slim` không có compiler. Chuyển bước tạo wheel sang Docker builder
+stage có `g++`, sau đó chỉ sao chép wheel vào stage runtime.
+
+### Kết quả
+
+Đã xác định nguyên nhân; kết quả build lại được ghi trong mốc triển khai tương ứng.
+
 ## QLoRA/RAG trả lỗi khi output phụ không hợp lệ - 2026-10-23
 
 ### Mục tiêu

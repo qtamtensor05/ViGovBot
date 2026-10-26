@@ -200,6 +200,39 @@ def rag_prepare(config: Path = typer.Option(Path("configs/rag/inference.yaml"), 
     _rag("prepare", config)
 
 
+@rag_app.command("train-router")
+def rag_train_router(
+    dataset: Path = typer.Option(..., "--dataset", exists=True, dir_okay=False),
+    output_dir: Path = typer.Option(Path("outputs/routing"), "--output-dir"),
+    epoch: int = typer.Option(25, "--epoch", min=1),
+    learning_rate: float = typer.Option(0.3, "--learning-rate", min=0.001, max=5.0),
+) -> None:
+    """Train a versioned FastText routing artifact from labeled JSONL."""
+    from vigovbot.rag.intent_classifier import train_artifact
+
+    model, metadata = train_artifact(
+        _path(dataset), _path(output_dir), epoch=epoch, lr=learning_rate)
+    typer.echo(json.dumps({"model": str(model), "metadata": str(metadata)}, ensure_ascii=False))
+
+
+@rag_app.command("evaluate-router")
+def rag_evaluate_router(
+    dataset: Path = typer.Option(..., "--dataset", exists=True, dir_okay=False),
+    model: Path = typer.Option(Path("outputs/routing/intent-router.bin"), "--model"),
+    metadata: Path = typer.Option(Path("outputs/routing/intent-router.metadata.json"), "--metadata"),
+    split: str = typer.Option("test", "--split"),
+) -> None:
+    """Evaluate routing quality, fallback rate and CPU latency."""
+    from vigovbot.rag.intent_classifier import evaluate_artifact
+
+    if split not in {"validation", "test"}:
+        raise typer.BadParameter("--split chỉ nhận validation hoặc test")
+    result = evaluate_artifact(_path(dataset), _path(model), _path(metadata), split)
+    typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    if not result["quality_gates_passed"]:
+        raise typer.Exit(2)
+
+
 @gpu_app.command("check")
 def gpu_check(output: Optional[Path] = typer.Option(None, "--output")) -> None:
     """Run CUDA, BF16, NF4 and paged-optimizer diagnostics; never load Qwen weights."""

@@ -1,5 +1,26 @@
 # Lịch sử thay đổi hệ thống
 
+## Intent classifier FastText/hybrid - 2026-10-27
+
+### Mục tiêu
+
+Giảm chi phí prompt routing bằng classifier CPU nhưng bảo toàn hợp đồng routing
+nhiều lượt và khả năng rollback về Qwen.
+
+### Thực hiện
+
+- Thêm backend `llm|fasttext|hybrid`, confidence threshold, diagnostics và
+  fallback an toàn khi artifact thiếu/sai hash hoặc cần rewrite/clarification.
+- Thêm CLI train/evaluate, schema dataset chống group leakage, cấu hình FastText
+  gọn có kiểm tra kích thước trên fixture, Docker builder stage và hướng dẫn.
+
+### Kết quả
+
+Docker build thành công; 62 test router/server/CLI, 5 test tài liệu/cấu hình,
+Ruff, compileall và diff check đều đạt. Full suite chạy 269 test còn 7 lỗi nền
+không thuộc thay đổi này và 7 skip. Chưa huấn luyện artifact thật trên dữ liệu
+độc lập, chưa đạt quality gate và chưa đo API latency, nên giữ mặc định `llm`.
+
 ## Đưa trực tiếp top 5 retrieval vào LLM - 2026-10-26
 
 ### Mục tiêu

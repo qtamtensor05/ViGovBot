@@ -15,6 +15,10 @@ retrieval:
   top_k: 5
   max_chunk_tokens: 1200
   max_metadata_tokens: 256
+conversation:
+  routing_backend: llm
+  routing_model_path: ../../outputs/routing/intent-router.bin
+  routing_metadata_path: ../../outputs/routing/intent-router.metadata.json
 web:
   debug_routing: false  # Bật để xem raw JSON router trong API/UI khi chẩn đoán.
   models:
