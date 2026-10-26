@@ -10,20 +10,13 @@ from vigovbot.evaluation.retrieval_benchmark import rerank_retrieval, run_retrie
 
 class RetrievalBenchmarkTests(unittest.TestCase):
     def _dataset(self, root):
+        from tests.test_evaluation_v2 import golden
         dataset = root / "dataset"
         dataset.mkdir()
-        (dataset / "views.json").write_text('["q1"]', encoding="utf-8")
-        (dataset / "runner_queries.jsonl").write_text(
-            json.dumps({"id": "q1", "question": "Hồ sơ gồm gì?", "split": "test"}, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
-        case = {
-            "id": "q1", "split": "test", "evidence": [{"unit_id": "u1"}],
-        }
-        (dataset / "cases.jsonl").write_text(json.dumps(case) + "\n", encoding="utf-8")
-        (dataset / "knowledge_units.jsonl").write_text(
-            json.dumps({"unit_id": "u1", "source_sha256": "source"}) + "\n", encoding="utf-8"
-        )
+        row = golden("q1")
+        row["input"]["question"] = "Hồ sơ gồm gì?"
+        row["ground_truth"]["ground_truth_context_ids"] = ["c1"]
+        (dataset / "test_golden.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
         return dataset
 
     @patch("vigovbot.evaluation.retrieval_benchmark.load_config")
@@ -46,7 +39,7 @@ class RetrievalBenchmarkTests(unittest.TestCase):
             config.write_text("config", encoding="utf-8")
             output = root / "retrieval.jsonl"
             report = run_retrieval(
-                dataset=dataset, view="views.json", split="test", config_path=config,
+                dataset=dataset, view=None, split="test", config_path=config,
                 output=output, top_k=20,
             )
             rows = list(read_jsonl(output))
@@ -65,22 +58,10 @@ class RetrievalBenchmarkTests(unittest.TestCase):
                 "id": "q1", "retrieved_chunk_ids": ["c1"],
                 "context_used": [{"chunk_id": "c1", "included_text": "Hồ sơ A"}],
             }, ensure_ascii=False) + "\n", encoding="utf-8")
-            import hashlib
-            mapping = root / "mapping.json"
-            mapping.write_text(json.dumps({
-                "schema_version": 1,
-                "review_kind": "human",
-                "chunks": {"c1": {
-                    "status": "reviewed", "reviewer": "reviewer", "reviewer_kind": "human",
-                    "reason": "same evidence", "source_sha256": "source",
-                    "chunk_sha256": hashlib.sha256("Hồ sơ A".encode("utf-8")).hexdigest(),
-                    "unit_ids": ["u1"],
-                }},
-            }), encoding="utf-8")
             output = root / "scores.json"
             report = score_retrieval(
-                dataset=dataset, view="views.json", split="test", predictions=predictions,
-                unit_map=mapping, output=output, ks=[1, 3, 5],
+                dataset=dataset, view=None, split="test", predictions=predictions,
+                unit_map=None, output=output, ks=[1, 3, 5],
             )
         self.assertEqual(report["retrieval_evaluation"]["1"]["end_to_end_all_eligible"]
                          ["judged_hit_rate_at_k"]["mean"], 1)
@@ -91,9 +72,9 @@ class RetrievalBenchmarkTests(unittest.TestCase):
             root = Path(work)
             golden = root / "test_golden.jsonl"
             golden.write_text(json.dumps({
-                "test_id": "TC_1",
+                "test_id": "TC_1", "version": "test", "taxonomy": {},
                 "input": {"question": "Câu hỏi gốc"},
-                "ground_truth": {"ground_truth_standalone_query": "Không được dùng",
+                "ground_truth": {"expected_answer": "answer", "ground_truth_standalone_query": "Không được dùng",
                                  "ground_truth_context_ids": ["c2"]},
             }, ensure_ascii=False) + "\n", encoding="utf-8")
             predictions = root / "retrieval.jsonl"

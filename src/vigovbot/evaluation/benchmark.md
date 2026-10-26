@@ -11,7 +11,7 @@ câu trả lời riêng.
 nhưng các lượt trong cùng một `conversation_id` luôn tuần tự và dùng đúng câu trả
 lời vừa sinh. Output vẫn được ghi theo thứ tự view để so sánh và resume ổn định.
 
-Máy RTX 5060 Ti 16 GB đã có cấu hình [evaluation-fast-local.yaml](../../../configs/rag/evaluation-fast-local.yaml):
+Máy RTX 5060 Ti 16 GB dùng cấu hình [inference.yaml](../../../configs/rag/inference.yaml):
 BGE-M3 và BERTScore dùng CUDA, BERTScore batch 16. Bắt đầu với concurrency 2;
 chỉ tăng 4 sau khi benchmark VRAM/503. Ollama trên Windows phải được khởi động lại
 sau khi đặt `OLLAMA_NUM_PARALLEL=2`, `OLLAMA_MAX_LOADED_MODELS=1`,
@@ -36,17 +36,15 @@ Chạy từ thư mục gốc, sau khi cài `python -m pip install -e ".[rag,eval
 Corpus và Ollama cần sẵn sàng theo cấu hình RAG hiện tại.
 
 ```powershell
-python -m vigovbot eva chat --config configs/rag/inference.yaml
-python -m vigovbot eva run --config configs/rag/inference.yaml --split test --limit 10 --out outputs/qa_v4/smoke.jsonl
-python -m vigovbot eva score --split test --limit 10 --predictions outputs/qa_v4/smoke.jsonl --out outputs/qa_v4/smoke_scores.json
+python -m vigovbot eva run --run-id golden-rag-smoke --profile rag --config configs/rag/inference.yaml --split test --limit 10
+python -m vigovbot eva score --run-id golden-rag-smoke --extended-metrics
 ```
 
 Ví dụ benchmark nhanh trên máy hiện tại:
 
 ```powershell
-.venv\Scripts\python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_single_1500.json --config configs/rag/evaluation-fast-local.yaml --split test --mode reference_history --concurrency 2 --out outputs/qa_v4/single_fast.jsonl
-.venv\Scripts\python.exe -m vigovbot eva run --dataset rag_tthc_three_1500 --view views_multi_1500.json --config configs/rag/evaluation-fast-local.yaml --split test --mode free_running --concurrency 2 --out outputs/qa_v4/multi_fast.jsonl
-.venv\Scripts\python.exe -m vigovbot eva score --dataset rag_tthc_three_1500 --view views_single_1500.json --split test --lexical --bertscore --bert-device cuda --bert-batch-size 16 --predictions outputs/qa_v4/single_fast.jsonl --out outputs/qa_v4/single_fast_scores.json
+.venv\Scripts\python.exe -m vigovbot eva run --run-id golden-rag-fast --profile rag --config configs/rag/inference.yaml --split test --limit 10
+.venv\Scripts\python.exe -m vigovbot eva score --run-id golden-rag-fast --extended-metrics --bertscore --bert-device cuda --bert-batch-size 16
 ```
 
 Không chạy RAG và BERTScore đồng thời trên GPU 16 GB. Nếu BERTScore hết VRAM,

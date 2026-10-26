@@ -14,10 +14,7 @@ class StrictModel(BaseModel):
 
 class DataConfig(StrictModel):
     unified_source: Path
-    dataset_path: Path | None = None
-    dataset_zip: Path | None = None
     cache_dir: Path = Path("outputs/rag_cache")
-    output_dir: Path = Path("outputs/rag_results")
     allow_legacy_corpus: bool = False
 
 
@@ -36,6 +33,8 @@ class LLMConfig(StrictModel):
     temperature: float = Field(default=0.0, ge=0)
     num_ctx: int = Field(default=8192, gt=0)
     num_predict: int = Field(default=512, gt=0)
+    routing_num_ctx: int = Field(default=4096, gt=0)
+    routing_num_predict: int = Field(default=128, gt=0)
     seed: int = 42
     timeout: int = Field(default=300, gt=0)
     keep_alive: str = "10m"
@@ -44,12 +43,34 @@ class LLMConfig(StrictModel):
     def check_budget(self):
         if self.num_ctx <= self.num_predict + 256:
             raise ValueError("num_ctx phải lớn hơn num_predict + 256")
+        if self.routing_num_ctx <= self.routing_num_predict + 256:
+            raise ValueError("routing_num_ctx phải lớn hơn routing_num_predict + 256")
         return self
+
+
+class RerankerConfig(StrictModel):
+    enabled: bool = False
+    model: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+    device: str = Field(default="cpu", pattern=r"^(cpu|cuda)$")
+    batch_size: int = Field(default=20, gt=0)
+    max_length: int = Field(default=512, gt=0)
 
 
 class RetrievalConfig(StrictModel):
     top_k: int = Field(default=5, gt=0)
+    candidate_top_k: int | None = Field(default=None, gt=0)
     max_chunk_tokens: int = Field(default=1200, gt=0)
+    max_metadata_tokens: int = Field(default=256, gt=0)
+    reranker: RerankerConfig = Field(default_factory=RerankerConfig)
+
+    @model_validator(mode="after")
+    def check_reranker_depth(self):
+        if self.reranker.enabled:
+            if self.candidate_top_k is None:
+                raise ValueError("candidate_top_k is required when reranker is enabled")
+            if self.candidate_top_k < self.top_k:
+                raise ValueError("candidate_top_k must be greater than or equal to top_k")
+        return self
 
 
 class ConversationConfig(StrictModel):
@@ -97,15 +118,6 @@ class WebConfig(StrictModel):
         return self
 
 
-class EvaluationConfig(StrictModel):
-    smoke_test_n: int = Field(default=5, ge=0)
-    max_cases: int | None = Field(default=None, gt=0)
-    bertscore_model: str = "xlm-roberta-large"
-    bertscore_device: str = "cpu"
-    bertscore_batch_size: int = Field(default=1, gt=0)
-    baseline_summary_path: Path | None = None
-
-
 class RAGConfig(StrictModel):
     data: DataConfig
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
@@ -113,7 +125,6 @@ class RAGConfig(StrictModel):
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     conversation: ConversationConfig = Field(default_factory=ConversationConfig)
     web: WebConfig = Field(default_factory=WebConfig)
-    evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
 
     def inference_settings(self):
         settings = self.llm.model_dump(exclude={"tokenizer", "tokenizer_revision"})
@@ -125,12 +136,10 @@ class RAGConfig(StrictModel):
 def load_config(path):
     path = Path(path).resolve()
     config = RAGConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8-sig")))
-    for key in ("unified_source", "dataset_path", "dataset_zip", "cache_dir", "output_dir"):
+    for key in ("unified_source", "cache_dir"):
         value = getattr(config.data, key)
         if value is not None:
             setattr(config.data, key, (path.parent / value).resolve())
-    if config.evaluation.baseline_summary_path is not None:
-        config.evaluation.baseline_summary_path = (path.parent / config.evaluation.baseline_summary_path).resolve()
     for model in config.web.models:
         if model.adapter_path is not None:
             override = os.environ.get("QLORA_ADAPTER_PATH") if model.provider == "local_transformers" else None

@@ -26,6 +26,7 @@ từ đó, không nạp toàn bộ catalog.
 | `code-change-verification` | Chọn và chạy gate cho diff/readiness | Dùng compile làm bằng chứng E2E |
 | `context-handoff` | Tạm dừng, chuyển phiên hoặc cần handoff | Thay nhật ký dự án bắt buộc |
 | `usage-benchmark` | Có thể thu run A/B thật và telemetry so sánh được | Dùng text length hoặc dữ liệu giả |
+| `vigovbot-task-journal` | Chỉnh sửa quan trọng ảnh hưởng hệ thống hoặc vận hành | Báo cáo, dọn dẹp, kiểm tra hoặc chỉnh sửa nhỏ |
 
 Ba skill cũ `context-management`, `repository-navigation` và
 `token-budget-optimization` đã hợp nhất vào `context-navigation`; xem

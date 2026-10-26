@@ -24,16 +24,18 @@ Không tạo cây song song ngoài cấu trúc canonical. README gốc chỉ gi�
 và quick start tối thiểu; hướng dẫn môi trường, câu lệnh đầy đủ, vận hành,
 training/evaluation và troubleshooting phải nằm trong `docs/`.
 
-## Task lớn và bộ nhớ dự án
+## Thay đổi quan trọng và bộ nhớ dự án
 
-Với task nhiều bước, thay đổi hành vi/kiến trúc/cấu hình/dữ liệu, điều tra lỗi hoặc
-chạy pipeline lâu, đọc và áp dụng
-[vigovbot-task-journal](.agents/skills/vigovbot-task-journal/SKILL.md).
-Task sửa typo hoặc chỉnh nhỏ một chỗ không cần lập hồ sơ riêng, trừ khi người dùng yêu cầu.
+Chỉ đọc và áp dụng
+[vigovbot-task-journal](.agents/skills/vigovbot-task-journal/SKILL.md) khi chỉnh
+sửa quan trọng liên quan đến hệ thống hoặc vận hành: kiến trúc, luồng runtime,
+triển khai, cấu hình dùng chung, dữ liệu nguồn, huấn luyện, đánh giá hoặc hợp đồng
+công khai. Không kích hoạt chỉ vì yêu cầu nhiều bước, điều tra, báo cáo, dọn dẹp,
+chạy kiểm tra hoặc chỉnh sửa nhỏ.
 
-Ghi yêu cầu trước khi triển khai; cập nhật giai đoạn ở các mốc có ý nghĩa; lưu
-thay đổi, kiểm chứng và lỗi thực tế trước khi kết thúc. Viết bằng tiếng Việt.
-Không suy diễn trạng thái hoàn tất từ kế hoạch hoặc tài liệu cũ.
+Hồ sơ chỉ ghi các mốc làm thay đổi trạng thái hệ thống. Mỗi mốc dùng ba phần
+`Mục tiêu`, `Thực hiện`, `Kết quả`; viết ngắn gọn bằng tiếng Việt và chỉ ghi kết
+quả đã kiểm chứng. Không tạo hồ sơ cho công việc không làm thay đổi hệ thống.
 
 ## Lệnh chạy lâu
 

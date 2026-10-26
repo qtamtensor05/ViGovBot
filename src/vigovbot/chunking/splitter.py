@@ -1,7 +1,6 @@
 """Character-budget splitting with intact table rows and safe overlap."""
-import re
 from typing import Iterable
-from vigovbot.chunking.tables import _is_table_line
+from vigovbot.chunking.tables import _is_table_line, first_table_header
 from vigovbot.chunking.headings import TTHCChunkingError
 
 
@@ -64,7 +63,7 @@ class BlockSplitter:
         """Split a large table only between complete rows, repeating its header."""
         if any(len(row) > limit for row in rows):
             raise TTHCChunkingError("A Markdown table row exceeds the chunk hard limit")
-        header_count = 2 if len(rows) > 1 and re.fullmatch(r"\|(?:\s*:?-{3,}:?\s*\|)+", rows[1]) else 0
+        header_count = 2 if first_table_header("\n".join(rows[:2])) else 0
         header = rows[:header_count]
         data = rows[header_count:]
         chunks: list[str] = []

@@ -3,7 +3,7 @@
 DIMENSION = 1024
 MODEL_NAME = "BAAI/bge-m3"
 ARTIFACT_VERSION = 1
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 FIELDS = (
     "chunk_id",
     "source_file",
@@ -22,7 +22,8 @@ def validate_records(records: object, source: object, seen: set[str]) -> list[di
     for i, record in enumerate(records):
         if not isinstance(record, dict):
             raise ValueError(f"{source}[{i}]: expected an object")
-        for field in FIELDS:
+        # Storage identity and content are required; domain metadata is optional.
+        for field in ("chunk_id", "text_content"):
             if not isinstance(record.get(field), str):
                 raise ValueError(f"{source}[{i}]: {field} must be a string")
         chunk_id = record["chunk_id"]

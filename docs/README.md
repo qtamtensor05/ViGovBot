@@ -41,13 +41,14 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 ## Báo cáo kết quả
 
+- [Kiểm chứng đóng gói bằng chứng và prompt RAG](reports/rag-evidence-hardening-20261024.md)
+
 - [Đánh giá RAG vs Base trên TTHC v1](reports/bao-cao-danh-gia-rag-vs-base-tthc-v1.md)
 - [Phân tích QLoRA Qwen2.5-7B](reports/bao-cao-phan-tich-qlora-qwen2-5-7b.md)
 - [Đề xuất triển khai Evaluation Run v2 cho các model](reports/evaluation-v2-model-implementation-proposal.md)
 - [Đánh giá chi tiết mô hình Standalone Base (Evaluation v2)](reports/bao-cao-danh-gia-chi-tiet-model-base.md)
 - [Đánh giá chi tiết mô hình Base + RAG (Evaluation v2)](reports/bao-cao-danh-gia-chi-tiet-model-base-rag.md)
 - [Huấn luyện & Đánh giá mô hình Tinh chỉnh QLoRA (Evaluation v2)](reports/bao-cao-danh-gia-chi-tiet-model-qlora-finetuning.md)
-- [Đánh giá chi tiết mô hình Hợp nhất QLoRA + RAG (Evaluation v2)](reports/bao-cao-danh-gia-chi-tiet-model-qlora-rag.md)
 - [So sánh & Đối sánh tổng hợp 3 mô hình Base vs Base+RAG vs QLoRA (Evaluation v2)](reports/bao-cao-so-sanh-tong-hop-3-model-base-rag-qlora.md)
 
 ## Quản trị dự án
@@ -65,7 +66,5 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - README gốc là điểm vào cho cài đặt và lệnh cơ bản; tài liệu chuyên sâu nằm tại đây.
 - Hướng dẫn cung cấp lệnh thực thi; kiến trúc mô tả ranh giới và hợp đồng.
 - Báo cáo ghi nhận kết quả tại một thời điểm, không đại diện trạng thái hiện thời.
-- Hồ sơ `project/` là lịch sử append-only; không sửa đường dẫn cũ chỉ vì tài liệu
-  hiện tại đã được di chuyển.
-
-- [Lịch sử snapshot đến 2026-10-18](project/stage-history-20261018.md)
+- Hồ sơ `project/` chỉ ghi thay đổi quan trọng ảnh hưởng hệ thống hoặc vận hành;
+  mỗi mốc dùng `Mục tiêu - Thực hiện - Kết quả`.

@@ -215,5 +215,4 @@ flowchart TD
 ### Kết luận chiến lược:
 Mô hình **QLoRA Fine-tuned Qwen2.5-7B** đã hoàn thành xuất sắc nhiệm vụ biến một LLM đa năng thành một **"Chuyên viên hành chính mẫu mực"** với tác phong trả lời ngắn gọn, chuẩn xác và tuân thủ kỷ luật từ chối nghiêm ngặt. 
 
-Tuy nhiên, để trở thành một hệ thống Dịch vụ công hoàn hảo (vừa có văn phong chuẩn mực của QLoRA, vừa có dữ kiện số liệu chính xác 100% của RAG), bước đi tối ưu tiếp theo chính là **hợp nhất QLoRA với pipeline RAG** (`qwen-qlora-rag`).
-
+QLoRA trong báo cáo này là cấu hình độc lập, không dùng retrieval. Khi cần dữ kiện cập nhật và dẫn nguồn, hệ thống vận hành profile RAG Base riêng.

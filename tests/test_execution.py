@@ -1,7 +1,5 @@
 from tests.dependencies import skip_missing_dependency  # noqa: F401
-import tempfile
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -42,30 +40,3 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(list(ExecutionEngine().map(step, [1, 2, 3])), [1, 2, 3])
         self.assertEqual(seen, [1, 2, 3])
         self.assertEqual(sorted(ExecutionEngine().map(lambda x: x * 2, [1, 2, 3], concurrency=2)), [2, 4, 6])
-
-    def test_all_adapters_apply_shared_retry_policy(self):
-        try:
-            from vigovbot.evaluation.runner import evaluate_cases
-            from vigovbot.evaluation.multiturn import evaluate_multiturn
-            from vigovbot.evaluation.benchmark_runner import run_queries
-        except ModuleNotFoundError as error:
-            skip_missing_dependency(error)
-        policy = RetryPolicy(2, 0)
-        query = {"id": "a", "question": "q", "history": [], "conversation_id": None, "turn_index": None}
-        with tempfile.TemporaryDirectory() as work:
-            root = Path(work)
-            legacy = Mock(side_effect=[TimeoutError(), {"prediction": "ok"}])
-            rows = evaluate_cases([{"id": "a", "question": {"text": "q"}, "ground_truth": {"answer": "gold"}}],
-                                  root / "legacy", {"settings": {"model": "fake"}}, legacy, retry_policy=policy)
-            self.assertEqual(rows[0]["prediction"], "ok")
-            multi = Mock(side_effect=[TimeoutError(), {"prediction": "ok"}])
-            report = evaluate_multiturn([query], root / "multi", {}, multi, retry_policy=policy)
-            self.assertEqual(report["successful"], 1)
-            # Resume reads persisted output without invoking the model again.
-            evaluate_multiturn([query], root / "multi", {}, multi, retry_policy=policy)
-            self.assertEqual(multi.call_count, 2)
-            benchmark = Mock(side_effect=[TimeoutError(), {"answer": "ok"}])
-            report = run_queries([query], benchmark, root / "benchmark.jsonl", retry_policy=policy)
-            self.assertEqual(report["successful"], 1)
-            for function in (legacy, multi, benchmark):
-                self.assertEqual(function.call_count, 2)

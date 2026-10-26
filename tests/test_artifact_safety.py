@@ -1,5 +1,5 @@
 """Integrity, compatibility, concurrency, and independent inference regressions."""
-from tests.dependencies import skip_missing_dependency
+from tests.dependencies import requires_dependencies, skip_missing_dependency
 
 
 import json
@@ -41,6 +41,7 @@ class ArtifactSafetyTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
+    @requires_dependencies("faiss")
     def corpus(self):
         import faiss
 
@@ -186,9 +187,6 @@ class ArtifactSafetyTests(unittest.TestCase):
                 self.assertEqual(execute(config, "ask", question="Phí?"), {"prediction": "0 đồng"})
                 self.assertEqual(answer.call_args.args[0], "Phí?")
         self.assertFalse(config.data.output_dir.exists())
-        with self.assertRaisesRegex(ValueError, "Evaluation requires"):
-            execute(config, "evaluate")
-
     def test_wrong_query_model_or_revision_rejected_before_model_load(self):
         source = self.corpus()
         for embedding in ({"model": "other"}, {"revision": "b" * 40}):
@@ -202,21 +200,23 @@ class ArtifactSafetyTests(unittest.TestCase):
                 execute(config, "ask", question="Phí?")
             model.assert_not_called()
 
-    def test_invalid_cli_command_and_question_rejected(self):
+    def test_non_inference_command_and_empty_question_rejected(self):
         config = RAGConfig.model_validate({"data": {"unified_source": "absent"}})
-        with self.assertRaisesRegex(ValueError, "Unknown command"):
+        with self.assertRaisesRegex(ValueError, "Use vigov eva"):
             execute(config, "typo")
         with self.assertRaisesRegex(ValueError, "nonempty"):
             execute(config, "ask", question="  ")
 
     def test_console_utf8_with_redirected_cp1252_stream(self):
+        python_path = os.pathsep.join(filter(None, [str(Path(__file__).resolve().parents[1] / "src"),
+                                                    os.environ.get("PYTHONPATH")]))
         result = subprocess.run(
             [
                 sys.executable,
                 "-c",
                 "from vigovbot.console import configure_console; configure_console(); print('Thủ tục tiếng Việt')",
             ],
-            env={**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0"},
+            env={**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0", "PYTHONPATH": python_path},
             capture_output=True,
             check=True,
         )

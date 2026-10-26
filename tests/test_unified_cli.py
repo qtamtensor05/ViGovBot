@@ -36,8 +36,7 @@ class UnifiedCliTests(unittest.TestCase):
         for command in ("check", "stats", "ingest", "embed"):
             self.assertIn(command, data_help.output)
         rag_help = self.runner.invoke(app, ["rag", "--help"])
-        for command in ("prepare", "smoke", "evaluate", "report", "run"):
-            self.assertIn(command, rag_help.output)
+        self.assertIn("prepare", rag_help.output)
         for command in (["web", "--help"], ["ask", "--help"], ["data", "ingest", "--help"],
                         ["data", "embed", "--help"]):
             command_help = self.runner.invoke(app, command)
@@ -72,7 +71,7 @@ class UnifiedCliTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0, result.output)
         legacy.assert_called_once_with(["eva", "score", "--predictions", "result.jsonl"])
 
-    def test_short_application_commands_delegate_to_existing_services(self):
+    def test_ask_delegates_to_rag_service(self):
         with patch("vigovbot.cli.main._legacy", return_value=0) as legacy:
             result = self.runner.invoke(app, ["ask", "Hồ sơ gồm những gì?"])
         self.assertEqual(result.exit_code, 0, result.output)
@@ -80,12 +79,6 @@ class UnifiedCliTests(unittest.TestCase):
         self.assertEqual(args[0], "rag")
         self.assertIn("ask", args)
         self.assertIn("Hồ sơ gồm những gì?", args)
-
-        with patch("vigovbot.cli.main._legacy", return_value=0) as legacy:
-            result = self.runner.invoke(app, ["rag", "evaluate"])
-        self.assertEqual(result.exit_code, 0, result.output)
-        self.assertEqual(legacy.call_args.args[0][0], "rag")
-        self.assertIn("evaluate", legacy.call_args.args[0])
 
     def test_short_data_commands_delegate_with_project_rooted_paths(self):
         with patch("vigovbot.cli.main._legacy", return_value=0) as legacy:

@@ -124,7 +124,7 @@ def parse_citations(text, used):
     payload = json.loads(text)
     citations = payload.get('citations')
     if not isinstance(citations, list): raise ValueError('citations must be an array')
-    contexts = {c['chunk_id']: c for c in used}
+    contexts = {c['chunk_id']: c for c in used if c.get('chunk_id')}
     result = []
     for c in citations:
         if not isinstance(c, dict) or set(c) != {'chunk_id', 'claim'}:

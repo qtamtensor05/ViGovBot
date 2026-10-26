@@ -40,7 +40,8 @@ def _write_ready_marker(marker, info):
 
 def prepare_corpus(source, cache_root, *, allow_legacy=False):
     identity, manifest = verify_corpus(source, allow_legacy=allow_legacy)
-    cache = Path(cache_root) / json_hash({"files": identity, "manifest": manifest})[:24]
+    cache = Path(cache_root) / json_hash({"files": identity, "manifest": manifest,
+                                         "cache_version": CACHE_VERSION})[:24]
     with output_lock(cache):
         return _prepare_corpus(source, cache, identity, manifest)
 
@@ -113,23 +114,16 @@ def _prepare_corpus(source, cache, identity, manifest):
             if first != b"[":
                 raise ValueError("Metadata unified phải là mảng JSON UTF-8")
         with corpus_stream(source, "tthc_unified_metadata.json") as handle:
-            for record in tqdm(ijson.items(handle, "item"), total=expected, desc="JSON → SQLite"):
+            for record in tqdm(ijson.items(handle, "item", use_float=True), total=expected, desc="JSON → SQLite"):
                 if not isinstance(record, dict):
                     raise ValueError(f"Metadata dòng {count} không phải object")
-                fields = (
-                    "chunk_id",
-                    "source_file",
-                    "source_code",
-                    "procedure_name",
-                    "section_type",
-                    "context_prefix",
-                    "text_content",
-                )
+                fields = ("chunk_id", "text_content")
                 if any(not isinstance(record.get(key), str) for key in fields):
                     raise ValueError(f"Metadata dòng {count} thiếu trường chuỗi cần thiết")
                 if not record["chunk_id"].strip() or not record["text_content"].strip():
                     raise ValueError(f"Metadata dòng {count} có ID/nội dung rỗng")
-                payload = {key: record[key] for key in fields}
+                # Preserve new metadata schemas; only omit the duplicated parent body.
+                payload = {key: value for key, value in record.items() if key != "parent_section"}
                 batch.append((count, record["chunk_id"], json.dumps(payload, ensure_ascii=False)))
                 count += 1
                 if count > expected:

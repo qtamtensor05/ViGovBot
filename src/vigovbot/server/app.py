@@ -54,6 +54,7 @@ def evaluation_trace(result, mode):
         "sub_query_retrieval": result.get("sub_query_retrieval"),
         "decomposition_status": result.get("decomposition_status"),
         "retrieval_top_k": result.get("retrieval_top_k"),
+        "retrieval_candidate_top_k": result.get("retrieval_candidate_top_k"),
         "finish_reason": raw.get("done_reason"),
         "decision_reason": result.get("decision_reason"),
         "evidence_status": result.get("evidence_status"),
@@ -69,7 +70,7 @@ def evaluation_trace(result, mode):
             "rewrite_seconds": result.get("rewrite_s"),
             "retrieval_seconds": result.get("retrieval_s"),
             "generation_seconds": result.get("generation_s"),
-            "rerank_seconds": None, "ttft_seconds": raw.get("ttft_seconds"),
+            "rerank_seconds": result.get("rerank_s"), "ttft_seconds": raw.get("ttft_seconds"),
             "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
             "total_tokens": prompt_tokens + completion_tokens if isinstance(prompt_tokens, int) and isinstance(completion_tokens, int) else None,
             "generation_tokens_per_second": completion_tokens / (duration / 1e9) if isinstance(duration, (int, float)) and duration > 0 and isinstance(completion_tokens, int) else None,
@@ -307,7 +308,10 @@ class ChatApplication:
                         public_result["evaluation_trace"] = evaluation_trace(result, mode)
                         public_result["evaluation_trace"]["provider_calls"] = calls
                         public_result["evaluation_trace"]["effective_settings"] = {
-                            key: settings.get(key) for key in ("model", "top_k", "measure_ttft", "citations_enabled", "decompose_queries", "num_ctx", "num_predict", "seed", "temperature")}
+                            key: settings.get(key) for key in (
+                                "model", "top_k", "candidate_top_k", "reranker", "measure_ttft",
+                                "citations_enabled", "decompose_queries", "num_ctx", "num_predict", "seed",
+                                "temperature", "max_metadata_tokens")}
                     if mode == "rag":
                         route = result.get("routing") or {}
                         public_result["routing_diagnostics"] = {
@@ -322,9 +326,11 @@ class ChatApplication:
                 except Exception as exc:
                     diagnostics = getattr(exc, "diagnostics", None)
                     if isinstance(diagnostics, dict):
-                        LOG.error("Structured generation diagnostics for %s: %s", model_id,
-                                  json.dumps(diagnostics, ensure_ascii=False))
-                    LOG.exception("Model %s không trả lời được", model_id)
+                        LOG.error("Structured generation failed for %s: attempts=%s, validation_errors=%d",
+                                  model_id, diagnostics.get("attempts"),
+                                  len(diagnostics.get("validation_errors", [])))
+                    else:
+                        LOG.exception("Model %s không trả lời được", model_id)
                     results.append({"model_id": model_id, "error": str(exc)})
         failures = sum("error" in result for result in results)
         status = "failed" if failures == len(results) else "partial" if failures else "success"

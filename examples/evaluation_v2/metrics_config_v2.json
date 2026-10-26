@@ -39,8 +39,7 @@
     "compare_architectures": [
       "base",
       "finetuned",
-      "rag_base",
-      "rag_finetuned"
+      "rag_base"
     ]
   }
 }

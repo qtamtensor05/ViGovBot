@@ -1,7 +1,7 @@
 """Controlled append-only distractor experiment replaying cached generation prompts."""
 import json
-from .v2 import load_golden, load_predictions, _post_json
-from .review import fingerprint
+from .records import load_golden, load_predictions, _post_json
+from .provenance import fingerprint
 from .io import read_jsonl
 
 

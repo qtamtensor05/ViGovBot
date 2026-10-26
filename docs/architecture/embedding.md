@@ -10,9 +10,13 @@ python -m pip install -e ".[embedding,vector]"
 ```
 
 Đầu vào là một thư mục hoặc ZIP chứa file `.json`/`.txt`. Mỗi file có thể chứa
-JSON object, JSON array hoặc JSON Lines. Mỗi chunk phải có các trường:
-`chunk_id`, `source_file`, `source_code`, `procedure_name`, `section_type`,
-`context_prefix`, `text_content` và `parent_section`.
+JSON object, JSON array hoặc JSON Lines. Mỗi chunk phải có `chunk_id` duy nhất
+và `text_content` là chuỗi không rỗng. Metadata khác là tùy chọn, giữ nguyên
+schema JSON của nguồn. Chunker TTHC tiếp tục sinh `source_file`, `source_code`,
+`procedure_name`, `section_type`, `context_prefix`, `parent_section` như trước.
+Nếu có `context_prefix`, encoder yêu cầu chuỗi và chỉ thêm khi nội dung chưa
+chứa prefix. Nội dung bảng/JSON cần được adapter chuẩn hóa thành chuỗi trước
+khi tạo embedding; formatter prompt có thể nhận object/list trực tiếp.
 
 ## Tạo corpus
 

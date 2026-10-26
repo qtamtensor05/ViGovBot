@@ -1,4 +1,4 @@
-from tests.dependencies import skip_missing_dependency
+from tests.dependencies import requires_dependencies, skip_missing_dependency
 
 import copy
 import json
@@ -102,6 +102,7 @@ class RuntimeSafetyTests(unittest.TestCase):
                 openai_compatible_answer(messages, settings)
         self.assertEqual(messages, original)
 
+    @requires_dependencies("faiss")
     def test_retrieval_batches_sql_and_preserves_faiss_rank(self):
         retriever = Retriever.__new__(Retriever)
         retriever._encoder_lock = threading.Lock()

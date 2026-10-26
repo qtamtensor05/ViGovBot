@@ -4,15 +4,13 @@ from tests.dependencies import skip_missing_dependency
 from tests.tokenizer_fixtures import CharacterTokenizer as Tokenizer
 
 import json
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 try:
-    from vigovbot.evaluation.multiturn import evaluate_multiturn
-    from vigovbot.experiments import read_results
     from vigovbot.rag.pipeline import answer_question
+    from vigovbot.rag.config import RAGConfig, load_config
     from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
@@ -25,6 +23,19 @@ def route(relation="new_question", scope="in_scope", query="Phí cấp hộ chi�
 
 
 class RoutingTests(unittest.TestCase):
+    def test_routing_budget_config_defaults_profiles_and_validation(self):
+        data = {"unified_source": "unified.zip"}
+        defaults = RAGConfig.model_validate({"data": data}).inference_settings()
+        self.assertEqual((defaults["routing_num_ctx"], defaults["routing_num_predict"]), (4096, 128))
+        for name in ("inference.yaml", "inference-docker.yaml"):
+            settings = load_config(Path("configs/rag") / name).inference_settings()
+            self.assertEqual((settings["routing_num_ctx"], settings["routing_num_predict"]), (4096, 128))
+        with self.assertRaises(ValueError):
+            RAGConfig.model_validate({
+                "data": data,
+                "llm": {"routing_num_ctx": 384, "routing_num_predict": 128},
+            })
+
     def test_opt_in_citations_are_validated_and_saved(self):
         self.settings['citations_enabled'] = True
         result, llm = self.run_answer([route(), json.dumps({
@@ -62,7 +73,9 @@ class RoutingTests(unittest.TestCase):
             self.assertEqual(branch['properties']['answer']['maxLength'], 600)
 
     def setUp(self):
-        self.settings = dict(top_k=5, num_ctx=8192, num_predict=512, max_chunk_tokens=1200)
+        self.settings = dict(top_k=5, num_ctx=8192, num_predict=512,
+                             routing_num_ctx=8192, routing_num_predict=128,
+                             max_chunk_tokens=1200)
         self.history = [{"role": "user", "content": "OLD_TOPIC: giấy khai sinh"},
                         {"role": "assistant", "content": "OLD_CLAIM"}]
         self.retriever = Mock()
@@ -95,6 +108,32 @@ class RoutingTests(unittest.TestCase):
         self.assertNotIn("OLD_CLAIM", str(llm.call_args_list[1].args[0]))
         self.assertEqual(result["evidence_status"], "missing")
 
+    def test_online_reranker_fetches_candidates_then_limits_context(self):
+        self.settings.update({
+            "top_k": 3,
+            "candidate_top_k": 20,
+            "reranker": {"enabled": True},
+        })
+        self.retriever.search.return_value = [
+            dict(row_id=i, chunk_id=f"c{i}", score=1 / i, source_file="a.pdf",
+                 source_code="1", section_type="fees", text_content=f"Nội dung {i}")
+            for i in range(1, 6)
+        ]
+
+        def rerank(_question, hits, _settings):
+            return list(reversed(hits))[:3]
+
+        with patch("vigovbot.retrieval.reranker.rerank_hits", side_effect=rerank):
+            result, _ = self.run_answer([
+                route(),
+                json.dumps(dict(answer="Đủ bằng chứng", action="answer", evidence_status="sufficient")),
+            ])
+        self.retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", 20)
+        self.assertEqual(result["retrieval_candidate_top_k"], 20)
+        self.assertEqual(result["retrieval_top_k"], 3)
+        self.assertEqual([item["chunk_id"] for item in result["context_used"]], ["c5", "c4", "c3"])
+        self.assertGreaterEqual(result["rerank_s"], 0)
+
     def test_invalid_sub_query_json_falls_back_to_original_query(self):
         self.settings["decompose_queries"] = True
         result, _ = self.run_answer([
@@ -109,10 +148,29 @@ class RoutingTests(unittest.TestCase):
         self.settings["decompose_queries"] = True
         valid = json.dumps(dict(answer="ok", action="answer", evidence_status="sufficient"))
         _, llm = self.run_answer([route(), '{"queries":["query"]}', valid])
+        self.assertEqual(llm.call_args_list[0].args[1]["num_ctx"], 8192)
+        self.assertEqual(llm.call_args_list[0].args[1]["num_predict"], 128)
         self.assertEqual(llm.call_args_list[0].args[1]["min_new_tokens"], 8)
         self.assertEqual(llm.call_args_list[1].args[1]["num_predict"], 128)
         self.assertEqual(llm.call_args_list[1].args[1]["min_new_tokens"], 8)
         self.assertEqual(llm.call_args_list[2].args[1]["min_new_tokens"], 8)
+
+    def test_router_uses_configured_budget_without_changing_generation_budget(self):
+        self.settings.update({"routing_num_ctx": 6000, "routing_num_predict": 96})
+        valid = json.dumps(dict(answer="ok", action="answer", evidence_status="sufficient"))
+        _, llm = self.run_answer([route(), valid])
+        routing_settings = llm.call_args_list[0].args[1]
+        generation_settings = llm.call_args_list[1].args[1]
+        self.assertEqual((routing_settings["num_ctx"], routing_settings["num_predict"]), (6000, 96))
+        self.assertEqual((generation_settings["num_ctx"], generation_settings["num_predict"]), (8192, 512))
+
+    def test_router_defaults_to_smaller_budget_for_legacy_settings(self):
+        self.settings.pop("routing_num_ctx")
+        self.settings.pop("routing_num_predict")
+        valid = json.dumps(dict(answer="ok", action="answer", evidence_status="sufficient"))
+        _, llm = self.run_answer([route(), valid])
+        routing_settings = llm.call_args_list[0].args[1]
+        self.assertEqual((routing_settings["num_ctx"], routing_settings["num_predict"]), (4096, 128))
 
     def test_empty_retry_does_not_waste_a_third_generation(self):
         with self.assertRaises(StructuredAnswerError) as caught:
@@ -327,24 +385,12 @@ class RoutingTests(unittest.TestCase):
                 answer_question("x" * 10000, self.retriever, Tokenizer(), self.settings)
         llm.assert_not_called()
 
-    def test_clarification_is_successful_turn_and_v4_keeps_diagnostics(self):
-        qs = [dict(id=str(i), question=q, conversation_id="cv", turn_index=i, history=[])
-              for i, q in enumerate(["Còn lệ phí?", "Cấp hộ chiếu"], 1)]
-        responses = [route("ambiguous", query="", clarification="Bạn hỏi thủ tục nào?"),
-                     route("follow_up"),
-                     json.dumps(dict(answer="0 đồng", action="answer", evidence_status="sufficient"))]
-        with tempfile.TemporaryDirectory() as root, patch(
-                "vigovbot.rag.pipeline.ollama_answer", side_effect=[(r, {}, .1) for r in responses]) as llm:
-            def answer(q, history):
-                return answer_question(q, self.retriever, Tokenizer(), self.settings, history)
-            summary = evaluate_multiturn(qs, root, {}, answer)
-            rows = read_results(Path(root) / "predictions.jsonl")
-        self.assertEqual(summary["successful"], 2)
-        self.assertEqual(rows[0]["action"], "clarify")
-        self.assertEqual(rows[1]["routing"]["relation"], "follow_up")
-        self.assertEqual(rows[1]["evidence_status"], "sufficient")
-        self.assertIn("Bạn hỏi thủ tục nào?", str(llm.call_args_list[1].args[0]))
-        self.assertEqual(self.retriever.search.call_count, 1)
+    def test_router_budget_uses_routing_context_limit(self):
+        self.settings.update({"routing_num_ctx": 1000, "routing_num_predict": 128})
+        with patch("vigovbot.rag.pipeline.ollama_answer") as llm:
+            with self.assertRaises(ValueError):
+                answer_question("x" * 800, self.retriever, Tokenizer(), self.settings)
+        llm.assert_not_called()
 
     def test_router_rejects_nonstring_labels(self):
         for key in ("scope", "relation", "query", "clarification"):

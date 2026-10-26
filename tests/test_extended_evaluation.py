@@ -4,27 +4,27 @@ import unittest
 from pathlib import Path
 
 from tests.test_evaluation_v2 import golden, write_jsonl
-from vigovbot.evaluation.v2 import build_record
+from vigovbot.evaluation.records import build_record
 from vigovbot.evaluation.extended import extend_record, load_reviews
 from vigovbot.evaluation.ollama_judge import METRICS, judgment_payload
-from vigovbot.evaluation.review import fingerprint
+from vigovbot.evaluation.provenance import fingerprint
 from vigovbot.evaluation.pairwise import pairwise
 
 
 class ExtendedEvaluationTests(unittest.TestCase):
     def test_resume_does_not_regenerate_cached_answer(self):
-        from vigovbot.evaluation.v2 import run_v2
+        from vigovbot.evaluation.records import capture_predictions
         from unittest.mock import Mock
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_jsonl(root / "test_golden.jsonl", [golden()])
             send = Mock(return_value={"results": [{"model_id": "qwen-base", "answer": "cached"}]})
             args = dict(dataset=root, split="test", architecture="base", output=root / "p.jsonl", post_json=send)
-            run_v2(**args)
-            run_v2(**args, resume=True)
+            capture_predictions(**args)
+            capture_predictions(**args, resume=True)
             self.assertEqual(send.call_count, 1)
             with self.assertRaises(ValueError):
-                run_v2(**args, resume=True, complete_trace=True)
+                capture_predictions(**args, resume=True, complete_trace=True)
     def test_subquery_coverage_and_review_scores(self):
         g = golden()
         g["ground_truth"].update(ground_truth_sub_queries=["Lệ phí?"], sub_query_context_mapping={"Lệ phí?": ["chunk-1"]})

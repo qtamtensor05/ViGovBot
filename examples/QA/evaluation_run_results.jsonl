@@ -1,10 +1,10 @@
 {
-  "run_id": "<String> Mã định danh của đợt chạy thử nghiệm (VD: RUN_20261017_QLoRA_RAG_v1)",
+  "run_id": "<String> Mã định danh của đợt chạy thử nghiệm (VD: RUN_20261017_RAG_BASE_v1)",
   "test_id": "<String> Mã định danh của test case dùng để JOIN với File 1 (VD: TC_0001)",
 
   "system_execution_output": {
     "model_config": {
-      "architecture_type": "<Enum: 'Base_Model' | 'FineTuned_Only' | 'RAG_Base' | 'RAG_FineTuned'> Kiến trúc hệ thống đang được chạy kiểm thử",
+      "architecture_type": "<Enum: 'Base_Model' | 'FineTuned_Only' | 'RAG_Base'> Kiến trúc hệ thống đang được chạy kiểm thử",
       "model_name": "<String> Tên và phiên bản mô hình hoặc checkpoint LoRA/QLoRA đang chạy",
       "top_k": "<Integer> Số lượng chunk tối đa lấy ra từ bước Retrieval (bằng 0 nếu không dùng RAG)"
     },

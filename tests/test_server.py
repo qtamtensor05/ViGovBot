@@ -23,7 +23,8 @@ class WebChatTests(unittest.TestCase):
         result = {
             "prediction": "Hồ sơ gồm hai giấy tờ.",
             "action": "answer",
-            "retrieved": [{"source_code": "TTHC-01"}],
+            "retrieved": [{"source_code": "TTHC-01", "chunk_id": "c1", "rerank_rank": 1,
+                           "reranker_score": 0.9, "text_content": "Nội dung nguồn"}],
             "latency_s": 1.25,
             "raw_ollama": {"private": True},
         }
@@ -37,11 +38,25 @@ class WebChatTests(unittest.TestCase):
             })
         self.assertEqual(response["results"][0]["answer"], result["prediction"])
         self.assertNotIn("raw_ollama", response["results"][0])
+        self.assertEqual(response["results"][0]["sources"], result["retrieved"])
         answer.assert_called_once_with(
             "Cần giấy tờ gì?", "retriever", "tokenizer",
             {"top_k": 5, "model": "qwen", "provider": "ollama", "api_key_env": None, "ollama_url": "http://localhost:11434"},
             history=history, answer_fn=unittest.mock.ANY,
         )
+
+    def test_generation_failure_does_not_log_source_or_rejected_output(self):
+        from vigovbot.rag.routing import StructuredAnswerError
+        canary = 'PRIVATE_SYNTHETIC_SOURCE_CANARY'
+        error = StructuredAnswerError({'attempts': 2, 'initial_text': canary,
+                                       'validation_errors': [canary]})
+        error.__cause__ = ValueError(canary)
+        with patch('vigovbot.server.app.answer_question', side_effect=error):
+            with self.assertLogs('vigovbot.server.app', level='ERROR') as logs:
+                result = self.app.chat({'question': 'test'})
+        self.assertNotIn(canary, str(logs.output))
+        self.assertNotIn(canary, str(result))
+        self.assertEqual(result['status'], 'failed')
 
     def test_chat_rejects_invalid_input(self):
         for payload in (

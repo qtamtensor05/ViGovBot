@@ -3,34 +3,22 @@
 ## Tách pha capture và chấm
 
 Khi cần thu toàn bộ inference trước rồi mới chấm, dùng `run-v2
---complete-trace --resume` cho cả bốn kiến trúc. Với hai kiến trúc RAG, chạy
+--complete-trace --resume` cho ba kiến trúc. Với kiến trúc RAG, chạy
 thêm `noise-v2` ngay trong pha capture; lệnh này chỉ replay các ca có distractor
 đã gán nhãn và resume theo từng ca. Sau đó có thể dừng web/model sinh đáp án và
 chạy `judge-v2`, `score-v2-offline`, `export-v2` hoàn toàn từ prediction đã lưu.
 
-`QLORA_ADAPTER_PATH` áp dụng đồng thời cho `qwen-qlora` và
-`qwen-qlora-rag`; profile sau dùng cùng adapter nhưng giữ retrieval/context của
-RAG. Ví dụ capture QLoRA + RAG:
-
-```bash
-vigov eva run-v2 --architecture rag_finetuned --model-id qwen-qlora-rag \
-  --split test --complete-trace --resume \
-  --out outputs/evaluation_v2/qlora-rag/predictions.jsonl
-vigov eva noise-v2 --model-id qwen-qlora-rag --split test \
-  --predictions outputs/evaluation_v2/qlora-rag/predictions.jsonl \
-  --out outputs/evaluation_v2/qlora-rag/noise-predictions.jsonl
-```
-
-Sau khi judge hai file sạch/nhiễu, tổng hợp robustness hoàn toàn offline:
+`QLORA_ADAPTER_PATH` áp dụng cho profile `qwen-qlora` độc lập. Với RAG Base,
+sau khi judge hai file sạch/nhiễu có thể tổng hợp robustness hoàn toàn offline:
 
 ```bash
 vigov eva judge-v2 --judge-model qwen2.5:7b --split test --resume --allow-partial \
-  --predictions outputs/evaluation_v2/qlora-rag/noise-predictions.jsonl \
-  --out outputs/evaluation_v2/qlora-rag/noise-judgments.jsonl
+  --predictions outputs/evaluation_v2/rag-base/noise-predictions.jsonl \
+  --out outputs/evaluation_v2/rag-base/noise-judgments.jsonl
 vigov eva score-noise-v2 \
-  --judgments outputs/evaluation_v2/qlora-rag/judgments.jsonl \
-  --other-predictions outputs/evaluation_v2/qlora-rag/noise-judgments.jsonl \
-  --out outputs/evaluation_v2/qlora-rag/noise-score.json
+  --judgments outputs/evaluation_v2/rag-base/judgments.jsonl \
+  --other-predictions outputs/evaluation_v2/rag-base/noise-judgments.jsonl \
+  --out outputs/evaluation_v2/rag-base/noise-score.json
 ```
 
 ## Một lệnh tự động, human riêng

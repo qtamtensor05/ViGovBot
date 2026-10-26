@@ -1,1 +1,1 @@
-"""Unified evaluation, QA-v4 benchmarking and model comparison for ViGovBot."""
+"""Golden dataset evaluation and model comparison for ViGovBot."""

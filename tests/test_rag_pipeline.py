@@ -9,7 +9,6 @@ import sqlite3
 import tempfile
 import threading
 import unittest
-import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,12 +20,10 @@ except ModuleNotFoundError as exc:
 
 try:
     from vigovbot.vectordb.vector_store import prepare_corpus
-    from vigovbot.evaluation.dataset import load_cases
-    from vigovbot.evaluation.runner import evaluate_cases
     from vigovbot.retrieval.retriever import Retriever
     from vigovbot.prompts.prompt_templates import build_messages
     from vigovbot.llm.llm_client import ollama_answer
-    from vigovbot.utils.helpers import read_results, append_result, ensure_run
+    from vigovbot.utils.helpers import read_results, append_result
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 
@@ -75,24 +72,6 @@ class PipelineTests(unittest.TestCase):
             json.dumps(records, ensure_ascii=False), encoding="utf-8"
         )
 
-    def test_stream_zip_and_id_alignment(self):
-        archive = self.root / "unified.zip"
-        with zipfile.ZipFile(archive, "w") as zf:
-            for path in self.source.iterdir():
-                zf.write(path, "nested/unified/" + path.name)
-        index_path, database, info = prepare_corpus(archive, self.root / "cache", allow_legacy=True)
-        with sqlite3.connect(database) as connection:
-            rows = connection.execute("SELECT row_id, payload FROM chunks ORDER BY row_id").fetchall()
-        connection.close()
-        self.assertEqual(info["count"], 3)
-        self.assertEqual([json.loads(r[1])["chunk_id"] for r in rows], ["chunk_0", "chunk_1", "chunk_2"])
-        self.assertNotIn("parent_section", json.loads(rows[0][1]))
-        self.assertEqual(json.loads(rows[0][1])["procedure_name"], "Thủ tục đất đai")
-        before = database.stat().st_mtime_ns
-        prepare_corpus(archive, self.root / "cache", allow_legacy=True)
-        self.assertEqual(database.stat().st_mtime_ns, before)
-        self.assertTrue(index_path.is_file())
-
     def test_retrieval_normalizes_and_resolves_ids(self):
         index, database, _ = prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
         encoded = []
@@ -111,6 +90,41 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(len(hits), 3)
         self.assertEqual(hits[0]["chunk_id"], "chunk_1")
         self.assertAlmostEqual(hits[0]["score"], 1.0)
+
+    def test_dynamic_metadata_survives_real_cache_and_retrieval(self):
+        self.records = [
+            {'chunk_id': f'manual-{i}', 'text_content': f'Manual {i}',
+             'document_metadata': {'version': 1.5, 'regions': ['north']},
+             'chunk_metadata': {'version': 2, 'active': False}, 'count': 0,
+             'row_id': 999, 'score': -999}
+            for i in range(3)
+        ]
+        self.write_metadata(self.records)
+        index, database, info = prepare_corpus(self.source, self.root / 'cache', allow_legacy=True)
+        class Encoder:
+            def encode(self, texts, **kwargs):
+                vector = np.zeros((1, 1024), dtype=np.float32)
+                vector[0, 0] = 1
+                return vector
+        retriever = Retriever(index, database, Encoder())
+        self.addCleanup(retriever.close)
+        hits = retriever.search('Manual', top_k=3)
+        self.assertEqual(hits[0]['document_metadata']['version'], 1.5)
+        self.assertIs(hits[0]['chunk_metadata']['active'], False)
+        self.assertEqual(hits[0]['count'], 0)
+        self.assertEqual(hits[0]['row_id'], 0)
+        self.assertAlmostEqual(hits[0]['score'], 1.0)
+        self.assertNotIn('source_code', hits[0])
+        self.assertEqual(info['version'], 2)
+
+    def test_cache_upgrade_does_not_overwrite_legacy_cache(self):
+        with patch('vigovbot.vectordb.vector_store.CACHE_VERSION', 1):
+            _, old_db, _ = prepare_corpus(self.source, self.root / 'cache', allow_legacy=True)
+        before = old_db.read_bytes()
+        _, new_db, info = prepare_corpus(self.source, self.root / 'cache', allow_legacy=True)
+        self.assertNotEqual(old_db, new_db)
+        self.assertEqual(old_db.read_bytes(), before)
+        self.assertEqual(info['version'], 2)
 
     def test_exact_source_code_limits_candidates_before_semantic_ranking(self):
         self.records[0]["source_code"] = "1.116222"
@@ -215,62 +229,18 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             prepare_corpus(self.source, self.root / "cache", allow_legacy=True)
 
-    def test_ambiguous_zip_rejected(self):
-        archive = self.root / "bad.zip"
-        with zipfile.ZipFile(archive, "w") as zf:
-            zf.writestr("a/dataset.jsonl", json.dumps(qa(1)))
-            zf.writestr("b/dataset.jsonl", json.dumps(qa(2)))
-        with self.assertRaises(ValueError):
-            load_cases(None, archive)
-
-    def test_nested_qa_zip_and_actual_dataset(self):
-        archive = self.root / "qa_test.zip"
-        with zipfile.ZipFile(archive, "w") as zf:
-            zf.writestr("qa_test/dataset.jsonl", "\n".join(json.dumps(qa(i)) for i in range(2)))
-        self.assertEqual(len(load_cases(None, archive)), 2)
-        actual = Path(__file__).resolve().parents[1] / "Data/qa_test/dataset.jsonl"
-        if actual.exists():
-            self.assertEqual(len(load_cases(actual)), 570)
-
     def test_prompt_budget_and_used_context(self):
         hits = [{**chunk(i), "row_id": i, "score": 1.0, "text_content": "Nội dung dài " * 500} for i in range(3)]
-        messages, used, count = build_messages("Câu hỏi", hits, CharacterTokenizer(overhead=10), 2048, 512, 400)
-        self.assertLessEqual(count, 2048 - 512 - 256)
+        tokenizer = CharacterTokenizer(overhead=10)
+        _, _, overhead = build_messages("Câu hỏi", [], tokenizer, 8192, 512, 400)
+        num_ctx = overhead + 512 + 256 + 700
+        messages, used, count = build_messages("Câu hỏi", hits, tokenizer, num_ctx, 512, 400)
+        self.assertLessEqual(count, num_ctx - 512 - 256)
         self.assertGreater(len(used), 0)
         self.assertTrue(all(len(h["included_text"]) <= 400 for h in used))
         self.assertTrue(all(h["included_text"] in messages[1]["content"] for h in used))
         with self.assertRaises(ValueError):
-            build_messages("x" * 10000, hits, CharacterTokenizer(overhead=10), 2048, 512, 400)
-
-    def test_resume_and_no_ground_truth_leakage(self):
-        output = self.root / "results"
-        config = {"settings": {"model": "qwen2.5:7b"}}
-        received = []
-
-        def answer(question):
-            received.append(question)
-            return {"prediction": "Trả lời"}
-
-        cases = [qa(0), qa(1)]
-        rows = evaluate_cases(cases, output, config, answer)
-        self.assertEqual(received, ["Câu hỏi 0", "Câu hỏi 1"])
-        self.assertEqual(len(rows), 2)
-        evaluate_cases(cases, output, config, answer)
-        self.assertEqual(len(received), 2)
-        with self.assertRaises(ValueError):
-            ensure_run(output, {"settings": {"model": "other"}})
-
-    def test_failures_retried_and_recorded(self):
-        output = self.root / "results"
-        config = {"settings": {"model": "qwen"}}
-
-        def fail(question):
-            raise RuntimeError("test failure")
-
-        self.assertEqual(evaluate_cases([qa(0)], output, config, fail), [])
-        self.assertEqual(len(read_results(output / "errors.jsonl")), 1)
-        rows = evaluate_cases([qa(0)], output, config, lambda q: {"prediction": "OK"})
-        self.assertEqual(len(rows), 1)
+            build_messages("x" * 10000, hits, tokenizer, num_ctx, 512, 400)
 
     def test_partial_tail_recovery_and_missing_newline(self):
         path = self.root / "results.jsonl"
@@ -297,53 +267,22 @@ class PipelineTests(unittest.TestCase):
             "ollama_url": "http://localhost:11434",
             "model": "qwen2.5:7b",
             "temperature": 0,
-            "num_ctx": 2048,
+            "num_ctx": 4096,
             "num_predict": 100,
             "seed": 42,
             "keep_alive": "10m",
             "timeout": 20,
         }
         messages, _, _ = build_messages(
-            "Câu hỏi", [{**chunk(0), "row_id": 0, "score": 1.0}], CharacterTokenizer(overhead=10), 2048, 100
+            "Câu hỏi", [{**chunk(0), "row_id": 0, "score": 1.0}], CharacterTokenizer(overhead=10), 4096, 100
         )
         with patch("requests.post", return_value=Response()) as post:
             answer, _, _ = ollama_answer(messages, settings)
         self.assertEqual(answer, "Trả lời")
         payload = post.call_args.kwargs["json"]
-        self.assertEqual(payload["options"]["num_ctx"], 2048)
+        self.assertEqual(payload["options"]["num_ctx"], 4096)
         self.assertIn("Nội dung 0", payload["messages"][1]["content"])
         self.assertNotIn("ĐÁP ÁN BÍ MẬT", json.dumps(payload, ensure_ascii=False))
-
-    def test_colab_notebooks_clone_and_delegate(self):
-        root = Path(__file__).resolve().parents[1]
-        for relative in (
-            "ipynb/base/lqwen2_5_7B.ipynb",
-            "ipynb/base_rag/lqwen2_5_7B_rag.ipynb",
-            "ipynb/parse_metadata.ipynb",
-            "ipynb/build_corpus.ipynb",
-        ):
-            notebook = json.loads((root / relative).read_text(encoding="utf-8"))
-            code = []
-            for i, cell in enumerate(notebook["cells"]):
-                source = "".join(cell["source"])
-                if cell["cell_type"] == "code":
-                    compile(source, f"{relative}:{i}", "exec")
-                    code.append(source)
-                    self.assertEqual(cell["outputs"], [])
-            combined = "\n".join(code)
-            self.assertIn('"git", "clone"', combined)
-            self.assertIn('"vigovbot', combined)
-            self.assertIn('REPO_DIR / "src"', combined)
-            self.assertIn('import vigovbot', combined)
-            self.assertIn('"pip", "install"', combined)
-            self.assertNotIn("from src.", combined)
-            self.assertNotIn('"src.rag"', combined)
-            self.assertNotIn("def prepare_corpus(", combined)
-            self.assertNotIn("def evaluate_cases(", combined)
-            if relative == "ipynb/base/lqwen2_5_7B.ipynb":
-                self.assertIn("NO_RETRIEVAL = True", combined)
-                self.assertIn("views_multi_1500.json", combined)
-
 
 if __name__ == "__main__":
     unittest.main()

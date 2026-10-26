@@ -30,8 +30,6 @@ flowchart TD
         M3 --> R3["Dẫn đầu về Văn phong & Độ chuẩn\nBLEU: 55.32 | Token F1: 74.31%\nCER: 0.42 | 43.4 tokens/câu siêu gọn"]
     end
 
-    R2 -.-> Synergy["Chiến Lược Tối Ưu: QLoRA + RAG\n(Văn phong chuẩn QLoRA + Dữ kiện sống RAG)"]
-    R3 -.-> Synergy
 ```
 
 ### Các kết luận khoa học quan trọng nhất:
@@ -174,7 +172,7 @@ flowchart TD
     subgraph QLoRA_SWOT["3. QLoRA Fine-tuning"]
         Q_S["S: BLEU 55.3, F1 74%, siêu ngắn gọn (43 tok), rẻ"]
         Q_W["W: Ghi nhớ tham số hạn chế (Key fact 35.3%)"]
-        Q_O["O: Hợp nhất hoàn hảo với pipeline RAG"]
+        Q_O["O: Tối ưu cho tác vụ độc lập, độ trễ thấp"]
         Q_T["T: Lỗi thời dữ kiện nếu văn bản luật thay đổi"]
     end
 ```
@@ -183,24 +181,11 @@ flowchart TD
 
 ## 6. Khuyến Nghị Chiến Lược & Lộ Trình Triển Khai Hệ Thống (Roadmap)
 
-### 6.1. Hướng đi Tối thượng: Hợp nhất QLoRA + RAG (`qwen-qlora-rag`)
-Từ kết quả thực nghiệm rõ ràng của đợt đánh giá `evaluation_v2`, giải pháp hoàn hảo nhất cho **ViGovBot** không phải là chọn lựa giữa RAG hay Fine-tuning, mà là **kết hợp sức mạnh cộng hưởng của cả hai**:
-- **QLoRA Adapter** đóng vai trò định hình **Văn phong, Cấu trúc câu trả lời và Kỷ luật nghiệp vụ**: giúp câu trả lời ngắn gọn, chuẩn xác, không dư thừa, tuân thủ nghiêm ngặt các quy tắc từ chối khi thiếu dữ kiện.
-- **RAG Pipeline** đóng vai trò cung cấp **Dữ kiện sống, Trích dẫn văn bản và Căn cứ pháp lý tức thời**: giúp bù đắp giới hạn bộ nhớ tham số của QLoRA, loại bỏ hoàn toàn nguy cơ gán nhầm tên thủ tục hoặc số liệu phí.
-
-```mermaid
-flowchart LR
-    User["Người dân hỏi"] --> RAGPipe["Pipeline RAG (ViGovBot)\n- Router\n- Query Rewriter\n- FAISS/BM25 Hybrid"]
-    RAGPipe --> Context["Ngữ cảnh trích đoạn chính xác\n(Top-3 Chunks cô đọng)"]
-    Context --> QLoRAModel["Bộ sinh: Qwen2.5-7B + QLoRA Adapter\n- Văn phong hành chính mẫu mực\n- Trả lời ngắn gọn 40-50 tokens\n- Trích dẫn chuẩn [source_id]"]
-    QLoRAModel --> Citizen["Câu trả lời HOÀN HẢO\n(Chính xác 100% dữ kiện + Văn phong chuẩn mực)"]
-```
-
-### 6.3. Ma trận Lựa chọn Mô hình Triển khai theo Phân khúc Ứng dụng
+### 6.1. Ma trận Lựa chọn Mô hình Triển khai theo Phân khúc Ứng dụng
 
 | Phân cấp Triển khai | Cấu hình Đề xuất | Mục tiêu Tối ưu | Môi trường Phần cứng Phù hợp |
 | :--- | :--- | :--- | :--- |
 | **Tier 1: Hệ thống Biên / Thiết bị nhẹ (Edge / Low-latency Kiosk)** | **QLoRA Fine-tuned (Standalone)** | Tối ưu tốc độ (<3-4s), tiết kiệm RAM, trả lời ngắn gọn các câu hỏi thường gặp phổ biến. | 1 GPU tiêu dùng 12GB - 16GB (RTX 3060, RTX 4060 Ti). |
-| **Tier 2: Cổng Dịch vụ công Trực tuyến (Public Portal ViGovBot)** | **QLoRA + RAG Hybrid Pipeline** | Độ chính xác tuyệt đối, bám sát từng quyết định TTHC mới nhất, văn phong mẫu mực. | 1 GPU máy chủ 24GB - 32GB (Tesla V100, RTX A5000, RTX 4090). |
+| **Tier 2: Cổng Dịch vụ công Trực tuyến (Public Portal ViGovBot)** | **Base + RAG** | Bám sát tài liệu truy hồi, hỗ trợ đối chiếu nguồn và cập nhật corpus độc lập với huấn luyện. | GPU phù hợp với model nền và tải phục vụ thực tế. |
 | **Tier 3: Khai phá & Tra cứu Nội bộ (Legal Research & Audit)** | **Base + RAG (Deep Retrieval)** | Tổng hợp thông tin đa tầng, đối chiếu nhiều văn bản phức tạp, trích xuất toàn văn. | Cụm máy chủ GPU phục vụ nhiều luồng song song. |
 

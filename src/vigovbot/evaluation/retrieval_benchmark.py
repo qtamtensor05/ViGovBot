@@ -15,8 +15,8 @@ from vigovbot.retrieval.retriever import Retriever
 from vigovbot.vectordb.vector_store import prepare_corpus
 
 from .io import read_jsonl
-from .retrieval_metrics import apply_mapping, summarize_retrieval
-from .review import fingerprint
+from .retrieval_metrics import summarize_retrieval
+from .provenance import fingerprint
 
 
 @contextmanager
@@ -44,63 +44,23 @@ def retrieval_session(config):
         retriever.encoder = None
 
 
-def _selected_rows(path, selected_ids, split, limit):
-    rows = [row for row in read_jsonl(path) if row["id"] in selected_ids and (not split or row.get("split") == split)]
-    if not rows:
-        raise ValueError("No retrieval queries selected")
-    return rows[:limit] if limit else rows
-
-
 def _selection(dataset, view, split, limit):
-    from .__main__ import dataset_file
+    from .records import load_golden
 
+    if view:
+        raise ValueError("Golden uses split selection; views are no longer supported")
+    dataset = Path(dataset)
     if dataset.is_file():
-        if view:
-            raise ValueError("A Golden JSONL file cannot be combined with --view")
-        rows = list(read_jsonl(dataset))
-        queries, cases = [], []
-        seen = set()
-        for index, row in enumerate(rows, 1):
-            case_id = row.get("test_id")
-            question = (row.get("input") or {}).get("question")
-            context_ids = (row.get("ground_truth") or {}).get("ground_truth_context_ids")
-            if not isinstance(case_id, str) or not case_id or case_id in seen:
-                raise ValueError(f"Golden row {index}: invalid or duplicate test_id")
-            if not isinstance(question, str) or not question.strip():
-                raise ValueError(f"Golden row {index}: input.question must be nonempty")
-            if not isinstance(context_ids, list) or any(not isinstance(item, str) for item in context_ids):
-                raise ValueError(f"Golden row {index}: ground_truth_context_ids must be a string list")
-            seen.add(case_id)
-            queries.append({"id": case_id, "question": question, "split": split})
-            cases.append({"id": case_id, "split": split,
-                          "evidence": [{"unit_id": item} for item in context_ids]})
-        if limit:
-            queries, cases = queries[:limit], cases[:limit]
-        if not queries:
-            raise ValueError("Golden retrieval file is empty")
-        return dataset, dataset, queries, cases, "golden_context_ids"
-
-    query_path = dataset_file(dataset, "queries", split)
-    case_path = dataset_file(dataset, "cases", split)
-    case_rows = list(read_jsonl(case_path))
-    view_ids = set(json.loads((dataset / view).read_text(encoding="utf-8-sig"))) if view else {
-        row["id"] for row in case_rows
-    }
-    case_ids = {row["id"] for row in case_rows}
-    missing_cases = view_ids - case_ids
-    if missing_cases:
-        raise ValueError(f"View contains IDs missing from cases: {sorted(missing_cases)[:5]}")
-    eligible_ids = {
-        row["id"] for row in case_rows if row["id"] in view_ids and (not split or row.get("split") == split)
-    }
-    queries = _selected_rows(query_path, eligible_ids, split, limit)
-    if len({row["id"] for row in queries}) != len(queries):
-        raise ValueError("Duplicate retrieval query IDs")
-    if len(queries) != len(eligible_ids) and limit is None:
-        raise ValueError("Selected cases and retrieval queries do not have identical coverage")
-    selected_ids = {row["id"] for row in queries}
-    cases = [row for row in case_rows if row["id"] in selected_ids]
-    return query_path, case_path, queries, cases, "reviewed_unit_mapping"
+        if dataset.name != f"{split}_golden.jsonl":
+            raise ValueError("Golden file must match the selected split")
+        dataset = dataset.parent
+    path, rows = load_golden(dataset, split)
+    rows = rows[:limit] if limit else rows
+    queries = [{"id": row["test_id"], "question": row["input"]["question"], "split": split} for row in rows]
+    cases = [{"id": row["test_id"], "split": split,
+              "evidence": [{"unit_id": item} for item in row["ground_truth"]["ground_truth_context_ids"]]}
+             for row in rows]
+    return path, path, queries, cases, "golden_context_ids"
 
 
 def run_retrieval(*, dataset, view, split, config_path, output, top_k, limit=None):
@@ -224,22 +184,6 @@ def score_retrieval(*, dataset, view, split, predictions, unit_map, output, ks, 
                 ],
                 "unit_mapping_status": "direct_golden_chunk_ids",
             })
-    else:
-        if unit_map is None:
-            raise ValueError("QA-v4 retrieval scoring requires --unit-map")
-        mapping = json.loads(unit_map.read_text(encoding="utf-8-sig"))
-        units_path = dataset / "knowledge_units.jsonl"
-        if not units_path.is_file():
-            raise FileNotFoundError(f"Retrieval scoring requires {units_path}")
-        units = {row["unit_id"]: row for row in read_jsonl(units_path)}
-        for chunk_id, entry in mapping.get("chunks", {}).items():
-            if entry.get("status") != "reviewed":
-                continue
-            for unit_id in entry.get("unit_ids", []):
-                unit = units.get(unit_id)
-                if unit is None or unit.get("source_sha256") != entry.get("source_sha256"):
-                    raise ValueError(f"Mapping unit/source mismatch: {chunk_id} -> {unit_id}")
-        mapped = apply_mapping(prediction_rows, mapping)
     per_k = {}
     per_case = {}
     for k in normalized_ks:

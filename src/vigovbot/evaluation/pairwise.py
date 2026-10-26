@@ -1,8 +1,8 @@
 """Blind, hash-bound human pairwise review packets and explicit tie accounting."""
 import json
-from .review import fingerprint
+from .provenance import fingerprint
 from .io import read_jsonl
-from .v2 import load_golden, load_predictions
+from .records import load_golden, load_predictions
 
 
 def pairwise(*, dataset, split, predictions, other, output, judgments=None):
