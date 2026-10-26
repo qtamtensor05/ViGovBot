@@ -28,7 +28,7 @@ class RoutingTests(unittest.TestCase):
         defaults = RAGConfig.model_validate({"data": data}).inference_settings()
         self.assertEqual((defaults["routing_num_ctx"], defaults["routing_num_predict"]), (4096, 128))
         self.assertEqual(defaults["routing_backend"], "llm")
-        for name in ("inference.yaml", "inference-docker.yaml"):
+        for name in ("inference.yaml", "inference-docker.yaml", "inference-docker-ollama.yaml"):
             settings = load_config(Path("configs/rag") / name).inference_settings()
             self.assertEqual((settings["routing_num_ctx"], settings["routing_num_predict"]), (4096, 128))
         with self.assertRaises(ValueError):

@@ -1,5 +1,45 @@
 # Thay đổi hệ thống
 
+## Tách image web CPU và QLoRA GPU - 2026-10-27
+
+### Mục tiêu
+
+Giảm dung lượng runtime Docker mặc định và tránh mang dependency CUDA,
+training khi chỉ chạy Base/RAG qua Ollama.
+
+### Thực hiện
+
+- Tách target web CPU và target QLoRA GPU, config và profile Compose tương ứng.
+- Sinh lock CPU bằng resolver và giữ volume model/cache hiện có.
+
+### Kết quả
+
+Đã hoàn tất. Image mặc định giảm từ 12,8 GB xuống 2,03 GB, không
+chứa CUDA/PEFT/bitsandbytes; Base và RAG streaming đều trả `success` trên
+container healthy. Image GPU 12,8 GB giữ riêng QLoRA và đã xác nhận RTX 4050,
+CUDA 12.8, PEFT/bitsandbytes. Đã thu hồi 32,01 GB BuildKit cache, không xóa
+image runtime hay volume model/cache. Toàn bộ 249 test, Ruff, compileall,
+Compose default/GPU và `git diff --check` đều đạt; 22 test tùy chọn bị skip.
+
+## Streaming phản hồi LLM trên web - 2026-10-27
+
+### Mục tiêu
+
+Hiển thị phản hồi dần theo quá trình sinh token thay vì chờ toàn bộ văn bản.
+
+### Thực hiện
+
+- Bổ sung luồng streaming từ provider qua API đến giao diện web.
+- Giữ nguyên hợp đồng `/api/chat` cho evaluation và client hiện có.
+
+### Kết quả
+
+Đã triển khai streaming qua Ollama, OpenAI-compatible và Transformers cục bộ;
+web hiển thị token ngay khi nhận. Đã kiểm chứng 249 test, Ruff, compileall,
+`git diff --check`, build/recreate container và API `qwen-base` thật. Lần gọi đã warm
+phát token đầu sau 0,300 giây, hoàn tất sau 0,486 giây với 4 sự kiện token;
+22 test dependency tùy chọn bị skip. Chưa thao tác xác minh trên trình duyệt thật.
+
 ## Intent classifier cho routing - 2026-10-27
 
 ### Mục tiêu

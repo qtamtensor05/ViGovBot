@@ -56,6 +56,7 @@ def load_model(base_model: str, adapter_path: str | None = None, quantized: bool
 def local_transformers_answer(messages, settings):
     import time
     import torch
+    from transformers import TextIteratorStreamer
     key = (settings["model"], settings.get("adapter_path"), bool(settings.get("load_in_4bit", True)),
            bool(settings.get("cpu_offload", False)), settings.get("gpu_memory_gib"),
            settings.get("cpu_memory_gib"), bool(settings.get("force_single_gpu", False)))
@@ -77,6 +78,7 @@ def local_transformers_answer(messages, settings):
             prompt_length = model_inputs["input_ids"].shape[-1]
         started = time.perf_counter()
         measure = settings.get("measure_ttft", False)
+        token_callback = settings.get("token_callback")
         class FirstToken:
             def __init__(self):
                 self.prompt = True
@@ -92,12 +94,36 @@ def local_transformers_answer(messages, settings):
         devices = list(range(torch.cuda.device_count())) if measure and torch.cuda.is_available() else []
         for device in devices:
             torch.cuda.reset_peak_memory_stats(device)
-        with torch.inference_mode():
-            output = model.generate(**model_inputs, max_new_tokens=settings["num_predict"],
-                                    min_new_tokens=settings.get("min_new_tokens", 0),
-                                    temperature=settings.get("temperature", 0.0),
-                                    do_sample=settings.get("temperature", 0.0) > 0,
-                                    **({"streamer": first} if measure else {}))
+        generate_kwargs = dict(
+            **model_inputs, max_new_tokens=settings["num_predict"],
+            min_new_tokens=settings.get("min_new_tokens", 0),
+            temperature=settings.get("temperature", 0.0),
+            do_sample=settings.get("temperature", 0.0) > 0,
+        )
+        if token_callback:
+            streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+            generated, failure = {}, {}
+            def run_generation():
+                try:
+                    with torch.inference_mode():
+                        generated["output"] = model.generate(**generate_kwargs, streamer=streamer)
+                except BaseException as exc:  # propagated after the stream closes
+                    failure["error"] = exc
+                    streamer.end()
+            worker = threading.Thread(target=run_generation, daemon=True)
+            worker.start()
+            for text in streamer:
+                if text:
+                    if first.seconds is None:
+                        first.seconds = time.perf_counter() - started
+                    token_callback(text)
+            worker.join()
+            if failure:
+                raise failure["error"]
+            output = generated["output"]
+        else:
+            with torch.inference_mode():
+                output = model.generate(**generate_kwargs, **({"streamer": first} if measure else {}))
         answer = tokenizer.decode(output[0, prompt_length:], skip_special_tokens=True).strip()
         elapsed = time.perf_counter() - started
         raw = {"provider": "local_transformers", "adapter_path": settings.get("adapter_path"),

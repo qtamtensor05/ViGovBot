@@ -1,0 +1,36 @@
+data:
+  unified_source: ../../Data/vector/unified
+  cache_dir: ../../outputs/rag_cache
+  allow_legacy_corpus: false
+embedding:
+  model: BAAI/bge-m3
+  revision: null
+  device: cpu
+llm:
+  model: qwen2.5:7b
+  ollama_url: &ollama_url http://ollama:11434
+  routing_num_ctx: 4096
+  routing_num_predict: 128
+retrieval:
+  top_k: 5
+  max_chunk_tokens: 1200
+  max_metadata_tokens: 256
+conversation:
+  routing_backend: llm
+  routing_model_path: ../../outputs/routing/intent-router.bin
+  routing_metadata_path: ../../outputs/routing/intent-router.metadata.json
+web:
+  debug_routing: false
+  models:
+    - id: qwen-base
+      label: Qwen 2.5 7B - Base (không RAG)
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: *ollama_url
+      mode: base
+    - id: qwen-rag
+      label: Qwen 2.5 7B + RAG
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: *ollama_url
+      mode: rag

@@ -8,7 +8,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 ## Thực hiện
 
 - Source chính đặt tại `src/vigovbot/`; CLI công khai là `vigov`.
-- Docker vận hành Web và Ollama, dùng cache model/RAG bền vững.
+- Docker mặc định chạy web Base/RAG bằng Torch CPU và Ollama; QLoRA cục bộ
+  nằm trong service/profile `web-gpu` tùy chọn. Cả hai dùng cache model/RAG bền vững.
 - RAG hỗ trợ exact-match mã/tên thủ tục, ưu tiên loại mục và đưa trực tiếp top 5
   kết quả retrieval vào LLM, không rerank trong runtime online.
 - Evidence quá ngân sách được rút gọn theo hàng/field/phần tử hoàn chỉnh; không
@@ -20,6 +21,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   hybrid chuyển các trường hợp còn lại về Qwen.
 - QLoRA dùng adapter đã huấn luyện; RAG vẫn là nguồn căn cứ cho nội dung hiện hành.
 - Evaluation v2 tách prediction, scoring, judge và export; Golden SFT tách train/validation.
+- Web dùng `/api/chat/stream` để hiển thị token dần theo quá trình sinh; endpoint
+  `/api/chat` cũ vẫn giữ nguyên cho evaluation và client hiện có.
 
 ## Kết quả
 
@@ -33,3 +36,9 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   latency A/B classifier chưa được đo trên dataset routing độc lập.
 - Image Docker có FastText CPU đã build thành công. Chưa có artifact đạt quality
   gate hoặc benchmark API `llm`/`fasttext`/`hybrid`, nên chưa bật hybrid mặc định.
+- Streaming đã qua kiểm thử provider/API/UI giả lập và container thật. API
+  `qwen-base` đã phát 4 sự kiện token, TTFT warm 0,300 giây và hoàn tất
+  sau 0,486 giây; chưa thao tác xác minh trên trình duyệt thật.
+- Image web mặc định là 2,03 GB và không chứa CUDA; Base/RAG streaming đã
+  trả `success`. Image GPU 12,8 GB giữ riêng QLoRA, đã nhận RTX 4050/CUDA 12.8.
+  BuildKit cache hiện 0 B sau khi thu hồi 32,01 GB; các volume model/RAG được giữ nguyên.

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 try:
-    from vigovbot.server.app import ChatApplication
+    from vigovbot.server.app import ChatApplication, _AnswerTokenExtractor
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 
@@ -44,6 +44,28 @@ class WebChatTests(unittest.TestCase):
             {"top_k": 5, "model": "qwen", "provider": "ollama", "api_key_env": None, "ollama_url": "http://localhost:11434"},
             history=history, answer_fn=unittest.mock.ANY,
         )
+
+    def test_stream_events_expose_tokens_and_final_result(self):
+        self.app.models["local"].mode = "base"
+        events = []
+        def answer(messages, settings):
+            settings["token_callback"]("Hồ sơ ")
+            settings["token_callback"]("gồm hai giấy.")
+            return "Hồ sơ gồm hai giấy.", {}, 0.2
+        with patch("vigovbot.server.app.answerer_for", return_value=answer):
+            response = self.app.chat({"question": "Cần gì?"}, event_callback=events.append)
+        self.assertEqual(response["status"], "success")
+        self.assertEqual([event["type"] for event in events],
+                         ["model_start", "token", "token", "model_result"])
+        self.assertEqual("".join(event["text"] for event in events if event["type"] == "token"),
+                         response["results"][0]["answer"])
+
+    def test_structured_answer_extractor_decodes_split_json_string(self):
+        parts = []
+        extractor = _AnswerTokenExtractor(parts.append)
+        for chunk in ('{"action":"answer","ans', 'wer":"Dòng 1\\nHồ s', 'ơ \\u0111ầy \\"x\\"","evidence_status":"sufficient"}'):
+            extractor.feed(chunk)
+        self.assertEqual("".join(parts), 'Dòng 1\nHồ sơ đầy "x"')
 
     def test_generation_failure_does_not_log_source_or_rejected_output(self):
         from vigovbot.rag.routing import StructuredAnswerError

@@ -25,12 +25,14 @@ def ollama_answer(messages, settings):
     import requests
 
     started = time.perf_counter()
+    token_callback = settings.get("token_callback")
+    streaming = bool(settings.get("measure_ttft", False) or token_callback)
     response = requests.post(
         settings["ollama_url"].rstrip("/") + "/api/chat",
         json={
             "model": settings["model"],
             "messages": messages,
-            "stream": bool(settings.get("measure_ttft", False)),
+            "stream": streaming,
             **({"format": settings["response_format"]} if settings.get("response_format") else {}),
             "options": {
                 "temperature": settings["temperature"],
@@ -41,10 +43,10 @@ def ollama_answer(messages, settings):
             "keep_alive": settings["keep_alive"],
         },
         timeout=settings["timeout"],
-        stream=bool(settings.get("measure_ttft", False)),
+        stream=streaming,
     )
     response.raise_for_status()
-    if settings.get("measure_ttft", False):
+    if streaming:
         parts, raw, ttft = [], {}, None
         try:
             for line in response.iter_lines():
@@ -57,6 +59,8 @@ def ollama_answer(messages, settings):
                 if content and ttft is None:
                     ttft = time.perf_counter() - started
                 parts.append(content)
+                if content and token_callback:
+                    token_callback(content)
                 if event.get("done"):
                     raw = event
             if not raw:

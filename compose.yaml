@@ -45,6 +45,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: web-ollama
     restart: unless-stopped
     depends_on:
       ollama:
@@ -55,6 +56,30 @@ services:
       - "127.0.0.1:${VIGOVBOT_WEB_PORT:-8001}:8000"
     environment:
       PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:ro
+      - ./configs:/app/configs:ro
+      - ./Data/vector/unified:/app/Data/vector/unified:ro
+      - rag-cache:/app/outputs/rag_cache
+      - ./outputs/routing:/app/outputs/routing:ro
+      - huggingface-cache:/var/cache/huggingface
+
+  web-gpu:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web-gpu
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-model-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${VIGOVBOT_GPU_WEB_PORT:-8002}:8000"
+    environment:
+      PYTHONPATH: /app/src
       QLORA_ADAPTER_PATH: /app/models/qlora
     volumes:
       - ./src:/app/src:ro
@@ -63,7 +88,7 @@ services:
       - rag-cache:/app/outputs/rag_cache
       - ./outputs/routing:/app/outputs/routing:ro
       - type: bind
-        source: ${QLORA_ADAPTER_PATH:?Set QLORA_ADAPTER_PATH to an existing adapter directory in .env}
+        source: ${QLORA_ADAPTER_PATH:-./outputs/qlora/best_adapter}
         target: /app/models/qlora
         read_only: true
         bind:

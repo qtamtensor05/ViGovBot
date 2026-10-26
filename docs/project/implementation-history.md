@@ -1,5 +1,43 @@
 # Lịch sử thay đổi hệ thống
 
+## Tách image web CPU và QLoRA GPU - 2026-10-27
+
+### Mục tiêu
+
+Giảm dung lượng web thường ngày và chỉ mang CUDA khi chạy QLoRA cục bộ.
+
+### Thực hiện
+
+- Tách Docker target `web-ollama` dùng Torch CPU và `web-gpu` dùng CUDA.
+- Tách config Base/RAG mặc định và service QLoRA thuộc profile `gpu`.
+- Sinh lock CPU bằng resolver; giữ nguyên volume Ollama, Hugging Face và RAG.
+
+### Kết quả
+
+Image mặc định giảm 12,8 GB xuống 2,03 GB; Base/RAG streaming trả
+`success`. Image GPU 12,8 GB xác nhận RTX 4050, CUDA 12.8, PEFT và
+bitsandbytes. Đã thu hồi 32,01 GB BuildKit cache. 249 test, Ruff, compileall,
+Compose default/GPU và `git diff --check` đạt; 22 test tùy chọn bị skip.
+
+## Streaming phản hồi LLM trên web - 2026-10-27
+
+### Mục tiêu
+
+Giảm cảm giác chờ bằng cách hiển thị phản hồi ngay trong quá trình model sinh.
+
+### Thực hiện
+
+- Bổ sung callback token cho Ollama, OpenAI-compatible và Transformers cục bộ.
+- Thêm `/api/chat/stream` dạng NDJSON và cập nhật từng thẻ model trên web.
+- Giữ `/api/chat` và payload kết quả cuối cùng tương thích ngược.
+
+### Kết quả
+
+249 test, Ruff, compileall và `git diff --check` đạt; 22 test dependency tùy chọn
+bị skip. Image web đã build, container healthy; API `qwen-base` thật phát 4 sự
+kiện token, TTFT warm 0,300 giây và hoàn tất sau 0,486 giây. Chưa thao tác
+xác minh trên trình duyệt thật.
+
 ## Intent classifier FastText/hybrid - 2026-10-27
 
 ### Mục tiêu

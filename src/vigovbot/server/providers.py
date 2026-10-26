@@ -29,7 +29,7 @@ def openai_compatible_answer(messages, settings):
     payload = {
         "model": settings["model"],
         "messages": messages,
-        "stream": False,
+        "stream": bool(settings.get("token_callback")),
         "temperature": settings["temperature"],
         "max_tokens": settings["num_predict"],
         "seed": settings["seed"],
@@ -56,11 +56,33 @@ def openai_compatible_answer(messages, settings):
         headers=headers,
         json=payload,
         timeout=settings["timeout"],
+        stream=bool(settings.get("token_callback")),
     )
     response.raise_for_status()
-    raw = response.json()
-    choices = raw.get("choices") or []
-    answer = choices[0].get("message", {}).get("content", "").strip() if choices else ""
+    token_callback = settings.get("token_callback")
+    if token_callback:
+        parts, raw = [], {}
+        try:
+            for line in response.iter_lines(decode_unicode=True):
+                if not line or not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                event = json.loads(data)
+                choices = event.get("choices") or []
+                content = choices[0].get("delta", {}).get("content", "") if choices else ""
+                if content:
+                    parts.append(content)
+                    token_callback(content)
+                raw = event
+        finally:
+            response.close()
+        answer = "".join(parts).strip()
+    else:
+        raw = response.json()
+        choices = raw.get("choices") or []
+        answer = choices[0].get("message", {}).get("content", "").strip() if choices else ""
     if not answer:
         raise RuntimeError(f"API model không trả lời hợp lệ: {raw}")
     if isinstance(settings.get("response_format"), dict):

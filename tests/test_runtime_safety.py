@@ -82,6 +82,13 @@ class RuntimeSafetyTests(unittest.TestCase):
                     self.assertEqual(response.json()["status"], state)
                     self.assertIn("application/json", response.headers["Content-Type"])
                 self.assertEqual(requests.post(url + "/api/chat", json={}, timeout=5).status_code, 400)
+                streamed = requests.post(url + "/api/chat/stream",
+                                         json={"question": "test", "models": ["good"]}, timeout=5)
+                self.assertEqual(streamed.status_code, 200)
+                events = [json.loads(line) for line in streamed.text.splitlines()]
+                self.assertEqual([event["type"] for event in events],
+                                 ["model_start", "model_result", "complete"])
+                self.assertEqual(events[-1]["status"], "success")
                 with app._lock:
                     self.assertEqual(requests.get(url + "/api/health", timeout=5).status_code, 200)
         finally:

@@ -241,8 +241,8 @@ Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không
 Với corpus đã có trên host và được mount vào container:
 
 ```powershell
-docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker.yaml
-docker compose exec -T web vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?" --config configs/rag/inference-docker.yaml
+docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker-ollama.yaml
+docker compose exec -T web vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?" --config configs/rag/inference-docker-ollama.yaml
 ```
 
 `prepare` chỉ chuẩn bị corpus/cache, chưa gọi LLM; `ask` cũng tự kiểm tra cache
@@ -254,7 +254,7 @@ trước khi truy vấn. Cấu hình Docker gọi Ollama bằng tên service
 
 ```powershell
 docker compose cp history.json web:/tmp/history.json
-docker compose exec -T web vigov ask "Còn lệ phí thì sao?" --history /tmp/history.json --config configs/rag/inference-docker.yaml
+docker compose exec -T web vigov ask "Còn lệ phí thì sao?" --history /tmp/history.json --config configs/rag/inference-docker-ollama.yaml
 ```
 
 CLI không tự lưu lịch sử giữa hai lần chạy; ứng dụng gọi phải giữ và gửi lại đúng
