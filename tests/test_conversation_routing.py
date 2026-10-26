@@ -108,31 +108,24 @@ class RoutingTests(unittest.TestCase):
         self.assertNotIn("OLD_CLAIM", str(llm.call_args_list[1].args[0]))
         self.assertEqual(result["evidence_status"], "missing")
 
-    def test_online_reranker_fetches_candidates_then_limits_context(self):
-        self.settings.update({
-            "top_k": 3,
-            "candidate_top_k": 20,
-            "reranker": {"enabled": True},
-        })
+    def test_top_five_retrieval_hits_are_sent_directly_to_context(self):
+        self.settings["top_k"] = 5
         self.retriever.search.return_value = [
             dict(row_id=i, chunk_id=f"c{i}", score=1 / i, source_file="a.pdf",
                  source_code="1", section_type="fees", text_content=f"Nội dung {i}")
             for i in range(1, 6)
         ]
 
-        def rerank(_question, hits, _settings):
-            return list(reversed(hits))[:3]
-
-        with patch("vigovbot.retrieval.reranker.rerank_hits", side_effect=rerank):
-            result, _ = self.run_answer([
-                route(),
-                json.dumps(dict(answer="Đủ bằng chứng", action="answer", evidence_status="sufficient")),
-            ])
-        self.retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", 20)
-        self.assertEqual(result["retrieval_candidate_top_k"], 20)
-        self.assertEqual(result["retrieval_top_k"], 3)
-        self.assertEqual([item["chunk_id"] for item in result["context_used"]], ["c5", "c4", "c3"])
-        self.assertGreaterEqual(result["rerank_s"], 0)
+        result, _ = self.run_answer([
+            route(),
+            json.dumps(dict(answer="Đủ bằng chứng", action="answer", evidence_status="sufficient")),
+        ])
+        self.retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", 5)
+        self.assertEqual(result["retrieval_candidate_top_k"], 5)
+        self.assertEqual(result["retrieval_top_k"], 5)
+        self.assertEqual([item["chunk_id"] for item in result["context_used"]],
+                         ["c1", "c2", "c3", "c4", "c5"])
+        self.assertEqual(result["rerank_s"], 0.0)
 
     def test_invalid_sub_query_json_falls_back_to_original_query(self):
         self.settings["decompose_queries"] = True

@@ -48,29 +48,10 @@ class LLMConfig(StrictModel):
         return self
 
 
-class RerankerConfig(StrictModel):
-    enabled: bool = False
-    model: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
-    device: str = Field(default="cpu", pattern=r"^(cpu|cuda)$")
-    batch_size: int = Field(default=20, gt=0)
-    max_length: int = Field(default=512, gt=0)
-
-
 class RetrievalConfig(StrictModel):
     top_k: int = Field(default=5, gt=0)
-    candidate_top_k: int | None = Field(default=None, gt=0)
     max_chunk_tokens: int = Field(default=1200, gt=0)
     max_metadata_tokens: int = Field(default=256, gt=0)
-    reranker: RerankerConfig = Field(default_factory=RerankerConfig)
-
-    @model_validator(mode="after")
-    def check_reranker_depth(self):
-        if self.reranker.enabled:
-            if self.candidate_top_k is None:
-                raise ValueError("candidate_top_k is required when reranker is enabled")
-            if self.candidate_top_k < self.top_k:
-                raise ValueError("candidate_top_k must be greater than or equal to top_k")
-        return self
 
 
 class ConversationConfig(StrictModel):

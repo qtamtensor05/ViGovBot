@@ -309,7 +309,7 @@ class ChatApplication:
                         public_result["evaluation_trace"]["provider_calls"] = calls
                         public_result["evaluation_trace"]["effective_settings"] = {
                             key: settings.get(key) for key in (
-                                "model", "top_k", "candidate_top_k", "reranker", "measure_ttft",
+                                "model", "top_k", "measure_ttft",
                                 "citations_enabled", "decompose_queries", "num_ctx", "num_predict", "seed",
                                 "temperature", "max_metadata_tokens")}
                     if mode == "rag":

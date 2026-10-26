@@ -1,5 +1,28 @@
 # Lịch sử thay đổi hệ thống
 
+## Đưa trực tiếp top 5 retrieval vào LLM - 2026-10-26
+
+### Mục tiêu
+
+Loại chi phí và tác động xếp hạng của reranker khỏi luồng RAG online để thử
+nghiệm trực tiếp năm kết quả FAISS đầu tiên trong prompt LLM.
+
+### Thực hiện
+
+- Đổi hai profile host/Docker sang `retrieval.top_k: 5` và bỏ cấu hình reranker.
+- Bỏ module reranker online; pipeline truy hồi trực tiếp top 5 cho cả truy vấn
+  đơn và hợp nhất sub-query.
+- Đồng bộ trace cấu hình, panel nguồn, hướng dẫn vận hành và kiểm thử regression.
+- Giữ công cụ rerank artifact ngoại tuyến trong evaluation, không tham gia luồng
+  trả lời chatbot.
+
+### Kết quả
+
+36 test routing, 9 test server, 1 test UI, toàn bộ 235 test, schema hai profile,
+Ruff, compileall và `git diff --check` đạt; 21 test dependency tùy chọn bị skip.
+Chưa xác minh API/container hoặc chất lượng câu trả lời thực vì Docker daemon
+không hoạt động và host thiếu FAISS/model runtime.
+
 ## Rút gọn evidence có cấu trúc vượt ngân sách - 2026-10-25
 
 ### Mục tiêu

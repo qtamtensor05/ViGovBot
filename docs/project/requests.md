@@ -1,5 +1,25 @@
 # Thay đổi hệ thống
 
+## Đưa trực tiếp top 5 retrieval vào LLM - 2026-10-26
+
+### Mục tiêu
+
+Gỡ bước rerank khỏi luồng RAG online và đưa trực tiếp năm kết quả FAISS đứng đầu
+vào prompt của LLM.
+
+### Thực hiện
+
+- Loại cấu hình và lời gọi reranker khỏi runtime RAG.
+- Đồng bộ profile host/Docker, giao diện quan sát context và kiểm thử liên quan.
+
+### Kết quả
+
+Đã chuyển runtime sang FAISS top 5 trực tiếp và loại cấu hình/module reranker
+online. Đã kiểm chứng 36 test routing, 9 test server, 1 test UI, toàn bộ 235 test,
+schema hai profile, Ruff, compileall và `git diff --check`; 21 test dependency tùy
+chọn bị skip. Chưa xác minh API/container hoặc chất lượng câu trả lời thực vì
+Docker daemon không hoạt động và host thiếu FAISS/model runtime.
+
 ## Rút gọn evidence có cấu trúc vượt ngân sách - 2026-10-25
 
 ### Mục tiêu

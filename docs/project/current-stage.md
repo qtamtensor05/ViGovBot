@@ -9,7 +9,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 
 - Source chính đặt tại `src/vigovbot/`; CLI công khai là `vigov`.
 - Docker vận hành Web và Ollama, dùng cache model/RAG bền vững.
-- RAG hỗ trợ exact-match mã/tên thủ tục, ưu tiên loại mục và rerank MiniLM.
+- RAG hỗ trợ exact-match mã/tên thủ tục, ưu tiên loại mục và đưa trực tiếp top 5
+  kết quả retrieval vào LLM, không rerank trong runtime online.
 - Evidence quá ngân sách được rút gọn theo hàng/field/phần tử hoàn chỉnh; không
   còn bỏ toàn bộ bảng hoặc JSON có thể chiếu an toàn vào prompt.
 - Routing dùng context `4096` và giới hạn sinh `128` token riêng; generation vẫn
@@ -21,8 +22,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 
 - Stack Docker CUDA, `/api/health`, `/api/chat` và `vigov doctor` đã được kiểm
   chứng ngày 2026-10-25.
-- Retrieval theo mã/tên thủ tục và rerank đã được kiểm chứng bằng unit test và
-  API container.
+- Retrieval theo mã/tên thủ tục đã được kiểm chứng bằng unit test và API
+  container; thay đổi top 5 trực tiếp chưa được kiểm chứng lại bằng API container.
 - Không có pipeline huấn luyện hoặc benchmark dài đang chạy.
 - Hồ sơ vận hành đã được tinh gọn theo quy định mới.
 - Cấu hình và regression routing đã được kiểm chứng; latency A/B chưa được đo do

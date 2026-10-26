@@ -49,17 +49,13 @@ class ConfigTests(unittest.TestCase):
                 if model["provider"] == "ollama":
                     self.assertEqual(model["base_url"], config["llm"]["ollama_url"])
 
-    def test_inference_profiles_use_minilm_top20_to_top3(self):
+    def test_inference_profiles_send_top_five_directly_to_llm(self):
         for name in ("inference.yaml", "inference-docker.yaml"):
             config = load_config(Path("configs/rag") / name)
             settings = config.inference_settings()
-            self.assertEqual(settings["candidate_top_k"], 20)
-            self.assertEqual(settings["top_k"], 3)
-            self.assertTrue(settings["reranker"]["enabled"])
-            self.assertEqual(
-                settings["reranker"]["model"],
-                "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
-            )
+            self.assertEqual(settings["top_k"], 5)
+            self.assertNotIn("candidate_top_k", settings)
+            self.assertNotIn("reranker", settings)
 
     def test_relative_paths_resolve_against_yaml(self):
         with tempfile.TemporaryDirectory() as work:
@@ -89,7 +85,7 @@ class ConfigTests(unittest.TestCase):
         data = {"unified_source": "unified.zip", "dataset_path": "qa.jsonl"}
         for overrides in (
             {"retrieval": {"top_k": 0}},
-            {"retrieval": {"top_k": 3, "candidate_top_k": 2, "reranker": {"enabled": True}}},
+            {"retrieval": {"top_k": 3, "candidate_top_k": 2}},
             {"llm": {"num_ctx": 500, "num_predict": 512}},
             {"evaluation": {"max_cases": 0}},
             {"web": {"models": [{"id": "x", "label": "X", "provider": "ollama", "model": "qwen",
