@@ -8,6 +8,8 @@ from vigovbot.rag.config import load_config
 from vigovbot.rag.pipeline import answer_question, source_fingerprint
 from vigovbot.rag.version import PIPELINE_VERSION
 from vigovbot.llm.llm_client import check_model
+from vigovbot.llm.llm_client import ollama_answer
+from vigovbot.rag.classification import classify
 from probe_oil_spill_routing import QUESTION, EmptyRetriever
 
 
@@ -31,10 +33,20 @@ def main():
         raise ValueError("group must be oil or basic")
     rows = []
     for name, question, history, scope, relation in cases:
-        result = answer_question(question, EmptyRetriever(), tokenizer, config.inference_settings(), history=history)
+        if config.conversation.routing_contract == "v2":
+            classified, trace = classify(question, history, None, tokenizer, config.inference_settings(), ollama_answer)
+            result = {"routing": classified, "routing_attempts": trace["attempts"],
+                      "fallback_reason": trace.get("fallback_reason")}
+            scope = {"in_scope": "IN_SCOPE", "out_of_scope": "OUT_OF_SCOPE"}[scope]
+            expected_relation = "FOLLOW_UP" if relation in {"follow_up", "ambiguous"} else "NEW"
+        else:
+            result = answer_question(question, EmptyRetriever(), tokenizer, config.inference_settings(), history=history)
+            expected_relation = relation
         route = result["routing"]
-        passed = (route["scope"] == scope and route["relation"] == relation
+        passed = (route["scope"] == scope and route.get("conversation", route.get("relation")) == expected_relation
                   and not result["fallback_reason"])
+        if config.conversation.routing_contract == "v2" and name == "ambiguous":
+            passed = passed and route["needs_clarification"]
         if name == "follow_up":
             passed = passed and "hộ chiếu" in route["query"].lower()
         rows.append({"case": name, "question": question, "history": history, "passed": passed,
@@ -42,13 +54,14 @@ def main():
         print(json.dumps({"case": name, "passed": passed, "route": route,
                           "attempts": result["routing_attempts"], "fallback": result["fallback_reason"]},
                          ensure_ascii=False))
-    artifact = Path(f"outputs/qa_v4/routing_implemented_{group}.json")
+    artifact = Path(f"outputs/routing/routing_implemented_{group}.json")
+    artifact.parent.mkdir(parents=True, exist_ok=True)
     artifact.write_text(json.dumps({"scope": "Routing-only smoke with empty retriever; synthetic histories",
                                     "pipeline_version": PIPELINE_VERSION, "source_fingerprint": source_fingerprint(),
                                     "settings": config.inference_settings(), "model_info": model_info,
                                     "tokenizer": config.llm.tokenizer,
                                     "tokenizer_revision": getattr(tokenizer, "init_kwargs", {}).get("_commit_hash"),
-                                    "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
+                                    "rows": rows}, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     print(f"Artifact: {artifact}")
     if not all(row["passed"] for row in rows):
         raise SystemExit(1)

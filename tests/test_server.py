@@ -11,6 +11,33 @@ except ModuleNotFoundError as exc:
 
 
 class WebChatTests(unittest.TestCase):
+    def test_v2_state_and_selection_round_trip_streaming(self):
+        old_settings = self.config.inference_settings
+        self.config.inference_settings = lambda: {**old_settings(), "routing_contract": "v2"}
+        state = {"version": 2, "signature": "opaque"}
+        selection = {"menu_id": "m", "option_id": "DOSSIER"}
+        classification = {"scope": "IN_SCOPE", "conversation": "FOLLOW_UP", "sections": ["DOSSIER"]}
+        for streaming in (False, True):
+            events = []
+            with patch("vigovbot.server.app.answer_question", return_value={
+                    "prediction": "Hồ sơ", "classification": classification, "routing": classification,
+                    "conversation_state": state, "menu": None, "generation_s": 0.}) as answer:
+                result = self.app.chat({"question": "1", "models": ["local"],
+                                        "conversation_states": {"local": state}, "selections": {"local": selection}},
+                                       event_callback=events.append if streaming else None)["results"][0]
+            self.assertEqual(answer.call_args.kwargs["conversation_state"], state)
+            self.assertEqual(answer.call_args.kwargs["selection"], selection)
+            self.assertIn("router_fn", answer.call_args.kwargs)
+            self.assertEqual(result["classification"], classification)
+            self.assertEqual(result["conversation_state"], state)
+            if streaming:
+                self.assertEqual([e["type"] for e in events], ["model_start", "token", "model_result"])
+
+    def test_invalid_v2_state_container(self):
+        for field in ("conversation_states", "selections"):
+            with self.assertRaises(ValueError):
+                self.app.chat({"question": "x", field: []})
+
     def test_early_routing_stream_emits_final_text_before_result(self):
         for action in ("abstain", "clarify"):
             events = []

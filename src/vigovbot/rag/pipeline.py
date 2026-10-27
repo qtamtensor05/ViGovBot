@@ -88,9 +88,18 @@ def execute(config, command="prepare", *, question=None, history=None):
 
 
 def answer_question(question, retriever, tokenizer, settings, history=None, *, structured=False, answer_fn=None,
-                    retrieval_context=None, clarification_context=None, clarification_scope=""):
+                    retrieval_context=None, clarification_context=None, clarification_scope="",
+                    router_fn=None, conversation_state=None, selection=None):
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Question must be nonempty")
+    if settings.get("routing_contract") == "v2" and settings.get("routing_enabled", True):
+        if settings.get("routing_backend", "llm") != "llm":
+            raise ValueError("Routing v2 requires llm")
+        from vigovbot.rag.conversation import answer_conversation
+        return answer_conversation(
+            question, retriever, tokenizer, settings, history=history,
+            answer_fn=answer_fn or ollama_answer, router_fn=router_fn or ollama_answer,
+            conversation_state=conversation_state, selection=selection, clarification_scope=clarification_scope)
     history = validate_history(history)
     previous_answer = history[-1]["content"] if history and history[-1]["role"] == "assistant" else None
     original_question = question

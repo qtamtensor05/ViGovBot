@@ -285,6 +285,10 @@ class ChatApplication:
         clarification_contexts = payload.get("clarification_contexts", {})
         if not isinstance(clarification_contexts, dict):
             raise ValueError("clarification_contexts phải là JSON object")
+        conversation_states = payload.get("conversation_states", {})
+        selections = payload.get("selections", {})
+        if not isinstance(conversation_states, dict) or not isinstance(selections, dict):
+            raise ValueError("conversation_states và selections phải là JSON object")
         results = []
         for model_id in model_ids:
             model = self.models[model_id]
@@ -370,6 +374,10 @@ class ChatApplication:
                             {**settings, "routing_early_exit": True} if emit_token else settings,
                             history=clean_histories[model_id],
                             answer_fn=rag_answer_fn,
+                            **({"router_fn": answerer_for("ollama"),
+                                "conversation_state": conversation_states.get(model_id),
+                                "selection": selections.get(model_id)}
+                               if settings.get("routing_contract") == "v2" else {}),
                             **({"retrieval_context": retrieval_contexts[model_id]}
                                if model_id in retrieval_contexts else {}),
                             clarification_scope=model_id,
@@ -387,6 +395,9 @@ class ChatApplication:
                         "latency_s": result.get("latency_s"),
                         "retrieval_context": result.get("retrieval_context") if mode == "rag" else None,
                         "clarification_context": result.get("clarification_context") if mode == "rag" else None,
+                        "conversation_state": result.get("conversation_state") if mode == "rag" else None,
+                        "menu": result.get("menu") if mode == "rag" else None,
+                        "classification": result.get("classification") if mode == "rag" else None,
                         "retrieval_strategy": result.get("retrieval_strategy"),
                         "retrieval_fallback_reason": result.get("retrieval_fallback_reason"),
                     }
@@ -408,6 +419,8 @@ class ChatApplication:
                             "classifier_confidence": result.get("classifier_confidence"),
                             "classifier_fallback_reason": result.get("classifier_fallback_reason"),
                             "relation": route.get("relation"), "scope": route.get("scope"),
+                            "conversation": route.get("conversation"),
+                            "sections": route.get("sections"), "mixed_procedures": route.get("mixed_procedures"),
                         }
                         if getattr(self.config.web, "debug_routing", False):
                             public_result["raw_routing"] = result.get("raw_routing")

@@ -34,7 +34,9 @@ class LLMConfig(StrictModel):
     num_ctx: int = Field(default=8192, gt=0)
     num_predict: int = Field(default=512, gt=0)
     routing_num_ctx: int = Field(default=4096, gt=0)
-    routing_num_predict: int = Field(default=128, gt=0)
+    routing_num_predict: int = Field(default=768, gt=0)
+    routing_model: str = "qwen2.5:7b"
+    routing_base_url: str | None = None
     seed: int = 42
     timeout: int = Field(default=300, gt=0)
     keep_alive: str = "10m"
@@ -55,12 +57,19 @@ class RetrievalConfig(StrictModel):
 
 
 class ConversationConfig(StrictModel):
+    routing_contract: str = Field(default="v2", pattern=r"^(v1|v2)$")
     decompose_queries: bool = False
     routing_enabled: bool = True
     citations_enabled: bool = False
     routing_backend: str = Field(default="llm", pattern=r"^(llm|fasttext|hybrid)$")
     routing_model_path: Path = Path("outputs/routing/intent-router.bin")
     routing_metadata_path: Path = Path("outputs/routing/intent-router.metadata.json")
+
+    @model_validator(mode="after")
+    def check_routing_contract(self):
+        if self.routing_contract == "v2" and self.routing_backend != "llm":
+            raise ValueError("Routing v2 requires llm; seven-label FastText artifacts support v1 only")
+        return self
 
 
 class WebModelConfig(StrictModel):
