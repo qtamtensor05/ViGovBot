@@ -20,7 +20,8 @@ def extract_source_codes(question):
 def _fold(text):
     """Casefold and strip diacritics so Vietnamese matching ignores input style."""
     normalized = unicodedata.normalize("NFD", text.casefold())
-    return "".join(char for char in normalized if unicodedata.category(char) != "Mn").replace("đ", "d")
+    folded = "".join(char for char in normalized if unicodedata.category(char) != "Mn").replace("đ", "d")
+    return re.sub(r"\bdang ki\b", "dang ky", folded)
 
 
 def _is_word(char):
@@ -47,18 +48,22 @@ def preferred_section_types(question):
     """Map explicit question intent to the matching corpus section taxonomy."""
     folded = _fold(question)
     groups = (
-        (("so quyet dinh", "linh vuc", "cap thuc hien", "doi tuong", "co quan"),
+        (("so quyet dinh", "linh vuc", "cap thuc hien", "doi tuong", "co quan", "thong tin chung"),
          "metadata_identity"),
         (("trinh tu", "quy trinh", "cac buoc", "buoc nao"), "procedure_step"),
-        (("ho so", "giay to", "thanh phan"), "required_documents"),
-        (("phi", "le phi", "thoi han", "bao lau", "cach thuc", "hinh thuc nop"),
+        (("ho so", "giay to", "thanh phan", "can mang", "can chuan bi"), "required_documents"),
+        (("phi", "le phi", "thoi han", "bao lau", "cach thuc", "hinh thuc nop", "bao nhieu tien", "may ngay"),
          "submission_deadline_fee"),
+        (("can cu", "co so phap ly"), "legal_basis"),
     )
-    return tuple(
+    preferred = tuple(
         section_type
         for terms, section_type in groups
         if any(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", folded) for term in terms)
     )
+    # Clarification choices can name a corpus section outside the built-in taxonomy.
+    explicit = re.findall(r"(?m)^Mục dữ liệu: ([^\r\n]+)$", question)
+    return tuple(dict.fromkeys([*explicit, *preferred]))
 
 
 class Retriever:
@@ -167,6 +172,81 @@ class Retriever:
             codes.extend(self._preferred_codes(group))
         return codes
 
+    def follow_up(self, question, resolved_query, context, top_k=5):
+        """Return (hits or None, fallback reason, validated procedure code).
+
+        None requests ordinary retrieval; a validated code keeps that fallback
+        inside the selected procedure. Client metadata never supplies evidence.
+        """
+        if top_k < 1:
+            raise ValueError("TOP_K phải lớn hơn 0")
+        if not isinstance(context, dict):
+            return None, "missing_context", None
+        code, ids = context.get("source_code"), context.get("chunk_ids")
+        if (not isinstance(code, str) or not code or not isinstance(ids, list)
+                or not ids or len(ids) > 100 or any(not isinstance(cid, str) or not cid for cid in ids)):
+            return None, "invalid_context", None
+        if context.get("corpus_fingerprint") != self.evaluation_identity["corpus_sha256"]:
+            return None, "corpus_changed", None
+        placeholders = ",".join("?" for _ in ids)
+        with self._db_lock:
+            rows = self.db.execute(
+                f"SELECT chunk_id, payload FROM chunks WHERE chunk_id IN ({placeholders})", ids,
+            ).fetchall()
+        if (set(ids) != {cid for cid, _ in rows}
+                or any(json.loads(payload).get("source_code") != code for _, payload in rows)):
+            return None, "invalid_chunks", None
+        # Inspect both the user's correction and the router's resolved subject.
+        # Do not collapse duplicate names to their broadest variant on this path.
+        with self._db_lock:
+            if self._procedure_names is None:
+                self._procedure_names, self._procedure_levels = self._procedure_catalog()
+        confirmed_subject = False
+        for text in (question, resolved_query):
+            codes = extract_source_codes(text)
+            if codes and set(codes) != {code}:
+                return None, "subject_changed", None
+            folded = _fold(text)
+            named = {candidate for candidate, name in self._procedure_names
+                     if _contains_phrase(folded, name)}
+            if named and named != {code}:
+                return None, "ambiguous_or_changed_name", None
+            confirmed_subject = confirmed_subject or bool(codes or named)
+        if not confirmed_subject:
+            return None, "unconfirmed_subject", None
+        sections = preferred_section_types(question)
+        if not sections:
+            return None, "unknown_section", code
+        with self._db_lock:
+            rows = self.db.execute(
+                "SELECT row_id, payload FROM chunks WHERE "
+                "json_extract(payload, '$.source_code') COLLATE NOCASE = ? ORDER BY row_id", (code,),
+            ).fetchall()
+        hits = [{**json.loads(payload), "row_id": row_id} for row_id, payload in rows]
+        hits = [hit for hit in hits if hit.get("section_type") in sections]
+        if set(sections) - {hit["section_type"] for hit in hits}:
+            return None, "missing_section", code
+        # Large sections need semantic ranking rather than arbitrary truncation.
+        if len(hits) > top_k:
+            return None, "section_exceeds_top_k", code
+        return hits, None, code
+
+    def retrieval_context(self, used):
+        """Create a hint only from the evidence actually included in the prompt."""
+        if not used or any(not hit.get("source_code") or not hit.get("chunk_id") for hit in used):
+            return None
+        codes = {hit["source_code"] for hit in used}
+        if len(codes) != 1:
+            return None
+        code = next(iter(codes))
+        with self._db_lock:
+            row = self.db.execute("SELECT payload FROM chunks WHERE chunk_id = ?", (used[0]["chunk_id"],)).fetchone()
+        if row is None:
+            return None
+        return {"source_code": code, "procedure_name": json.loads(row[0]).get("procedure_name"),
+                "chunk_ids": list(dict.fromkeys(hit["chunk_id"] for hit in used)),
+                "corpus_fingerprint": self.evaluation_identity["corpus_sha256"]}
+
     def _procedure_catalog(self):
         """Build the name index once per process (read-only DB, ~1 s)."""
         names = self.db.execute(
@@ -189,19 +269,46 @@ class Retriever:
         )
 
     def _preferred_codes(self, codes):
-        """Collapse one procedure name shared by several codes to its broadest variant.
+        """Keep distinct procedures for the clarification gate to disambiguate."""
+        return codes
 
-        The same name can be issued by different authorities (641/QĐ-BNV applies at
-        province and ministry level, 01/QĐ-BCT only at province level). When exactly
-        one code is implemented at more administrative levels it is the safer default;
-        otherwise keep every code and let ranking decide.
-        """
-        if len(codes) == 1:
-            return codes
-        widths = {code: len(self._procedure_levels.get(code, ())) for code in codes}
-        widest = max(widths.values())
-        preferred = [code for code in codes if widths[code] == widest]
-        return preferred if widest and len(preferred) == 1 else codes
+    def clarification_catalog(self):
+        """Small, cached catalog of all procedure sections, independent of top-k."""
+        with self._db_lock:
+            if not hasattr(self, "_clarification_catalog"):
+                catalog = {}
+                rows = self.db.execute(
+                    "SELECT DISTINCT json_extract(payload, '$.source_code'), "
+                    "json_extract(payload, '$.procedure_name'), "
+                    "json_extract(payload, '$.section_type') FROM chunks"
+                )
+                for code, name, section in rows:
+                    if not isinstance(code, str) or not isinstance(name, str) or not code or not name:
+                        continue
+                    entry = catalog.setdefault(code, {"code": code, "name": name, "sections": set()})
+                    if isinstance(section, str) and section:
+                        entry["sections"].add(section)
+                self._clarification_catalog = {
+                    code: {**entry, "sections": sorted(entry["sections"])} for code, entry in sorted(catalog.items())
+                }
+            return self._clarification_catalog
+
+    def procedure_details(self, code):
+        """Read identifying labels only; never send chunk bodies as menu options."""
+        with self._db_lock:
+            rows = self.db.execute(
+                "SELECT json_extract(payload, '$.text_content') FROM chunks "
+                "WHERE json_extract(payload, '$.source_code') = ? "
+                "AND json_extract(payload, '$.section_type') = 'metadata_identity' LIMIT 3", (code,)
+            ).fetchall()
+        labels = []
+        for (text,) in rows:
+            for label, value in re.findall(
+                    r"\|\*\*(Cấp thực hiện|Cơ quan thực hiện)\*\*\|([^|\n]*)", text or ""):
+                item = f"{label}: {value.strip()}"
+                if item not in labels:
+                    labels.append(item[:240])
+        return "; ".join(labels)
 
     def _search_source_codes(self, source_codes, vector, top_k, preferred_sections=()):
         """Rank exact-code chunks; return None only when the question contains no code."""

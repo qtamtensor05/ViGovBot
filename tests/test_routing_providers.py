@@ -37,6 +37,21 @@ class RoutingProviderTests(unittest.TestCase):
         self.assertEqual(parse_route(text, []), self.route)
         self.assertEqual(actual_raw, raw)
 
+    def test_ollama_stream_forwards_each_content_chunk(self):
+        response = Mock()
+        response.iter_lines.return_value = [
+            json.dumps({"message": {"content": "Hồ sơ "}}).encode(),
+            json.dumps({"message": {"content": "hợp lệ"}, "done": True}).encode(),
+        ]
+        chunks = []
+        with patch("requests.post", return_value=response) as post:
+            text, raw, _ = ollama_answer(
+                self.messages, {**self.settings, "response_format": None, "token_callback": chunks.append})
+        self.assertEqual(chunks, ["Hồ sơ ", "hợp lệ"])
+        self.assertEqual(text, "Hồ sơ hợp lệ")
+        self.assertTrue(post.call_args.kwargs["json"]["stream"])
+        self.assertEqual(raw["message"]["content"], text)
+
     def test_openai_uses_root_object_schema_and_unwraps_route(self):
         raw = {"choices": [{"message": {"content": json.dumps({"route": self.route})}}]}
         response = Mock()
@@ -51,6 +66,21 @@ class RoutingProviderTests(unittest.TestCase):
         self.assertEqual(self.messages[0]["content"], "Phân loại JSON")
         self.assertEqual(parse_route(text, []), self.route)
         self.assertEqual(actual_raw, raw)
+
+    def test_openai_stream_forwards_delta_content(self):
+        response = Mock()
+        response.iter_lines.return_value = [
+            'data: {"choices":[{"delta":{"content":"Xin "}}]}',
+            'data: {"choices":[{"delta":{"content":"chào"}}]}',
+            "data: [DONE]",
+        ]
+        chunks = []
+        settings = {**self.settings, "response_format": None, "token_callback": chunks.append}
+        with patch("requests.post", return_value=response) as post:
+            text, _, _ = openai_compatible_answer(self.messages, settings)
+        self.assertEqual(chunks, ["Xin ", "chào"])
+        self.assertEqual(text, "Xin chào")
+        self.assertTrue(post.call_args.kwargs["json"]["stream"])
 
     def test_unsupported_schema_is_not_silently_downgraded(self):
         response = Mock()

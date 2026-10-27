@@ -1,5 +1,37 @@
 # Sự cố hệ thống và vận hành
 
+## Rebuild image CUDA khi chỉ thay đổi source bind mount - 2026-10-27
+
+### Mục tiêu
+
+Tránh build lại dependency nặng và phát sinh cache khi chỉ sửa source/config.
+
+### Thực hiện
+
+- Xác định `src` và `configs` đã bind mount, nên chỉ cần restart web.
+- Tách image CPU mặc định khỏi image QLoRA GPU và dọn BuildKit cache dư.
+
+### Kết quả
+
+Thay đổi source/config hằng ngày dùng `docker compose restart web`; image GPU
+chỉ build theo profile khi cần. Đã thu hồi 32,01 GB cache mà không xóa volume.
+
+## FastText không có wheel Python 3.12 trong image slim - 2026-10-27
+
+### Mục tiêu
+
+Đóng gói intent classifier CPU mà không đưa toolchain biên dịch vào image runtime.
+
+### Thực hiện
+
+Build đầu tiên thất bại vì `fasttext==0.9.3` cần C++17 nhưng image
+`python:3.12-slim` không có compiler. Chuyển bước tạo wheel sang Docker builder
+stage có `g++`, sau đó chỉ sao chép wheel vào stage runtime.
+
+### Kết quả
+
+Đã xác định nguyên nhân; kết quả build lại được ghi trong mốc triển khai tương ứng.
+
 ## QLoRA/RAG trả lỗi khi output phụ không hợp lệ - 2026-10-23
 
 ### Mục tiêu

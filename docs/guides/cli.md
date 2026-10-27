@@ -2,7 +2,8 @@
 
 ## Runtime Docker hiện hành
 
-Web, Base/RAG/QLoRA và Ollama chạy bằng Docker Compose. Không cần cài package
+Web Base/RAG và Ollama chạy mặc định bằng Docker Compose. QLoRA cục bộ
+dùng service `web-gpu` thuộc profile `gpu`. Không cần cài package
 Python, tạo virtual environment hoặc cài Ollama trên Windows. Khởi động stack:
 
 ```powershell
@@ -22,13 +23,17 @@ Container `web` đã chạy web server ở <http://localhost:8001>; không gọi
 docker compose exec -T web vigov doctor
 docker compose exec -T web vigov --help
 docker compose exec -T ollama ollama list
-docker compose exec -T web vigov ask "Hồ sơ gồm những gì?" --config configs/rag/inference-docker.yaml
-docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker.yaml
+docker compose exec -T web vigov ask "Hồ sơ gồm những gì?" --config configs/rag/inference-docker-ollama.yaml
+docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker-ollama.yaml
 ```
 
-Cấu hình Docker phải là `configs/rag/inference-docker.yaml`; file này gọi Ollama
-qua `http://ollama:11434`. Không dùng cấu hình local trỏ tới `localhost:11434`
-từ container.
+Cấu hình mặc định là `configs/rag/inference-docker-ollama.yaml`; file này
+gọi Ollama qua `http://ollama:11434`. Profile GPU dùng
+`configs/rag/inference-docker.yaml` và phục vụ tại <http://localhost:8002>:
+
+```powershell
+docker compose --profile gpu up -d web-gpu
+```
 
 ## Quản lý stack
 

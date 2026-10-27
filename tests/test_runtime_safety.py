@@ -82,6 +82,13 @@ class RuntimeSafetyTests(unittest.TestCase):
                     self.assertEqual(response.json()["status"], state)
                     self.assertIn("application/json", response.headers["Content-Type"])
                 self.assertEqual(requests.post(url + "/api/chat", json={}, timeout=5).status_code, 400)
+                streamed = requests.post(url + "/api/chat/stream",
+                                         json={"question": "test", "models": ["good"]}, timeout=5)
+                self.assertEqual(streamed.status_code, 200)
+                events = [json.loads(line) for line in streamed.text.splitlines()]
+                self.assertEqual([event["type"] for event in events],
+                                 ["model_start", "model_result", "complete"])
+                self.assertEqual(events[-1]["status"], "success")
                 with app._lock:
                     self.assertEqual(requests.get(url + "/api/health", timeout=5).status_code, 200)
         finally:
@@ -107,6 +114,9 @@ class RuntimeSafetyTests(unittest.TestCase):
         retriever = Retriever.__new__(Retriever)
         retriever._encoder_lock = threading.Lock()
         retriever._db_lock = threading.Lock()
+        # This test exercises vector-hit batching with an already loaded empty catalog.
+        retriever._procedure_names = ()
+        retriever._procedure_levels = {}
         vector = np.ones((1, 1024), dtype=np.float32)
         retriever.encoder = SimpleNamespace(encode=lambda *a, **k: vector)
         retriever.index = SimpleNamespace(ntotal=3, search=lambda *a: (np.array([[.9, .8, .7]]), np.array([[2, 0, 1]])))

@@ -43,19 +43,28 @@ class ConfigTests(unittest.TestCase):
 
     def test_inference_ollama_urls_share_yaml_anchor(self):
         import yaml
-        for name in ("inference.yaml", "inference-docker.yaml"):
+        for name in ("inference.yaml", "inference-docker.yaml", "inference-docker-ollama.yaml"):
             config = yaml.safe_load((Path("configs/rag") / name).read_text(encoding="utf-8"))
             for model in config["web"]["models"]:
                 if model["provider"] == "ollama":
                     self.assertEqual(model["base_url"], config["llm"]["ollama_url"])
 
     def test_inference_profiles_send_top_five_directly_to_llm(self):
-        for name in ("inference.yaml", "inference-docker.yaml"):
+        for name in ("inference.yaml", "inference-docker.yaml", "inference-docker-ollama.yaml"):
             config = load_config(Path("configs/rag") / name)
             settings = config.inference_settings()
             self.assertEqual(settings["top_k"], 5)
             self.assertNotIn("candidate_top_k", settings)
             self.assertNotIn("reranker", settings)
+
+    def test_ollama_docker_profile_excludes_local_transformers(self):
+        config = load_config(Path("configs/rag/inference-docker-ollama.yaml"))
+        self.assertEqual([model.id for model in config.web.models], ["qwen-base", "qwen-rag"])
+        self.assertTrue(all(model.provider == "ollama" for model in config.web.models))
+        lock = Path("locks/ollama-web-linux-py312.txt").read_text(encoding="utf-8")
+        self.assertIn("torch==2.9.1+cpu", lock)
+        self.assertNotIn("nvidia-", lock)
+        self.assertNotIn("bitsandbytes", lock)
 
     def test_relative_paths_resolve_against_yaml(self):
         with tempfile.TemporaryDirectory() as work:
@@ -68,6 +77,8 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.data.cache_dir, Path(work).resolve() / "cache")
             self.assertEqual(config.inference_settings()["top_k"], 5)
             self.assertTrue(config.inference_settings()["routing_enabled"])
+            self.assertEqual(config.inference_settings()["routing_backend"], "llm")
+            self.assertTrue(config.conversation.routing_model_path.is_absolute())
 
     def test_qlora_adapter_environment_override_and_yaml_fallback(self):
         root = Path(__file__).resolve().parents[1]

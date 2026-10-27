@@ -25,6 +25,9 @@ Trả JSON với đúng các trường:
 - clarification: câu hỏi ngắn để người dùng làm rõ nếu ambiguous; rỗng ở nhánh khác.
   Không dùng clarification để xác nhận lại một câu hỏi đã rõ hoặc tóm tắt query.
 Không dùng câu trả lời cũ làm bằng chứng pháp lý. Không tự chọn một trong nhiều thủ tục khi chưa rõ.
+Nếu câu chỉ nêu tên thủ tục, giữ tên đó trong query và chọn new_question để bước metadata
+xác định thủ tục và các mục có thể hỏi. Không tự viết danh sách thủ tục hoặc section.
+Yêu cầu tổng quan/toàn bộ là mục tiêu hợp lệ; không bắt người dùng chọn một phần.
 Giữ đầy đủ mọi ý hỏi khi viết query, kể cả yêu cầu tra trạng thái hồ sơ cá nhân.
 Câu hỏi có tiền đề sai về cơ quan/phí vẫn thuộc phạm vi thủ tục, cần truy hồi để kiểm chứng.
 Nếu lịch sử nêu nhiều thủ tục và 'thủ tục đó' không xác định duy nhất, phải hỏi làm rõ;

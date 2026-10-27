@@ -1,5 +1,64 @@
 # Lịch sử thay đổi hệ thống
 
+## Tách image web CPU và QLoRA GPU - 2026-10-27
+
+### Mục tiêu
+
+Giảm dung lượng web thường ngày và chỉ mang CUDA khi chạy QLoRA cục bộ.
+
+### Thực hiện
+
+- Tách Docker target `web-ollama` dùng Torch CPU và `web-gpu` dùng CUDA.
+- Tách config Base/RAG mặc định và service QLoRA thuộc profile `gpu`.
+- Sinh lock CPU bằng resolver; giữ nguyên volume Ollama, Hugging Face và RAG.
+
+### Kết quả
+
+Image mặc định giảm 12,8 GB xuống 2,03 GB; Base/RAG streaming trả
+`success`. Image GPU 12,8 GB xác nhận RTX 4050, CUDA 12.8, PEFT và
+bitsandbytes. Đã thu hồi 32,01 GB BuildKit cache. 249 test, Ruff, compileall,
+Compose default/GPU và `git diff --check` đạt; 22 test tùy chọn bị skip.
+
+## Streaming phản hồi LLM trên web - 2026-10-27
+
+### Mục tiêu
+
+Giảm cảm giác chờ bằng cách hiển thị phản hồi ngay trong quá trình model sinh.
+
+### Thực hiện
+
+- Bổ sung callback token cho Ollama, OpenAI-compatible và Transformers cục bộ.
+- Thêm `/api/chat/stream` dạng NDJSON và cập nhật từng thẻ model trên web.
+- Giữ `/api/chat` và payload kết quả cuối cùng tương thích ngược.
+
+### Kết quả
+
+249 test, Ruff, compileall và `git diff --check` đạt; 22 test dependency tùy chọn
+bị skip. Image web đã build, container healthy; API `qwen-base` thật phát 4 sự
+kiện token, TTFT warm 0,300 giây và hoàn tất sau 0,486 giây. Chưa thao tác
+xác minh trên trình duyệt thật.
+
+## Intent classifier FastText/hybrid - 2026-10-27
+
+### Mục tiêu
+
+Giảm chi phí prompt routing bằng classifier CPU nhưng bảo toàn hợp đồng routing
+nhiều lượt và khả năng rollback về Qwen.
+
+### Thực hiện
+
+- Thêm backend `llm|fasttext|hybrid`, confidence threshold, diagnostics và
+  fallback an toàn khi artifact thiếu/sai hash hoặc cần rewrite/clarification.
+- Thêm CLI train/evaluate, schema dataset chống group leakage, cấu hình FastText
+  gọn có kiểm tra kích thước trên fixture, Docker builder stage và hướng dẫn.
+
+### Kết quả
+
+Docker build thành công; 62 test router/server/CLI, 5 test tài liệu/cấu hình,
+Ruff, compileall và diff check đều đạt. Full suite chạy 269 test còn 7 lỗi nền
+không thuộc thay đổi này và 7 skip. Chưa huấn luyện artifact thật trên dữ liệu
+độc lập, chưa đạt quality gate và chưa đo API latency, nên giữ mặc định `llm`.
+
 ## Đưa trực tiếp top 5 retrieval vào LLM - 2026-10-26
 
 ### Mục tiêu
@@ -167,3 +226,53 @@ Chỉ lưu thay đổi quan trọng liên quan hệ thống hoặc vận hành.
 
 Hồ sơ dùng thống nhất ba phần `Mục tiêu - Thực hiện - Kết quả` và không còn cập
 nhật theo mọi task nhiều bước.
+
+
+## 2026-10-27 — Follow-up truy xuất trực tiếp theo mã thủ tục
+
+### Mục tiêu
+
+Giảm thời gian truy xuất cho câu nối tiếp đã xác định thủ tục, giữ đúng nguồn.
+
+### Thực hiện
+
+Thêm lookup SQLite theo mã/phần, kiểm tra fingerprint corpus/chunk/lịch sử,
+fallback trong đúng thủ tục khi thiếu phần hoặc vượt top_k. API/UI giữ ngữ cảnh
+riêng theo model và xóa cùng hội thoại; trace phân biệt chiến lược truy xuất.
+
+### Kết quả
+
+Bộ Python mở rộng 128 test PASS; nhóm kiểm tra cuối bao gồm hai ca bảo vệ bổ sung.
+Hai test JavaScript, Ruff, compileall và diff check PASS. Đo hai câu follow-up
+trên corpus/model cục bộ: đúng mã và phần dữ liệu; retrieval warm giảm
+1,182 → 0,067 s, cold tăng 1,170 → 1,456 s do nạp danh mục. Routing dao động,
+chưa chứng minh giảm đều tổng latency. Chi tiết ở
+`outputs/verification/follow-up/report.md`. Chưa restart web hoặc kiểm tra browser thật.
+
+
+## 2026-10-27 — Hỏi lại thủ tục và section từ metadata
+
+- **Mục tiêu:** Không tự trả lời một phần hoặc tự chọn thủ tục khi câu hỏi chưa rõ mục tiêu/đối tượng.
+- **Thực hiện:** Thêm danh mục SQLite và bước hỏi lại trong RAG; ưu tiên mã/tên, hiển thị tối đa năm thủ tục và các section có thật. Giữ mục tiêu qua lựa chọn nhiều lượt, hỗ trợ context có chữ ký theo lịch sử/model và client cũ qua lịch sử; tích hợp API thường/streaming và reset UI. Giữ nguyên các chỉnh sửa follow-up đã có, không sửa corpus/model.
+- **Kết quả:** 123 test Python routing/retrieval/API/prompt và 2 test JavaScript đạt; Ruff và compileall đạt. HTTP thường → streaming kiểm tra bằng model giả lập. SQLite thực tế có 6.192 thủ tục; mã tạm trú 1.004194 có sáu section. Chưa restart backend, chưa xác minh bằng model hoặc trình duyệt thật.
+
+
+## 2026-10-27 — Sửa mất thủ tục khi chọn dòng và hỏi nối tiếp
+
+- **Mục tiêu:** Giữ thủ tục đã xác định khi người dùng sao chép “4. Cách thức nộp, thời hạn và phí”, rồi hỏi “Hồ sơ, giấy tờ của thủ tục”.
+- **Thực hiện:** Parser đối chiếu số kèm nhãn (kể cả dấu chấm escape Markdown), không nhầm mã thủ tục với số mục; phục hồi danh sách qua tối đa ba lượt lỗi không tìm thấy của parser cũ và không vượt qua câu đổi chủ đề. Pipeline xác minh fingerprint câu trả lời, corpus và chunk trước khi dùng lại mã cho câu hỏi phần nội dung, kể cả router chọn new_question. Giữ các ràng buộc context và phân loại ngoài phạm vi.
+- **Kết quả:** 103 test Python liên quan, 2 test JavaScript, Ruff và compileall đạt. Restart web và /api/health trả ok. Qwen thật qua /api/chat → /api/chat/stream: danh sách kết hôn 1.000894 (1,37 giây), chọn dòng phí trả answer với cùng mã (15,77 giây), hỏi hồ sơ trả answer/required_documents bằng procedure_direct cùng mã (29,93 giây). Đây là kiểm chứng liên tục ngữ cảnh/truy hồi, không phải đánh giá đầy đủ tính đúng của nội dung pháp lý; chưa thao tác trình duyệt thật.
+
+
+## 2026-10-27 — Sửa chọn nguyên dòng thủ tục có metadata
+
+- **Mục tiêu:** Chọn được nguyên dòng thủ tục gồm tên, mã và cấp thực hiện thay vì lặp danh sách.
+- **Thực hiện:** Dùng chung nhãn corpus cho render và parser; nhận tên, tên kèm mã, nguyên dòng có metadata với số thứ tự thường/escape Markdown. Kiểm tra số, mã, nhãn khớp; metadata mô tả không bị biến thành mục tiêu hỏi, giữ mục tiêu đã có.
+- **Kết quả:** 105 test Python liên quan, 2 test JavaScript, Ruff/compileall đạt. Backend đã restart và health ok. API thật với câu “Thủ tục cấp lại chứng chỉ kiểm địng viên” trả đúng năm ứng viên; sao chép mục 5 chọn 1.000180 (0,56 giây), mục 1 chọn 2.000037 (0,41 giây), đều chuyển section_required với 0 lần gọi router. Chưa thao tác trình duyệt thật.
+
+
+## 2026-10-27 — Hỏi danh sách không tự chọn tên khớp chính xác
+
+- **Mục tiêu:** Nhận biết “Các thủ tục cấp lại chứng chỉ kiểm định viên” là yêu cầu chọn trong nhóm thủ tục, không tự chốt mã 2.000066.
+- **Thực hiện:** Nhận diện yêu cầu danh sách/số nhiều; mở rộng tên khớp sang các biến thể dài hơn có cùng cụm tên trong catalog. Ưu tiên mã cụ thể khi được nêu, giữ tên đơn/ý hỏi rõ; không biến từ “tất cả các thủ tục” thành mục tiêu tổng quan sau khi chọn.
+- **Kết quả:** 106 test Python liên quan và 2 test JavaScript đạt; Ruff/compileall đạt. Backend đã restart, health ok. API thật trả procedure_required với năm mã 2.000066, 1.000187, 1.000180, 1.000183, 2.000037 và more=true (3,23 giây); sao chép mục 2 chuyển section_required đúng mã 1.000187 (0,51 giây). Chưa thao tác trình duyệt thật.

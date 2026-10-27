@@ -6,12 +6,14 @@ from contextlib import nullcontext
 
 import json
 import logging
+import queue
+import re
 import threading
 import time
 from importlib.resources import files
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from vigovbot.prompts.prompt_templates import validate_history
@@ -36,6 +38,58 @@ EVALUATION_COMPLETE_CAPABILITIES = {
 }
 
 
+class _AnswerTokenExtractor:
+    """Emit the value of the JSON `answer` field while it is still arriving."""
+
+    def __init__(self, callback):
+        self.callback = callback
+        self.buffer = ""
+        self.started = False
+        self.position = 0
+        self.escaped = False
+        self.unicode_escape = None
+        self.done = False
+
+    def feed(self, chunk):
+        if self.done:
+            return
+        self.buffer += chunk
+        if not self.started:
+            match = re.search(r'"answer"\s*:\s*"', self.buffer)
+            if not match:
+                return
+            self.started = True
+            self.position = match.end()
+        output = []
+        while self.position < len(self.buffer):
+            char = self.buffer[self.position]
+            self.position += 1
+            if self.unicode_escape is not None:
+                self.unicode_escape += char
+                if len(self.unicode_escape) == 4:
+                    output.append(chr(int(self.unicode_escape, 16)))
+                    self.unicode_escape = None
+                    self.escaped = False
+                continue
+            if self.escaped:
+                if char == "u":
+                    self.unicode_escape = ""
+                else:
+                    output.append({'"': '"', "\\": "\\", "/": "/", "b": "\b", "f": "\f",
+                                   "n": "\n", "r": "\r", "t": "\t"}.get(char, char))
+                    self.escaped = False
+                continue
+            if char == "\\":
+                self.escaped = True
+            elif char == '"':
+                self.done = True
+                break
+            else:
+                output.append(char)
+        if output:
+            self.callback("".join(output))
+
+
 def evaluation_trace(result, mode):
     """Expose measured evaluation fields only; never expose raw provider replies."""
     citation_status = result.get("citations_status", "unavailable")
@@ -50,6 +104,8 @@ def evaluation_trace(result, mode):
         "actual_route": result.get("actual_route"),
         "routing": result.get("routing"),
         "retrieval_query": result.get("retrieval_query"),
+        "retrieval_strategy": result.get("retrieval_strategy"),
+        "retrieval_fallback_reason": result.get("retrieval_fallback_reason"),
         "actual_sub_queries": result.get("actual_sub_queries"),
         "sub_query_retrieval": result.get("sub_query_retrieval"),
         "decomposition_status": result.get("decomposition_status"),
@@ -200,7 +256,7 @@ class ChatApplication:
         self._active_provider = None
         return {"status": "released", "models": released}
 
-    def chat(self, payload):
+    def chat(self, payload, event_callback=None):
         if not isinstance(payload, dict):
             raise ValueError("Dữ liệu gửi lên phải là một JSON object")
         trace_requested = payload.get("evaluation_trace", False)
@@ -223,9 +279,17 @@ class ChatApplication:
         if not isinstance(histories, dict):
             raise ValueError("histories phải là JSON object")
         clean_histories = {model_id: validate_history(histories.get(model_id)) for model_id in model_ids}
+        retrieval_contexts = payload.get("retrieval_contexts", {})
+        if not isinstance(retrieval_contexts, dict):
+            raise ValueError("retrieval_contexts phải là JSON object")
+        clarification_contexts = payload.get("clarification_contexts", {})
+        if not isinstance(clarification_contexts, dict):
+            raise ValueError("clarification_contexts phải là JSON object")
         results = []
         for model_id in model_ids:
             model = self.models[model_id]
+            if event_callback:
+                event_callback({"type": "model_start", "model_id": model_id})
             # Only backends sharing the local GPU participate in switching/serialization.
             gpu_backend = model.provider in {"ollama", "local_transformers"}
             with self._lock if gpu_backend else nullcontext():
@@ -235,6 +299,8 @@ class ChatApplication:
                         self._switch_provider(model)
                     answer_fn = answerer_for(model.provider)
                     settings = self._settings(model)
+                    emit_token = (lambda text, mid=model_id: event_callback(
+                        {"type": "token", "model_id": mid, "text": text})) if event_callback else None
                     if complete_requested:
                         settings.update(measure_ttft=True, top_k=10, citations_enabled=True, decompose_queries=True)
                     calls = []
@@ -264,7 +330,8 @@ class ChatApplication:
                         if len(self.tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True)) > settings["num_ctx"] - settings["num_predict"] - 256:
                             raise ValueError("Noise prompt exceeds budget; clean context must not be truncated")
                         settings["response_format"] = replay.get("response_format")
-                        answer, raw, generation_s = answer_fn(messages, settings)
+                        call_settings = {**settings, "token_callback": emit_token} if emit_token else settings
+                        answer, raw, generation_s = answer_fn(messages, call_settings)
                         action = evidence = None
                         if settings["response_format"]:
                             from vigovbot.rag.routing import parse_answer
@@ -278,7 +345,8 @@ class ChatApplication:
                             *clean_histories[model_id],
                             {"role": "user", "content": question.strip()},
                         ]
-                        answer, raw, generation_s = answer_fn(messages, settings)
+                        call_settings = {**settings, "token_callback": emit_token} if emit_token else settings
+                        answer, raw, generation_s = answer_fn(messages, call_settings)
                         result = {
                             "prediction": answer,
                             "raw_ollama": raw,
@@ -288,13 +356,25 @@ class ChatApplication:
                             "latency_s": time.perf_counter() - started,
                         }
                     else:
+                        rag_answer_fn = answer_fn
+                        if emit_token:
+                            extractor = _AnswerTokenExtractor(emit_token)
+                            def rag_answer_fn(messages, call_settings):
+                                if call_settings.get("response_schema_name") == "answer":
+                                    call_settings = {**call_settings, "token_callback": extractor.feed}
+                                return answer_fn(messages, call_settings)
                         result = answer_question(
                             question.strip(),
                             self.retriever,
                             self.tokenizer,
                             settings,
                             history=clean_histories[model_id],
-                            answer_fn=answer_fn,
+                            answer_fn=rag_answer_fn,
+                            **({"retrieval_context": retrieval_contexts[model_id]}
+                               if model_id in retrieval_contexts else {}),
+                            clarification_scope=model_id,
+                            **({"clarification_context": clarification_contexts[model_id]}
+                               if model_id in clarification_contexts else {}),
                         )
                     public_result = {
                         "model_id": model_id,
@@ -303,6 +383,10 @@ class ChatApplication:
                         "action": result.get("action"),
                         "sources": result.get("retrieved", []),
                         "latency_s": result.get("latency_s"),
+                        "retrieval_context": result.get("retrieval_context") if mode == "rag" else None,
+                        "clarification_context": result.get("clarification_context") if mode == "rag" else None,
+                        "retrieval_strategy": result.get("retrieval_strategy"),
+                        "retrieval_fallback_reason": result.get("retrieval_fallback_reason"),
                     }
                     if trace_requested:
                         public_result["evaluation_trace"] = evaluation_trace(result, mode)
@@ -318,11 +402,16 @@ class ChatApplication:
                             "fallback_reason": result.get("fallback_reason"),
                             "routing_attempts": result.get("routing_attempts", 0),
                             "decision_reason": result.get("decision_reason"),
+                            "backend": result.get("routing_backend"),
+                            "classifier_confidence": result.get("classifier_confidence"),
+                            "classifier_fallback_reason": result.get("classifier_fallback_reason"),
                             "relation": route.get("relation"), "scope": route.get("scope"),
                         }
                         if getattr(self.config.web, "debug_routing", False):
                             public_result["raw_routing"] = result.get("raw_routing")
                     results.append(public_result)
+                    if event_callback:
+                        event_callback({"type": "model_result", "result": public_result})
                 except Exception as exc:
                     diagnostics = getattr(exc, "diagnostics", None)
                     if isinstance(diagnostics, dict):
@@ -331,7 +420,10 @@ class ChatApplication:
                                   len(diagnostics.get("validation_errors", [])))
                     else:
                         LOG.exception("Model %s không trả lời được", model_id)
-                    results.append({"model_id": model_id, "error": str(exc)})
+                    error_result = {"model_id": model_id, "error": str(exc)}
+                    results.append(error_result)
+                    if event_callback:
+                        event_callback({"type": "model_result", "result": error_result})
         failures = sum("error" in result for result in results)
         status = "failed" if failures == len(results) else "partial" if failures else "success"
         response = {"results": results, "status": status}
@@ -412,6 +504,46 @@ def create_asgi_app(application):
         except Exception:
             LOG.exception("Lỗi khi trả lời câu hỏi")
             return json_response({"error": "Không thể xử lý câu hỏi. Hãy xem log của server."}, 500)
+
+    @web.post("/api/chat/stream")
+    async def chat_stream(request: Request):
+        try:
+            body = bytearray()
+            async for chunk in request.stream():
+                body.extend(chunk)
+                if len(body) > MAX_BODY_BYTES:
+                    raise ValueError("Kích thước yêu cầu không hợp lệ")
+            if not body or len(body) > MAX_BODY_BYTES:
+                raise ValueError("Kích thước yêu cầu không hợp lệ")
+            payload = json.loads(body)
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            return json_response({"error": str(exc)}, 400)
+
+        events = queue.Queue()
+        finished = object()
+
+        def run_chat():
+            try:
+                result = application.chat(payload, event_callback=events.put)
+                events.put({"type": "complete", "status": result["status"]})
+            except Exception as exc:
+                events.put({"type": "error", "error": str(exc)})
+            finally:
+                events.put(finished)
+
+        threading.Thread(target=run_chat, daemon=True).start()
+
+        def stream_events():
+            while True:
+                event = events.get()
+                if event is finished:
+                    break
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+
+        return StreamingResponse(
+            stream_events(), media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        )
 
     return web
 

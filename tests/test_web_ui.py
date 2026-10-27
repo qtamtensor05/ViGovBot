@@ -9,6 +9,37 @@ import unittest
 
 @unittest.skipUnless(shutil.which("node"), "Node.js is needed to verify browser JavaScript")
 class WebUITests(unittest.TestCase):
+    def test_stream_keeps_context_per_model_and_reset_clears_both(self):
+        import json
+        path = Path(__file__).resolve().parents[1] / "src/vigovbot/server/static/index.html"
+        script = path.read_text(encoding="utf-8").split("<script>", 1)[1].split("</script>", 1)[0]
+        helpers = script[script.index("function modeLabel"):script.index("function addAnswers")]
+        reset = script[script.index("function resetConversation"):script.index("document.querySelector('#new-chat')")]
+        javascript = """
+const vm=require('node:vm'),assert=require('node:assert/strict');
+const code=JSON.parse(require('node:fs').readFileSync(0,'utf8'));
+const histories={a:[],b:[]},retrievalContexts={a:null,b:{source_code:'b'}},clarificationContexts={a:null,b:{kind:'procedure'}};
+const element=()=>({append(){},textContent:''});
+const card={body:element(),el:element()};
+const chat={replaceChildren(){this.cleared=true},scrollHeight:0},input={focus(){}},button={disabled:false};
+vm.runInNewContext(code.helpers+code.reset+`
+applyStreamEvent({type:'model_result',result:{model_id:'a',answer:'A',retrieval_context:{source_code:'a'},clarification_context:{kind:'section'}}},{a:card},'Q');
+assert.equal(retrievalContexts.a.source_code,'a');
+assert.equal(retrievalContexts.b.source_code,'b');
+assert.equal(clarificationContexts.a.kind,'section');assert.equal(clarificationContexts.b.kind,'procedure');assert.equal(histories.a.length,2);assert.equal(histories.b.length,0);
+applyStreamEvent({type:'model_result',result:{model_id:'a',answer:'Clarify'}},{a:card},'Q2');
+assert.equal(retrievalContexts.a,null);assert.equal(clarificationContexts.a,null);
+button.disabled=true;resetConversation();assert.equal(histories.a.length,4);
+button.disabled=false;resetConversation();
+assert.equal(histories.a.length,0);assert.equal(histories.b.length,0);
+assert.equal(retrievalContexts.a,null);assert.equal(clarificationContexts.a,null);assert.equal(retrievalContexts.b,null);assert.equal(clarificationContexts.b,null);assert.ok(chat.cleared);
+`,{assert,histories,retrievalContexts,clarificationContexts,card,chat,input,button,document:{createElement:element}});
+"""
+        result = subprocess.run([shutil.which("node"), "-e", javascript],
+                                input=json.dumps({"helpers": helpers, "reset": reset}),
+                                text=True, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_script_syntax_and_fallback_history(self):
         path = Path(__file__).resolve().parents[1] / "src/vigovbot/server/static/index.html"
         script = path.read_text(encoding="utf-8").split("<script>", 1)[1].split("</script>", 1)[0]
