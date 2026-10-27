@@ -114,6 +114,9 @@ class RuntimeSafetyTests(unittest.TestCase):
         retriever = Retriever.__new__(Retriever)
         retriever._encoder_lock = threading.Lock()
         retriever._db_lock = threading.Lock()
+        # This test exercises vector-hit batching with an already loaded empty catalog.
+        retriever._procedure_names = ()
+        retriever._procedure_levels = {}
         vector = np.ones((1, 1024), dtype=np.float32)
         retriever.encoder = SimpleNamespace(encode=lambda *a, **k: vector)
         retriever.index = SimpleNamespace(ntotal=3, search=lambda *a: (np.array([[.9, .8, .7]]), np.array([[2, 0, 1]])))

@@ -380,3 +380,121 @@ Các điểm cần tính đến khi sử dụng:
 | Giá trị cấu hình mặc định | [config.py](../../src/vigovbot/rag/config.py) |
 | Web server và API cục bộ | [app.py](../../src/vigovbot/server/app.py) |
 | Adapter Ollama/OpenAI-compatible | [providers.py](../../src/vigovbot/server/providers.py) |
+
+
+## Truy xuất nhanh cho câu hỏi nối tiếp
+
+Khi router trả `follow_up`, RAG có thể lấy trực tiếp chunk SQLite theo mã thủ tục
+và `section_type` của câu hỏi mới, không tạo embedding hoặc tìm kiếm FAISS.
+Ngữ cảnh chỉ được tạo từ các chunk thực sự đưa vào prompt của câu trả lời thành
+công (`answer`/`partial`) và cùng một `source_code`.
+
+`answer_question(..., retrieval_context=None)` trả `retrieval_context` mới.
+API `/api/chat` và `/api/chat/stream` nhận trường tùy chọn `retrieval_contexts`,
+là object ánh xạ model ID sang ngữ cảnh đã trả ở lượt trước. Mỗi kết quả model
+trả `retrieval_context`, `retrieval_strategy`, `retrieval_fallback_reason`.
+Client cũ không gửi trường mới vẫn hoạt động theo retrieval hiện tại.
+
+Ngữ cảnh gồm `source_code`, `procedure_name`, `chunk_ids`, `corpus_fingerprint`
+và `answer_fingerprint`. Client phải gửi lại nguyên object cùng lịch sử tương
+ứng; đây là gợi ý truy xuất, không phải token xác thực. Backend đối chiếu fingerprint
+corpus, chunk/mã trong SQLite và câu trả lời cuối trong lịch sử. Nội dung bằng
+chứng luôn đọc từ corpus, không lấy từ object client hoặc câu trả lời trước.
+
+Nhánh trực tiếp yêu cầu câu hỏi hoặc truy vấn router xác nhận đúng mã/tên đầy đủ,
+không có tên trùng hoặc mã khác; phần được hỏi phải xác định và đủ gọn trong
+`top_k`. Nếu chưa xác định được phần, thiếu phần hoặc phần vượt `top_k`, retrieval
+vector tiếp tục trong đúng mã đã xác nhận. Nếu ngữ cảnh không hợp lệ, chủ đề đổi
+hoặc không được xác nhận, dùng retrieval bình thường. Generation vẫn kiểm tra
+bằng chứng và áp dụng ngân sách token; nguồn thiếu dữ liệu không được bù bằng
+thủ tục khác. Kết quả trực tiếp không có điểm tương đồng vector giả.
+
+`retrieval_strategy` nhận `procedure_direct`, `procedure_semantic` hoặc `semantic`;
+`semantic` là đường tìm kiếm hiện có, bao gồm lọc mã/tên khi phù hợp.
+Giá trị là `null` khi routing dừng trước bước retrieval.
+Trace evaluation giữ riêng thời gian routing, retrieval và generation, kèm lý do
+fallback. Base/QLoRA không dùng ngữ cảnh truy xuất này.
+
+UI giữ lịch sử và ngữ cảnh riêng cho từng model trong bộ nhớ của tab. Nút
+**Hội thoại mới** xóa cả hai; reload cũng xóa. Không reset khi đang sinh câu trả lời.
+
+
+## Hỏi lại theo thủ tục và mục nội dung
+
+Khi bật routing, RAG kiểm tra metadata trước khi sinh câu trả lời. Câu chỉ nêu
+thủ tục (ví dụ “Thủ tục đăng kí tạm trú ở Việt Nam”) sẽ được hỏi chọn phần cần
+biết. Nếu nhiều mã cùng phù hợp, hệ thống hỏi chọn thủ tục trước; không tự chọn
+mã có cấp thực hiện rộng hơn. Mỗi danh sách thủ tục có tối đa năm lựa chọn.
+Mã chính xác được ưu tiên, tên được chuẩn hóa dấu và “đăng kí/đăng ký”.
+Tên chưa khớp dùng ứng viên từ retrieval có từ nội dung chung với tên thủ tục;
+người dùng phải xác nhận, điểm vector không tự xác định thủ tục. Không có ứng
+viên phù hợp thì đề nghị bổ sung tên, mã hoặc cơ quan.
+
+Danh sách section lấy từ toàn bộ metadata SQLite của thủ tục, không chỉ top-k.
+Các nhãn gồm thông tin chung, trình tự, hồ sơ, cách thức nộp/thời hạn/phí,
+căn cứ pháp lý và nội dung khác; section chưa biết giữ tên trong metadata.
+Câu đã rõ mục tiêu hoặc yêu cầu “tổng quan/toàn bộ” được trả lời trực tiếp sau
+khi xác định thủ tục. Mục tiêu như “hồ sơ” được giữ qua lượt chọn thủ tục.
+Có thể trả lời bằng số, mã, tên hoặc diễn đạt như “tôi muốn biết hồ sơ”.
+Số ngoài danh sách lặp lại lựa chọn; câu hỏi đổi thủ tục bỏ lựa chọn đang chờ.
+
+`answer_question` nhận thêm `clarification_context=None` và
+`clarification_scope=""`, trả `clarification_context` khi cần lựa chọn.
+API `/api/chat` và `/api/chat/stream` nhận `clarification_contexts`, object ánh xạ
+model ID sang context nguyên vẹn của kết quả trước. Phạm vi model do server đặt.
+`action=clarify` đi kèm `decision_reason=procedure_required|section_required`
+trong chẩn đoán routing. Context được xóa sau khi trả lời hoặc chuyển chủ đề.
+Base/QLoRA không áp dụng bước metadata này; không cần huấn luyện lại FastText.
+
+Context chứa loại lựa chọn, mã ứng viên, section, mục tiêu, fingerprint lịch sử,
+catalog và chữ ký HMAC theo tiến trình. Backend kiểm tra các trường này trước
+khi dùng lựa chọn; bằng chứng trả lời luôn đọc lại từ corpus. Context sai model,
+sai lịch sử, bị sửa hoặc được gửi sau khi backend khởi động lại không được tái
+sử dụng. Đây không phải cơ chế đăng nhập/xác thực phiên. Client cũ không gửi
+context có thể tiếp tục qua lịch sử: backend tái tạo danh sách từ metadata và
+chỉ chấp nhận khi khớp chính xác định dạng câu hỏi lại. UI giữ context riêng
+mỗi model trong bộ nhớ tab, xóa khi bấm **Hội thoại mới** hoặc reload.
+
+Kiểm chứng ngày 2026-10-27: 123 test Python liên quan và 2 test JavaScript đạt;
+HTTP thường → streaming đã kiểm tra với corpus SQLite/model giả lập. Đọc
+SQLite thực tế ở chế độ chỉ đọc xác nhận 6.192 thủ tục, đăng ký tạm trú mã
+`1.004194` có sáu section. Chưa xác minh lượt hội thoại mới bằng model thật
+hoặc thao tác trình duyệt tại mốc kiểm chứng ban đầu này; kết quả cập nhật bên dưới.
+
+
+### Giữ thủ tục khi chọn dòng và hỏi nối tiếp
+
+Có thể sao chép nguyên dòng `4. Cách thức nộp, thời hạn và phí` (kể cả dấu chấm
+được escape trong Markdown). Backend đối chiếu cả số lẫn nhãn với danh sách;
+không coi mã như `1.000894` là số mục. Số và nhãn không khớp thì hỏi chọn lại.
+
+Sau câu trả lời có bằng chứng, câu ngắn như “Hồ sơ, giấy tờ của thủ tục” dùng
+lại mã trong `retrieval_context` khi fingerprint lịch sử, corpus và chunk đều
+hợp lệ. Nhãn `new_question` từ router không làm mất mã trong trường hợp này.
+Câu đổi thủ tục hoặc context không hợp lệ vẫn không được gắn vào thủ tục cũ.
+Nếu lịch sử còn danh sách đang chờ nhưng sau đó có lỗi “Chưa tìm thấy thủ tục
+phù hợp” từ parser cũ, backend có thể khôi phục qua tối đa ba lượt lỗi chỉ khi
+các câu xen giữa là lựa chọn hợp lệ của chính danh sách đó.
+
+Kiểm chứng cập nhật 2026-10-27: 103 test Python liên quan, 2 test JavaScript,
+Ruff/compileall đạt; backend đã restart và health trả `ok`. Chuỗi Qwen thật
+qua `/api/chat` và `/api/chat/stream` giữ mã kết hôn `1.000894` khi chọn dòng
+phí rồi hỏi hồ sơ; lượt cuối lấy `required_documents` bằng `procedure_direct`.
+Chưa xác minh thao tác trên trình duyệt thật.
+
+
+Có thể sao chép nguyên dòng lựa chọn **thủ tục**, gồm số thứ tự, tên, mã và
+cấp/cơ quan thực hiện. Backend dùng chung nhãn hiển thị và nhãn đối chiếu;
+metadata cuối dòng chỉ mô tả lựa chọn, không trở thành mục tiêu hỏi thông tin
+chung. Nếu chưa có mục tiêu, chọn thủ tục sẽ chuyển sang chọn section; nếu đã
+hỏi hồ sơ/phí thì tiếp tục nội dung đó. Xác minh API sau restart ngày 2026-10-27:
+mục 5 → `1.000180`, mục 1 → `2.000037`, đều chuyển sang `section_required`.
+
+
+Yêu cầu “các/những thủ tục”, “danh sách thủ tục”, “liệt kê các thủ tục” hoặc
+“tất cả các thủ tục” được xử lý như tìm danh sách lựa chọn. Nếu catalog có một
+tên khớp ngắn và nhiều biến thể dài hơn chứa cùng cụm tên, hiển thị các biến thể
+để chọn, không tự chốt tên ngắn. Mã cụ thể vẫn được ưu tiên. Danh sách có tối
+đa năm mục và báo khi còn thêm; có thể bổ sung đối tượng/cơ quan để thu hẹp.
+API thật ngày 2026-10-27 đã xác nhận câu “Các thủ tục cấp lại chứng chỉ kiểm
+định viên” trả danh sách, rồi chọn mục hết hạn chuyển sang section mã 1.000187.

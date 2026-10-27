@@ -11,6 +11,64 @@ except ModuleNotFoundError as exc:
 
 
 class WebChatTests(unittest.TestCase):
+    def test_clarification_contexts_round_trip_and_stream_per_model(self):
+        from copy import copy
+        other = copy(self.config.web.models[0])
+        other.id = "other"
+        self.config.web.models.append(other)
+        app = ChatApplication(self.config, "retriever", "tokenizer")
+        hints = {"local": {"kind": "section"}, "other": {"kind": "procedure"}}
+        for streaming in (False, True):
+            events = []
+            with patch("vigovbot.server.app.answer_question", side_effect=[
+                {"prediction": "A", "action": "clarify", "clarification_context": hints["local"]},
+                {"prediction": "B", "action": "clarify", "clarification_context": hints["other"]},
+            ]) as answer:
+                results = app.chat({"question": "2", "models": ["local", "other"],
+                                    "clarification_contexts": hints},
+                                   event_callback=events.append if streaming else None)["results"]
+            self.assertEqual([c.kwargs["clarification_context"] for c in answer.call_args_list], list(hints.values()))
+            self.assertEqual([c.kwargs["clarification_scope"] for c in answer.call_args_list], list(hints))
+            self.assertEqual([r["clarification_context"] for r in results], list(hints.values()))
+            if streaming:
+                self.assertEqual([e["result"]["clarification_context"] for e in events if e["type"] == "model_result"],
+                                 list(hints.values()))
+        with patch("vigovbot.server.app.answer_question", return_value={"prediction": "C"}) as answer:
+            app.chat({"question": "Mới", "models": ["local"]})
+        self.assertNotIn("clarification_context", answer.call_args.kwargs)
+
+    def test_invalid_clarification_context_container_is_rejected(self):
+        for value in ([], "code", None):
+            with self.assertRaises(ValueError):
+                self.app.chat({"question": "2", "clarification_contexts": value})
+
+    def test_retrieval_context_is_scoped_per_model_and_returned(self):
+        from copy import copy
+        other = copy(self.config.web.models[0])
+        other.id = "other"
+        self.config.web.models.append(other)
+        app = ChatApplication(self.config, "retriever", "tokenizer")
+        hints = {"local": {"source_code": "1"}, "other": {"source_code": "2"}}
+        with patch("vigovbot.server.app.answer_question", side_effect=[
+            {"prediction": "A", "retrieval_context": hints["local"], "retrieval_strategy": "procedure_direct"},
+            {"prediction": "B", "retrieval_context": hints["other"]},
+        ]) as answer:
+            results = app.chat({"question": "Phí?", "models": ["local", "other"],
+                                "retrieval_contexts": hints})["results"]
+        self.assertEqual([call.kwargs["retrieval_context"] for call in answer.call_args_list],
+                         [hints["local"], hints["other"]])
+        self.assertEqual([result["retrieval_context"] for result in results], list(hints.values()))
+        self.assertEqual(results[0]["retrieval_strategy"], "procedure_direct")
+        # A later independent request cannot inherit the previous request's hint.
+        with patch("vigovbot.server.app.answer_question", return_value={"prediction": "C"}) as answer:
+            app.chat({"question": "Hồ sơ?", "models": ["local"]})
+        self.assertNotIn("retrieval_context", answer.call_args.kwargs)
+
+    def test_invalid_retrieval_context_container_is_rejected(self):
+        for value in ([], "code", None):
+            with self.assertRaises(ValueError):
+                self.app.chat({"question": "Phí?", "retrieval_contexts": value})
+
     def setUp(self):
         model = SimpleNamespace(
             id="local", label="Local", provider="ollama", model="qwen", base_url="http://localhost:11434",
@@ -42,7 +100,7 @@ class WebChatTests(unittest.TestCase):
         answer.assert_called_once_with(
             "Cần giấy tờ gì?", "retriever", "tokenizer",
             {"top_k": 5, "model": "qwen", "provider": "ollama", "api_key_env": None, "ollama_url": "http://localhost:11434"},
-            history=history, answer_fn=unittest.mock.ANY,
+            history=history, answer_fn=unittest.mock.ANY, clarification_scope="local",
         )
 
     def test_stream_events_expose_tokens_and_final_result(self):

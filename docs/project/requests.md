@@ -133,3 +133,46 @@ hưởng hệ thống hoặc vận hành.
 ### Kết quả
 
 Hoàn tất ngày 2026-10-25.
+
+
+## 2026-10-27 — Truy xuất follow-up theo mã thủ tục
+
+### Mục tiêu
+
+Bỏ embedding khi follow-up có thủ tục và phần dữ liệu xác định.
+
+### Thực hiện
+
+Triển khai truy xuất SQLite, ngữ cảnh riêng theo model/hội thoại và fallback có giới hạn nguồn.
+
+### Kết quả
+
+Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa restart web đang chạy. Chi tiết tại `outputs/verification/follow-up/report.md`.
+
+
+## 2026-10-27 — Hỏi lại theo metadata thủ tục
+
+- **Mục tiêu:** Xác định đúng thủ tục và nội dung cần tra cứu trước khi trả lời.
+- **Thực hiện:** Tích hợp danh sách thủ tục/section từ SQLite, lựa chọn nhiều lượt và context riêng theo model vào RAG/API/web.
+- **Kết quả:** Hoàn tất mã nguồn; 123 test Python và 2 test JavaScript đạt, có HTTP thường → streaming giả lập và kiểm tra SQLite thực tế. Chưa restart backend hoặc xác minh model/trình duyệt thật.
+
+
+## 2026-10-27 — Giữ thủ tục khi chọn dòng nội dung và hỏi nối tiếp
+
+- **Mục tiêu:** Sửa lỗi sao chép “4. Cách thức nộp, thời hạn và phí” làm mất thủ tục đã xác định, và giữ mã cho câu hỏi hồ sơ tiếp theo.
+- **Thực hiện:** Đối chiếu số kèm nhãn với danh sách hiện tại; xác nhận mã từ context truy hồi trước khi giải quyết câu nối tiếp; phục hồi danh sách qua lỗi không tìm thấy do parser cũ.
+- **Kết quả:** 103 test Python liên quan và 2 test JavaScript đạt. Backend đã restart; Qwen thật qua API thường/streaming giữ mã 1.000894 khi chọn dòng phí rồi hỏi hồ sơ, lượt hồ sơ dùng procedure_direct/required_documents.
+
+
+## 2026-10-27 — Chọn nguyên dòng thủ tục có mã và cấp thực hiện
+
+- **Mục tiêu:** Không lặp danh sách thủ tục khi người dùng sao chép nguyên lựa chọn, gồm mã và cấp thực hiện.
+- **Thực hiện:** Dùng chung nhãn hiển thị/đối chiếu lựa chọn; phân biệt metadata mô tả lựa chọn với mục tiêu hỏi, giữ mục tiêu đã có.
+- **Kết quả:** 105 test Python liên quan và 2 test JavaScript đạt. Backend đã restart; API thật xác nhận dòng 5 chọn mã 1.000180 và dòng 1 chọn mã 2.000037, chuyển sang section_required, không gọi lại router.
+
+
+## 2026-10-27 — Phân biệt hỏi danh sách thủ tục với chọn tên chính xác
+
+- **Mục tiêu:** Câu “Các thủ tục cấp lại chứng chỉ kiểm định viên” phải đưa các biến thể để chọn thay vì tự chốt mã 2.000066.
+- **Thực hiện:** Phát hiện yêu cầu danh sách/số nhiều, mở rộng tên khớp sang biến thể dài hơn trong catalog trước bước chọn section; giữ ưu tiên mã cụ thể và mục tiêu đã rõ.
+- **Kết quả:** 106 test Python liên quan và 2 test JavaScript đạt. Backend đã restart; API thật trả procedure_required với năm ứng viên và more=true; chọn mục 2 chuyển section_required cho mã 1.000187.

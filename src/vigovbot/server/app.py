@@ -104,6 +104,8 @@ def evaluation_trace(result, mode):
         "actual_route": result.get("actual_route"),
         "routing": result.get("routing"),
         "retrieval_query": result.get("retrieval_query"),
+        "retrieval_strategy": result.get("retrieval_strategy"),
+        "retrieval_fallback_reason": result.get("retrieval_fallback_reason"),
         "actual_sub_queries": result.get("actual_sub_queries"),
         "sub_query_retrieval": result.get("sub_query_retrieval"),
         "decomposition_status": result.get("decomposition_status"),
@@ -277,6 +279,12 @@ class ChatApplication:
         if not isinstance(histories, dict):
             raise ValueError("histories phải là JSON object")
         clean_histories = {model_id: validate_history(histories.get(model_id)) for model_id in model_ids}
+        retrieval_contexts = payload.get("retrieval_contexts", {})
+        if not isinstance(retrieval_contexts, dict):
+            raise ValueError("retrieval_contexts phải là JSON object")
+        clarification_contexts = payload.get("clarification_contexts", {})
+        if not isinstance(clarification_contexts, dict):
+            raise ValueError("clarification_contexts phải là JSON object")
         results = []
         for model_id in model_ids:
             model = self.models[model_id]
@@ -362,6 +370,11 @@ class ChatApplication:
                             settings,
                             history=clean_histories[model_id],
                             answer_fn=rag_answer_fn,
+                            **({"retrieval_context": retrieval_contexts[model_id]}
+                               if model_id in retrieval_contexts else {}),
+                            clarification_scope=model_id,
+                            **({"clarification_context": clarification_contexts[model_id]}
+                               if model_id in clarification_contexts else {}),
                         )
                     public_result = {
                         "model_id": model_id,
@@ -370,6 +383,10 @@ class ChatApplication:
                         "action": result.get("action"),
                         "sources": result.get("retrieved", []),
                         "latency_s": result.get("latency_s"),
+                        "retrieval_context": result.get("retrieval_context") if mode == "rag" else None,
+                        "clarification_context": result.get("clarification_context") if mode == "rag" else None,
+                        "retrieval_strategy": result.get("retrieval_strategy"),
+                        "retrieval_fallback_reason": result.get("retrieval_fallback_reason"),
                     }
                     if trace_requested:
                         public_result["evaluation_trace"] = evaluation_trace(result, mode)

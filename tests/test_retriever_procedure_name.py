@@ -85,12 +85,12 @@ class DuplicateNameTests(unittest.TestCase):
         ("2.000140", "cap chung chi kiem dinh vien"),
     ]
 
-    def test_broader_implementation_level_wins(self):
+    def test_broader_implementation_level_does_not_choose_for_user(self):
         retriever = _retriever(
             self.DUP, {"1.000148": {"Tỉnh", "Bộ"}, "2.000140": {"Tỉnh"}}
         )
         self.assertEqual(
-            retriever._procedure_name_codes("thủ tục cấp chứng chỉ kiểm định viên"), ["1.000148"]
+            retriever._procedure_name_codes("thủ tục cấp chứng chỉ kiểm định viên"), ["1.000148", "2.000140"]
         )
 
     def test_equal_implementation_levels_keep_both_codes(self):
