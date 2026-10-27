@@ -183,3 +183,10 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Trả sớm nhánh ngoài phạm vi/làm rõ trên API streaming.
 - **Thực hiện:** Đọc prefix scope/relation qua nhiều chunk, dừng sinh router khi nhãn kết thúc được xác định; đóng HTTP stream hoặc dừng/join worker Transformers. Giữ đối chiếu metadata trước câu làm rõ, dùng câu hỏi mặc định khi bỏ phần clarification của JSON. Gửi token kết quả trước model_result; API thường vẫn chờ JSON đầy đủ.
 - **Kết quả:** 90 test routing/provider/server/clarification/documentation đạt; Ruff và compileall đạt. Test provider giả lập xác nhận không đọc phần đuôi JSON và đóng kết nối. Chưa kiểm chứng model thật hoặc hủy sinh trên GPU; Docker daemon chưa chạy.
+
+
+## 2026-10-27 — Routing bốn nhóm nhãn và menu theo trạng thái
+
+- **Mục tiêu:** Triển khai router base độc lập, chọn menu trực tiếp, section đa nhãn và nhiều thủ tục.
+- **Thực hiện:** Thêm hợp đồng routing v2, router base độc lập, menu có trạng thái ký, section đa nhãn, truy hồi riêng từng thủ tục, nút chọn và kiểm thử hồi quy.
+- **Kết quả:** 303 ca đạt, 22 ca bỏ qua trong 325 test; Ruff, compileall và diff check đạt. API Qwen thật xác nhận section của mã 1.000894, trạng thái chọn chứng chỉ và tìm kiếm catalog đều đúng; “thuê đất” được giữ trong phạm vi, “thành lập trường” chỉ trả ứng viên giáo dục. Chưa thao tác trình duyệt thật do không có browser kết nối. Không thay đổi golden, checkpoint hoặc chỉ mục.

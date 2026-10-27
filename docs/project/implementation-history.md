@@ -283,3 +283,10 @@ chưa chứng minh giảm đều tổng latency. Chi tiết ở
 - **Mục tiêu:** Trả sớm nhánh ngoài phạm vi/làm rõ trên API streaming.
 - **Thực hiện:** Đọc prefix scope/relation qua nhiều chunk, dừng sinh router khi nhãn kết thúc được xác định; đóng HTTP stream hoặc dừng/join worker Transformers. Giữ đối chiếu metadata trước câu làm rõ, dùng câu hỏi mặc định khi bỏ phần clarification của JSON. Gửi token kết quả trước model_result; API thường vẫn chờ JSON đầy đủ.
 - **Kết quả:** 90 test routing/provider/server/clarification/documentation đạt; Ruff và compileall đạt. Test provider giả lập xác nhận không đọc phần đuôi JSON và đóng kết nối. Chưa kiểm chứng model thật hoặc hủy sinh trên GPU; Docker daemon chưa chạy.
+
+
+## 2026-10-27 — Routing v2 bốn nhóm nhãn
+
+- **Mục tiêu:** Áp dụng luồng chọn menu trực tiếp và router base thay thế được, hỗ trợ nhiều thủ tục/section.
+- **Thực hiện:** Tách classifier và điều phối, schema/retry v2, trạng thái có chữ ký, menu có nút, truy hồi giới hạn mã/section; giữ v1 cho FastText. Sau smoke model thật, khóa section được nêu rõ, thay query khi chọn menu, ưu tiên catalog cho yêu cầu danh sách và xử lý từ chối/xác nhận/biến thể bằng trạng thái.
+- **Kết quả:** 303 ca đạt, 22 ca bỏ qua trong 325 test; Ruff, compileall và diff check đạt. API Qwen thật xác nhận Thông tin chung, phí và trình tự của mã 1.000894 dùng đúng nguồn; trạng thái chứng chỉ không tự chọn; “thuê đất” là IN_SCOPE và “thành lập trường” chỉ trả thủ tục giáo dục. Artifact tại `outputs/verification/reported-*-regression.json` và `catalog-discovery-live.json`. Chưa thao tác trình duyệt thật do không có browser kết nối; không thay đổi golden, checkpoint hoặc chỉ mục.

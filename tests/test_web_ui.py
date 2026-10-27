@@ -9,15 +9,40 @@ import unittest
 
 @unittest.skipUnless(shutil.which("node"), "Node.js is needed to verify browser JavaScript")
 class WebUITests(unittest.TestCase):
+    def test_menu_button_scopes_selection_and_rejects_stale_menu(self):
+        import json
+        path = Path(__file__).resolve().parents[1] / "src/vigovbot/server/static/index.html"
+        script = path.read_text(encoding="utf-8").split("<script>", 1)[1].split("</script>", 1)[0]
+        helper = script[script.index("function appendMenu"):script.index("async function submitQuestion")]
+        javascript = """
+const vm=require('node:vm'),assert=require('node:assert/strict');
+const helper=JSON.parse(require('node:fs').readFileSync(0,'utf8'));
+const element=()=>({children:[],append(...values){this.children.push(...values)},setAttribute(){},addEventListener(name,fn){this[name]=fn}});
+const parent=element(),button={disabled:false},conversationStates={a:{menu:{id:'current'}}},calls=[];
+const data={model_id:'a',menu:{id:'current',options:[{id:'DOSSIER',label:'Hồ sơ'}]}};
+vm.runInNewContext(helper+`
+appendMenu(parent,data);const choice=parent.children[0].children[0];
+choice.click();assert.equal(calls.length,1);assert.equal(calls[0][0],'1');
+assert.equal(calls[0][1].join(','),'a');assert.equal(calls[0][2].a.option_id,'DOSSIER');
+assert.equal(calls[0][2].a.menu_id,'current');
+conversationStates.a={menu:{id:'next'}};choice.click();assert.equal(calls.length,1);assert.equal(choice.disabled,true);
+`,{assert,parent,data,button,conversationStates,calls,document:{createElement:element},submitQuestion(...args){calls.push(args)}});
+"""
+        result = subprocess.run([shutil.which("node"), "-e", javascript], input=json.dumps(helper),
+                                text=True, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_stream_keeps_context_per_model_and_reset_clears_both(self):
         import json
         path = Path(__file__).resolve().parents[1] / "src/vigovbot/server/static/index.html"
         script = path.read_text(encoding="utf-8").split("<script>", 1)[1].split("</script>", 1)[0]
         helpers = script[script.index("function modeLabel"):script.index("function addAnswers")]
+        helpers += script[script.index("function appendMenu"):script.index("async function submitQuestion")]
         reset = script[script.index("function resetConversation"):script.index("document.querySelector('#new-chat')")]
         javascript = """
 const vm=require('node:vm'),assert=require('node:assert/strict');
 const code=JSON.parse(require('node:fs').readFileSync(0,'utf8'));
+const conversationStates={a:null,b:{menu:{id:'b'}}};
 const histories={a:[],b:[]},retrievalContexts={a:null,b:{source_code:'b'}},clarificationContexts={a:null,b:{kind:'procedure'}};
 const element=()=>({append(){},textContent:''});
 const card={body:element(),el:element()};
@@ -32,8 +57,8 @@ assert.equal(retrievalContexts.a,null);assert.equal(clarificationContexts.a,null
 button.disabled=true;resetConversation();assert.equal(histories.a.length,4);
 button.disabled=false;resetConversation();
 assert.equal(histories.a.length,0);assert.equal(histories.b.length,0);
-assert.equal(retrievalContexts.a,null);assert.equal(clarificationContexts.a,null);assert.equal(retrievalContexts.b,null);assert.equal(clarificationContexts.b,null);assert.ok(chat.cleared);
-`,{assert,histories,retrievalContexts,clarificationContexts,card,chat,input,button,document:{createElement:element}});
+assert.equal(retrievalContexts.a,null);assert.equal(clarificationContexts.a,null);assert.equal(retrievalContexts.b,null);assert.equal(clarificationContexts.b,null);assert.ok(chat.cleared);assert.equal(conversationStates.a,null);assert.equal(conversationStates.b,null);
+`,{assert,histories,retrievalContexts,clarificationContexts,conversationStates,card,chat,input,button,document:{createElement:element}});
 """
         result = subprocess.run([shutil.which("node"), "-e", javascript],
                                 input=json.dumps({"helpers": helpers, "reset": reset}),

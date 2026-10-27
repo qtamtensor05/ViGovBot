@@ -90,7 +90,7 @@ class Retriever:
             self.db.close()
             raise ValueError("SQLite và FAISS không khớp hoặc sai loại chỉ mục")
 
-    def search(self, question, top_k=5):
+    def search(self, question, top_k=5, *, section_types=None):
         import faiss
         import numpy as np
 
@@ -121,8 +121,9 @@ class Retriever:
         vector = np.ascontiguousarray(vector)
         vector /= np.max(np.abs(vector))
         faiss.normalize_L2(vector)
-        preferred = preferred_section_types(question)
-        exact = self._search_source_codes(source_codes, vector, top_k, preferred)
+        preferred = preferred_section_types(question) if section_types is None else section_types
+        exact = self._search_source_codes(source_codes, vector, top_k, preferred,
+                                          strict_sections=section_types is not None)
         if exact is not None:
             return exact
         named = self._procedure_name_codes(question)
@@ -310,16 +311,39 @@ class Retriever:
                     labels.append(item[:240])
         return "; ".join(labels)
 
-    def _search_source_codes(self, source_codes, vector, top_k, preferred_sections=()):
+    def has_eligibility(self, code):
+        """Only offer the intent when this procedure has an actual conditions heading."""
+        with self._db_lock:
+            rows = self.db.execute(
+                "SELECT json_extract(payload, '$.context_prefix'), "
+                "substr(json_extract(payload, '$.text_content'), 1, 500) FROM chunks "
+                "WHERE json_extract(payload, '$.source_code') = ? "
+                "AND json_extract(payload, '$.section_type') = 'other'", (code,))
+            return any("dieu kien thuc hien" in _fold((prefix or "") + (text or "")) for prefix, text in rows)
+
+    def has_forms(self, code):
+        with self._db_lock:
+            rows = self.db.execute(
+                "SELECT substr(json_extract(payload, '$.text_content'), 1, 1500) FROM chunks "
+                "WHERE json_extract(payload, '$.source_code') = ? "
+                "AND json_extract(payload, '$.section_type') = 'required_documents'", (code,))
+            return any("mau don" in _fold(text or "") or "to khai" in _fold(text or "") for (text,) in rows)
+
+    def _search_source_codes(self, source_codes, vector, top_k, preferred_sections=(), *, strict_sections=False):
         """Rank exact-code chunks; return None only when the question contains no code."""
         if not source_codes:
             return None
         placeholders = ",".join("?" for _ in source_codes)
+        section_clause = ""
+        params = list(source_codes)
+        if strict_sections and preferred_sections:
+            section_clause = " AND json_extract(payload, '$.section_type') IN (" + ",".join("?" for _ in preferred_sections) + ")"
+            params.extend(preferred_sections)
         with self._db_lock:
             rows = self.db.execute(
                 "SELECT row_id, payload FROM chunks "
-                f"WHERE json_extract(payload, '$.source_code') COLLATE NOCASE IN ({placeholders})",
-                source_codes,
+                f"WHERE json_extract(payload, '$.source_code') COLLATE NOCASE IN ({placeholders})" + section_clause,
+                params,
             ).fetchall()
         if not rows:
             return []

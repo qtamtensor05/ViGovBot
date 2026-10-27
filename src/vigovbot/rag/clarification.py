@@ -23,6 +23,9 @@ _MIXED = "\nPhần yêu cầu ngoài thủ tục hành chính nằm ngoài phạ
 _PROCEDURE_LIST = re.compile(
     r"\b(?:(?:tat ca )?(?:cac|nhung) thu tuc|danh sach (?:cac )?thu tuc|"
     r"liet ke (?:cac )?thu tuc|tat ca thu tuc)\b")
+_DISCOVERY_STOP = frozenset((
+    "thu tuc cac nhung lien quan ve den toi muon hoi xem tim hieu cho biet la nao"
+).split())
 
 
 def has_goal(text):
@@ -60,6 +63,34 @@ class Clarifier:
             _fold(self.catalog[code]["name"]) != _fold(self.catalog[other]["name"])
             and _contains_phrase(_fold(self.catalog[other]["name"]), _fold(self.catalog[code]["name"]))
             for other in matched)]
+
+    def discover(self, query):
+        """Find catalog names for a short action/object description without semantic drift."""
+        words = [word for word in re.findall(r"\w+", _fold(query)) if word not in _DISCOVERY_STOP]
+        # "đất đai" is one object; keeping the second token would reject names using "đất".
+        words = [word for i, word in enumerate(words) if not (word == "dai" and i and words[i - 1] == "dat")]
+        words = list(dict.fromkeys(words))
+        if len(words) < 2:
+            return []
+        ranked = []
+        for code, item in self.catalog.items():
+            name_words = re.findall(r"\w+", _fold(item["name"]))
+            positions = []
+            for word in words:
+                matches = [i for i, candidate in enumerate(name_words) if candidate == word]
+                if not matches:
+                    break
+                positions.append(matches[0])
+            if len(positions) != len(words):
+                continue
+            # Favor nearby words in query order. This keeps "thành lập trường" above
+            # land procedures containing distant "thành lập doanh nghiệp"/"trường hợp".
+            ordered = all(a <= b for a, b in zip(positions, positions[1:]))
+            span = max(positions) - min(positions)
+            phrase = " ".join(words) in " ".join(name_words)
+            inverse = words[:2] == ["thanh", "lap"] and "giai the" in " ".join(name_words[:4])
+            ranked.append(((inverse, not phrase, not ordered, span, min(positions), len(name_words), item["name"], code), code))
+        return [code for _, code in sorted(ranked)]
 
     def goal(self, query, codes):
         remainder = _fold(query)

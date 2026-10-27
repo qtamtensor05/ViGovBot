@@ -7,7 +7,7 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 
 ## Thực hiện
 
-- API streaming có early exit cho LLM router khi prefix scope=out_of_scope hoặc relation=ambiguous đã hoàn chỉnh; giữ đối chiếu metadata, câu làm rõ mặc định và API thường. 90 test liên quan, Ruff, compileall đạt; chưa kiểm chứng model/GPU thật hoặc triển khai runtime do Docker daemon chưa chạy.
+- Routing mặc định v2: bốn nhóm nhãn, model base Qwen độc lập, trạng thái có chữ ký, menu có nút chọn và truy hồi theo từng thủ tục/section. Hợp đồng v1 giữ cho FastText/hybrid; v2 không dùng early exit prefix. Xem [hướng dẫn](../guides/four-head-routing.md).
 
 - RAG đã có bước hỏi lại theo metadata: chọn thủ tục khi nhiều mã phù hợp,
   chọn section khi thiếu mục tiêu; context riêng từng model trên API thường/streaming
@@ -23,9 +23,9 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   kết quả retrieval vào LLM, không rerank trong runtime online.
 - Evidence quá ngân sách được rút gọn theo hàng/field/phần tử hoàn chỉnh; không
   còn bỏ toàn bộ bảng hoặc JSON có thể chiếu an toàn vào prompt.
-- Routing dùng context `4096` và giới hạn sinh `128` token riêng; generation vẫn
+- Routing dùng context `4096` và giới hạn sinh `768` token riêng; generation vẫn
   dùng ngân sách `8192`/`512`.
-- Routing hỗ trợ `llm`, `fasttext` và `hybrid`; mặc định vẫn là `llm`. FastText
+- Routing v2 dùng `llm`; `fasttext` và `hybrid` chỉ dùng với `routing_contract: v1`. FastText
   chỉ quyết định trực tiếp câu hỏi mới trong/ngoài phạm vi khi vượt threshold;
   hybrid chuyển các trường hợp còn lại về Qwen.
 - QLoRA dùng adapter đã huấn luyện; RAG vẫn là nguồn căn cứ cho nội dung hiện hành.
@@ -68,3 +68,5 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 
 - Phép đo follow-up ngày 2026-10-27: retrieval warm 1,182 → 0,067 s; lượt cold
   1,170 → 1,456 s do nạp danh mục. Tổng latency vẫn phụ thuộc routing/generation.
+
+- Kiểm chứng routing v2: 303 ca đạt, 22 ca bỏ qua trong 325 test; Ruff, compileall và diff check đạt. Catalog sửa nhãn ngoài phạm vi sai khi câu hỏi khớp hành động/đối tượng thủ tục, đồng thời xếp hạng ứng viên theo khoảng cách từ khóa để tránh trôi miền semantic. API Qwen thật xác nhận “thuê đất” trong phạm vi và “thành lập trường” chỉ trả ứng viên giáo dục. Chưa thao tác trình duyệt thật do không có browser kết nối.

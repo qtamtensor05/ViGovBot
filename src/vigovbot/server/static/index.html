@@ -19,7 +19,7 @@
     form{padding:12px;display:grid;grid-template-columns:1fr auto;gap:10px}textarea{resize:none;border:1px solid #b9cec5;border-radius:11px;padding:11px;font:inherit;min-height:50px;max-height:150px}
     button{border:0;border-radius:11px;padding:0 22px;background:var(--brand);color:#fff;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}
     @media(max-width:600px){main{padding:10px 0}.msg{max-width:94%}form{grid-template-columns:1fr}button{height:44px}}
-  </style>
+  .menu-options{display:flex;flex-direction:column;gap:8px;margin-top:12px}.menu-options button{text-align:left;white-space:normal;padding:10px;border:1px solid #64748b;border-radius:8px;cursor:pointer}.menu-options button:focus-visible{outline:3px solid #38bdf8;outline-offset:2px}</style>
 </head>
 <body><main>
   <header><button id="new-chat" type="button">Hội thoại mới</button><h1>ViGovBot Model Lab</h1><p>So sánh Qwen Base, Qwen + RAG và Qwen đã tinh chỉnh QLoRA</p></header>
@@ -28,12 +28,12 @@
   <form id="form"><textarea id="question" rows="1" placeholder="Ví dụ: Hồ sơ cấp bản sao hộ tịch gồm những gì?" required></textarea><button id="send">Gửi</button></form>
 </main><script>
 const chat=document.querySelector('#chat'),modelsEl=document.querySelector('#models'),form=document.querySelector('#form'),input=document.querySelector('#question'),button=document.querySelector('#send');
-const histories={},retrievalContexts={},clarificationContexts={};let modelInfo={};
+const histories={},retrievalContexts={},clarificationContexts={},conversationStates={};let modelInfo={};
 function add(text,kind,meta=''){chat.querySelector('.empty')?.remove();const el=document.createElement('div');el.className='msg '+kind;el.textContent=text;if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;el.appendChild(m)}chat.appendChild(el);chat.scrollTop=chat.scrollHeight}
 function modeLabel(mode){return {base:'không truy hồi',rag:'có truy hồi',qlora:'adapter QLoRA · không truy hồi'}[mode]||mode}
-async function loadModels(){try{const res=await fetch('/api/models'),data=await res.json();if(!res.ok)throw new Error(data.error);modelsEl.innerHTML='<strong>Chế độ:</strong>';for(const m of data.models){modelInfo[m.id]=m;histories[m.id]=[];retrievalContexts[m.id]=null;clarificationContexts[m.id]=null;const label=document.createElement('label');const box=document.createElement('input');box.type='checkbox';box.value=m.id;box.checked=true;label.append(box,document.createTextNode(m.label+' '));const p=document.createElement('span');p.className='provider';p.textContent=`(${modeLabel(m.mode)})`;label.append(p);modelsEl.append(label)}}catch(err){modelsEl.textContent='Không tải được chế độ: '+err.message}}
+async function loadModels(){try{const res=await fetch('/api/models'),data=await res.json();if(!res.ok)throw new Error(data.error);modelsEl.innerHTML='<strong>Chế độ:</strong>';for(const m of data.models){modelInfo[m.id]=m;histories[m.id]=[];retrievalContexts[m.id]=null;clarificationContexts[m.id]=null;conversationStates[m.id]=null;const label=document.createElement('label');const box=document.createElement('input');box.type='checkbox';box.value=m.id;box.checked=true;label.append(box,document.createTextNode(m.label+' '));const p=document.createElement('span');p.className='provider';p.textContent=`(${modeLabel(m.mode)})`;label.append(p);modelsEl.append(label)}}catch(err){modelsEl.textContent='Không tải được chế độ: '+err.message}}
 function routingStatus(d){if(!d)return '';if(d.fallback_reason)return `Lỗi định dạng phân loại sau ${d.routing_attempts} lần · trả câu mặc định`;const reasons={ambiguous_question:'Cần làm rõ câu hỏi',procedure_required:'Cần chọn thủ tục',section_required:'Cần chọn nội dung',out_of_scope:'Ngoài phạm vi hỗ trợ',no_context:'Chưa có tài liệu để trả lời',evidence_assessment:'Đã xét bằng chứng tài liệu'};return [reasons[d.decision_reason]||'',d.relation?`Nhãn: ${d.relation}`:'',d.routing_attempts?`Phân loại: ${d.routing_attempts} lần`:''].filter(Boolean).join(' · ')}
-function historyAnswer(data){return data.routing_diagnostics?.fallback_reason?'Chưa có câu trả lời cho lượt này do lỗi xử lý của hệ thống; câu hỏi người dùng vẫn chưa được giải đáp.':data.answer}
+function historyAnswer(data){if(data.conversation_state)return data.answer;return data.routing_diagnostics?.fallback_reason?'Chưa có câu trả lời cho lượt này do lỗi xử lý của hệ thống; câu hỏi người dùng vẫn chưa được giải đáp.':data.answer}
 function contextMeta(source,index){const rank=source.faiss_rank||index+1,parts=[`Hạng ${rank}`,source.source_code&&`Mã ${source.source_code}`,source.section_type&&`Mục ${source.section_type}`,source.faiss_score!=null&&`FAISS ${Number(source.faiss_score).toFixed(4)}`];return parts.filter(Boolean).join(' · ')}
 function contextPanel(sources){const selected=(sources||[]).filter(s=>s&&s.text_content);if(!selected.length)return null;const details=document.createElement('details');details.className='contexts';details.open=true;const summary=document.createElement('summary');summary.textContent=`Top-${selected.length} context retrieval`;const list=document.createElement('div');list.className='context-list';selected.forEach((source,index)=>{const item=document.createElement('article');item.className='context';const title=document.createElement('h3');title.textContent=source.procedure_name||source.chunk_id||`Chunk ${index+1}`;const meta=document.createElement('div');meta.className='context-meta';meta.textContent=contextMeta(source,index);const content=document.createElement('pre');content.textContent=source.text_content;item.append(title,meta,content);list.append(item)});details.append(summary,list);return details}
 function beginStreamingAnswers(models){
@@ -45,7 +45,7 @@ function applyStreamEvent(event,cards,question){
   if(event.type==='model_start'&&cards[event.model_id]&&!cards[event.model_id].received)cards[event.model_id].body.textContent='Đang xử lý…';
   if(event.type==='token'&&cards[event.model_id]){const card=cards[event.model_id];if(!card.received){card.body.textContent='';card.received=true}card.body.textContent+=event.text;chat.scrollTop=chat.scrollHeight}
   if(event.type!=='model_result')return;const data=event.result,card=cards[data.model_id];if(!card)return;card.body.textContent=data.error?'Lỗi: '+data.error:data.answer;
-  if(!data.error){const contexts=contextPanel(data.sources);if(contexts)card.el.append(contexts);const sources=(data.sources||[]).map(s=>s.source_code||s.source_file).filter(Boolean),meta=document.createElement('div');meta.className='meta';meta.textContent=[data.latency_s!=null?`${data.latency_s.toFixed(1)} giây`:'',routingStatus(data.routing_diagnostics),sources.length?`Nguồn: ${[...new Set(sources)].join(', ')}`:''].filter(Boolean).join(' · ');card.el.append(meta);retrievalContexts[data.model_id]=data.retrieval_context||null;clarificationContexts[data.model_id]=data.clarification_context||null;histories[data.model_id].push({role:'user',content:question},{role:'assistant',content:historyAnswer(data)})}
+  if(!data.error){const contexts=contextPanel(data.sources);if(contexts)card.el.append(contexts);const sources=(data.sources||[]).map(s=>s.source_code||s.source_file).filter(Boolean),meta=document.createElement('div');meta.className='meta';meta.textContent=[data.latency_s!=null?`${data.latency_s.toFixed(1)} giây`:'',routingStatus(data.routing_diagnostics),sources.length?`Nguồn: ${[...new Set(sources)].join(', ')}`:''].filter(Boolean).join(' · ');card.el.append(meta);appendMenu(card.el,data);retrievalContexts[data.model_id]=data.retrieval_context||null;clarificationContexts[data.model_id]=data.clarification_context||null;conversationStates[data.model_id]=data.conversation_state||null;histories[data.model_id].push({role:'user',content:question},{role:'assistant',content:historyAnswer(data)})}
 }
 async function readEvents(response,onEvent){const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';while(true){const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines)if(line.trim())onEvent(JSON.parse(line));if(done)break}if(buffer.trim())onEvent(JSON.parse(buffer))}
 function addAnswers(results,question){
@@ -58,15 +58,33 @@ function addAnswers(results,question){
       const sources=(data.sources||[]).map(s=>s.source_code||s.source_file).filter(Boolean),meta=document.createElement('div');meta.className='meta';
       meta.textContent=[data.latency_s!=null?`${data.latency_s.toFixed(1)} giây`:'',routingStatus(data.routing_diagnostics),sources.length?`Nguồn: ${[...new Set(sources)].join(', ')}`:''].filter(Boolean).join(' · ');el.append(meta);
       if(data.raw_routing){const details=document.createElement('details'),summary=document.createElement('summary'),raw=document.createElement('pre');summary.textContent='Chẩn đoán routing (debug)';raw.textContent=JSON.stringify(data.raw_routing,null,2);details.append(summary,raw);el.append(details)}
-      retrievalContexts[data.model_id]=data.retrieval_context||null;clarificationContexts[data.model_id]=data.clarification_context||null;histories[data.model_id].push({role:'user',content:question},{role:'assistant',content:historyAnswer(data)});
+      appendMenu(el,data);retrievalContexts[data.model_id]=data.retrieval_context||null;clarificationContexts[data.model_id]=data.clarification_context||null;conversationStates[data.model_id]=data.conversation_state||null;histories[data.model_id].push({role:'user',content:question},{role:'assistant',content:historyAnswer(data)});
     }
     wrap.append(el);
   }
   chat.append(wrap);chat.scrollTop=chat.scrollHeight;
 }
-form.addEventListener('submit',async e=>{e.preventDefault();const question=input.value.trim(),models=[...modelsEl.querySelectorAll('input:checked')].map(x=>x.value);if(!question)return;if(!models.length){add('Hãy chọn ít nhất một model.','bot');return}add(question,'user');input.value='';button.disabled=true;button.textContent='Đang sinh…';const cards=beginStreamingAnswers(models);try{const selectedHistories=Object.fromEntries(models.map(id=>[id,histories[id]]));const res=await fetch('/api/chat/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,models,histories:selectedHistories,clarification_contexts:Object.fromEntries(models.map(id=>[id,clarificationContexts[id]])),retrieval_contexts:Object.fromEntries(models.map(id=>[id,retrievalContexts[id]]))})});if(!res.ok){const data=await res.json();throw new Error(data.error||'Yêu cầu thất bại')}await readEvents(res,event=>{if(event.type==='error')throw new Error(event.error);applyStreamEvent(event,cards,question)})}catch(err){add('Lỗi: '+err.message,'bot')}finally{button.disabled=false;button.textContent='Gửi';input.focus()}});
+function appendMenu(parent,data){
+  if(!data.menu)return;
+  const group=document.createElement('div');group.className='menu-options';group.setAttribute('aria-label','Lựa chọn nội dung');
+  data.menu.options.forEach((option,index)=>{const choice=document.createElement('button');choice.type='button';choice.textContent=`${index+1}. ${option.label}`;
+    choice.addEventListener('click',()=>{if(button.disabled)return;if(conversationStates[data.model_id]?.menu?.id!==data.menu.id){choice.disabled=true;return}submitQuestion(String(index+1),[data.model_id],{[data.model_id]:{menu_id:data.menu.id,option_id:option.id}})});group.append(choice)});
+  parent.append(group);
+}
+async function submitQuestion(question,models,selections={}){
+  if(button.disabled||!question)return;if(!models.length){add('Hãy chọn ít nhất một model.','bot');return}
+  add(question,'user');input.value='';button.disabled=true;button.textContent='Đang sinh…';const cards=beginStreamingAnswers(models);
+  try{const selectedHistories=Object.fromEntries(models.map(id=>[id,histories[id]]));
+    const res=await fetch('/api/chat/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,models,histories:selectedHistories,selections,
+      conversation_states:Object.fromEntries(models.map(id=>[id,conversationStates[id]])),
+      clarification_contexts:Object.fromEntries(models.map(id=>[id,clarificationContexts[id]])),retrieval_contexts:Object.fromEntries(models.map(id=>[id,retrievalContexts[id]]))})});
+    if(!res.ok){const data=await res.json();throw new Error(data.error||'Yêu cầu thất bại')}
+    await readEvents(res,event=>{if(event.type==='error')throw new Error(event.error);applyStreamEvent(event,cards,question)})
+  }catch(err){add('Lỗi: '+err.message,'bot')}finally{button.disabled=false;button.textContent='Gửi';input.focus()}
+}
+form.addEventListener('submit',e=>{e.preventDefault();submitQuestion(input.value.trim(),[...modelsEl.querySelectorAll('input:checked')].map(x=>x.value))});
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});
-function resetConversation(){if(button.disabled)return;for(const id of Object.keys(histories)){histories[id]=[];retrievalContexts[id]=null;clarificationContexts[id]=null}chat.replaceChildren();input.focus()}
+function resetConversation(){if(button.disabled)return;for(const id of Object.keys(histories)){histories[id]=[];retrievalContexts[id]=null;clarificationContexts[id]=null;conversationStates[id]=null}chat.replaceChildren();input.focus()}
 document.querySelector('#new-chat').addEventListener('click',resetConversation);
 loadModels();
 </script></body></html>

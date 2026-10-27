@@ -10,7 +10,9 @@ llm:
   model: qwen2.5:7b
   ollama_url: &ollama_url http://localhost:11434
   routing_num_ctx: 4096
-  routing_num_predict: 128
+  routing_num_predict: 768
+  routing_model: qwen2.5:7b
+  routing_base_url: http://localhost:11434
 retrieval:
   top_k: 5
   max_chunk_tokens: 1200
