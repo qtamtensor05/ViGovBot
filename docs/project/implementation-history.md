@@ -276,3 +276,10 @@ chưa chứng minh giảm đều tổng latency. Chi tiết ở
 - **Mục tiêu:** Nhận biết “Các thủ tục cấp lại chứng chỉ kiểm định viên” là yêu cầu chọn trong nhóm thủ tục, không tự chốt mã 2.000066.
 - **Thực hiện:** Nhận diện yêu cầu danh sách/số nhiều; mở rộng tên khớp sang các biến thể dài hơn có cùng cụm tên trong catalog. Ưu tiên mã cụ thể khi được nêu, giữ tên đơn/ý hỏi rõ; không biến từ “tất cả các thủ tục” thành mục tiêu tổng quan sau khi chọn.
 - **Kết quả:** 106 test Python liên quan và 2 test JavaScript đạt; Ruff/compileall đạt. Backend đã restart, health ok. API thật trả procedure_required với năm mã 2.000066, 1.000187, 1.000180, 1.000183, 2.000037 và more=true (3,23 giây); sao chép mục 2 chuyển section_required đúng mã 1.000187 (0,51 giây). Chưa thao tác trình duyệt thật.
+
+
+## 2026-10-27 — Streaming early exit cho LLM router
+
+- **Mục tiêu:** Trả sớm nhánh ngoài phạm vi/làm rõ trên API streaming.
+- **Thực hiện:** Đọc prefix scope/relation qua nhiều chunk, dừng sinh router khi nhãn kết thúc được xác định; đóng HTTP stream hoặc dừng/join worker Transformers. Giữ đối chiếu metadata trước câu làm rõ, dùng câu hỏi mặc định khi bỏ phần clarification của JSON. Gửi token kết quả trước model_result; API thường vẫn chờ JSON đầy đủ.
+- **Kết quả:** 90 test routing/provider/server/clarification/documentation đạt; Ruff và compileall đạt. Test provider giả lập xác nhận không đọc phần đuôi JSON và đóng kết nối. Chưa kiểm chứng model thật hoặc hủy sinh trên GPU; Docker daemon chưa chạy.

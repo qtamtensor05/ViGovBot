@@ -18,6 +18,50 @@ except ModuleNotFoundError as exc:
 
 
 class RoutingProviderTests(unittest.TestCase):
+    def test_terminal_prefix_stops_provider_and_closes_connection(self):
+        from vigovbot.rag.response import resolve_route
+        from tests.tokenizer_fixtures import CharacterTokenizer
+        for provider in (ollama_answer, openai_compatible_answer):
+            for scope, relation in (("out_of_scope", "new_question"), ("mixed", "ambiguous")):
+                with self.subTest(provider=provider.__name__, scope=scope):
+                    prefix = '{"scope":"' + scope + '","relation":"' + relation + '",'
+                    if provider is openai_compatible_answer:
+                        prefix = '{"route":' + prefix
+                    def lines(**kwargs):
+                        for char in prefix:
+                            if provider is ollama_answer:
+                                yield json.dumps({"message": {"content": char}}).encode()
+                            else:
+                                yield 'data: ' + json.dumps({"choices": [{"delta": {"content": char}}]})
+                        self.fail("Consumed JSON tail after terminal label")
+                    response = Mock()
+                    response.iter_lines.side_effect = lines
+                    with patch("requests.post", return_value=response):
+                        result = resolve_route("test", [], CharacterTokenizer(),
+                                               {**self.settings, "routing_early_exit": True}, provider, True)
+                    self.assertEqual(result[0]["scope"], scope)
+                    self.assertEqual(result[0]["relation"], relation)
+                    self.assertTrue(result[1]["early_exit"])
+                    self.assertEqual(result[4], 1)
+                    response.close.assert_called_once()
+
+    def test_prefix_reader_ignores_query_text_and_incomplete_labels(self):
+        from vigovbot.rag.routing import RoutePrefixReader
+        for text in ('{"scope":"out_of_scope_extra",', '{"scope":"out_of_scope',
+                     '{"query":"out_of_scope","relation":"ambiguous",',
+                     '{"scope":"in_scope","relation":"new_question","query":"ambiguous"}'):
+            reader = RoutePrefixReader()
+            for char in text:
+                reader.feed(char)
+
+    def test_nonstream_router_does_not_install_prefix_callback(self):
+        from vigovbot.rag.response import resolve_route
+        from tests.tokenizer_fixtures import CharacterTokenizer
+        fn = Mock(return_value=(json.dumps(self.route), {}, 0.0))
+        result = resolve_route("test", [], CharacterTokenizer(), self.settings, fn, True)
+        self.assertEqual(result[0], self.route)
+        self.assertNotIn("token_callback", fn.call_args.args[1])
+
     def setUp(self):
         self.schema = routing_schema([])
         self.settings = dict(model="qwen", ollama_url="http://localhost:11434", base_url="http://api/v1",

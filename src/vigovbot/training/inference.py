@@ -101,6 +101,14 @@ def local_transformers_answer(messages, settings):
             do_sample=settings.get("temperature", 0.0) > 0,
         )
         if token_callback:
+            from transformers import StoppingCriteria, StoppingCriteriaList
+            cancelled = threading.Event()
+
+            class Cancelled(StoppingCriteria):
+                def __call__(self, input_ids, scores, **kwargs):
+                    return cancelled.is_set()
+
+            generate_kwargs["stopping_criteria"] = StoppingCriteriaList([Cancelled()])
             streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
             generated, failure = {}, {}
             def run_generation():
@@ -112,12 +120,15 @@ def local_transformers_answer(messages, settings):
                     streamer.end()
             worker = threading.Thread(target=run_generation, daemon=True)
             worker.start()
-            for text in streamer:
-                if text:
-                    if first.seconds is None:
-                        first.seconds = time.perf_counter() - started
-                    token_callback(text)
-            worker.join()
+            try:
+                for text in streamer:
+                    if text:
+                        if first.seconds is None:
+                            first.seconds = time.perf_counter() - started
+                        token_callback(text)
+            finally:
+                cancelled.set()
+                worker.join()
             if failure:
                 raise failure["error"]
             output = generated["output"]

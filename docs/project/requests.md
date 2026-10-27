@@ -176,3 +176,10 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Câu “Các thủ tục cấp lại chứng chỉ kiểm định viên” phải đưa các biến thể để chọn thay vì tự chốt mã 2.000066.
 - **Thực hiện:** Phát hiện yêu cầu danh sách/số nhiều, mở rộng tên khớp sang biến thể dài hơn trong catalog trước bước chọn section; giữ ưu tiên mã cụ thể và mục tiêu đã rõ.
 - **Kết quả:** 106 test Python liên quan và 2 test JavaScript đạt. Backend đã restart; API thật trả procedure_required với năm ứng viên và more=true; chọn mục 2 chuyển section_required cho mã 1.000187.
+
+
+## 2026-10-27 — Streaming early exit cho LLM router
+
+- **Mục tiêu:** Trả sớm nhánh ngoài phạm vi/làm rõ trên API streaming.
+- **Thực hiện:** Đọc prefix scope/relation qua nhiều chunk, dừng sinh router khi nhãn kết thúc được xác định; đóng HTTP stream hoặc dừng/join worker Transformers. Giữ đối chiếu metadata trước câu làm rõ, dùng câu hỏi mặc định khi bỏ phần clarification của JSON. Gửi token kết quả trước model_result; API thường vẫn chờ JSON đầy đủ.
+- **Kết quả:** 90 test routing/provider/server/clarification/documentation đạt; Ruff và compileall đạt. Test provider giả lập xác nhận không đọc phần đuôi JSON và đóng kết nối. Chưa kiểm chứng model thật hoặc hủy sinh trên GPU; Docker daemon chưa chạy.

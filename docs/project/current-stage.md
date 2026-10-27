@@ -7,6 +7,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 
 ## Thực hiện
 
+- API streaming có early exit cho LLM router khi prefix scope=out_of_scope hoặc relation=ambiguous đã hoàn chỉnh; giữ đối chiếu metadata, câu làm rõ mặc định và API thường. 90 test liên quan, Ruff, compileall đạt; chưa kiểm chứng model/GPU thật hoặc triển khai runtime do Docker daemon chưa chạy.
+
 - RAG đã có bước hỏi lại theo metadata: chọn thủ tục khi nhiều mã phù hợp,
   chọn section khi thiếu mục tiêu; context riêng từng model trên API thường/streaming
   và web, có hỗ trợ client cũ qua lịch sử. Không cần tạo lại embedding hoặc huấn luyện router.

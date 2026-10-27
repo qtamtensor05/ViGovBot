@@ -197,6 +197,20 @@ class RoutingTests(unittest.TestCase):
                 self.assertIsNone(result["retrieval_query"])
                 self.retriever.search.assert_not_called()
 
+    def test_streaming_terminal_prefix_skips_json_tail_and_retrieval(self):
+        for scope, relation, action in (("out_of_scope", "new_question", "abstain"),
+                                        ("in_scope", "ambiguous", "clarify")):
+            def provider(messages, settings):
+                settings["token_callback"]('{"scope":"' + scope + '",')
+                settings["token_callback"]('"relation":"' + relation + '",')
+                self.fail("Router waited for full JSON")
+            result = answer_question("Còn lệ phí?", self.retriever, Tokenizer(),
+                                     {**self.settings, "routing_early_exit": True}, answer_fn=provider)
+            self.assertEqual(result["action"], action)
+            self.assertTrue(result["raw_routing"]["early_exit"])
+            self.assertEqual(result["generation_s"], 0.0)
+            self.retriever.search.assert_not_called()
+
     def test_no_context_abstains_without_answer_generation(self):
         self.retriever.search.return_value = []
         result, llm = self.run_answer([route()])

@@ -367,7 +367,7 @@ class ChatApplication:
                             question.strip(),
                             self.retriever,
                             self.tokenizer,
-                            settings,
+                            {**settings, "routing_early_exit": True} if emit_token else settings,
                             history=clean_histories[model_id],
                             answer_fn=rag_answer_fn,
                             **({"retrieval_context": retrieval_contexts[model_id]}
@@ -376,6 +376,8 @@ class ChatApplication:
                             **({"clarification_context": clarification_contexts[model_id]}
                                if model_id in clarification_contexts else {}),
                         )
+                    if emit_token and mode == "rag" and result.get("generation_s") == 0.0:
+                        emit_token(result["prediction"])
                     public_result = {
                         "model_id": model_id,
                         "mode": mode,

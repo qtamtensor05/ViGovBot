@@ -5,6 +5,7 @@ import json
 import time
 from vigovbot.rag.routing import (
     routing_messages, routing_schema, parse_route, parse_answer, answer_schema, StructuredAnswerError,
+    RoutePrefixReader, RouteEarlyExit,
 )
 
 
@@ -54,7 +55,21 @@ def resolve_route(question, history, tokenizer, settings, answer_fn, routing_ena
         route_messages, routing_tokens = routing_messages(
             question, history, tokenizer, routing_settings)
         routing_attempts = 1
-        route_text, llm_raw, _ = answer_fn(route_messages, routing_settings)
+        def call_router(messages):
+            call_settings = dict(routing_settings)
+            # Routing JSON must never reach the public answer token callback.
+            call_settings.pop("token_callback", None)
+            if settings.get("routing_early_exit", False):
+                call_settings["token_callback"] = RoutePrefixReader().feed
+            try:
+                return answer_fn(messages, call_settings)
+            except RouteEarlyExit as early:
+                return json.dumps(early.route, ensure_ascii=False), {
+                    "early_exit": True, "partial_text": early.prefix,
+                    "route": early.route,
+                }, time.perf_counter() - routing_started
+
+        route_text, llm_raw, _ = call_router(route_messages)
         routing_raw = llm_raw
         try:
             route = parse_route(route_text, history)
@@ -81,7 +96,7 @@ def resolve_route(question, history, tokenizer, settings, answer_fn, routing_ena
             if retry_tokens > routing_settings["num_ctx"] - routing_settings["num_predict"] - 256:
                 raise ValueError("Routing retry exceeds context budget") from exc
             routing_attempts = 2
-            retry_text, retry_raw, _ = answer_fn(retry_messages, routing_settings)
+            retry_text, retry_raw, _ = call_router(retry_messages)
             routing_raw = {"initial": routing_raw, "retry": retry_raw,
                            "initial_text": route_text, "retry_text": retry_text,
                            "initial_error": str(exc)}

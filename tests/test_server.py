@@ -11,6 +11,17 @@ except ModuleNotFoundError as exc:
 
 
 class WebChatTests(unittest.TestCase):
+    def test_early_routing_stream_emits_final_text_before_result(self):
+        for action in ("abstain", "clarify"):
+            events = []
+            with patch("vigovbot.server.app.answer_question", return_value={
+                "prediction": "Nội dung trả sớm", "action": action, "generation_s": 0.0,
+            }) as answer:
+                self.app.chat({"question": "test", "models": ["local"]}, event_callback=events.append)
+            self.assertTrue(answer.call_args.args[3]["routing_early_exit"])
+            self.assertEqual([e["type"] for e in events], ["model_start", "token", "model_result"])
+            self.assertEqual(events[1]["text"], events[2]["result"]["answer"])
+
     def test_clarification_contexts_round_trip_and_stream_per_model(self):
         from copy import copy
         other = copy(self.config.web.models[0])
