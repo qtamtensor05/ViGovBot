@@ -1,0 +1,599 @@
+{
+  "schema_version": "3.2.0",
+  "architecture": "rag",
+  "evaluation_scope": "end_to_end",
+  "test_id": "fixture",
+  "run_id": "fixture",
+  "evaluation_results": {
+    "scoring_status": "partial",
+    "metrics": {
+      "retrieval": {
+        "hit_at_1": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Ví dụ giả lập có chunk chuẩn đứng hạng 1.",
+          "unit": "ratio"
+        },
+        "recall_at_1": {
+          "value": 0.5,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Tìm được 1/2 bằng chứng chuẩn.",
+          "unit": "ratio"
+        },
+        "precision_at_1": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Mọi chunk trong top-k thực trả về đều thuộc bằng chứng chuẩn.",
+          "unit": "ratio"
+        },
+        "hit_at_3": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Ví dụ giả lập có chunk chuẩn đứng hạng 1.",
+          "unit": "ratio"
+        },
+        "recall_at_3": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Tìm được đủ 2/2 bằng chứng chuẩn.",
+          "unit": "ratio"
+        },
+        "precision_at_3": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Mọi chunk trong top-k thực trả về đều thuộc bằng chứng chuẩn.",
+          "unit": "ratio"
+        },
+        "hit_at_5": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Ví dụ giả lập có chunk chuẩn đứng hạng 1.",
+          "unit": "ratio"
+        },
+        "recall_at_5": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Tìm được đủ 2/2 bằng chứng chuẩn.",
+          "unit": "ratio"
+        },
+        "precision_at_5": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Mọi chunk trong top-k thực trả về đều thuộc bằng chứng chuẩn.",
+          "unit": "ratio"
+        },
+        "reciprocal_rank_at_5": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Chunk đúng đầu tiên ở hạng 1: 1/1. Trung bình theo run mới là MRR.",
+          "unit": "ratio"
+        },
+        "average_precision_at_5": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "AP của một case; trung bình theo run mới là MAP.",
+          "unit": "ratio"
+        },
+        "ndcg_at_5": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Binary relevance: thứ hạng hiện tại đạt thứ hạng lý tưởng.",
+          "unit": "ratio"
+        },
+        "context_noise_ratio": {
+          "value": 0,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Không có chunk ngoài tập bằng chứng chuẩn trong ví dụ.",
+          "unit": "ratio"
+        },
+        "multi_intent_retrieval_coverage": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "2/2 sub-query tìm được bằng chứng tương ứng.",
+          "unit": "ratio"
+        }
+      },
+      "generation": {
+        "normalized_exact_match": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "actual_output khớp expected_answer.",
+          "unit": "ratio"
+        },
+        "token_f1": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Token hai câu giống nhau.",
+          "unit": "ratio"
+        },
+        "key_fact_coverage": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Đủ 2/2 key facts.",
+          "unit": "ratio"
+        },
+        "semantic_correctness": {
+          "value": null,
+          "status": "missing_input",
+          "scorer_version": null,
+          "reason": "Đã có prompt_messages, prompt_contexts và câu trả lời. Metric sẽ tính khi chạy judge, không suy ra bằng so khớp chuỗi."
+        }
+      },
+      "citation": {
+        "precision": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "2/2 nguồn được trích dẫn đúng.",
+          "unit": "ratio"
+        },
+        "recall": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Trích dẫn đủ 2/2 nguồn chuẩn.",
+          "unit": "ratio"
+        },
+        "invalid_citation_rate": {
+          "value": 0,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Không có citation tham chiếu ID ngoài nguồn kỳ vọng.",
+          "unit": "ratio"
+        }
+      },
+      "groundedness": {
+        "faithfulness": {
+          "value": null,
+          "status": "missing_input",
+          "scorer_version": null,
+          "reason": "Đã có prompt_messages, prompt_contexts và câu trả lời. Metric sẽ tính khi chạy judge, không suy ra bằng so khớp chuỗi."
+        },
+        "hallucination_rate": {
+          "value": null,
+          "status": "missing_input",
+          "scorer_version": null,
+          "reason": "Đã có prompt_messages, prompt_contexts và câu trả lời. Metric sẽ tính khi chạy judge, không suy ra bằng so khớp chuỗi."
+        }
+      },
+      "query_processing": {
+        "query_rewrite_similarity": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "standalone_query khớp câu chuẩn.",
+          "unit": "ratio"
+        },
+        "sub_query_precision": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "2/2 sub-query đúng.",
+          "unit": "ratio"
+        },
+        "sub_query_recall": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Tách đủ 2/2 ý hỏi.",
+          "unit": "ratio"
+        }
+      },
+      "robustness": {
+        "false_refusal": {
+          "value": false,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Action answer khớp expected_action answer.",
+          "unit": "boolean"
+        },
+        "noise_robustness": {
+          "value": null,
+          "status": "not_applicable",
+          "scorer_version": null,
+          "reason": "Cặp clean/noisy không được chạy trong ví dụ này; evaluation_plan.robustness_pair=null."
+        }
+      },
+      "performance": {
+        "query_processing_latency_ms": {
+          "value": 20,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu giả lập để minh họa trường đo, không phải benchmark thật.",
+          "unit": "ms"
+        },
+        "retrieval_latency_ms": {
+          "value": 30,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu giả lập để minh họa trường đo, không phải benchmark thật.",
+          "unit": "ms"
+        },
+        "generation_latency_ms": {
+          "value": 100,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu giả lập để minh họa trường đo, không phải benchmark thật.",
+          "unit": "ms"
+        },
+        "total_latency_ms": {
+          "value": 150,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu giả lập để minh họa trường đo, không phải benchmark thật.",
+          "unit": "ms"
+        },
+        "ttft_ms": {
+          "value": 40,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu provider giả lập.",
+          "unit": "ms"
+        },
+        "prompt_tokens": {
+          "value": 60,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu provider giả lập.",
+          "unit": "tokens"
+        },
+        "completion_tokens": {
+          "value": 10,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu provider giả lập.",
+          "unit": "tokens"
+        },
+        "total_tokens": {
+          "value": 70,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu provider giả lập.",
+          "unit": "tokens"
+        },
+        "generation_tokens_per_second": {
+          "value": 100,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Số liệu provider giả lập.",
+          "unit": "tokens/s"
+        }
+      }
+    },
+    "relevance_contract": "binary_golden_context_ids",
+    "metric_contracts": {
+      "precision_denominator": "returned_items",
+      "ndcg_gain": "binary",
+      "ndcg_discount": "log2_rank_plus_one",
+      "average_precision_denominator": "min_k_known_relevant"
+    },
+    "provenance": {
+      "scorer_version": "synthetic-example-v1",
+      "prediction_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "split": "test",
+  "evaluation_context": {
+    "requested_cutoffs": [
+      1,
+      3,
+      5
+    ],
+    "robustness_pair": null
+  },
+  "input": {
+    "question": "Hồ sơ và lệ phí của thủ tục minh họa?",
+    "chat_history": [],
+    "task_constraint": null,
+    "metadata_filters": null
+  },
+  "provenance": {
+    "dataset_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "dataset_version": "fixture",
+    "corpus_revision": "corpus-fixture",
+    "index_revision": "index-fixture"
+  },
+  "execution": {
+    "status": "success",
+    "model_config": {
+      "answer_model": "fixture"
+    },
+    "action": "answer",
+    "retrieval_skip_reason": null,
+    "query_processing": {
+      "standalone_query": "Hồ sơ và lệ phí của thủ tục minh họa?",
+      "sub_queries": [
+        {
+          "sub_query_id": "sq-1",
+          "query": "Hồ sơ của thủ tục minh họa?"
+        },
+        {
+          "sub_query_id": "sq-2",
+          "query": "Lệ phí của thủ tục minh họa?"
+        }
+      ],
+      "rewrite_applied": false,
+      "decomposition_applied": true
+    },
+    "retrieval": {
+      "query": "Hồ sơ và lệ phí của thủ tục minh họa?",
+      "top_k": 5,
+      "sub_query_results": [
+        {
+          "sub_query_id": "sq-1",
+          "query": "Hồ sơ của thủ tục minh họa?",
+          "top_k": 5,
+          "contexts": [
+            {
+              "rank": 1,
+              "context_id": "chunk-1",
+              "score": 0.9,
+              "text": "Hồ sơ: giấy tờ A."
+            }
+          ]
+        },
+        {
+          "sub_query_id": "sq-2",
+          "query": "Lệ phí của thủ tục minh họa?",
+          "top_k": 5,
+          "contexts": [
+            {
+              "rank": 1,
+              "context_id": "chunk-2",
+              "score": 0.8,
+              "text": "Lệ phí: miễn phí."
+            }
+          ]
+        }
+      ],
+      "contexts": [
+        {
+          "rank": 1,
+          "context_id": "chunk-1",
+          "score": 0.9,
+          "text": "Hồ sơ: giấy tờ A."
+        },
+        {
+          "rank": 2,
+          "context_id": "chunk-2",
+          "score": 0.8,
+          "text": "Lệ phí: miễn phí."
+        }
+      ]
+    },
+    "generation": {
+      "actual_output": "Hồ sơ: giấy tờ A. Lệ phí: miễn phí.",
+      "citations": [
+        {
+          "claim": "Hồ sơ: giấy tờ A.",
+          "source_id": "chunk-1"
+        },
+        {
+          "claim": "Lệ phí: miễn phí.",
+          "source_id": "chunk-2"
+        }
+      ],
+      "prompt_messages": [
+        {
+          "role": "system",
+          "content": "Ví dụ giả lập. Trả lời theo tài liệu và trích dẫn ID nguồn."
+        },
+        {
+          "role": "user",
+          "content": "Hồ sơ và lệ phí của thủ tục minh họa?\n[chunk-1] Hồ sơ: giấy tờ A.\n[chunk-2] Lệ phí: miễn phí."
+        }
+      ],
+      "prompt_contexts": [
+        {
+          "context_id": "chunk-1",
+          "text": "Hồ sơ: giấy tờ A."
+        },
+        {
+          "context_id": "chunk-2",
+          "text": "Lệ phí: miễn phí."
+        }
+      ]
+    },
+    "telemetry": {
+      "total_latency_ms": 150,
+      "query_processing_latency_ms": 20,
+      "retrieval_latency_ms": 30,
+      "generation_latency_ms": 100,
+      "measurements": {
+        "ttft_ms": {
+          "value": 40,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "prompt_tokens": {
+          "value": 60,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "completion_tokens": {
+          "value": 10,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "total_tokens": {
+          "value": 70,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "generation_tokens_per_second": {
+          "value": 100,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "peak_allocated_vram_gb": {
+          "value": null,
+          "status": "unavailable",
+          "source": null,
+          "reason": "Synthetic fixture has no provider measurement"
+        },
+        "gpu_utilization_percent": {
+          "value": null,
+          "status": "unavailable",
+          "source": null,
+          "reason": "Synthetic fixture has no provider measurement"
+        },
+        "cost_usd": {
+          "value": null,
+          "status": "unavailable",
+          "source": null,
+          "reason": "Synthetic fixture has no provider measurement"
+        }
+      },
+      "pricing": null
+    }
+  },
+  "golden": {
+    "test_id": "fixture",
+    "version": "fixture",
+    "evaluation_plan": {
+      "cutoffs": [
+        1,
+        3,
+        5
+      ],
+      "expected_action": "answer",
+      "reference_answers": [
+        "Hồ sơ: giấy tờ A. Lệ phí: miễn phí."
+      ],
+      "fact_evidence": [
+        {
+          "fact": "Hồ sơ: giấy tờ A.",
+          "context_ids": [
+            "chunk-1"
+          ]
+        },
+        {
+          "fact": "Lệ phí: miễn phí.",
+          "context_ids": [
+            "chunk-2"
+          ]
+        }
+      ],
+      "sub_query_targets": [
+        {
+          "sub_query_id": "sq-1",
+          "query": "Hồ sơ của thủ tục minh họa?",
+          "relevant_context_ids": [
+            "chunk-1"
+          ]
+        },
+        {
+          "sub_query_id": "sq-2",
+          "query": "Lệ phí của thủ tục minh họa?",
+          "relevant_context_ids": [
+            "chunk-2"
+          ]
+        }
+      ],
+      "format_rules": [
+        {
+          "rule_id": "format-1",
+          "description": "Trả lời hồ sơ và lệ phí thành hai ý riêng.",
+          "method": "judge"
+        }
+      ],
+      "negative_rules": [
+        {
+          "rule_id": "negative-1",
+          "description": "Không tự thêm giấy tờ hoặc mức phí không có trong nguồn.",
+          "method": "judge",
+          "forbidden_text": null
+        }
+      ],
+      "robustness_pair": null,
+      "relevance_completeness": "known_positives_only",
+      "normalization_version": "unicode-nfc-casefold-whitespace-v1",
+      "corpus_revision": "corpus-fixture"
+    },
+    "taxonomy": {
+      "domain": "Hộ tịch",
+      "turn_type": "new_question",
+      "complexity_type": "multi_intent",
+      "has_topic_shift": false,
+      "difficulty": "medium",
+      "eval_split": "in_domain",
+      "is_unanswerable": false,
+      "adversarial_type": "none"
+    },
+    "input": {
+      "question": "Hồ sơ và lệ phí của thủ tục minh họa?",
+      "chat_history": [],
+      "task_constraint": null,
+      "metadata_filters": null
+    },
+    "ground_truth": {
+      "expected_route": "rag_search",
+      "ground_truth_standalone_query": "Hồ sơ và lệ phí của thủ tục minh họa?",
+      "ground_truth_sub_queries": [
+        "Hồ sơ của thủ tục minh họa?",
+        "Lệ phí của thủ tục minh họa?"
+      ],
+      "sub_query_context_mapping": {
+        "Hồ sơ của thủ tục minh họa?": [
+          "chunk-1"
+        ],
+        "Lệ phí của thủ tục minh họa?": [
+          "chunk-2"
+        ]
+      },
+      "ground_truth_context_ids": [
+        "chunk-1",
+        "chunk-2"
+      ],
+      "ground_truth_contexts": [
+        "Hồ sơ: giấy tờ A.",
+        "Lệ phí: miễn phí."
+      ],
+      "distractor_injection": {
+        "distractor_context_ids": [],
+        "distractor_contexts": [],
+        "conflict_type": "none",
+        "injected_noise_ratio": 0
+      },
+      "expected_answer": "Hồ sơ: giấy tờ A. Lệ phí: miễn phí.",
+      "key_facts_required": [
+        "Hồ sơ: giấy tờ A.",
+        "Lệ phí: miễn phí."
+      ],
+      "expected_citations": [
+        {
+          "claim": "Hồ sơ: giấy tờ A.",
+          "source_id": "chunk-1"
+        },
+        {
+          "claim": "Lệ phí: miễn phí.",
+          "source_id": "chunk-2"
+        }
+      ],
+      "expected_format": "markdown_text",
+      "negative_constraints": []
+    }
+  }
+}

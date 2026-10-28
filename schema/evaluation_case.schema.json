@@ -1,0 +1,3278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vigovbot.local/schema/evaluation_case.schema.json",
+  "title": "Case-score v3.2 — RAG và retrieval",
+  "description": "Schema v3 độc lập; mọi định nghĩa nằm ngay trong file này. Kết quả chấm RAG/retrieval, giữ nguyên cấu trúc prediction và bổ sung golden, evaluation_results.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "test_id",
+    "run_id",
+    "split",
+    "evaluation_scope",
+    "input",
+    "provenance",
+    "execution",
+    "golden",
+    "evaluation_results",
+    "evaluation_context",
+    "architecture"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "3.2.0"
+    },
+    "test_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "split": {
+      "enum": [
+        "train",
+        "val",
+        "test",
+        "unknown"
+      ]
+    },
+    "evaluation_scope": {
+      "enum": [
+        "end_to_end",
+        "retrieval"
+      ]
+    },
+    "input": {
+      "$ref": "#/$defs/golden_input"
+    },
+    "provenance": {
+      "$ref": "#/$defs/common_provenance"
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "model_config",
+        "query_processing",
+        "retrieval",
+        "generation",
+        "telemetry",
+        "action",
+        "retrieval_skip_reason"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "success",
+            "timeout",
+            "oom",
+            "error",
+            "not_run"
+          ]
+        },
+        "error": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "model_config": {
+          "$ref": "#/$defs/common_modelConfig"
+        },
+        "query_processing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_queryProcessing"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retrieval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_retrieval"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_generation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "telemetry": {
+          "$ref": "#/$defs/common_telemetry"
+        },
+        "action": {
+          "enum": [
+            "answer",
+            "partial_answer",
+            "clarify",
+            "abstain",
+            null
+          ]
+        },
+        "retrieval_skip_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "timeout",
+                  "oom",
+                  "error"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "error"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "error"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "not_run"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retrieval": {
+                "type": "null"
+              },
+              "generation": {
+                "type": "null"
+              },
+              "query_processing": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "generation": {
+                "not": {
+                  "type": "object",
+                  "required": [
+                    "partial_output"
+                  ]
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "generation": {
+                "properties": {
+                  "actual_output": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "telemetry": {
+                "properties": {
+                  "total_latency_ms": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "success"
+              },
+              "retrieval": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retrieval_skip_reason": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "retrieval_skip_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "golden": {
+      "$ref": "#/$defs/goldenCase"
+    },
+    "evaluation_results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scoring_status",
+        "metrics",
+        "relevance_contract",
+        "metric_contracts",
+        "provenance"
+      ],
+      "properties": {
+        "scoring_status": {
+          "enum": [
+            "not_scored",
+            "partial",
+            "complete",
+            "failed"
+          ]
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "query_processing": {
+              "type": "object",
+              "propertyNames": {
+                "allOf": [
+                  {
+                    "pattern": "^[a-z][a-z0-9_.]*$"
+                  },
+                  {
+                    "not": {
+                      "enum": [
+                        "route_accuracy",
+                        "router_accuracy",
+                        "scope_accuracy",
+                        "conversation_accuracy",
+                        "section_accuracy"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/common_metric"
+              }
+            },
+            "retrieval": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_.]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/common_boundedMetric"
+              }
+            },
+            "generation": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_.]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/common_metric"
+              }
+            },
+            "groundedness": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_.]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/common_boundedMetric"
+              }
+            },
+            "citation": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_.]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/common_boundedMetric"
+              }
+            },
+            "robustness": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_.]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/common_booleanOrBoundedMetric"
+              }
+            },
+            "performance": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_.]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/common_metric"
+              }
+            }
+          }
+        },
+        "relevance_contract": {
+          "enum": [
+            "binary_golden_context_ids",
+            null
+          ]
+        },
+        "metric_contracts": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "precision_denominator",
+                "ndcg_gain",
+                "ndcg_discount",
+                "average_precision_denominator"
+              ],
+              "properties": {
+                "precision_denominator": {
+                  "const": "returned_items"
+                },
+                "ndcg_gain": {
+                  "const": "binary"
+                },
+                "ndcg_discount": {
+                  "const": "log2_rank_plus_one"
+                },
+                "average_precision_denominator": {
+                  "const": "min_k_known_relevant"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scorer_version",
+            "prediction_sha256"
+          ],
+          "properties": {
+            "scorer_version": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "prediction_sha256": {
+              "$ref": "#/$defs/common_sha256"
+            },
+            "judge": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "version",
+                "prompt_sha256"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "prompt_sha256": {
+                  "$ref": "#/$defs/common_sha256"
+                }
+              }
+            }
+          }
+        },
+        "judgments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "metric",
+              "value",
+              "reason",
+              "claims",
+              "judge"
+            ],
+            "properties": {
+              "metric": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "value": {
+                "type": "number"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "claims": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "text",
+                    "verdict",
+                    "context_ids"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    },
+                    "verdict": {
+                      "enum": [
+                        "supported",
+                        "contradicted",
+                        "unknown"
+                      ]
+                    },
+                    "context_ids": {
+                      "type": "array",
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    }
+                  }
+                }
+              },
+              "judge": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "version",
+                  "prompt_sha256",
+                  "input_sha256"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "prompt_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "input_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "evaluation_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_cutoffs",
+        "robustness_pair"
+      ],
+      "properties": {
+        "requested_cutoffs": {
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "robustness_pair": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "pair_id",
+                "condition",
+                "counterpart_test_id"
+              ],
+              "properties": {
+                "pair_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "condition": {
+                  "enum": [
+                    "clean",
+                    "noisy"
+                  ]
+                },
+                "counterpart_test_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "architecture": {
+      "enum": [
+        "base",
+        "finetuned",
+        "rag",
+        "finetuned_rag"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "retrieval"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "generation": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "generation": {
+                "type": "object",
+                "properties": {
+                  "actual_output": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "retrieval"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "retrieval": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "retrieval"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "metrics": {
+                "propertyNames": {
+                  "enum": [
+                    "retrieval",
+                    "performance"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "golden": {
+            "properties": {
+              "taxonomy": {
+                "properties": {
+                  "is_unanswerable": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "metrics": {
+                "properties": {
+                  "retrieval": {
+                    "additionalProperties": {
+                      "properties": {
+                        "status": {
+                          "not": {
+                            "const": "computed"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "error",
+                  "timeout",
+                  "oom",
+                  "not_run"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "metrics": {
+                "properties": {
+                  "generation": {
+                    "additionalProperties": {
+                      "properties": {
+                        "status": {
+                          "not": {
+                            "const": "computed"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "groundedness": {
+                    "additionalProperties": {
+                      "properties": {
+                        "status": {
+                          "not": {
+                            "const": "computed"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "citation": {
+                    "additionalProperties": {
+                      "properties": {
+                        "status": {
+                          "not": {
+                            "const": "computed"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "scoring_status": {
+                "const": "not_scored"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "metrics": {
+                "maxProperties": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "not_run"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "metrics": {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "computed"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              },
+              "action": {
+                "enum": [
+                  "answer",
+                  "partial_answer"
+                ]
+              }
+            }
+          },
+          "architecture": {
+            "enum": [
+              "rag",
+              "finetuned_rag"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "retrieval": {
+                "type": "object"
+              },
+              "generation": {
+                "properties": {
+                  "prompt_contexts": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              },
+              "query_processing": {
+                "type": "object",
+                "properties": {
+                  "decomposition_applied": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "retrieval": {
+                "type": "object",
+                "properties": {
+                  "sub_query_results": {
+                    "minItems": 2
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "base",
+              "finetuned"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "evaluation_context": {
+            "properties": {
+              "requested_cutoffs": {
+                "maxItems": 0
+              },
+              "robustness_pair": {
+                "type": "null"
+              }
+            }
+          },
+          "provenance": {
+            "properties": {
+              "corpus_revision": {
+                "type": "null"
+              },
+              "index_revision": {
+                "type": "null"
+              }
+            }
+          },
+          "execution": {
+            "properties": {
+              "retrieval": {
+                "type": "null"
+              },
+              "generation": {
+                "properties": {
+                  "prompt_contexts": {
+                    "maxItems": 0
+                  },
+                  "citations": {
+                    "maxItems": 0
+                  }
+                }
+              },
+              "query_processing": {
+                "properties": {
+                  "sub_queries": {
+                    "maxItems": 0
+                  },
+                  "decomposition_applied": {
+                    "const": false
+                  }
+                }
+              },
+              "telemetry": {
+                "properties": {
+                  "retrieval_latency_ms": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "rag",
+              "finetuned_rag"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_context": {
+            "properties": {
+              "requested_cutoffs": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "finetuned",
+              "finetuned_rag"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "model_config": {
+                "required": [
+                  "base_model",
+                  "model_revision"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "adapter_revision"
+                    ],
+                    "properties": {
+                      "adapter_revision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    }
+                  },
+                  {
+                    "required": [
+                      "checkpoint_revision"
+                    ],
+                    "properties": {
+                      "checkpoint_revision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "rag",
+              "finetuned_rag"
+            ]
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "query_processing": {
+                "type": "object"
+              },
+              "telemetry": {
+                "properties": {
+                  "query_processing_latency_ms": {
+                    "type": "number"
+                  },
+                  "retrieval_latency_ms": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "model_config": {
+                "required": [
+                  "answer_model"
+                ],
+                "properties": {
+                  "answer_model": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  }
+                }
+              },
+              "telemetry": {
+                "properties": {
+                  "generation_latency_ms": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "base",
+              "finetuned"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "relevance_contract": {
+                "type": "null"
+              },
+              "metric_contracts": {
+                "type": "null"
+              },
+              "metrics": {
+                "properties": {
+                  "retrieval": {
+                    "additionalProperties": {
+                      "properties": {
+                        "status": {
+                          "const": "not_applicable"
+                        },
+                        "value": {
+                          "type": "null"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "value",
+                        "reason"
+                      ]
+                    }
+                  },
+                  "citation": {
+                    "additionalProperties": {
+                      "properties": {
+                        "status": {
+                          "const": "not_applicable"
+                        },
+                        "value": {
+                          "type": "null"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "value",
+                        "reason"
+                      ]
+                    }
+                  },
+                  "groundedness": {
+                    "additionalProperties": {
+                      "properties": {
+                        "status": {
+                          "const": "not_applicable"
+                        },
+                        "value": {
+                          "type": "null"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "value",
+                        "reason"
+                      ]
+                    }
+                  },
+                  "performance": {
+                    "properties": {
+                      "retrieval_latency_ms": {
+                        "properties": {
+                          "status": {
+                            "const": "not_applicable"
+                          },
+                          "value": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "reason"
+                        ]
+                      }
+                    }
+                  },
+                  "robustness": {
+                    "properties": {
+                      "noise_robustness": {
+                        "properties": {
+                          "status": {
+                            "const": "not_applicable"
+                          },
+                          "value": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "reason"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "rag",
+              "finetuned_rag"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "relevance_contract": {
+                "const": "binary_golden_context_ids"
+              },
+              "metric_contracts": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "query_processing": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "metrics": {
+                "properties": {
+                  "query_processing": {
+                    "additionalProperties": {
+                      "properties": {
+                        "status": {
+                          "const": "not_applicable"
+                        },
+                        "value": {
+                          "type": "null"
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "value",
+                        "reason"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "retrieval"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_results": {
+            "properties": {
+              "metrics": {
+                "properties": {
+                  "performance": {
+                    "properties": {
+                      "generation_latency_ms": {
+                        "properties": {
+                          "status": {
+                            "const": "not_applicable"
+                          },
+                          "value": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "reason"
+                        ]
+                      },
+                      "ttft_ms": {
+                        "properties": {
+                          "status": {
+                            "const": "not_applicable"
+                          },
+                          "value": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "reason"
+                        ]
+                      },
+                      "generation_tokens_per_second": {
+                        "properties": {
+                          "status": {
+                            "const": "not_applicable"
+                          },
+                          "value": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "reason"
+                        ]
+                      },
+                      "prompt_tokens": {
+                        "properties": {
+                          "status": {
+                            "const": "not_applicable"
+                          },
+                          "value": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "reason"
+                        ]
+                      },
+                      "completion_tokens": {
+                        "properties": {
+                          "status": {
+                            "const": "not_applicable"
+                          },
+                          "value": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "reason"
+                        ]
+                      },
+                      "total_tokens": {
+                        "properties": {
+                          "status": {
+                            "const": "not_applicable"
+                          },
+                          "value": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "reason"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "$comment": "Cross-record equality, dataset/corpus hashes, rank continuity, unique context IDs and references require a semantic validator; JSON Schema cannot compare arbitrary field values.",
+  "$defs": {
+    "golden_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chat_history",
+        "question",
+        "task_constraint",
+        "metadata_filters"
+      ],
+      "properties": {
+        "chat_history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/golden_message"
+          }
+        },
+        "question": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        },
+        "task_constraint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata_filters": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "array",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "golden_message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "content"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "user",
+            "assistant",
+            "system"
+          ]
+        },
+        "content": {
+          "type": "string"
+        }
+      }
+    },
+    "golden_nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "common_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset_sha256",
+        "dataset_version",
+        "corpus_revision",
+        "index_revision"
+      ],
+      "properties": {
+        "dataset_sha256": {
+          "$ref": "#/$defs/common_sha256"
+        },
+        "dataset_version": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "corpus_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "index_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "common_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "common_modelConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "answer_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "routing_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "embedding_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reranker_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "settings": {
+          "type": "object"
+        },
+        "base_model": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "model_revision": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "adapter_revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "checkpoint_revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "quantization": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decoding": {
+          "type": "object"
+        }
+      }
+    },
+    "common_queryProcessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "standalone_query",
+        "sub_queries",
+        "rewrite_applied",
+        "decomposition_applied"
+      ],
+      "properties": {
+        "standalone_query": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "sub_queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sub_query_id",
+              "query"
+            ],
+            "properties": {
+              "sub_query_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        },
+        "rewrite_applied": {
+          "type": "boolean"
+        },
+        "decomposition_applied": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decomposition_applied": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sub_queries": {
+                "minItems": 2
+              }
+            }
+          }
+        }
+      ]
+    },
+    "golden_groundTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_route",
+        "ground_truth_standalone_query",
+        "ground_truth_sub_queries",
+        "sub_query_context_mapping",
+        "ground_truth_context_ids",
+        "ground_truth_contexts",
+        "distractor_injection",
+        "expected_answer",
+        "key_facts_required",
+        "expected_citations",
+        "expected_format",
+        "negative_constraints"
+      ],
+      "properties": {
+        "expected_route": {
+          "enum": [
+            "rag_search",
+            "direct_answer",
+            "clarification_request",
+            "refusal"
+          ]
+        },
+        "ground_truth_standalone_query": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        },
+        "ground_truth_sub_queries": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "sub_query_context_mapping": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/golden_stringArray"
+          }
+        },
+        "ground_truth_context_ids": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "ground_truth_contexts": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "distractor_injection": {
+          "$ref": "#/$defs/golden_distractorInjection"
+        },
+        "expected_answer": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        },
+        "key_facts_required": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "expected_citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/golden_citation"
+          }
+        },
+        "expected_format": {
+          "enum": [
+            "markdown_text",
+            "bullet_points",
+            "table",
+            "step_by_step"
+          ]
+        },
+        "negative_constraints": {
+          "$ref": "#/$defs/golden_stringArray"
+        }
+      }
+    },
+    "golden_stringArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/golden_nonEmptyString"
+      }
+    },
+    "golden_distractorInjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distractor_context_ids",
+        "distractor_contexts",
+        "conflict_type",
+        "injected_noise_ratio"
+      ],
+      "properties": {
+        "distractor_context_ids": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "distractor_contexts": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "conflict_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "injected_noise_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "injected_noise_ratio": {
+                "const": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "distractor_context_ids": {
+                "maxItems": 0
+              },
+              "distractor_contexts": {
+                "maxItems": 0
+              },
+              "conflict_type": {
+                "const": "none"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "distractor_context_ids": {
+                "minItems": 1
+              },
+              "distractor_contexts": {
+                "minItems": 1
+              },
+              "conflict_type": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "golden_citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim",
+        "source_id"
+      ],
+      "properties": {
+        "claim": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        },
+        "source_id": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        }
+      }
+    },
+    "common_retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query",
+        "top_k",
+        "contexts",
+        "sub_query_results"
+      ],
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "contexts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/common_context"
+          }
+        },
+        "sub_query_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sub_query_id",
+              "query",
+              "top_k",
+              "contexts"
+            ],
+            "properties": {
+              "sub_query_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "top_k": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "contexts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/common_context"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "common_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rank",
+        "context_id",
+        "score",
+        "text"
+      ],
+      "properties": {
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "context_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "score": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "procedure_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "section_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "common_generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actual_output",
+        "citations",
+        "prompt_messages",
+        "prompt_contexts"
+      ],
+      "properties": {
+        "actual_output": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "partial_output": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/common_citation"
+          }
+        },
+        "finish_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_messages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "role",
+              "content"
+            ],
+            "properties": {
+              "role": {
+                "enum": [
+                  "system",
+                  "user",
+                  "assistant"
+                ]
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "prompt_contexts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "context_id",
+              "text"
+            ],
+            "properties": {
+              "context_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      }
+    },
+    "common_citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim",
+        "source_id"
+      ],
+      "properties": {
+        "claim": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "common_telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_latency_ms",
+        "query_processing_latency_ms",
+        "retrieval_latency_ms",
+        "generation_latency_ms",
+        "measurements",
+        "pricing"
+      ],
+      "properties": {
+        "total_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "query_processing_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "retrieval_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "generation_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "measurements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ttft_ms",
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "generation_tokens_per_second",
+            "peak_allocated_vram_gb",
+            "gpu_utilization_percent",
+            "cost_usd"
+          ],
+          "properties": {
+            "ttft_ms": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "prompt_tokens": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "completion_tokens": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "total_tokens": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "generation_tokens_per_second": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "peak_allocated_vram_gb": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "gpu_utilization_percent": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "cost_usd": {
+              "$ref": "#/$defs/common_measurement"
+            }
+          }
+        },
+        "pricing": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "source",
+                "effective_date",
+                "currency",
+                "input_per_million_tokens",
+                "output_per_million_tokens"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "effective_date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "currency": {
+                  "const": "USD"
+                },
+                "input_per_million_tokens": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "output_per_million_tokens": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "measurements": {
+                "properties": {
+                  "cost_usd": {
+                    "properties": {
+                      "status": {
+                        "const": "measured"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "pricing": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "goldenCase": {
+      "title": "Golden Dataset — đầy đủ nhãn chấm RAG/retrieval",
+      "description": "RAG reference case: evidence, conversation context and expected answer. Domain vocabulary is the existing golden corpus snapshot; aliases are not automatically merged.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test_id",
+        "version",
+        "taxonomy",
+        "input",
+        "ground_truth",
+        "evaluation_plan"
+      ],
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "taxonomy": {
+          "$ref": "#/$defs/golden_taxonomy"
+        },
+        "input": {
+          "$ref": "#/$defs/golden_input"
+        },
+        "ground_truth": {
+          "$ref": "#/$defs/golden_groundTruth"
+        },
+        "evaluation_plan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cutoffs",
+            "expected_action",
+            "reference_answers",
+            "fact_evidence",
+            "sub_query_targets",
+            "format_rules",
+            "negative_rules",
+            "robustness_pair",
+            "relevance_completeness",
+            "normalization_version",
+            "corpus_revision"
+          ],
+          "properties": {
+            "cutoffs": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "expected_action": {
+              "enum": [
+                "answer",
+                "partial_answer",
+                "clarify",
+                "abstain"
+              ]
+            },
+            "reference_answers": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "fact_evidence": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fact",
+                  "context_ids"
+                ],
+                "properties": {
+                  "fact": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "context_ids": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    },
+                    "minItems": 1
+                  }
+                }
+              }
+            },
+            "sub_query_targets": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sub_query_id",
+                  "query",
+                  "relevant_context_ids"
+                ],
+                "properties": {
+                  "sub_query_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "query": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "relevant_context_ids": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    }
+                  }
+                }
+              }
+            },
+            "format_rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "rule_id",
+                  "description",
+                  "method"
+                ],
+                "properties": {
+                  "rule_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "method": {
+                    "enum": [
+                      "deterministic",
+                      "judge"
+                    ]
+                  }
+                }
+              }
+            },
+            "negative_rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "rule_id",
+                  "description",
+                  "method",
+                  "forbidden_text"
+                ],
+                "properties": {
+                  "rule_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "method": {
+                    "enum": [
+                      "literal_absence",
+                      "judge"
+                    ]
+                  },
+                  "forbidden_text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "method": {
+                          "const": "literal_absence"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "forbidden_text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "pattern": "\\S"
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "forbidden_text": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "robustness_pair": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "pair_id",
+                    "condition",
+                    "counterpart_test_id"
+                  ],
+                  "properties": {
+                    "pair_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    },
+                    "condition": {
+                      "enum": [
+                        "clean",
+                        "noisy"
+                      ]
+                    },
+                    "counterpart_test_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    }
+                  }
+                }
+              ]
+            },
+            "relevance_completeness": {
+              "enum": [
+                "exhaustive",
+                "known_positives_only"
+              ]
+            },
+            "normalization_version": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "corpus_revision": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "taxonomy": {
+                "properties": {
+                  "is_unanswerable": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "is_unanswerable"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ground_truth": {
+                "properties": {
+                  "ground_truth_context_ids": {
+                    "maxItems": 0
+                  },
+                  "ground_truth_contexts": {
+                    "maxItems": 0
+                  },
+                  "expected_citations": {
+                    "maxItems": 0
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "ground_truth": {
+                "properties": {
+                  "ground_truth_context_ids": {
+                    "minItems": 1
+                  },
+                  "ground_truth_contexts": {
+                    "minItems": 1
+                  },
+                  "expected_citations": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy": {
+                "properties": {
+                  "turn_type": {
+                    "const": "follow_up"
+                  }
+                },
+                "required": [
+                  "turn_type"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "input": {
+                "properties": {
+                  "chat_history": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy": {
+                "properties": {
+                  "complexity_type": {
+                    "const": "multi_intent"
+                  }
+                },
+                "required": [
+                  "complexity_type"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ground_truth": {
+                "properties": {
+                  "ground_truth_sub_queries": {
+                    "minItems": 2,
+                    "uniqueItems": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy": {
+                "properties": {
+                  "complexity_type": {
+                    "const": "multi_intent"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluation_plan": {
+                "properties": {
+                  "sub_query_targets": {
+                    "minItems": 2
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy": {
+                "properties": {
+                  "is_unanswerable": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluation_plan": {
+                "properties": {
+                  "fact_evidence": {
+                    "maxItems": 0
+                  },
+                  "expected_action": {
+                    "enum": [
+                      "clarify",
+                      "abstain"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "ground_truth": {
+                "properties": {
+                  "distractor_injection": {
+                    "properties": {
+                      "injected_noise_ratio": {
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluation_plan": {
+                "properties": {
+                  "robustness_pair": {
+                    "type": "object",
+                    "properties": {
+                      "condition": {
+                        "const": "noisy"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taxonomy": {
+                "properties": {
+                  "is_unanswerable": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluation_plan": {
+                "properties": {
+                  "fact_evidence": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "golden_taxonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "turn_type",
+        "complexity_type",
+        "has_topic_shift",
+        "difficulty",
+        "eval_split",
+        "is_unanswerable",
+        "adversarial_type"
+      ],
+      "properties": {
+        "domain": {
+          "type": "string",
+          "enum": [
+            "An toàn bức xạ và hạt nhân",
+            "An toàn thực phẩm",
+            "An toàn vệ sinh lao động",
+            "An toàn đập, hồ chứa thuỷ điện",
+            "An toàn, vệ sinh lao động",
+            "Biến đổi khí hậu",
+            "Biển và hải đảo",
+            "Báo chí",
+            "Báo chí BQP",
+            "Bưu chính",
+            "Bản quyền tác giả",
+            "Bảo hiểm",
+            "Bảo hiểm xã hội",
+            "Bảo hiểm y tế",
+            "Bảo trợ xã hội",
+            "Bảo tồn thiên nhiên và Đa dạng sinh học",
+            "Bảo vệ công trình quốc phòng và khu quân sự",
+            "Bảo vệ dữ liệu cá nhân",
+            "Bảo đảm an ninh hàng không",
+            "Bồi thường nhà nước",
+            "Chính sách",
+            "Chính sách BQP",
+            "Chăn nuôi",
+            "Chế độ, chính sách đối với nhà giáo",
+            "Chứng khoán",
+            "Chứng nhận chất lượng an toàn kỹ thuật và bảo vệ môi trường",
+            "Chứng nhận lãnh sự, hợp pháp hóa lãnh sự",
+            "Chứng thực",
+            "Cấp, quản lý căn cước",
+            "Công chức, viên chức",
+            "Công chứng",
+            "Công chứng, chứng thực",
+            "Công nghiệp công nghệ số, công nghệ thông tin, điện tử",
+            "Công nghiệp hỗ trợ",
+            "Công nghiệp nặng",
+            "Công nghiệp quốc phòng",
+            "Công nghiệp tiêu dùng",
+            "Công nghiệp địa phương",
+            "Công tác Văn phòng",
+            "Công tác dân tộc",
+            "Công tác lãnh sự",
+            "Công tác thanh niên",
+            "Cấp sổ BHXH, thẻ BHYT",
+            "Cụm Công nghiệp",
+            "Di sản văn hóa",
+            "Du lịch",
+            "Dân quân tự vệ",
+            "Dân số, Bà mẹ - Trẻ em",
+            "Dược phẩm",
+            "Dầu khí",
+            "Dịch vụ trong quá trình thực hiện HĐMBĐ",
+            "Dữ liệu",
+            "Dự trữ",
+            "Gia đình",
+            "Giao thông vận tải",
+            "Giám định",
+            "Giám định thương mại",
+            "Giám định tư pháp",
+            "Giáo dục dân tộc",
+            "Giáo dục mầm non",
+            "Giáo dục nghề nghiệp",
+            "Giáo dục nghề nghiệp (G07-LĐ06)",
+            "Giáo dục quốc phòng và an ninh",
+            "Giáo dục thường xuyên",
+            "Giáo dục tiểu học",
+            "Giáo dục trung học",
+            "Giáo dục và Đào tạo thuộc hệ thống giáo dục quốc dân",
+            "Giáo dục đại học",
+            "Giáo dục, đào tạo với nước ngoài",
+            "Giải quyết tố cáo BQP",
+            "Giảm nghèo",
+            "Hoạt động công nghệ thông tin ngân hàng",
+            "Hoạt động của các tổ chức hợp tác, nghiên cứu song phương",
+            "Hoạt động của các tổ chức phi chính phủ nước ngoài",
+            "Hoạt động kho quỹ",
+            "Hoạt động khoa học và công nghệ",
+            "Hoạt động khác",
+            "Hoạt động mua bán quốc tế chuyên ngành văn hóa",
+            "Hoạt động ngoại hối",
+            "Hoạt động thanh toán",
+            "Hoạt động thông tin tín dụng",
+            "Hoạt động tiền tệ",
+            "Hoạt động tín dụng",
+            "Hoạt động xây dựng",
+            "Hàng hải và đường thủy nội địa",
+            "Hàng không",
+            "Hòa giải thương mại",
+            "Hòa giải ở cơ sở",
+            "Hóa chất",
+            "Hạ tầng kỹ thuật",
+            "Hải quan",
+            "Hồi hương",
+            "HỖ TRỢ TIẾP CẬN ĐẤT ĐAI, MẶT BẰNG SẢN XUẤT KINH DOANH",
+            "Hỗ trợ doanh nghiệp nhỏ và vừa",
+            "Hỗ trợ pháp lý cho doanh nghiệp nhỏ và vừa",
+            "Hỗ trợ đầu tư",
+            "Hộ tịch",
+            "Hội nghị, hội thảo quốc tế",
+            "Hội nhập kinh tế quốc tế",
+            "Hợp tác quốc tế",
+            "Khen thưởng BQP",
+            "Khiếu nại BQP",
+            "Khiếu nại, tố cáo",
+            "Kho bạc Nhà nước",
+            "Khoa học công nghệ",
+            "Khoa học và Công nghệ",
+            "Khoáng sản",
+            "Khám bệnh, chữa bệnh",
+            "Khám bệnh, chữa bệnh BQP",
+            "Khí tượng, thủy văn",
+            "Kinh doanh bất động sản",
+            "Kinh doanh khí",
+            "Kinh tế hợp tác và Phát triển nông thôn",
+            "Kiểm lâm",
+            "Kiểm soát các hoạt động hợp pháp liên quan đến ma túy",
+            "Kiểm tra kiến thức pháp luật về trật tự, an toàn giao thông đường bộ",
+            "Kiểm định chất lượng giáo dục",
+            "Kiểm định kỹ thuật an toàn lao động",
+            "Kế toán, kiểm toán",
+            "Lao động",
+            "Lao động, tiền lương",
+            "Lao động, tiền lương và bảo hiểm xã hội",
+            "Luật sư",
+            "Lâm nghiệp và Kiểm lâm",
+            "Lưu thông hàng hóa trong nước",
+            "Miễn thị thực",
+            "Môi trường",
+            "Mật mã dân sự",
+            "Mỹ phẩm",
+            "Mỹ thuật, nhiếp ảnh, triển lãm",
+            "Nghĩa vụ quân sự",
+            "Nghề thủ công mỹ nghệ",
+            "Nghệ thuật biểu diễn",
+            "Người có công",
+            "Nhà ở và công sở",
+            "Nuôi con nuôi",
+            "Nông nghiệp",
+            "Nông nghiệp và Môi trường",
+            "Năng lượng",
+            "Nước",
+            "Phát thanh, truyền hình và thông tin điện tử",
+            "Phát triển đô thị",
+            "Phòng bệnh",
+            "Phòng cháy, chữa cháy",
+            "Phòng vệ thương mại",
+            "Phòng, chống tệ nạn xã hội",
+            "Quy hoạch đô thị và nông thôn",
+            "Quản lý biên giới",
+            "Quản lý bán hàng đa cấp",
+            "Quản lý chất lượng công trình xây dựng",
+            "Quản lý chất lượng nông lâm sản và thủy sản",
+            "Quản lý chất lượng sản phẩm, hàng hoá",
+            "Quản lý công sản",
+            "Quản lý doanh nghiệp",
+            "Quản lý giá",
+            "Quản lý hoạt động vật liệu nổ công nghiệp, tiền chất thuốc nổ BQP",
+            "Quản lý kết cấu hạ tầng giao thông",
+            "Quản lý lao động ngoài nước",
+            "Quản lý ngành nghề đầu tư, kinh doanh có điều kiện về an ninh, trật tự",
+            "Quản lý nhiệm vụ khoa học, công nghệ và đổi mới sáng tạo sử dụng ngân sách nhà nước của Bộ Công Thương",
+            "Quản lý nhà nước về hội, quỹ",
+            "Quản lý nhà nước về khu công nghiệp, khu kinh tế",
+            "Quản lý nợ",
+            "Quản lý thuế, phí, lệ phí và thu khác của ngân sách nhà nước",
+            "Quản lý vùng trời",
+            "Quản lý vũ khí, vật liệu nổ, công cụ hỗ trợ và pháo",
+            "Quản lý xuất nhập cảnh",
+            "Quản lý Đê điều và Phòng, chống thiên tai",
+            "Quản tài viên",
+            "Quảng cáo",
+            "Quốc tịch",
+            "Sát hạch, cấp giấy phép lái xe",
+            "Sản xuất, lắp ráp ô tô",
+            "Sở giao dịch hàng hóa",
+            "Sở hữu trí tuệ",
+            "Thanh toán chi phí tố tụng",
+            "Thi hành án dân sự",
+            "Thi đua - khen thưởng",
+            "Thi đua khen thưởng",
+            "Thi đua – Khen thưởng",
+            "Thi đua, khen thưởng",
+            "Thi, tuyển sinh",
+            "Thiết bị y tế",
+            "Thu BHXH, BHYT, BHTN, BH tai nạn lao động, BNN",
+            "Thuế",
+            "Thành lập và hoạt động của doanh nghiệp",
+            "Thành lập và hoạt động của tổ hợp tác không đăng ký",
+            "Thành lập và hoạt động của tổ hợp tác, hợp tác xã, liên hiệp hợp tác xã",
+            "Thành lập và hoạt động doanh nghiệp (hộ kinh doanh)",
+            "Thành lập và hoạt động doanh nghiệp xã hội",
+            "Thành lập và hoạt động ngân hàng",
+            "Thành lập và sắp xếp lại doanh nghiệp do Nhà nước nắm giữ 100 phần trăm vốn điều lệ",
+            "Thông tin đối ngoại",
+            "Thú y",
+            "Thương mại quốc tế",
+            "Thương mại điện tử",
+            "Thể dục thể thao",
+            "Thủy lợi",
+            "Thủy sản",
+            "Thừa hành viên",
+            "Thực hiện chính sách BHXH",
+            "Thực hiện chính sách BHYT",
+            "Tiêu chuẩn nhà giáo, cán bộ quản lý giáo dục",
+            "Tiêu chuẩn đo lường chất lượng",
+            "Tiêu chuẩn đo lường chất lượng (Bộ Công Thương)",
+            "Trẻ em",
+            "Trọng tài thương mại",
+            "Trồng trọt",
+            "Trồng trọt và Bảo vệ thực vật",
+            "Trợ giúp pháp lý",
+            "Tuyển sinh quân sự",
+            "Tài chính doanh nghiệp",
+            "Tài chính ngân hàng",
+            "Tài chính đất đai",
+            "Tài nguyên nước",
+            "Tài sản kết cấu hạ tầng chợ do Nhà nước đầu tư, quản lý",
+            "Tín ngưỡng, tôn giáo",
+            "Tòa án",
+            "Tư vấn pháp luật",
+            "Tần số vô tuyến điện",
+            "Tổ chức cai nghiên ma túy và quản lý sau cai nghiện",
+            "Tổ chức cán bộ",
+            "Tổ chức, cán bộ",
+            "Viễn thông và Internet",
+            "Việc làm",
+            "Việc làm (G07-LĐ11)",
+            "Văn bằng, chứng chỉ",
+            "Văn hóa",
+            "Văn học",
+            "Văn thư và Lưu trữ nhà nước",
+            "Vận chuyển hàng hóa nguy hiểm",
+            "Vật liệu nổ công nghiệp, tiền chất thuốc nổ",
+            "Vật liệu xây dựng",
+            "Xe - máy quân sự",
+            "Xuất Bản, In và Phát hành",
+            "Xuất nhập khẩu",
+            "Xúc tiến thương mại",
+            "Y Dược cổ truyền",
+            "Điện",
+            "Điện lực",
+            "Điện ảnh",
+            "Đo đạc, bản đồ và thông tin địa lý",
+            "Đào tạo và Nghiên cứu khoa học",
+            "Đăng kiểm",
+            "Đăng ký biện pháp bảo đảm",
+            "Đăng ký hoạt động của Ngân hàng Chính sách xã hội",
+            "Đăng ký, quản lý con dấu",
+            "Đăng ký, quản lý cư trú",
+            "Đăng ký, quản lý phương tiện giao thông cơ giới, xe máy chuyên dùng",
+            "Đường bộ",
+            "Đường sắt",
+            "Đảm bảo an toàn thông tin, an ninh mạng",
+            "Đất đai",
+            "Đấu giá tài sản",
+            "Đấu thầu",
+            "Đầu tư theo phương thức đối tác công tư",
+            "Đầu tư tại Việt nam",
+            "Đầu tư từ Việt nam ra nước ngoài",
+            "Đầu tư vào nông nghiệp, nông thôn",
+            "Địa chất và khoáng sản",
+            "Định chế tài chính",
+            "Định danh và xác thực điện tử",
+            "Ưu đãi, miễn trừ",
+            "Ứng phó sự cố tràn dầu BQP"
+          ]
+        },
+        "turn_type": {
+          "enum": [
+            "new_question",
+            "follow_up"
+          ]
+        },
+        "complexity_type": {
+          "enum": [
+            "single_hop",
+            "multi_intent"
+          ]
+        },
+        "has_topic_shift": {
+          "type": "boolean"
+        },
+        "difficulty": {
+          "enum": [
+            "medium",
+            "hard"
+          ]
+        },
+        "eval_split": {
+          "enum": [
+            "in_domain",
+            "out_of_distribution"
+          ]
+        },
+        "is_unanswerable": {
+          "type": "boolean"
+        },
+        "adversarial_type": {
+          "enum": [
+            "none",
+            "false_premise"
+          ]
+        }
+      }
+    },
+    "common_metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "status",
+        "scorer_version"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "computed",
+            "not_applicable",
+            "not_run",
+            "missing_input",
+            "error",
+            "needs_review"
+          ]
+        },
+        "scorer_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "type": "array"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "computed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": [
+                  "number",
+                  "boolean"
+                ]
+              },
+              "scorer_version": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          }
+        }
+      ]
+    },
+    "common_boundedMetric": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/common_metric"
+        },
+        {
+          "properties": {
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      ]
+    },
+    "common_booleanOrBoundedMetric": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/common_boundedMetric"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/common_metric"
+            },
+            {
+              "properties": {
+                "value": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "common_measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "status",
+        "source",
+        "reason"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "status": {
+          "enum": [
+            "measured",
+            "unavailable",
+            "not_applicable"
+          ]
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "measured"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "reason": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

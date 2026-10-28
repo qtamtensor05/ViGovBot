@@ -1,0 +1,1567 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vigovbot.local/schema/prediction.schema.json",
+  "title": "Prediction v3.2 — đầu ra thực tế chưa chấm",
+  "description": "Schema v3 độc lập; mọi định nghĩa nằm ngay trong file này. Đầu ra thực tế chưa chấm.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "test_id",
+    "run_id",
+    "split",
+    "evaluation_scope",
+    "input",
+    "provenance",
+    "execution",
+    "evaluation_context",
+    "architecture"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "3.2.0"
+    },
+    "test_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "split": {
+      "enum": [
+        "train",
+        "val",
+        "test",
+        "unknown"
+      ]
+    },
+    "evaluation_scope": {
+      "enum": [
+        "end_to_end",
+        "retrieval"
+      ]
+    },
+    "input": {
+      "$ref": "#/$defs/golden_input"
+    },
+    "provenance": {
+      "$ref": "#/$defs/common_provenance"
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "model_config",
+        "query_processing",
+        "retrieval",
+        "generation",
+        "telemetry",
+        "action",
+        "retrieval_skip_reason"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "success",
+            "timeout",
+            "oom",
+            "error",
+            "not_run"
+          ]
+        },
+        "error": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "model_config": {
+          "$ref": "#/$defs/common_modelConfig"
+        },
+        "query_processing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_queryProcessing"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retrieval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_retrieval"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_generation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "telemetry": {
+          "$ref": "#/$defs/common_telemetry"
+        },
+        "action": {
+          "enum": [
+            "answer",
+            "partial_answer",
+            "clarify",
+            "abstain",
+            null
+          ]
+        },
+        "retrieval_skip_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "timeout",
+                  "oom",
+                  "error"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "error"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "error"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "not_run"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retrieval": {
+                "type": "null"
+              },
+              "generation": {
+                "type": "null"
+              },
+              "query_processing": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "generation": {
+                "not": {
+                  "type": "object",
+                  "required": [
+                    "partial_output"
+                  ]
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "generation": {
+                "properties": {
+                  "actual_output": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "telemetry": {
+                "properties": {
+                  "total_latency_ms": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "success"
+              },
+              "retrieval": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retrieval_skip_reason": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "retrieval_skip_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "evaluation_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_cutoffs",
+        "robustness_pair"
+      ],
+      "properties": {
+        "requested_cutoffs": {
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "robustness_pair": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "pair_id",
+                "condition",
+                "counterpart_test_id"
+              ],
+              "properties": {
+                "pair_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "condition": {
+                  "enum": [
+                    "clean",
+                    "noisy"
+                  ]
+                },
+                "counterpart_test_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "architecture": {
+      "enum": [
+        "base",
+        "finetuned",
+        "rag",
+        "finetuned_rag"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "retrieval"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "generation": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "generation": {
+                "type": "object",
+                "properties": {
+                  "actual_output": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "retrieval"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "retrieval": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              },
+              "action": {
+                "enum": [
+                  "answer",
+                  "partial_answer"
+                ]
+              }
+            }
+          },
+          "architecture": {
+            "enum": [
+              "rag",
+              "finetuned_rag"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "retrieval": {
+                "type": "object"
+              },
+              "generation": {
+                "properties": {
+                  "prompt_contexts": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              },
+              "query_processing": {
+                "type": "object",
+                "properties": {
+                  "decomposition_applied": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "retrieval": {
+                "type": "object",
+                "properties": {
+                  "sub_query_results": {
+                    "minItems": 2
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "base",
+              "finetuned"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "evaluation_context": {
+            "properties": {
+              "requested_cutoffs": {
+                "maxItems": 0
+              },
+              "robustness_pair": {
+                "type": "null"
+              }
+            }
+          },
+          "provenance": {
+            "properties": {
+              "corpus_revision": {
+                "type": "null"
+              },
+              "index_revision": {
+                "type": "null"
+              }
+            }
+          },
+          "execution": {
+            "properties": {
+              "retrieval": {
+                "type": "null"
+              },
+              "generation": {
+                "properties": {
+                  "prompt_contexts": {
+                    "maxItems": 0
+                  },
+                  "citations": {
+                    "maxItems": 0
+                  }
+                }
+              },
+              "query_processing": {
+                "properties": {
+                  "sub_queries": {
+                    "maxItems": 0
+                  },
+                  "decomposition_applied": {
+                    "const": false
+                  }
+                }
+              },
+              "telemetry": {
+                "properties": {
+                  "retrieval_latency_ms": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "rag",
+              "finetuned_rag"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evaluation_context": {
+            "properties": {
+              "requested_cutoffs": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "finetuned",
+              "finetuned_rag"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "model_config": {
+                "required": [
+                  "base_model",
+                  "model_revision"
+                ],
+                "anyOf": [
+                  {
+                    "required": [
+                      "adapter_revision"
+                    ],
+                    "properties": {
+                      "adapter_revision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    }
+                  },
+                  {
+                    "required": [
+                      "checkpoint_revision"
+                    ],
+                    "properties": {
+                      "checkpoint_revision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "architecture": {
+            "enum": [
+              "rag",
+              "finetuned_rag"
+            ]
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "query_processing": {
+                "type": "object"
+              },
+              "telemetry": {
+                "properties": {
+                  "query_processing_latency_ms": {
+                    "type": "number"
+                  },
+                  "retrieval_latency_ms": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "model_config": {
+                "required": [
+                  "answer_model"
+                ],
+                "properties": {
+                  "answer_model": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  }
+                }
+              },
+              "telemetry": {
+                "properties": {
+                  "generation_latency_ms": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "golden_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chat_history",
+        "question",
+        "task_constraint",
+        "metadata_filters"
+      ],
+      "properties": {
+        "chat_history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/golden_message"
+          }
+        },
+        "question": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        },
+        "task_constraint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata_filters": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "array",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "golden_message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "content"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "user",
+            "assistant",
+            "system"
+          ]
+        },
+        "content": {
+          "type": "string"
+        }
+      }
+    },
+    "golden_nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "common_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset_sha256",
+        "dataset_version",
+        "corpus_revision",
+        "index_revision"
+      ],
+      "properties": {
+        "dataset_sha256": {
+          "$ref": "#/$defs/common_sha256"
+        },
+        "dataset_version": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "corpus_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "index_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "common_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "common_modelConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "answer_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "routing_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "embedding_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reranker_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "settings": {
+          "type": "object"
+        },
+        "base_model": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "model_revision": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "adapter_revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "checkpoint_revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "quantization": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decoding": {
+          "type": "object"
+        }
+      }
+    },
+    "common_queryProcessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "standalone_query",
+        "sub_queries",
+        "rewrite_applied",
+        "decomposition_applied"
+      ],
+      "properties": {
+        "standalone_query": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "sub_queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sub_query_id",
+              "query"
+            ],
+            "properties": {
+              "sub_query_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        },
+        "rewrite_applied": {
+          "type": "boolean"
+        },
+        "decomposition_applied": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decomposition_applied": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sub_queries": {
+                "minItems": 2
+              }
+            }
+          }
+        }
+      ]
+    },
+    "golden_groundTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_route",
+        "ground_truth_standalone_query",
+        "ground_truth_sub_queries",
+        "sub_query_context_mapping",
+        "ground_truth_context_ids",
+        "ground_truth_contexts",
+        "distractor_injection",
+        "expected_answer",
+        "key_facts_required",
+        "expected_citations",
+        "expected_format",
+        "negative_constraints"
+      ],
+      "properties": {
+        "expected_route": {
+          "enum": [
+            "rag_search",
+            "direct_answer",
+            "clarification_request",
+            "refusal"
+          ]
+        },
+        "ground_truth_standalone_query": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        },
+        "ground_truth_sub_queries": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "sub_query_context_mapping": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/golden_stringArray"
+          }
+        },
+        "ground_truth_context_ids": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "ground_truth_contexts": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "distractor_injection": {
+          "$ref": "#/$defs/golden_distractorInjection"
+        },
+        "expected_answer": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        },
+        "key_facts_required": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "expected_citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/golden_citation"
+          }
+        },
+        "expected_format": {
+          "enum": [
+            "markdown_text",
+            "bullet_points",
+            "table",
+            "step_by_step"
+          ]
+        },
+        "negative_constraints": {
+          "$ref": "#/$defs/golden_stringArray"
+        }
+      }
+    },
+    "golden_stringArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/golden_nonEmptyString"
+      }
+    },
+    "golden_distractorInjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distractor_context_ids",
+        "distractor_contexts",
+        "conflict_type",
+        "injected_noise_ratio"
+      ],
+      "properties": {
+        "distractor_context_ids": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "distractor_contexts": {
+          "$ref": "#/$defs/golden_stringArray"
+        },
+        "conflict_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "injected_noise_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "injected_noise_ratio": {
+                "const": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "distractor_context_ids": {
+                "maxItems": 0
+              },
+              "distractor_contexts": {
+                "maxItems": 0
+              },
+              "conflict_type": {
+                "const": "none"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "distractor_context_ids": {
+                "minItems": 1
+              },
+              "distractor_contexts": {
+                "minItems": 1
+              },
+              "conflict_type": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "golden_citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim",
+        "source_id"
+      ],
+      "properties": {
+        "claim": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        },
+        "source_id": {
+          "$ref": "#/$defs/golden_nonEmptyString"
+        }
+      }
+    },
+    "common_retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query",
+        "top_k",
+        "contexts",
+        "sub_query_results"
+      ],
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "contexts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/common_context"
+          }
+        },
+        "sub_query_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sub_query_id",
+              "query",
+              "top_k",
+              "contexts"
+            ],
+            "properties": {
+              "sub_query_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "top_k": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "contexts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/common_context"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "common_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rank",
+        "context_id",
+        "score",
+        "text"
+      ],
+      "properties": {
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "context_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "score": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "procedure_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "section_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "common_generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actual_output",
+        "citations",
+        "prompt_messages",
+        "prompt_contexts"
+      ],
+      "properties": {
+        "actual_output": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "partial_output": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/common_citation"
+          }
+        },
+        "finish_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_messages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "role",
+              "content"
+            ],
+            "properties": {
+              "role": {
+                "enum": [
+                  "system",
+                  "user",
+                  "assistant"
+                ]
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "prompt_contexts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "context_id",
+              "text"
+            ],
+            "properties": {
+              "context_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      }
+    },
+    "common_citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim",
+        "source_id"
+      ],
+      "properties": {
+        "claim": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "common_telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_latency_ms",
+        "query_processing_latency_ms",
+        "retrieval_latency_ms",
+        "generation_latency_ms",
+        "measurements",
+        "pricing"
+      ],
+      "properties": {
+        "total_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "query_processing_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "retrieval_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "generation_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "measurements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ttft_ms",
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "generation_tokens_per_second",
+            "peak_allocated_vram_gb",
+            "gpu_utilization_percent",
+            "cost_usd"
+          ],
+          "properties": {
+            "ttft_ms": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "prompt_tokens": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "completion_tokens": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "total_tokens": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "generation_tokens_per_second": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "peak_allocated_vram_gb": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "gpu_utilization_percent": {
+              "$ref": "#/$defs/common_measurement"
+            },
+            "cost_usd": {
+              "$ref": "#/$defs/common_measurement"
+            }
+          }
+        },
+        "pricing": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "source",
+                "effective_date",
+                "currency",
+                "input_per_million_tokens",
+                "output_per_million_tokens"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "effective_date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "currency": {
+                  "const": "USD"
+                },
+                "input_per_million_tokens": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "output_per_million_tokens": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "measurements": {
+                "properties": {
+                  "cost_usd": {
+                    "properties": {
+                      "status": {
+                        "const": "measured"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "pricing": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "common_measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "status",
+        "source",
+        "reason"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "status": {
+          "enum": [
+            "measured",
+            "unavailable",
+            "not_applicable"
+          ]
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "measured"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "reason": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
