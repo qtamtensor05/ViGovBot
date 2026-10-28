@@ -1,5 +1,49 @@
 # Lịch sử thay đổi hệ thống
 
+## Định danh bốn cấu hình và phạm vi metric v3.2 — 2026-10-28
+
+- **Mục tiêu:** Chấm chung Base, fine-tuning, RAG và fine-tuning + RAG đúng khả năng.
+- **Thực hiện:** architecture bắt buộc; Base/fine-tuning không có retrieval/context;
+  điểm không áp dụng phải bỏ qua hoặc not_applicable. Fine-tuning có revision
+  adapter/checkpoint. Bỏ actual_route và điểm phân loại ngoài phạm vi.
+- **Kết quả:** 44 kiểm thử schema/tài liệu đạt. Ví dụ chuyển sang v3.2.
+  Chỉ sửa schema, ví dụ, test và tài liệu; không sửa runtime hoặc JSONL cũ.
+
+## Bổ sung dữ liệu chấm RAG/retrieval v3.1 — 2026-10-28
+
+- **Mục tiêu:** Thiết kế prediction và golden theo đầu vào cần cho từng nhóm metric.
+- **Thực hiện:** Bắt buộc trace query/sub-query, nội dung context/prompt, action,
+  citation và latency khi success; measurement provider có trạng thái/lý do.
+  Golden thêm evaluation_plan và liên kết bằng chứng/cặp thử nhiễu.
+- **Kết quả:** 36 kiểm thử schema/tài liệu đạt. Hai ví dụ multi-intent hợp lệ.
+  Giữ nguyên source runtime và JSONL cũ; JSONL cũ cần bổ sung evaluation_plan
+  trước khi dùng với hợp đồng mới. Chưa chạy inference hoặc judge.
+
+## Gom schema độc lập — 2026-10-28
+
+- **Mục tiêu:** Mở một file là đọc được toàn bộ hợp đồng dữ liệu.
+- **Thực hiện:** Gom về golden, prediction, evaluation; bỏ ba schema tham chiếu
+  ngoài, giữ hai ví dụ JSON; thêm kiểm thử đồng bộ định nghĩa được nhúng.
+- **Kết quả:** 28 kiểm thử schema/tài liệu đạt. Không sửa runtime hoặc dữ liệu cũ.
+
+## Chuẩn hóa schema RAG/retrieval v3 — 2026-10-28
+
+- **Mục tiêu:** Thống nhất hợp đồng mới, bỏ tương thích schema đầu ra cũ.
+- **Thực hiện:** Dùng chung envelope prediction/case-score và golden qua $ref;
+  relevance nhị phân, metric có trạng thái, hỗ trợ retrieval-only và no-answer.
+  Theo phạm vi người dùng chốt: chỉ schema, kiểm thử và tài liệu; runtime giữ nguyên.
+- **Kết quả:** 25 kiểm thử schema/tài liệu đạt, 3.850 mẫu golden hợp lệ.
+  Ví dụ JSON là fixture tổng hợp. Collector/scorer chưa hỗ trợ v3; kiểm tra
+  liên kết ID/hash/rank xuyên trường cần validator ngữ nghĩa khi triển khai runtime.
+
+## Siết schema evaluation — 2026-10-28
+
+- **Mục tiêu:** Sửa ràng buộc evaluation, giữ nguyên dữ liệu và artifact JSON/JSONL.
+- **Thực hiện:** Đồng bộ golden nhúng, cho phép metric tùy chọn và mở rộng,
+  ràng buộc trạng thái thực thi với actual_output/partial_output. Giữ bộ xuất hiện tại.
+- **Kết quả:** 15 kiểm thử schema đạt; đầu ra evaluator thông thường vẫn hợp lệ.
+  Artifact cũ vi phạm ràng buộc mới bị từ chối, không được tự sửa.
+
 ## Tách image web CPU và QLoRA GPU - 2026-10-27
 
 ### Mục tiêu
@@ -290,3 +334,8 @@ chưa chứng minh giảm đều tổng latency. Chi tiết ở
 - **Mục tiêu:** Áp dụng luồng chọn menu trực tiếp và router base thay thế được, hỗ trợ nhiều thủ tục/section.
 - **Thực hiện:** Tách classifier và điều phối, schema/retry v2, trạng thái có chữ ký, menu có nút, truy hồi giới hạn mã/section; giữ v1 cho FastText. Sau smoke model thật, khóa section được nêu rõ, thay query khi chọn menu, ưu tiên catalog cho yêu cầu danh sách và xử lý từ chối/xác nhận/biến thể bằng trạng thái.
 - **Kết quả:** 303 ca đạt, 22 ca bỏ qua trong 325 test; Ruff, compileall và diff check đạt. API Qwen thật xác nhận Thông tin chung, phí và trình tự của mã 1.000894 dùng đúng nguồn; trạng thái chứng chỉ không tự chọn; “thuê đất” là IN_SCOPE và “thành lập trường” chỉ trả thủ tục giáo dục. Artifact tại `outputs/verification/reported-*-regression.json` và `catalog-discovery-live.json`. Chưa thao tác trình duyệt thật do không có browser kết nối; không thay đổi golden, checkpoint hoặc chỉ mục.
+## 2026-10-28 - Schema Golden Dataset và Evaluation v2 độc lập
+
+- **Mục tiêu:** Chuẩn hóa hợp đồng máy đọc được cho dữ liệu Golden và kết quả evaluation hiện hành.
+- **Thực hiện:** Tạo schema Draft 2020-12 trong `schema/`; mô tả đầy đủ trường lồng nhau của Golden và toàn bộ cấu trúc Evaluation v2, không dùng tham chiếu tới file ngoài.
+- **Kết quả:** Validate thành công 3.850 case train/val/test và evaluation record do `src/vigovbot/evaluation/records.py` tạo; `git diff --check` đạt.

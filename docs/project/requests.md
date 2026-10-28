@@ -1,5 +1,49 @@
 # Thay đổi hệ thống
 
+## Định danh bốn cấu hình và phạm vi metric v3.2 — 2026-10-28
+
+- **Mục tiêu:** Chấm chung Base, fine-tuning, RAG và fine-tuning + RAG đúng khả năng.
+- **Thực hiện:** architecture bắt buộc; Base/fine-tuning không có retrieval/context;
+  điểm không áp dụng phải bỏ qua hoặc not_applicable. Fine-tuning có revision
+  adapter/checkpoint. Bỏ actual_route và điểm phân loại ngoài phạm vi.
+- **Kết quả:** 44 kiểm thử schema/tài liệu đạt. Ví dụ chuyển sang v3.2.
+  Chỉ sửa schema, ví dụ, test và tài liệu; không sửa runtime hoặc JSONL cũ.
+
+## Bổ sung dữ liệu chấm RAG/retrieval v3.1 — 2026-10-28
+
+- **Mục tiêu:** Thiết kế prediction và golden theo đầu vào cần cho từng nhóm metric.
+- **Thực hiện:** Bắt buộc trace query/sub-query, nội dung context/prompt, action,
+  citation và latency khi success; measurement provider có trạng thái/lý do.
+  Golden thêm evaluation_plan và liên kết bằng chứng/cặp thử nhiễu.
+- **Kết quả:** 36 kiểm thử schema/tài liệu đạt. Hai ví dụ multi-intent hợp lệ.
+  Giữ nguyên source runtime và JSONL cũ; JSONL cũ cần bổ sung evaluation_plan
+  trước khi dùng với hợp đồng mới. Chưa chạy inference hoặc judge.
+
+## Gom schema độc lập — 2026-10-28
+
+- **Mục tiêu:** Mở một file là đọc được toàn bộ hợp đồng dữ liệu.
+- **Thực hiện:** Gom về golden, prediction, evaluation; bỏ ba schema tham chiếu
+  ngoài, giữ hai ví dụ JSON; thêm kiểm thử đồng bộ định nghĩa được nhúng.
+- **Kết quả:** 28 kiểm thử schema/tài liệu đạt. Không sửa runtime hoặc dữ liệu cũ.
+
+## Chuẩn hóa schema RAG/retrieval v3 — 2026-10-28
+
+- **Mục tiêu:** Thống nhất hợp đồng mới, bỏ tương thích schema đầu ra cũ.
+- **Thực hiện:** Dùng chung envelope prediction/case-score và golden qua $ref;
+  relevance nhị phân, metric có trạng thái, hỗ trợ retrieval-only và no-answer.
+  Theo phạm vi người dùng chốt: chỉ schema, kiểm thử và tài liệu; runtime giữ nguyên.
+- **Kết quả:** 25 kiểm thử schema/tài liệu đạt, 3.850 mẫu golden hợp lệ.
+  Ví dụ JSON là fixture tổng hợp. Collector/scorer chưa hỗ trợ v3; kiểm tra
+  liên kết ID/hash/rank xuyên trường cần validator ngữ nghĩa khi triển khai runtime.
+
+## Siết schema evaluation — 2026-10-28
+
+- **Mục tiêu:** Sửa ràng buộc evaluation, giữ nguyên dữ liệu và artifact JSON/JSONL.
+- **Thực hiện:** Đồng bộ golden nhúng, cho phép metric tùy chọn và mở rộng,
+  ràng buộc trạng thái thực thi với actual_output/partial_output. Giữ bộ xuất hiện tại.
+- **Kết quả:** 15 kiểm thử schema đạt; đầu ra evaluator thông thường vẫn hợp lệ.
+  Artifact cũ vi phạm ràng buộc mới bị từ chối, không được tự sửa.
+
 ## Tách image web CPU và QLoRA GPU - 2026-10-27
 
 ### Mục tiêu
@@ -190,3 +234,8 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Triển khai router base độc lập, chọn menu trực tiếp, section đa nhãn và nhiều thủ tục.
 - **Thực hiện:** Thêm hợp đồng routing v2, router base độc lập, menu có trạng thái ký, section đa nhãn, truy hồi riêng từng thủ tục, nút chọn và kiểm thử hồi quy.
 - **Kết quả:** 303 ca đạt, 22 ca bỏ qua trong 325 test; Ruff, compileall và diff check đạt. API Qwen thật xác nhận section của mã 1.000894, trạng thái chọn chứng chỉ và tìm kiếm catalog đều đúng; “thuê đất” được giữ trong phạm vi, “thành lập trường” chỉ trả ứng viên giáo dục. Chưa thao tác trình duyệt thật do không có browser kết nối. Không thay đổi golden, checkpoint hoặc chỉ mục.
+## 2026-10-28 - Công khai schema Golden Dataset và Evaluation v2
+
+- **Mục tiêu:** Cung cấp schema độc lập, đầy đủ trường cho dataset Golden và kết quả evaluation theo từng case.
+- **Thực hiện:** Thêm `schema/golden_dataset.schema.json` và `schema/evaluation_case.schema.json`; khai báo trực tiếp cấu trúc Golden, execution output, các nhóm metric, provenance và trạng thái chấm điểm, không phụ thuộc schema ngoài thư mục.
+- **Kết quả:** Hoàn tất; hai schema hợp lệ theo JSON Schema Draft 2020-12, 3.850 dòng Golden và một evaluation record sinh bởi code hiện tại đều validate thành công.

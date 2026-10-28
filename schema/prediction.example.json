@@ -1,0 +1,187 @@
+{
+  "schema_version": "3.2.0",
+  "architecture": "rag",
+  "evaluation_scope": "end_to_end",
+  "test_id": "fixture",
+  "run_id": "fixture",
+  "split": "test",
+  "evaluation_context": {
+    "requested_cutoffs": [
+      1,
+      3,
+      5
+    ],
+    "robustness_pair": null
+  },
+  "input": {
+    "question": "Hồ sơ và lệ phí của thủ tục minh họa?",
+    "chat_history": [],
+    "task_constraint": null,
+    "metadata_filters": null
+  },
+  "provenance": {
+    "dataset_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "dataset_version": "fixture",
+    "corpus_revision": "corpus-fixture",
+    "index_revision": "index-fixture"
+  },
+  "execution": {
+    "status": "success",
+    "model_config": {
+      "answer_model": "fixture"
+    },
+    "action": "answer",
+    "retrieval_skip_reason": null,
+    "query_processing": {
+      "standalone_query": "Hồ sơ và lệ phí của thủ tục minh họa?",
+      "sub_queries": [
+        {
+          "sub_query_id": "sq-1",
+          "query": "Hồ sơ của thủ tục minh họa?"
+        },
+        {
+          "sub_query_id": "sq-2",
+          "query": "Lệ phí của thủ tục minh họa?"
+        }
+      ],
+      "rewrite_applied": false,
+      "decomposition_applied": true
+    },
+    "retrieval": {
+      "query": "Hồ sơ và lệ phí của thủ tục minh họa?",
+      "top_k": 5,
+      "sub_query_results": [
+        {
+          "sub_query_id": "sq-1",
+          "query": "Hồ sơ của thủ tục minh họa?",
+          "top_k": 5,
+          "contexts": [
+            {
+              "rank": 1,
+              "context_id": "chunk-1",
+              "score": 0.9,
+              "text": "Hồ sơ: giấy tờ A."
+            }
+          ]
+        },
+        {
+          "sub_query_id": "sq-2",
+          "query": "Lệ phí của thủ tục minh họa?",
+          "top_k": 5,
+          "contexts": [
+            {
+              "rank": 1,
+              "context_id": "chunk-2",
+              "score": 0.8,
+              "text": "Lệ phí: miễn phí."
+            }
+          ]
+        }
+      ],
+      "contexts": [
+        {
+          "rank": 1,
+          "context_id": "chunk-1",
+          "score": 0.9,
+          "text": "Hồ sơ: giấy tờ A."
+        },
+        {
+          "rank": 2,
+          "context_id": "chunk-2",
+          "score": 0.8,
+          "text": "Lệ phí: miễn phí."
+        }
+      ]
+    },
+    "generation": {
+      "actual_output": "Hồ sơ: giấy tờ A. Lệ phí: miễn phí.",
+      "citations": [
+        {
+          "claim": "Hồ sơ: giấy tờ A.",
+          "source_id": "chunk-1"
+        },
+        {
+          "claim": "Lệ phí: miễn phí.",
+          "source_id": "chunk-2"
+        }
+      ],
+      "prompt_messages": [
+        {
+          "role": "system",
+          "content": "Ví dụ giả lập. Trả lời theo tài liệu và trích dẫn ID nguồn."
+        },
+        {
+          "role": "user",
+          "content": "Hồ sơ và lệ phí của thủ tục minh họa?\n[chunk-1] Hồ sơ: giấy tờ A.\n[chunk-2] Lệ phí: miễn phí."
+        }
+      ],
+      "prompt_contexts": [
+        {
+          "context_id": "chunk-1",
+          "text": "Hồ sơ: giấy tờ A."
+        },
+        {
+          "context_id": "chunk-2",
+          "text": "Lệ phí: miễn phí."
+        }
+      ]
+    },
+    "telemetry": {
+      "total_latency_ms": 150,
+      "query_processing_latency_ms": 20,
+      "retrieval_latency_ms": 30,
+      "generation_latency_ms": 100,
+      "measurements": {
+        "ttft_ms": {
+          "value": 40,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "prompt_tokens": {
+          "value": 60,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "completion_tokens": {
+          "value": 10,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "total_tokens": {
+          "value": 70,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "generation_tokens_per_second": {
+          "value": 100,
+          "status": "measured",
+          "source": "synthetic-example-only",
+          "reason": null
+        },
+        "peak_allocated_vram_gb": {
+          "value": null,
+          "status": "unavailable",
+          "source": null,
+          "reason": "Synthetic fixture has no provider measurement"
+        },
+        "gpu_utilization_percent": {
+          "value": null,
+          "status": "unavailable",
+          "source": null,
+          "reason": "Synthetic fixture has no provider measurement"
+        },
+        "cost_usd": {
+          "value": null,
+          "status": "unavailable",
+          "source": null,
+          "reason": "Synthetic fixture has no provider measurement"
+        }
+      },
+      "pricing": null
+    }
+  }
+}

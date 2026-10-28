@@ -1,5 +1,19 @@
 # Trạng thái hệ thống hiện tại
 
+## Hợp đồng đánh giá bốn cấu hình v3.2 — 2026-10-28
+
+- **Mục tiêu:** Thống nhất hợp đồng mới, bỏ tương thích schema đầu ra cũ.
+- **Thực hiện:** Ba schema độc lập golden/prediction/evaluation, chỉ có $ref nội bộ;
+  architecture base/finetuned/rag/finetuned_rag quyết định dữ liệu và metric áp dụng;
+  Base/fine-tuning không cần retrieval, điểm không áp dụng không ghi thành 0.
+  Không chấm router; fine-tuning bắt buộc định danh adapter/checkpoint. Golden có
+  evaluation_plan, relevance nhị phân và liên kết bằng chứng/cặp thử nhiễu.
+  Theo phạm vi người dùng chốt: chỉ schema, kiểm thử và tài liệu; runtime giữ nguyên.
+- **Kết quả:** 44 kiểm thử schema/tài liệu đạt; hai ví dụ multi-intent hợp lệ.
+  JSONL cũ giữ nguyên, cần bổ sung evaluation_plan trước khi dùng schema mới.
+  Ví dụ JSON là fixture tổng hợp. Collector/scorer chưa hỗ trợ v3.2; kiểm tra
+  liên kết ID/hash/rank xuyên trường cần validator ngữ nghĩa khi triển khai runtime.
+
 ## Mục tiêu
 
 Vận hành ViGovBot bằng cấu trúc canonical, hỗ trợ Base, RAG và QLoRA; đánh giá
@@ -34,6 +48,10 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   `/api/chat` cũ vẫn giữ nguyên cho evaluation và client hiện có.
 
 ## Kết quả
+
+- Schema độc lập cho Golden Dataset và Evaluation v2 nằm tại `schema/`; toàn bộ
+  3.850 dòng Golden và evaluation record sinh từ `build_record` đã validate theo
+  JSON Schema Draft 2020-12.
 
 - Yêu cầu “Các thủ tục cấp lại chứng chỉ kiểm định viên” đã trả danh sách lựa
   chọn qua API thật sau restart, không tự chốt tên khớp 2.000066. Chọn mục 2
