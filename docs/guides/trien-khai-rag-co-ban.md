@@ -411,6 +411,9 @@ thủ tục khác. Kết quả trực tiếp không có điểm tương đồng 
 
 `retrieval_strategy` nhận `procedure_direct`, `procedure_semantic` hoặc `semantic`;
 `semantic` là đường tìm kiếm hiện có, bao gồm lọc mã/tên khi phù hợp.
+Trong routing hội thoại, nếu catalog không nhận diện được tên thủ tục thì các hit
+semantic dùng để dò danh mục được giữ làm evidence và trace ghi `semantic`; mã
+tường minh không có trong catalog không đi vào fallback này.
 Giá trị là `null` khi routing dừng trước bước retrieval.
 Trace evaluation giữ riêng thời gian routing, retrieval và generation, kèm lý do
 fallback. Base/QLoRA không dùng ngữ cảnh truy xuất này.

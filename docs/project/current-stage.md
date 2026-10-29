@@ -1,5 +1,30 @@
 # Trạng thái hệ thống hiện tại
 
+## Semantic retrieval khi thiếu danh tính thủ tục - 2026-10-29
+
+- **Mục tiêu:** Cho phép generation dùng evidence FAISS nếu không tìm được tên/mã thủ tục nhưng semantic search vẫn có kết quả.
+- **Thực hiện:** Candidate semantic không gán mã được giữ làm evidence khi chưa nhận diện tên; trace phân biệt chiến lược `semantic` với `procedure_direct`.
+- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+
+## Fallback rewrite cho MIXED_SCOPE nhiều vế - 2026-10-29
+
+- **Mục tiêu:** Cho phép LLM trích vế hành chính khi phân tách được câu nhưng PhoBERT không xác nhận vế nào.
+- **Thực hiện:** Rewrite được phép khi không có vế hành chính độc lập nào được PhoBERT xác nhận, tối đa 8 vế; nhiều vế hành chính được xác nhận vẫn phải làm rõ.
+- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+
+## Điều hướng số thứ tự khi không có menu - 2026-10-29
+
+- **Mục tiêu:** Không chặn câu hỏi mới chỉ vì câu có cụm “thủ tục 1” hoặc “mục 2”.
+- **Thực hiện:** Văn bản số chỉ được xem là lựa chọn khi có menu; trạng thái được truyền nhưng không xác thực vẫn bị từ chối.
+- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+
+## Retrieval RAG sau khi gỡ reranker - 2026-10-29
+
+- **Mục tiêu:** Trở về luồng truy xuất FAISS trực tiếp sau khi đo chi phí độ trễ của thử nghiệm reranker.
+- **Thực hiện:** Khôi phục `top_k: 5`, gỡ cấu hình và module reranker online, dừng web trước khi xóa riêng cache `BAAI/bge-reranker-v2-m3`; giữ nguyên cache embedding, corpus và báo cáo benchmark.
+- **Kết quả:** Reranker không còn tham gia runtime; web Docker healthy và `/api/health` trả HTTP 200 sau restart. Kết quả benchmark 10 câu vẫn được lưu tại [báo cáo](../reports/reranker-latency-20261029.md).
+
+
 ## Tích hợp PhoBERT routing — 2026-10-29
 
 - **Mục tiêu:** Thay phân loại LLM và ghi đè nhãn section bằng checkpoint PhoBERT.
@@ -45,8 +70,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 - Source chính đặt tại `src/vigovbot/`; CLI công khai là `vigov`.
 - Docker mặc định chạy web Base/RAG bằng Torch CPU và Ollama; QLoRA cục bộ
   nằm trong service/profile `web-gpu` tùy chọn. Cả hai dùng cache model/RAG bền vững.
-- RAG hỗ trợ exact-match mã/tên thủ tục, ưu tiên loại mục và đưa trực tiếp top 5
-  kết quả retrieval vào LLM, không rerank trong runtime online.
+- RAG hỗ trợ exact-match mã/tên thủ tục, ưu tiên loại mục và gửi trực tiếp FAISS
+  top 5 vào LLM; reranker BGE đã được gỡ khỏi runtime.
 - Evidence quá ngân sách được rút gọn theo hàng/field/phần tử hoàn chỉnh; không
   còn bỏ toàn bộ bảng hoặc JSON có thể chiếu an toàn vào prompt.
 - Routing dùng context `4096` và giới hạn sinh `768` token riêng; generation vẫn
@@ -79,7 +104,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 - Stack Docker CUDA, `/api/health`, `/api/chat` và `vigov doctor` đã được kiểm
   chứng ngày 2026-10-25.
 - Retrieval theo mã/tên thủ tục đã được kiểm chứng bằng unit test và API
-  container; thay đổi top 5 trực tiếp chưa được kiểm chứng lại bằng API container.
+  container. Độ trễ thử nghiệm reranker được ghi riêng trong báo cáo ngày 2026-10-29;
+  không dùng kết quả đó để kết luận chất lượng retrieval.
 - Không có pipeline huấn luyện hoặc benchmark dài đang chạy.
 - Hồ sơ vận hành đã được tinh gọn theo quy định mới.
 - Cấu hình và regression routing đã được kiểm chứng; đã có baseline Qwen nhưng

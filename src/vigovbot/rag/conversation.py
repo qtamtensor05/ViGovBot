@@ -41,7 +41,7 @@ def validate_state(state, history, scope, corpus):
 def direct_choice(question, menu, selection=None):
     """Return option, invalid flag. Natural language always goes to the router."""
     if not menu:
-        return None, selection is not None or selection_index(question) is not None
+        return None, selection is not None
     options = menu["options"]
     if selection is not None:
         if not isinstance(selection, dict) or set(selection) != {"menu_id", "option_id"}:
@@ -77,6 +77,9 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
     state = validate_state(conversation_state, history, clarification_scope, corpus)
     menu = state.get("menu") if state else None
     option, invalid = direct_choice(question, menu, selection)
+    if (not menu and state is None and conversation_state is not None and selection is None
+            and selection_index(question) is not None):
+        invalid = True
     route, trace = fallback(), dict(attempts=0, seconds=0., tokens=0)
     requests = []
     result = dict(actual_route="clarify", prediction="", action="clarify", decision_reason=None,
@@ -277,6 +280,7 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 requests[0]["code"] = selected[0]
 
     retrieval_started = time.perf_counter()
+    unresolved_semantic_hits = {}
     for index, request in enumerate(requests):
         if request.get("code"):
             continue
@@ -303,6 +307,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             hits = retriever.search(request["query"], settings["top_k"])
             discovery = clarifier.inspect(request["query"], hits=hits)
             codes = discovery["codes"] if discovery else []
+            if not codes:
+                unresolved_semantic_hits[index] = hits
         if len(codes) > 1:
             result["retrieval_s"] = time.perf_counter()-retrieval_started
             return menu_result("procedure", index, codes)
@@ -352,6 +358,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 groups.append(group)
             ranked = list({h["chunk_id"]: h for group in zip_longest(*groups)
                            for h in group if h is not None}.values())[:settings["top_k"]]
+        elif index in unresolved_semantic_hits:
+            ranked = unresolved_semantic_hits[index]
         key = f"sq_{index+1}"
         result["actual_sub_queries"].append(dict(sub_query_id=key, query=query))
         result["sub_query_retrieval"][key] = [h["chunk_id"] for h in ranked]
@@ -360,7 +368,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
     hits = [hit for group in zip_longest(*ranked_requests) for hit in group if hit is not None]
     hits = list({h["chunk_id"]: h for h in hits}.values())
     result.update(retrieved=hits, retrieval_s=time.perf_counter()-retrieval_started,
-                  retrieval_query="\n\n".join(queries), retrieval_strategy="procedure_direct",
+                  retrieval_query="\n\n".join(queries),
+                  retrieval_strategy="semantic" if unresolved_semantic_hits else "procedure_direct",
                   actual_route="rag_search")
     if not hits:
         result.update(action="abstain", evidence_status="missing")

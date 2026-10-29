@@ -1,5 +1,30 @@
 # Thay đổi hệ thống
 
+## Giữ lại semantic hits khi chưa nhận diện mã thủ tục - 2026-10-29
+
+- **Mục tiêu:** Không bỏ các chunk semantic đã tìm được chỉ vì catalog không nhận diện được tên thủ tục.
+- **Thực hiện:** Giữ hits theo từng yêu cầu chưa có mã; dùng lại chúng làm evidence và ghi strategy `semantic`. Mã tường minh ngoài catalog không vào fallback.
+- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+
+## Rewrite MIXED_SCOPE khi không có vế được xác nhận - 2026-10-29
+
+- **Mục tiêu:** Cho phép rewrite chọn lọc khi câu MIXED_SCOPE tách thành nhiều vế nhưng PhoBERT chưa xác nhận được vế nào.
+- **Thực hiện:** Cho phép rewrite nếu PhoBERT không xác nhận vế hành chính độc lập nào và tổng số vế không quá 8; vẫn chặn khi có nhiều vế hành chính được xác nhận.
+- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+
+## Câu hỏi có số thứ tự khi không có menu - 2026-10-29
+
+- **Mục tiêu:** Để câu hỏi mới như “thủ tục 1” đi qua router khi không có menu lựa chọn hợp lệ.
+- **Thực hiện:** `direct_choice` chỉ coi selection có cấu trúc là lựa chọn khi menu vắng mặt; văn bản có số được chuyển tới router. Trạng thái được truyền nhưng không xác thực vẫn giữ lỗi lựa chọn hết hạn.
+- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+
+## Tích hợp BAAI/bge-reranker-v2-m3 - 2026-10-29
+
+- **Mục tiêu:** Lấy top 10 ứng viên retrieval, rerank và đưa top 3 vào model trả lời.
+- **Thực hiện:** Tích hợp cross-encoder vào cả pipeline RAG cũ và luồng PhoBERT; truy hồi 10 ứng viên, rerank rồi gửi tối đa 3 đoạn; thêm trace, fallback và cache model Docker.
+- **Kết quả:** Model revision đã ghim được tải vào volume Hugging Face; smoke model 10→3, API RAG, web health, 40 test tập trung và tài liệu đạt. Sau benchmark độ trễ, runtime tích hợp và cache model đã được gỡ theo yêu cầu tiếp theo; báo cáo benchmark được giữ tại `docs/reports/reranker-latency-20261029.md`. Một bộ test rộng hơn có 1 lỗi mismatch adapter tồn tại ngoài phạm vi; chưa benchmark chất lượng retrieval.
+
+
 ## Định danh bốn cấu hình và phạm vi metric v3.2 — 2026-10-28
 
 - **Mục tiêu:** Chấm chung Base, fine-tuning, RAG và fine-tuning + RAG đúng khả năng.

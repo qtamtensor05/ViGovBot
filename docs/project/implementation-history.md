@@ -382,3 +382,43 @@ chưa chứng minh giảm đều tổng latency. Chi tiết ở
 - **Mục tiêu:** Tách một yêu cầu hành chính khỏi phần ngoài lề dùng liên từ tự nhiên khi split xác định không thành công.
 - **Thực hiện:** Chỉ gọi Qwen khi PhoBERT `MIXED_SCOPE` và regex không tách được phần hỗ trợ; nhiều phần hỗ trợ hoặc một phần dự đoán nhiều thủ tục vẫn hỏi lại. Yêu cầu đoạn trích liên tiếp có giới hạn 128 token, giữ mã/qualifier, rồi xác nhận lại bằng PhoBERT. Lỗi/đầu ra rỗng/ngoài phạm vi đều hỏi lại; scope `MIXED_SCOPE` vẫn được giữ để ghi chú phần bỏ qua.
 - **Kết quả:** 401 test đạt, 22 skipped; 73 test routing liên quan, Ruff, compileall và diff check đạt. API thật trích “Phí đăng ký kết hôn” từ câu mixed, PhoBERT xác nhận `IN_SCOPE`, RAG lấy một nguồn mã 1.000894 và phản hồi `partial`. Chưa đo tỷ lệ mixed traffic 3–7% hoặc hiệu năng tổng thể.
+
+## Tích hợp BGE cross-encoder reranker - 2026-10-29
+
+### Mục tiêu
+
+Lấy tối đa 10 ứng viên retrieval, chấm lại bằng `BAAI/bge-reranker-v2-m3` và đưa ba đoạn đầu vào model trả lời.
+
+### Thực hiện
+
+- Thêm module reranker Transformers dùng CPU mặc định, batch inference, cache singleton và fallback theo thứ tự FAISS khi model lỗi. Ghim revision `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`.
+- Tích hợp vào pipeline RAG cũ và PhoBERT v2; giữ FAISS score/rank, ghi `reranker_score`, `rerank_rank`, trạng thái, model và thời gian vào kết quả/trace. Đặt `candidate_top_k: 10`, `top_k: 3` trong ba profile.
+- Thêm hướng dẫn vận hành và cập nhật test cấu hình. Dùng volume Hugging Face hiện có; không thêm dependency hoặc rebuild image.
+
+### Kết quả
+
+Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả ba kết quả hạng 1-3; API RAG trả `success`, reranker `ok` và web Docker healthy/HTTP 200. 40 test tập trung gồm routing, cấu hình và link tài liệu đạt; cú pháp nguồn và `git diff --check` đạt. Lượt kiểm tra rộng hơn có một test cũ đòi hai QLoRA adapter trong khi profile hiện có một; không liên quan thay đổi reranker. Chưa chạy benchmark chất lượng trên Golden/relevance nên chưa kết luận reranker cải thiện retrieval.
+
+## Gỡ BGE reranker khỏi runtime - 2026-10-29
+
+- **Mục tiêu:** Bỏ chi phí inference BGE reranker khỏi luồng RAG trực tuyến sau benchmark CPU.
+- **Thực hiện:** Khôi phục ba profile RAG và hai pipeline về FAISS top 5; bỏ cấu hình/module online và telemetry API; xóa riêng model BGE reranker khỏi volume Hugging Face, giữ cache embedding và cache RAG.
+- **Kết quả:** Web Docker healthy, `/api/health` trả HTTP 200; model reranker vắng khỏi cache, BGE-M3 embedding còn nguyên. Báo cáo và JSON benchmark vẫn được giữ.
+
+## Không chặn câu hỏi có số khi không có menu - 2026-10-29
+
+- **Mục tiêu:** Đưa câu mới như “thủ tục 1” và “mục 2” qua router nếu không có menu đang chờ lựa chọn.
+- **Thực hiện:** Bỏ suy diễn lựa chọn hết hạn chỉ từ số trong văn bản; tiếp tục từ chối selection có cấu trúc khi không có menu và số đi cùng conversation state không xác thực.
+- **Kết quả:** AST và `git diff --check` đạt. Chưa chạy unit test hoặc API.
+
+## Mở rewrite MIXED_SCOPE khi chưa xác nhận được vế hỗ trợ - 2026-10-29
+
+- **Mục tiêu:** Cho LLM đề xuất vế hành chính trích nguyên văn khi PhoBERT không xác nhận được vế nào trong câu đã tách.
+- **Thực hiện:** Cho phép fallback tối đa 8 vế khi không có vế `IN_SCOPE` độc lập; giữ giới hạn phân loại và không cho LLM chọn giữa nhiều vế hành chính đã xác nhận.
+- **Kết quả:** AST và `git diff --check` đạt. Chưa chạy unit test hoặc API.
+
+## Giữ semantic evidence khi không nhận diện được thủ tục - 2026-10-29
+
+- **Mục tiêu:** Không loại bỏ kết quả semantic chỉ vì không có mã thủ tục khớp catalog.
+- **Thực hiện:** Giữ hits dò danh mục theo từng request chưa định danh, đưa lại vào danh sách evidence và ghi `retrieval_strategy=semantic`; mã nguồn tường minh không tồn tại vẫn không được tìm kiếm chéo.
+- **Kết quả:** AST và `git diff --check` đạt. Chưa chạy unit test hoặc API.

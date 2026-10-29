@@ -212,16 +212,17 @@ def score_retrieval(*, dataset, view, split, predictions, unit_map, output, ks, 
     return report
 
 
-def _load_reranker(model_name, device, batch_size, max_length):
+def _load_reranker(model_name, device, batch_size, max_length, revision=None):
     import torch
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
     if device == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA reranker requested but torch.cuda.is_available() is false")
     started = time.perf_counter()
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model_args = {"revision": revision} if revision else {}
+    tokenizer = AutoTokenizer.from_pretrained(model_name, **model_args)
     dtype = torch.float16 if device == "cuda" else torch.float32
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, dtype=dtype)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, dtype=dtype, **model_args)
     model.to(device)
     model.eval()
     load_seconds = time.perf_counter() - started

@@ -214,7 +214,10 @@ def classify_phobert(question, history, state, settings, clarifier):
                 if pred["scope"] == "IN_SCOPE":
                     supported.append((part, pred))
         if len(supported) != 1 or supported[0][1]["mix"]:
-            mixed_scope_fallback_allowed = len(parts) == 1 and not supported
+            # Rewrite only when PhoBERT found no independently safe clause.
+            # Bound the batch like clause classification, and never let the
+            # LLM choose among multiple in-scope requests.
+            mixed_scope_fallback_allowed = len(parts) <= 8 and not supported
             return clarify("Bạn vui lòng tách rõ phần hỏi về một thủ tục hành chính và nội dung cần tra cứu.")
         question, supported_prediction = supported[0]
         sections = supported_prediction["sections"]

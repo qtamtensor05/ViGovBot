@@ -29,6 +29,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [Vận hành pipeline RAG](guides/trien-khai-rag-co-ban.md)
 - [RAG nhiều lượt](guides/rag-multi-turn.md)
 - [Routing PhoBERT bốn head và menu theo trạng thái](guides/four-head-routing.md)
+- [Rerank tài liệu RAG](guides/rag-reranking.md)
 - [Đánh giá QA/RAG](guides/qa-rag-evaluation.md)
 - [Vận hành huấn luyện](guides/training.md)
 - [Đánh giá, biểu đồ và báo cáo QLoRA](guides/evaluation.md)
@@ -43,6 +44,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 ## Báo cáo kết quả
 
 - [Kiểm chứng đóng gói bằng chứng và prompt RAG](reports/rag-evidence-hardening-20261024.md)
+- [Benchmark độ trễ reranker (10 câu)](reports/reranker-latency-20261029.md)
 
 - [Đánh giá RAG vs Base trên TTHC v1](reports/bao-cao-danh-gia-rag-vs-base-tthc-v1.md)
 - [Phân tích QLoRA Qwen2.5-7B](reports/bao-cao-phan-tich-qlora-qwen2-5-7b.md)
