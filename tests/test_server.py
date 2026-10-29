@@ -140,6 +140,7 @@ class WebChatTests(unittest.TestCase):
         result = {
             "prediction": "Hồ sơ gồm hai giấy tờ.",
             "action": "answer",
+            "evidence_status": "sufficient",
             "retrieved": [{"source_code": "TTHC-01", "chunk_id": "c1", "rerank_rank": 1,
                            "reranker_score": 0.9, "text_content": "Nội dung nguồn"}],
             "latency_s": 1.25,
@@ -154,6 +155,7 @@ class WebChatTests(unittest.TestCase):
                 "question": "  Cần giấy tờ gì?  ", "models": ["local"], "histories": {"local": history}
             })
         self.assertEqual(response["results"][0]["answer"], result["prediction"])
+        self.assertEqual(response["results"][0]["evidence_status"], "sufficient")
         self.assertNotIn("raw_ollama", response["results"][0])
         self.assertEqual(response["results"][0]["sources"], result["retrieved"])
         answer.assert_called_once_with(

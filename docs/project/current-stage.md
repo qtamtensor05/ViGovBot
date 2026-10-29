@@ -1,5 +1,29 @@
 # Trạng thái hệ thống hiện tại
 
+## Hiển thị trạng thái đánh giá cho từng câu trả lời Web - 2026-10-30
+
+- **Mục tiêu:** Làm rõ kết quả và mức bằng chứng của từng phản hồi ngay trên Web.
+- **Thực hiện:** API công khai thêm `evidence_status`; Web hiển thị action, evidence, retrieval, quyết định routing, phạm vi, loại lượt và section bằng nhãn tiếng Việt kèm mã kỹ thuật.
+- **Kết quả:** 114 test liên quan đạt; Web Docker healthy. Hai endpoint chat thật truyền đủ action/evidence/retrieval; JavaScript Web đã kiểm tra cú pháp và formatter trạng thái. Chưa kiểm tra trực quan vì phiên Computer Use không có trình duyệt khả dụng.
+
+## Từ chối theo bằng chứng truy xuất và bảo toàn Unicode - 2026-10-30
+
+- **Mục tiêu:** Giữ câu trả lời trong phạm vi bằng chứng thực tế, không suy từ hình thức mã hồ sơ và không phát sinh mojibake.
+- **Thực hiện:** Luồng RAG truy xuất trước rồi kiểm tra định danh riêng có xuất hiện trong context hay không; chỉ `abstain/missing` khi bằng chứng thiếu. Câu chào độc lập vẫn được tách khỏi thủ tục cũ.
+- **Kết quả:** 112 test tập trung đạt; 150/150 ca `is_unanswerable` được nhận diện, 0/6.950 ca còn lại bị đánh dấu nhầm. Web Docker healthy; `/api/chat` thật trả tiếng Việt UTF-8 đúng và không có ký tự `�`.
+
+## Bổ sung ca không có câu trả lời cho golden v3 - 2026-10-30
+
+- **Mục tiêu:** Tăng độ bao phủ đánh giá khả năng từ chối suy đoán khi PDF/metadata không chứa dữ liệu vận hành của hồ sơ cá nhân.
+- **Thực hiện:** Tạo 150 ca từ 138 thủ tục thuộc 56 lĩnh vực, gồm 30 follow-up và 120 câu hỏi mới; phủ đều trạng thái, cán bộ xử lý, lý do từ chối, lịch hẹn và yêu cầu bổ sung.
+- **Kết quả:** Dataset hiện có 7.100 bản ghi; 150 ca mới đều dùng `is_unanswerable=true`, `expected_action=abstain`, context/citation rỗng và `metadata_filters.source_code` trỏ đúng cặp PDF/metadata. Toàn bộ file hợp lệ schema, không trùng ID hoặc bản ghi.
+
+## Golden dataset v3 hợp nhất, schema-clean — 2026-10-30
+
+- **Mục tiêu:** Có một file golden cuối dùng được cho đánh giá, không còn khác biệt schema giữa hai bộ dữ liệu.
+- **Thực hiện:** `Data/dataset_v3/golden_all.jsonl` chứa 7.100 bản ghi, 283 domain; 6.950 ca chuẩn hóa dùng ID `GOLDEN_V3_000001` → `GOLDEN_V3_006950`, 150 ca không có câu trả lời dùng ID `GOLDEN_V3_UA_000001` → `GOLDEN_V3_UA_000150`; `validation_audit` nằm trong `golden_all.audit.jsonl`; bản trước chuẩn hóa giữ tại `golden_all.pre-normalize.jsonl`.
+- **Kết quả:** 7.100/7.100 bản ghi hợp lệ schema, 0 ID trùng và 0 bản ghi giống hoàn toàn. Các mapping ngữ nghĩa đã chốt: `easy` → `medium`, `test` → `in_domain`, `relevance_completeness` theo báo cáo, bổ sung 19 domain vào enum.
+
 ## Đồng bộ hóa tài liệu kiến trúc RAG Contract v2 và kiểm chứng toàn diện — 2026-10-29
 
 - **Mục tiêu:** Đồng bộ hóa toàn bộ tài liệu kiến trúc hệ thống (rchitecture.md), hướng dẫn routing bốn head (our-head-routing.md), và hướng dẫn vận hành pipeline RAG (	rien-khai-rag-co-ban.md) theo đúng trạng thái mã nguồn và runtime hiện hành.

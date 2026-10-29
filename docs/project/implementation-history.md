@@ -1,5 +1,29 @@
 # Lịch sử thay đổi hệ thống
 
+## Hiển thị trạng thái đánh giá cho từng câu trả lời Web - 2026-10-30
+
+- **Mục tiêu:** Không buộc người dùng suy đoán trạng thái runtime từ nội dung câu trả lời.
+- **Thực hiện:** Truyền `evidence_status` qua `/api/chat` và `/api/chat/stream`; dùng một formatter trạng thái chung cho hai đường render Web.
+- **Kết quả:** 114 test liên quan, Ruff, compile và `git diff --check` đạt; Web Docker healthy. `/api/chat` và `/api/chat/stream` thật cùng trả `abstain/missing/procedure_direct` cho ca tỷ lệ đúng hẹn thực tế. Chưa kiểm tra trực quan vì phiên Computer Use không có trình duyệt khả dụng.
+
+## Từ chối theo bằng chứng truy xuất và bảo toàn Unicode - 2026-10-30
+
+- **Mục tiêu:** Ngăn RAG dùng nội dung thủ tục chung để trả lời dữ liệu riêng nhưng vẫn cho phép trả lời khi nguồn thật sự chứa định danh đó.
+- **Thực hiện:** Thay luật gán cứng `HS-*` bằng kiểm tra định danh riêng giữa câu hỏi và các chunk đã truy xuất; thiếu định danh trong evidence thì trả `identifier_not_in_evidence`, có định danh thì tiếp tục đánh giá/generation. Sửa chuỗi phản hồi sang UTF-8 đúng.
+- **Kết quả:** 112 test liên quan, Ruff, compile và `git diff --check` đạt; đối chiếu 7.100 ca Golden cho kết quả 150/150 ca không trả lời và 0 dương tính giả. API local thật có retrieval `procedure_direct`, trả `abstain`, tiếng Việt đúng và không chứa ký tự thay thế.
+
+## Bổ sung ca không có câu trả lời cho golden v3 - 2026-10-30
+
+- **Mục tiêu:** Đánh giá khả năng không suy đoán dữ liệu vận hành của hồ sơ cá nhân khi PDF và metadata chỉ mô tả thủ tục chung.
+- **Thực hiện:** Đọc 686 trang của 138 PDF, đối chiếu 138 metadata và thêm 150 ca thuộc 56 lĩnh vực; dùng năm nhóm tình huống, 30 mẫu diễn đạt, 30 follow-up và 120 câu hỏi mới.
+- **Kết quả:** `Data/dataset_v3/golden_all.jsonl` tăng từ 6.950 lên 7.100 bản ghi. 150/150 ca mới là `is_unanswerable=true` và `expected_action=abstain`; toàn bộ dataset hợp lệ Draft 2020-12, 0 ID trùng, 0 bản ghi giống hoàn toàn, 0 lỗi liên kết nguồn và 0 ứng viên gần-trùng ở ngưỡng SequenceMatcher 0,90; 6 regression test schema đạt.
+
+## Chuẩn hóa golden dataset v3 theo schema — 2026-10-30
+
+- **Mục tiêu:** Gộp hai bộ golden lĩnh vực thành một file cuối và đưa toàn bộ bản ghi về đúng `schema/golden_dataset.schema.json`.
+- **Thực hiện:** Gộp `linh_vuc` và `linh_vuc_thieu` thành 6.950 bản ghi, thống nhất ID `GOLDEN_V3_*`; tách `validation_audit` sang `golden_all.audit.jsonl`; map `easy` → `medium`, `test` → `in_domain`, chuẩn hóa `relevance_completeness`, `cutoffs`, `negative_rules`, `distractor_injection`, citation, `fact_evidence` và bổ sung 19 domain vào enum schema.
+- **Kết quả:** `Data/dataset_v3/golden_all.jsonl` có 6.950 bản ghi, 283 domain, 0 lỗi schema, 0 ID trùng; backup `golden_all.pre-normalize.jsonl`, sidecar audit 3.797 bản ghi và báo cáo `golden_all.normalization-report.json` được giữ lại. 14 unit test schema/SFT đạt; hai thư mục nguồn không bị sửa.
+
 ## Đồng bộ hóa tài liệu kiến trúc RAG Contract v2 và kiểm chứng toàn diện — 2026-10-29
 
 - **Mục tiêu:** Đồng bộ hóa toàn bộ tài liệu kiến trúc hệ thống (`architecture.md`), hướng dẫn routing bốn head (`four-head-routing.md`), và hướng dẫn vận hành pipeline RAG (`trien-khai-rag-co-ban.md`) theo đúng trạng thái mã nguồn và runtime hiện hành.

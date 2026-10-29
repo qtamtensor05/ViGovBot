@@ -22,6 +22,11 @@ _MENU_REJECTION = re.compile(
     r"\s+(?:cai|muc|thu tuc)?\s*(?:tren|nay|do)?)?$", re.I)
 _BARE_CONFIRMATION = frozenset({"dung", "dung roi", "phai", "phai roi", "ok", "dong y"})
 _OTHER_VARIANT = frozenset({"truong hop khac", "cac truong hop khac", "thu tuc khac", "loai khac"})
+_SOCIAL_GREETING = re.compile(
+    r"^(?:(?:xin\s+)?chao|hello|hi)(?:\s+(?:buoi\s+)?(?:sang|trua|chieu|toi))?(?:\s+(?:ban|ad|admin))?$",
+    re.I,
+)
+_OPAQUE_IDENTIFIER = re.compile(r"\b[A-ZĐ]{2,}(?:-[A-Z0-9Đ]+){2,}\b", re.I)
 _STATES = OrderedDict()
 _STATE_LOCK = Lock()
 
@@ -61,6 +66,18 @@ def direct_choice(question, menu, selection=None):
     folded = _fold(question).strip(" .?!")
     matches = [o for o in options if folded in {_fold(a) for a in [o["label"], *o.get("aliases", [])]}]
     return (matches[0], False) if len(matches) == 1 else (None, False)
+
+
+def social_greeting(question):
+    """Recognize only standalone greetings, never a greeting prefixed to a real request."""
+    return bool(_SOCIAL_GREETING.fullmatch(_fold(question).strip(" .,!?:;")))
+
+
+def identifiers_missing_from_hits(question, hits):
+    """Return question identifiers that no retrieved evidence contains."""
+    identifiers = list(dict.fromkeys(match.group(0) for match in _OPAQUE_IDENTIFIER.finditer(question)))
+    evidence = "\n".join(str(hit.get("text_content", "")) for hit in hits).casefold()
+    return [identifier for identifier in identifiers if identifier.casefold() not in evidence]
 
 
 def answer_conversation(question, retriever, tokenizer, settings, history=None, *, answer_fn,
@@ -132,6 +149,14 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             text += "\nCòn nhiều thủ tục phù hợp; bạn có thể bổ sung tên, đối tượng hoặc cơ quan."
         return finish(text, kind + "_required", next_menu=value,
                       selected=[r["code"] for r in requests if r.get("code")])
+
+    if social_greeting(question):
+        route = {"scope": "OUT_OF_SCOPE", "conversation": "NEW", "mixed_procedures": False,
+                 "sections": [], "query": "", "needs_clarification": False,
+                 "clarification": "", "requests": []}
+        result.update(actual_route="out_of_scope", action="abstain")
+        return finish("Xin chào! Tôi có thể hỗ trợ tra cứu thủ tục hành chính Việt Nam.",
+                      "social_greeting")
 
     if invalid:
         if state and menu:
@@ -376,6 +401,17 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                   retrieval_query="\n\n".join(queries),
                   retrieval_strategy="semantic" if unresolved_semantic_hits else "procedure_direct",
                   actual_route="rag_search")
+    missing_identifiers = identifiers_missing_from_hits(question, hits) if hits else []
+    if missing_identifiers:
+        result.update(action="abstain", evidence_status="missing")
+        identifiers = ", ".join(missing_identifiers)
+        return finish(
+            f"Tài liệu truy xuất không chứa dữ liệu gắn với định danh {identifiers}, nên không đủ "
+            "bằng chứng để xác nhận thông tin được hỏi. Bạn cần tra cứu trên hệ thống tiếp nhận "
+            "hồ sơ hoặc liên hệ cơ quan đang xử lý.",
+            "identifier_not_in_evidence",
+            selected=[r["code"] for r in requests if r.get("code")],
+        )
     if not hits:
         result.update(action="abstain", evidence_status="missing")
         return finish("Chưa tìm thấy thủ tục phù hợp hoặc tài liệu cho nội dung bạn hỏi trong dữ liệu hiện có.", "no_context")

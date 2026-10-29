@@ -290,6 +290,37 @@ class FourHeadTests(unittest.TestCase):
         self.assertEqual(result["evidence_status"], "missing")
         self.assertEqual(result["classification"]["scope"], "IN_SCOPE")
 
+    def test_identifier_absent_from_evidence_abstains_after_retrieval(self):
+        question = ("Ma lich gan voi ho so HS-1000001-20261030-149 ngay 09/11/2026 "
+                    "co hop le khong? Cho minh gio va quay tiep nhan thuc te.")
+        result = self.ask(question, route("C?p h? chi?u", ["FEE"]))
+        self.assertEqual(result["action"], "abstain")
+        self.assertEqual(result["evidence_status"], "missing")
+        self.assertEqual(result["decision_reason"], "identifier_not_in_evidence")
+        self.assertIn("HS-1000001-20261030-149", result["prediction"])
+        self.assertTrue(result["retrieved"])
+        self.answer.assert_not_called()
+
+    def test_identifier_present_in_evidence_is_not_forced_to_abstain(self):
+        from vigovbot.rag.conversation import identifiers_missing_from_hits
+        question = "Trang thai giao dich GD-ABC-2026 la gi?"
+        self.assertEqual(identifiers_missing_from_hits(
+            question, [{"text_content": "He thong ghi nhan GD-ABC-2026 da hoan tat."}]), [])
+        self.assertEqual(identifiers_missing_from_hits(
+            question, [{"text_content": "Quy trinh xu ly giao dich chung."}]), ["GD-ABC-2026"])
+
+    def test_standalone_greeting_does_not_continue_previous_procedure(self):
+        self.ask("C?p h? chi?u", route())
+        self.router.reset_mock()
+        self.answer.reset_mock()
+        result = self.ask("Xin chao buoi chieu")
+        self.assertEqual(result["decision_reason"], "social_greeting")
+        self.assertEqual(result["actual_route"], "out_of_scope")
+        self.assertEqual(result["prediction"],
+                         "Xin chào! Tôi có thể hỗ trợ tra cứu thủ tục hành chính Việt Nam.")
+        self.router.assert_not_called()
+        self.answer.assert_not_called()
+
     def test_contract_retry_and_separate_router_settings_no_stream_leak(self):
         router = Mock(side_effect=[("{}", {}, 0), (json.dumps(route()), {}, 0)])
         settings = {**self.settings, "model": "answer-only", "token_callback": Mock(), "routing_early_exit": True}

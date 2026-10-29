@@ -1,5 +1,29 @@
 # Thay đổi hệ thống
 
+## Hiển thị trạng thái đánh giá cho từng câu trả lời Web - 2026-10-30
+
+- **Mục tiêu:** Cho người dùng biết câu trả lời là đầy đủ, một phần, cần làm rõ hay từ chối; đồng thời thấy mức bằng chứng và cách truy xuất.
+- **Thực hiện:** Bổ sung `evidence_status` vào payload công khai và bảng trạng thái tiếng Việt trên cả luồng streaming lẫn non-streaming; hiển thị action, evidence, retrieval, lý do quyết định, phạm vi, loại lượt và section.
+- **Kết quả:** 114 test liên quan, Ruff, compile và `git diff --check` đạt. Web Docker healthy; `/api/chat` và `/api/chat/stream` thật cùng trả `action=abstain`, `evidence_status=missing`, `retrieval_strategy=procedure_direct`. Chưa kiểm tra trực quan vì phiên Computer Use không có trình duyệt khả dụng.
+
+## Từ chối theo bằng chứng truy xuất và bảo toàn Unicode - 2026-10-30
+
+- **Mục tiêu:** Chỉ từ chối dữ liệu hồ sơ khi context thực sự không hỗ trợ định danh được hỏi; không gán cứng kết quả theo tiền tố mã và không làm hỏng tiếng Việt.
+- **Thực hiện:** Truy xuất tài liệu trước, so khớp định danh riêng trong câu hỏi với context rồi mới quyết định `missing/abstain`; nếu context chứa định danh thì tiếp tục generation. Chuỗi phản hồi được lưu UTF-8 đúng.
+- **Kết quả:** 112 test tập trung, Ruff, compile và `git diff --check` đạt. Đối chiếu Golden nhận đúng 150/150 ca không trả lời, 0/6.950 ca còn lại bị đánh dấu nhầm. Web Docker healthy; API thật trả `identifier_not_in_evidence`, có retrieval và tiếng Việt không chứa ký tự thay thế.
+
+## Bổ sung 150 ca không có câu trả lời cho golden v3 - 2026-10-30
+
+- **Mục tiêu:** Bổ sung 150 câu hỏi thực tế không thể trả lời từ tài liệu thủ tục, có danh tính thủ tục được lấy từ PDF và metadata nguồn.
+- **Thực hiện:** Đối chiếu 138 cặp PDF/metadata trong `Data/dataset_v3/linh_vuc_thieu`; thêm 150 ca `is_unanswerable=true`, `expected_action=abstain` thuộc năm tình huống vận hành hồ sơ và 30 mẫu diễn đạt.
+- **Kết quả:** Hoàn tất; `golden_all.jsonl` có 7.100 bản ghi, 150 ca mới đều hợp lệ schema, có cặp nguồn, không trùng ID/bản ghi và không có ứng viên gần-trùng ở ngưỡng SequenceMatcher 0,90.
+
+## Chuẩn hóa golden_all v3 theo schema — 2026-10-30
+
+- **Mục tiêu:** Gộp hai bộ golden lĩnh vực thành một file cuối và chuẩn hóa toàn bộ bản ghi theo `schema/golden_dataset.schema.json`.
+- **Thực hiện:** Thống nhất ID `GOLDEN_V3_*`; tách `validation_audit` sang sidecar; map các giá trị cũ; bổ sung 19 domain vào enum; giữ nguyên hai thư mục nguồn.
+- **Kết quả:** 6.950/6.950 bản ghi hợp lệ `golden_dataset.schema.json`, 0 ID trùng; audit tách riêng 3.797 bản ghi; giữ backup trước chuẩn hóa và báo cáo mapping. 14 unit test schema/SFT đạt.
+
 ## Giữ lại semantic hits khi chưa nhận diện mã thủ tục - 2026-10-29
 
 - **Mục tiêu:** Không bỏ các chunk semantic đã tìm được chỉ vì catalog không nhận diện được tên thủ tục.

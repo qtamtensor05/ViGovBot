@@ -407,6 +407,7 @@ class ChatApplication:
                         "mode": mode,
                         "answer": result["prediction"],
                         "action": result.get("action"),
+                        "evidence_status": result.get("evidence_status"),
                         "sources": result.get("retrieved", []),
                         "latency_s": result.get("latency_s"),
                         "retrieval_context": result.get("retrieval_context") if mode == "rag" else None,
