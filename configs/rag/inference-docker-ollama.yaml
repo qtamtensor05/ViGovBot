@@ -17,8 +17,6 @@ conversation:
   routing_backend: phobert
   routing_phobert_path: ../../outputs/phobert_v3_finetuned_20261028/checkpoint
   routing_phobert_threads: 2
-  routing_model_path: ../../outputs/routing/intent-router.bin
-  routing_metadata_path: ../../outputs/routing/intent-router.metadata.json
 web:
   debug_routing: false
   models:

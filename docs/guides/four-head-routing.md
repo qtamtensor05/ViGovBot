@@ -5,7 +5,7 @@
 Các cấu hình `inference*.yaml` mặc định dùng `routing_contract: v2` và
 `routing_backend: phobert`. PhoBERT thay việc gọi Qwen để phân loại và thay các
 quy tắc ghi đè nhãn section theo từ khóa. Qwen vẫn sinh câu trả lời từ tài liệu.
-Không tự fallback sang LLM/FastText khi checkpoint thiếu hoặc lỗi.
+Không tự fallback sang LLM khi checkpoint thiếu hoặc lỗi.
 
 Checkpoint local: `outputs/phobert_v3_finetuned_20261028/checkpoint`.
 Bốn head dự đoán phạm vi, câu mới/hỏi tiếp, nhiều thủ tục, và 11 mục nội dung.
@@ -104,10 +104,6 @@ docker compose build web
 docker compose up -d --no-deps web
 ```
 
-Backend `llm` v2 và FastText/hybrid v1 còn cho cấu hình tương thích tường minh,
+Backend `llm` v2 và hợp đồng v1 còn cho cấu hình tương thích tường minh,
 không tham gia routing mặc định hoặc fallback PhoBERT. Các quy tắc section cũ
-chỉ áp dụng đường LLM cũ. Xem [router cũ](intent-router.md).
-
-Kiểm thử offline: `tests/test_phobert_router.py`, `tests/test_four_head_routing.py`.
-Kiểm thử model thật phải dùng checkpoint local và kiểm tra trace backend/nguồn;
-không suy ra độ chính xác toàn bộ từ vài câu smoke test.
+chỉ áp dụng đường LLM cũ.

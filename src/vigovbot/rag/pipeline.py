@@ -135,7 +135,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
             question, [] if invalid_context else history, tokenizer, settings, answer_fn, routing_enabled)
     routing_backend = ((routing_raw or {}).get("backend") if isinstance(routing_raw, dict) else None) or (
         "clarification" if menu or resolved or invalid_selection else "disabled" if not routing_enabled else "llm")
-    classifier_trace = ((routing_raw or {}).get("classifier") if routing_backend == "hybrid" else routing_raw)
+    classifier_trace = routing_raw
     classifier_confidence = (classifier_trace or {}).get("confidence") if isinstance(classifier_trace, dict) else None
     classifier_fallback_reason = ((classifier_trace or {}).get("fallback_reason")
                                   if isinstance(classifier_trace, dict) else None)

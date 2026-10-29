@@ -15,36 +15,6 @@ def resolve_route(question, history, tokenizer, settings, answer_fn, routing_ena
     fallback_reason = None
     if routing_enabled:
         routing_started = time.perf_counter()
-        backend = settings.get("routing_backend", "llm")
-        classifier_diagnostics = None
-        if backend in {"fasttext", "hybrid"}:
-            try:
-                from vigovbot.rag.intent_classifier import get_classifier
-                classifier = get_classifier(
-                    str(settings["routing_model_path"]), str(settings["routing_metadata_path"]))
-                prediction = classifier.predict(question, history)
-                classifier_diagnostics = prediction.diagnostics()
-                if prediction.accepted:
-                    route = {
-                        "scope": prediction.scope,
-                        "relation": prediction.relation,
-                        "query": question if prediction.scope == "in_scope" else "",
-                        "clarification": "",
-                    }
-                    routing_raw = classifier_diagnostics
-                    routing_s = time.perf_counter() - routing_started
-                    return route, routing_raw, routing_s, 0, 0, None
-                if backend == "fasttext":
-                    route = {"scope": "in_scope", "relation": "ambiguous", "query": "",
-                             "clarification": "Bạn vui lòng nêu rõ thủ tục và nội dung cần tra cứu?"}
-                    routing_raw = {**classifier_diagnostics, "fallback_reason": "classifier_not_confident"}
-                    routing_s = time.perf_counter() - routing_started
-                    return route, routing_raw, routing_s, 0, 0, None
-            except (KeyError, RuntimeError, ValueError, OSError) as exc:
-                classifier_diagnostics = {
-                    "backend": "fasttext", "accepted": False,
-                    "fallback_reason": "classifier_unavailable", "error": str(exc),
-                }
         routing_settings = {
             **settings,
             "num_ctx": settings.get("routing_num_ctx", 4096),
@@ -109,10 +79,6 @@ def resolve_route(question, history, tokenizer, settings, answer_fn, routing_ena
                 routing_raw["fallback_reason"] = "invalid_routing_after_retry"
                 fallback_reason = "invalid_routing_after_retry"
                 routing_raw["retry_error"] = str(retry_exc)
-        if backend == "hybrid" or classifier_diagnostics is not None:
-            if classifier_diagnostics is not None and "fallback_reason" not in classifier_diagnostics:
-                classifier_diagnostics["fallback_reason"] = "classifier_not_confident"
-            routing_raw = {"backend": "hybrid", "classifier": classifier_diagnostics, "llm": routing_raw}
         routing_s = time.perf_counter() - routing_started
 
     return route, routing_raw, routing_s, routing_tokens, routing_attempts, fallback_reason

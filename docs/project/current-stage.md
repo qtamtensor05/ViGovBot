@@ -33,7 +33,7 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 
 ## Thực hiện
 
-- Routing mặc định v2: bốn nhóm nhãn, model base Qwen độc lập, trạng thái có chữ ký, menu dạng văn bản trên web và truy hồi theo từng thủ tục/section. Hợp đồng v1 giữ cho FastText/hybrid; v2 không dùng early exit prefix. Xem [hướng dẫn](../guides/four-head-routing.md).
+- Routing mặc định v2: bốn nhóm nhãn, model base Qwen độc lập, trạng thái có chữ ký, menu dạng văn bản trên web và truy hồi theo từng thủ tục/section. Hợp đồng v1 chỉ còn tương thích LLM; v2 không dùng early exit prefix. Xem [hướng dẫn](../guides/four-head-routing.md).
 
 - RAG đã có bước hỏi lại theo metadata: chọn thủ tục khi nhiều mã phù hợp,
   chọn section khi thiếu mục tiêu; context riêng từng model trên API thường/streaming
@@ -51,9 +51,6 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   còn bỏ toàn bộ bảng hoặc JSON có thể chiếu an toàn vào prompt.
 - Routing dùng context `4096` và giới hạn sinh `768` token riêng; generation vẫn
   dùng ngân sách `8192`/`512`.
-- Routing v2 dùng `llm`; `fasttext` và `hybrid` chỉ dùng với `routing_contract: v1`. FastText
-  chỉ quyết định trực tiếp câu hỏi mới trong/ngoài phạm vi khi vượt threshold;
-  hybrid chuyển các trường hợp còn lại về Qwen.
 - QLoRA dùng adapter đã huấn luyện; RAG vẫn là nguồn căn cứ cho nội dung hiện hành.
 - Evaluation v2 tách prediction, scoring, judge và export; Golden SFT tách train/validation.
 - Web dùng `/api/chat/stream` để hiển thị token dần theo quá trình sinh; endpoint
@@ -87,8 +84,6 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 - Hồ sơ vận hành đã được tinh gọn theo quy định mới.
 - Cấu hình và regression routing đã được kiểm chứng; đã có baseline Qwen nhưng
   latency A/B classifier chưa được đo trên dataset routing độc lập.
-- Image Docker có FastText CPU đã build thành công. Chưa có artifact đạt quality
-  gate hoặc benchmark API `llm`/`fasttext`/`hybrid`, nên chưa bật hybrid mặc định.
 - Streaming đã qua kiểm thử provider/API/UI giả lập và container thật. API
   `qwen-base` đã phát 4 sự kiện token, TTFT warm 0,300 giây và hoàn tất
   sau 0,486 giây; chưa thao tác xác minh trên trình duyệt thật.

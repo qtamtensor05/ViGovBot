@@ -29,7 +29,6 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [Vận hành pipeline RAG](guides/trien-khai-rag-co-ban.md)
 - [RAG nhiều lượt](guides/rag-multi-turn.md)
 - [Routing PhoBERT bốn head và menu theo trạng thái](guides/four-head-routing.md)
-- [Intent router FastText/hybrid](guides/intent-router.md)
 - [Đánh giá QA/RAG](guides/qa-rag-evaluation.md)
 - [Vận hành huấn luyện](guides/training.md)
 - [Đánh giá, biểu đồ và báo cáo QLoRA](guides/evaluation.md)

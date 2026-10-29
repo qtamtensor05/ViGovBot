@@ -295,14 +295,6 @@ class ClarificationPipelineTests(unittest.TestCase):
                                                           query="", clarification="Bạn muốn hỏi gì?"))
         self.assertEqual(result["decision_reason"], "section_required")
 
-    def test_fasttext_new_question_still_passes_metadata_gate(self):
-        routed = (dict(scope="in_scope", relation="new_question", query="Đăng ký tạm trú", clarification=""),
-                  {"backend": "fasttext", "accepted": True}, .01, 0, 0, None)
-        with patch("vigovbot.rag.pipeline.resolve_route", return_value=routed):
-            result, answer = self.call("Đăng ký tạm trú")
-        self.assertEqual(result["decision_reason"], "section_required")
-        answer.assert_not_called()
-
     def test_invalid_signed_selection_does_not_reuse_another_model(self):
         result, _ = self.call("Đăng ký tạm trú")
         history = [{"role": "user", "content": "Đăng ký tạm trú"},

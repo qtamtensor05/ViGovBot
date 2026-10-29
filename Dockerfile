@@ -1,11 +1,3 @@
-FROM python:3.12-slim AS fasttext-builder
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends g++ \
-    && rm -rf /var/lib/apt/lists/*
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip wheel --no-deps fasttext==0.9.3 --wheel-dir /wheels
-
 FROM python:3.12-slim AS runtime-base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -17,12 +9,10 @@ WORKDIR /app
 FROM runtime-base AS web-ollama
 
 COPY locks/ollama-web-linux-py312.txt ./locks/ollama-web-linux-py312.txt
-COPY --from=fasttext-builder /wheels /wheels
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --find-links=/wheels \
+    python -m pip install \
       --extra-index-url https://download.pytorch.org/whl/cpu \
-      -r locks/ollama-web-linux-py312.txt \
-    && rm -rf /wheels
+      -r locks/ollama-web-linux-py312.txt
 
 COPY locks/phobert-linux-py312.txt ./locks/phobert-linux-py312.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -42,10 +32,8 @@ CMD ["vigov", "web", "--config", "configs/rag/inference-docker-ollama.yaml", "--
 FROM runtime-base AS web-gpu
 
 COPY locks/inference-linux-py312.txt ./locks/inference-linux-py312.txt
-COPY --from=fasttext-builder /wheels /wheels
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --find-links=/wheels -r locks/inference-linux-py312.txt \
-    && rm -rf /wheels
+    python -m pip install -r locks/inference-linux-py312.txt
 COPY locks/web-linux-py312.txt ./locks/web-linux-py312.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install -r locks/web-linux-py312.txt

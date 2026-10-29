@@ -444,7 +444,7 @@ API `/api/chat` và `/api/chat/stream` nhận `clarification_contexts`, object �
 model ID sang context nguyên vẹn của kết quả trước. Phạm vi model do server đặt.
 `action=clarify` đi kèm `decision_reason=procedure_required|section_required`
 trong chẩn đoán routing. Context được xóa sau khi trả lời hoặc chuyển chủ đề.
-Base/QLoRA không áp dụng bước metadata này; không cần huấn luyện lại FastText.
+Base/QLoRA không áp dụng bước metadata này.
 
 Context chứa loại lựa chọn, mã ứng viên, section, mục tiêu, fingerprint lịch sử,
 catalog và chữ ký HMAC theo tiến trình. Backend kiểm tra các trường này trước
