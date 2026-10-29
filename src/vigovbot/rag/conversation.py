@@ -147,8 +147,13 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             result.update(actual_route="out_of_scope", action="abstain")
             return finish("Hệ thống hỗ trợ tra cứu thủ tục hành chính Việt Nam. Nội dung bạn hỏi nằm ngoài phạm vi hỗ trợ.",
                           "confirmation_rejected")
-        return menu_result("procedure", menu["request_index"], [o["id"] for o in menu["options"]],
-                           prefix="Các lựa chọn trên chưa đúng. Bạn có thể nêu trường hợp, tên hoặc mã cụ thể.\n")
+        rejected = {o["id"] for o in menu["options"]}
+        alternatives = [code for code in clarifier.discover(requests[menu["request_index"]]["query"])
+                        if code not in rejected]
+        prefix = "Các lựa chọn trên chưa đúng. Bạn có thể nêu trường hợp, tên hoặc mã cụ thể.\n"
+        if alternatives:
+            return menu_result("procedure", menu["request_index"], alternatives, prefix=prefix)
+        return finish(prefix.rstrip(), "procedure_rejected", selected=state.get("selected"))
     if menu and folded_question in _BARE_CONFIRMATION:
         requests, route = state["requests"], state["classification"]
         text = "Bạn vui lòng chọn trực tiếp một mục bằng số hoặc tên trong danh sách:\n"

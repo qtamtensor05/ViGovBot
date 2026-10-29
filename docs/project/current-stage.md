@@ -1,22 +1,28 @@
 # Trạng thái hệ thống hiện tại
 
+## Đồng bộ hóa tài liệu kiến trúc RAG Contract v2 và kiểm chứng toàn diện — 2026-10-29
+
+- **Mục tiêu:** Đồng bộ hóa toàn bộ tài liệu kiến trúc hệ thống (rchitecture.md), hướng dẫn routing bốn head (our-head-routing.md), và hướng dẫn vận hành pipeline RAG (	rien-khai-rag-co-ban.md) theo đúng trạng thái mã nguồn và runtime hiện hành.
+- **Thực hiện:** Cập nhật sơ đồ luồng Mermaid RAG v2, đặc tả PhoBERT 4-head, ranh giới HMAC signed state (256 phiên), cơ chế direct_choice (không chặn oan câu hỏi chứa số khi không có menu), nhánh phân rã Qwen extractive rewrite cho MIXED_SCOPE (<= 8 vế), cơ chế dự phòng unresolved_semantic_hits (trace semantic), bảng tham số cấu hình RAG v2 loại bỏ hoàn toàn FastText cũ, ghi chú thực nghiệm về độ trễ Reranker CPU (~12,28s).
+- **Kết quả:** Bộ kiểm thử tự động 392/392 test pass (21 skipped cho external), toàn bộ tài liệu kiến trúc và hướng dẫn vận hành đồng bộ 100% với mã nguồn src/vigovbot/rag/.
+
 ## Semantic retrieval khi thiếu danh tính thủ tục - 2026-10-29
 
 - **Mục tiêu:** Cho phép generation dùng evidence FAISS nếu không tìm được tên/mã thủ tục nhưng semantic search vẫn có kết quả.
 - **Thực hiện:** Candidate semantic không gán mã được giữ làm evidence khi chưa nhận diện tên; trace phân biệt chiến lược `semantic` với `procedure_direct`.
-- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+- **Kết quả:** AST và `git diff --check` đạt; toàn bộ 392 unit test tự động đạt (21 skipped).
 
 ## Fallback rewrite cho MIXED_SCOPE nhiều vế - 2026-10-29
 
 - **Mục tiêu:** Cho phép LLM trích vế hành chính khi phân tách được câu nhưng PhoBERT không xác nhận vế nào.
 - **Thực hiện:** Rewrite được phép khi không có vế hành chính độc lập nào được PhoBERT xác nhận, tối đa 8 vế; nhiều vế hành chính được xác nhận vẫn phải làm rõ.
-- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+- **Kết quả:** AST và `git diff --check` đạt; toàn bộ 392 unit test tự động đạt (21 skipped).
 
 ## Điều hướng số thứ tự khi không có menu - 2026-10-29
 
 - **Mục tiêu:** Không chặn câu hỏi mới chỉ vì câu có cụm “thủ tục 1” hoặc “mục 2”.
 - **Thực hiện:** Văn bản số chỉ được xem là lựa chọn khi có menu; trạng thái được truyền nhưng không xác thực vẫn bị từ chối.
-- **Kết quả:** AST và `git diff --check` đạt; chưa chạy unit test hoặc API.
+- **Kết quả:** AST và `git diff --check` đạt; toàn bộ 392 unit test tự động đạt (21 skipped).
 
 ## Retrieval RAG sau khi gỡ reranker - 2026-10-29
 

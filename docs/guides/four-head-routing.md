@@ -39,8 +39,16 @@ nằm trong `sections.py`, không phải bộ phân loại từ khóa.
 PhoBERT không sinh tên thủ tục, không viết lại truy vấn và không trả span thực thể.
 Adapter lấy mã/tên từ corpus (chấp nhận thiếu tiền tố “Thủ tục”), giữ câu gốc và
 chỉ dùng thủ tục đã chọn khi model dự đoán hỏi tiếp. Nhiều mã trùng tên mở menu
-lựa chọn; chưa có section mở menu nội dung. Menu web là văn bản; người dùng nhập
-số/tên. Chọn trực tiếp từ menu có chữ ký không cần chạy classifier.
+lựa chọn; chưa có section mở menu nội dung.
+
+Menu web là văn bản; người dùng nhập số thứ tự hoặc tên mục (`direct_choice`).
+Chọn trực tiếp từ menu có chữ ký không cần chạy PhoBERT classifier. Cơ chế
+`direct_choice` chỉ kích hoạt khi phiên hội thoại đang có menu chờ phản hồi còn
+hiệu lực. Đối với câu hỏi mới (khi không có menu đang chờ hoặc menu trước đó đã
+hoàn tất), các câu hỏi có chứa chữ số (ví dụ: *"làm cccd cho người 14 tuổi"*,
+*"đổi giấy phép lái xe lần 2"*) được chuyển tiếp bình thường vào router mà không bị
+chặn nhầm thành lựa chọn menu sai cú pháp.
+
 Tên hoặc mã khớp catalog chỉ kéo `OUT_OF_SCOPE` về `IN_SCOPE` khi xác suất
 `Ngoài phạm vi` nằm trong `[0,50; 0,85)`. Từ `0,85` trở lên giữ quyết định ngoài
 phạm vi; dưới `0,50` cũng không override vì nằm ngoài band đã cấu hình. Mỗi lần
@@ -64,24 +72,44 @@ generation. Chọn một thủ tục mới nâng state sang `IN_SCOPE`; phủ nh
 Các ngưỡng là policy ban đầu, chưa được coi là calibrated nếu chưa benchmark trên
 tập ánh xạ câu hỏi–mã thủ tục có nhãn thật.
 
-State gắn model, corpus, lịch sử và chữ ký. State sửa đổi/hết hạn không được dùng
-làm nguồn xác định thủ tục. Hội thoại mới bỏ state cũ; đổi thủ tục có tên rõ được
-xác định từ câu mới. Cache hỗ trợ client chỉ gửi text và lịch sử chính xác tối đa
-256 state; restart làm mất state/cache trong process.
+State gắn model, corpus, lịch sử và chữ ký HMAC SHA-256. State sửa đổi/hết hạn
+không được dùng làm nguồn xác định thủ tục. Hội thoại mới bỏ state cũ; đổi thủ tục
+có tên rõ được xác định từ câu mới. Cache hỗ trợ client chỉ gửi text và lịch sử
+chính xác tối đa 256 state; restart làm mất state/cache trong process.
+
+## Xử lý phạm vi hỗn hợp (Mixed Scope)
 
 Checkpoint chỉ có nhãn section toàn câu, không có liên kết mục–thủ tục. Khi head
 báo nhiều thủ tục, hệ thống yêu cầu hỏi riêng từng thủ tục thay vì ghép union nhãn
 vào mọi nguồn. Đây là giới hạn của checkpoint/adapter hiện tại, không phải khả
-năng phân rã như router LLM cũ. Với hỗn hợp phạm vi, adapter thử phân loại các mệnh
-đề tách bằng dấu câu/“và” bằng chính PhoBERT; chỉ truy xuất nếu tách được đúng một
-mệnh đề trong phạm vi. Chỉ khi regex còn một mảnh và không tìm thấy phần hỗ trợ,
-adapter mới gọi Qwen với giới hạn 128 token để trích đúng một đoạn liên tiếp;
-đoạn không còn giữ mã hoặc qualifier hẹp
-bị từ chối. PhoBERT phải phân loại lại đoạn trích thành một yêu cầu `IN_SCOPE`
-duy nhất mới cho retrieval. Khi chấp nhận, scope tổng thể vẫn là `MIXED_SCOPE` để
-câu trả lời ghi chú phần ngoài phạm vi. Nếu LLM lỗi/trả rỗng, câu không phải đoạn
-trích nguyên văn, hoặc PhoBERT không xác nhận, hệ thống hỏi lại và không retrieval.
-Nhánh này không được gọi cho `IN_SCOPE` hoặc `OUT_OF_SCOPE`.
+năng phân rã như router LLM cũ.
+
+Với hỗn hợp phạm vi (`MIXED_SCOPE`):
+1. **Phân rã bằng regex và PhoBERT:** Adapter phân rã câu hỏi thành các mệnh đề
+   bằng regex (`_SPLIT_PATTERN` tách theo dấu câu/“và”/“đồng thời”, tối đa 8 mảnh).
+   PhoBERT phân loại độc lập từng mệnh đề; nếu tìm thấy đúng một mệnh đề thuộc
+   phạm vi (`IN_SCOPE`), hệ thống dùng mệnh đề này để truy xuất.
+2. **Extractive Rewrite qua LLM (Fallback có kiểm chứng):** Khi regex phân tách
+   thành $\le 8$ mảnh nhưng không có mảnh nào được PhoBERT xếp loại `IN_SCOPE` độc
+   lập (`len(parts) <= 8 and not supported`), adapter gọi Qwen với giới hạn 128
+   token để trích đúng một đoạn nguyên văn liên tiếp thuộc phạm vi hỗ trợ. Đoạn
+   trích phải giữ nguyên mã hoặc qualifier hẹp. Đoạn trích sau đó bắt buộc phải
+   được PhoBERT phân loại lại thành một yêu cầu `IN_SCOPE` duy nhất mới được kích
+   hoạt retrieval.
+3. Khi được chấp nhận, scope tổng thể vẫn là `MIXED_SCOPE` để câu trả lời có ghi
+   chú phần nằm ngoài phạm vi. Nếu LLM lỗi/trả rỗng, câu không phải đoạn trích
+   nguyên văn, hoặc PhoBERT không xác nhận, hệ thống dừng lại, yêu cầu người dùng
+   làm rõ và không truy xuất. Nhánh này không được gọi cho `IN_SCOPE` hoặc `OUT_OF_SCOPE`.
+
+## Dự phòng tìm kiếm ngữ nghĩa khi thiếu danh tính thủ tục (Semantic Fallback)
+
+Khi PhoBERT phân loại câu hỏi là `IN_SCOPE` (hoặc `MIXED_SCOPE` trích xuất thành công)
+nhưng catalog procedure discovery không xác định được mã TTHC cụ thể (`unresolved`):
+- Hệ thống không làm rỗng kết quả hay từ chối câu hỏi.
+- FAISS vector retriever thực hiện tìm kiếm ngữ nghĩa trên toàn bộ corpus thủ tục,
+  giữ lại các đoạn văn bản tương đồng cao nhất (`unresolved_semantic_hits`).
+- Bằng chứng ngữ cảnh được chuyển tới LLM Qwen để sinh câu trả lời có căn cứ,
+  đồng thời trace ghi nhận rõ `retrieval_strategy: "semantic"` thay vì `procedure_filtered`.
 
 ## Cấu hình và Docker
 
@@ -91,6 +119,13 @@ conversation:
   routing_backend: phobert
   routing_phobert_path: ../../outputs/phobert_v3_finetuned_20261028/checkpoint
   routing_phobert_threads: 2
+  state_secret: "change-me-in-production"
+  procedure_aliases_path: configs/rag/procedure-aliases.yaml
+  procedure_confirmation_score_threshold: 0.70
+  procedure_confirmation_margin_threshold: 0.08
+  procedure_confirmation_bm25_weight: 0.50
+  procedure_confirmation_cosine_weight: 0.50
+  unresolved_semantic_retrieval_enabled: true
 ```
 
 Path tương đối được giải theo file YAML. Cài môi trường host bằng extras

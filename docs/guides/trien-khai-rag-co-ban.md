@@ -10,53 +10,83 @@ ViGovBot là pipeline tra cứu thủ tục hành chính tiếng Việt theo mô
 
 Hệ thống chạy bằng CLI Python, giao diện web cục bộ hoặc notebook Colab; hỗ trợ
 hỏi đáp một lượt, hội thoại nhiều lượt và đánh giá theo bộ câu hỏi. Mã xử lý chính
-nằm trong `src/vigovbot/`. Notebook cài package và dùng namespace `vigovbot.*`.
+nằm trong `src/vigovbot/`.
 
 | Thành phần | Cách sử dụng hiện tại |
 |---|---|
 | Nguồn tri thức | PDF thủ tục hành chính, trích xuất thành Markdown; hỗ trợ OCR |
 | Chia tài liệu | Chia theo cấu trúc mục, sau đó tách thành các chunk nhỏ có thông tin thủ tục |
-| Mô hình embedding | `BAAI/bge-m3`, dùng `SentenceTransformer`, vector dense 1024 chiều |
+| Mô hình embedding | `BAAI/bge-m3`, dùng `SentenceTransformer`, vector dense 1024 chiều (chạy trên CPU/GPU) |
 | Chỉ mục tìm kiếm | FAISS `IndexFlatIP`, vector chuẩn hóa L2 |
 | Nội dung và metadata khi truy vấn | SQLite, tra theo vị trí vector trong FAISS |
-| Mô hình sinh | `qwen2.5:7b` chạy qua Ollama |
+| Bộ phân loại & định tuyến | Mô hình cục bộ **PhoBERT-base fine-tuned 4-head** (`outputs/phobert_v3_finetuned_20261028/checkpoint`) chạy CPU (2 threads) |
+| Quản lý trạng thái phiên | State ký HMAC SHA-256, cache bộ nhớ 256 phiên; menu xác nhận thủ tục (BM25 + Cosine) và menu disambiguation |
+| Mô hình sinh | `qwen2.5:7b` (chạy qua Ollama hoặc QLoRA local) |
 | Tokenizer tính ngân sách prompt | `Qwen/Qwen2.5-7B-Instruct` |
-| Cách giao tiếp với LLM | HTTP `POST /api/chat`, `stream: false` |
-| Điều hướng hội thoại | LLM phân loại phạm vi và quan hệ câu hỏi, đồng thời viết lại câu hỏi nối tiếp |
-| Đầu ra câu trả lời | JSON có câu trả lời, hành động và trạng thái bằng chứng |
+| Cách giao tiếp với LLM | HTTP `POST /api/chat`, `stream: false` (hoặc `/api/chat/stream`) |
+| Cơ chế trích xuất Mixed Scope | Trích xuất mệnh đề bằng regex kết hợp PhoBERT; fallback qua Qwen Extractive Rewrite (giới hạn 128 tokens) |
+| Dự phòng tìm kiếm ngữ nghĩa | Semantic retrieval fallback (`unresolved_semantic_hits`) khi thiếu mã thủ tục |
+| Đầu ra câu trả lời | JSON có câu trả lời, hành động (`action`) và trạng thái bằng chứng (`evidence_status`) |
 
-Đây là RAG truy hồi dense có lớp điều hướng nhiều lượt. Mặc định mỗi câu hỏi được
-phân loại trước khi truy hồi; câu hỏi nối tiếp được viết lại thành truy vấn độc lập,
-còn câu hỏi mới không kế thừa chủ đề cũ. Hệ thống không dùng BM25/hybrid search,
-reranker hay agent, và không có bước huấn luyện, fine-tune hoặc QLoRA. Lịch sử do
-client cung cấp cho từng lượt, chưa có kho hội thoại hoặc tài khoản người dùng ở
-phía server.
+Hệ thống sử dụng RAG Contract v2 với PhoBERT 4-head làm bộ định tuyến trung tâm.
+Quy trình định tuyến hoàn toàn không phụ thuộc LLM cho phân loại nhãn và không dùng
+FastText. Runtime online sử dụng trực tiếp FAISS direct top-k retrieval để đảm bảo
+độ trễ phản hồi thấp; benchmark thực tế cho thấy mô hình Reranker BGE trên CPU tốn
+tới ~12,28s/truy vấn, do đó không kích hoạt trong luồng trực tuyến online.
 
 ## 2. Kiến trúc và luồng dữ liệu
 
 ```mermaid
 flowchart TD
-    subgraph PREP[Chuẩn bị kho tri thức]
-        P[PDF] --> X[Trích xuất / OCR và làm sạch Markdown]
+    subgraph PREP[1. Chuẩn bị kho tri thức]
+        P[PDF thủ tục hành chính] --> X[Trích xuất / OCR và làm sạch Markdown]
         X --> C[Chia mục và tạo JSON chunk]
         C --> E[BGE-M3: embedding tài liệu]
         E --> N[Chuẩn hóa L2]
         N --> F[FAISS + metadata JSON + corpus manifest]
     end
     F --> S[Prepare: cache FAISS và metadata SQLite]
-    subgraph B[Hỏi đáp nhiều lượt]
-        Q[Câu hỏi + lịch sử] --> G[LLM định tuyến]
-        G -->|ngoài phạm vi| AB[Abstain]
-        G -->|mơ hồ| H[Hỏi làm rõ]
-        G -->|câu mới / hỏi tiếp| QE[BGE-M3 và chuẩn hóa L2]
-        QE --> R[FAISS: lấy top 5 chunk]
-        R --> D[SQLite: lấy nội dung và nguồn]
-        D --> T[Ghép prompt và xét bằng chứng]
-        T --> L[LLM sinh JSON có cấu trúc]
-        L --> O[Trả lời / trả lời một phần / sửa tiền đề / abstain]
+
+    subgraph ROUTE[2. Định tuyến RAG Contract v2]
+        Q[Câu hỏi + Lịch sử + State HMAC] --> DC{Có menu đang chờ?}
+        DC -->|Đúng & Nhập số/tên| DCO[Direct Choice: Chọn mục menu]
+        DC -->|Sai| PB[PhoBERT 4-Head Classifier]
+        PB --> H1[Head 1: scope - IN / OUT / MIXED]
+        PB --> H2[Head 2: flow - NEW / FOLLOW_UP]
+        PB --> H3[Head 3: mix - False / True]
+        PB --> H4[Head 4: sections - 11 binary heads]
+        
+        H1 --> ARB{Trọng tài phạm vi & Catalog}
+        ARB -->|OUT_OF_SCOPE| CONF{BM25 + Cosine candidate}
+        CONF -->|Top1 >= 0.70 & Margin >= 0.08| CM[Confirmation Menu: 2-3 thủ tục]
+        CONF -->|Không đạt ngưỡng| AB[Từ chối: Ngoài phạm vi]
+        
+        ARB -->|MIXED_SCOPE| MIX{Tách mệnh đề PhoBERT}
+        MIX -->|Tách được 1 vế IN| RET
+        MIX -->|not supported & <= 8 mảnh| QWEN_EX[Qwen Extractive Rewrite 128 tok]
+        QWEN_EX --> PB_VAL{PhoBERT kiểm chứng lại}
+        PB_VAL -->|Đạt IN_SCOPE| RET
+        PB_VAL -->|Không đạt| CL_MIX[Hỏi làm rõ phạm vi]
+
+        ARB -->|IN_SCOPE| CAT{Khớp danh mục Catalog}
+        CAT -->|Trùng tên nhiều mã| DIS[Disambiguation Menu]
+        CAT -->|Chưa rõ mã thủ tục| FALL[Semantic Retrieval Fallback]
+        CAT -->|Rõ mã thủ tục| RET[Retrieval: procedure_filtered]
+        FALL --> RET_SEM[Retrieval: semantic]
     end
-    S --> R
-    S --> D
+
+    subgraph RETRIEVE[3. Truy hồi & Xét bằng chứng]
+        RET --> FAISS_SRC[FAISS top-k + SQLite metadata]
+        RET_SEM --> FAISS_SRC
+        S --> FAISS_SRC
+        FAISS_SRC --> EV[Tập hợp context evidence & Kiểm tra ngân sách prompt]
+    end
+
+    subgraph GEN[4. Sinh câu trả lời có cấu trúc]
+        EV --> PR[Prompt Builder]
+        PR --> QWEN[Qwen2.5-7B Instruct]
+        QWEN --> OUT[JSON: answer, action, evidence_status]
+    end
 ```
 
 ### 2.1. Trích xuất và chia chunk
@@ -96,74 +126,79 @@ Lệnh `rag prepare` xác minh corpus, sao chép index vào cache và chuyển m
 
 `row_id` trong SQLite chính là vị trí vector, bắt đầu từ 0. Hệ thống kiểm tra số dòng, chiều vector, loại metric và checksum để tránh dùng nhầm index với metadata. SQLite chỉ giữ các trường cần truy hồi; `parent_section` không được đưa vào cache, nên luồng hỏi đáp không tự mở rộng chunk thành toàn bộ mục cha.
 
-### 2.4. Xử lý câu hỏi và lịch sử hội thoại
+### 2.4. Xử lý câu hỏi và lịch sử hội thoại (RAG Contract v2)
 
-1. Nạp BGE-M3 cùng model/revision với corpus. Nếu `embedding.revision: null` và
-   corpus có manifest hợp lệ, hệ thống lấy revision từ manifest.
-2. Kiểm tra lịch sử `user`/`assistant`, rồi gọi LLM định tuyến để trả JSON gồm
-   `scope`, `relation`, `query` và `clarification`, ràng buộc bằng JSON Schema
-   theo nhánh; không có lịch sử thì không cho chọn `follow_up`. Nếu JSON sai,
-   thử lại một lần với lỗi validator và JSON bị từ chối. Hai lần sai trả câu
-   mặc định, ghi `routing_fallback`, không truy hồi.
-3. Nếu ngoài phạm vi, trả thông báo phạm vi hỗ trợ; nếu mơ hồ, trả câu hỏi làm rõ.
-   Hai nhánh này không truy hồi và không gọi lần sinh câu trả lời.
-4. Câu hỏi mới dùng nguyên văn câu hiện tại. Câu hỏi nối tiếp dùng `query` độc lập
-   do router tạo từ lịch sử; lịch sử và câu trả lời cũ không được đưa vào prompt
-   sinh cuối để tránh mang theo khẳng định chưa được kiểm chứng.
-5. Encode truy vấn thành vector 1024 chiều, chuẩn hóa L2, lấy trực tiếp
-   `top_k = 5` kết quả từ FAISS rồi tra nội dung trong SQLite. Runtime online
-   không chạy reranker.
-6. Ghép prompt trong ngân sách token. Nếu không có chunk nào thực sự vừa vào
-   prompt, trả `abstain` mà không gọi sinh.
-7. LLM xét bằng chứng và sinh JSON gồm `answer`, `action`, `evidence_status`.
-   Pipeline kiểm tra schema và ánh xạ kết quả vào response cùng nguồn/thời gian.
-
-Các cặp kết quả hợp lệ gồm: `answer/sufficient`, `partial/partial`,
-`abstain/missing`, `correct_premise/contradictory_premise` và
-`clarify/ambiguous`. Đây vẫn là tự đánh giá của cùng model sinh, không phải judge
-độc lập và không bảo đảm nội dung luôn đúng. System prompt yêu cầu chỉ dựa trên
-trích đoạn, không suy đoán phí/thời hạn/cơ quan/quy định và bỏ qua chỉ dẫn nằm
-trong tài liệu. Chi tiết về luồng nhiều lượt và cách đánh giá nằm tại
-[RAG nhiều lượt](rag-multi-turn.md).
+1. Nạp BGE-M3 (chạy trên CPU/GPU) và nạp PhoBERT fine-tuned router checkpoint
+   (`outputs/phobert_v3_finetuned_20261028/checkpoint`, 2 CPU intra-op threads).
+2. Kiểm tra chữ ký HMAC SHA-256 của state hội thoại. Nếu người dùng nhập lựa chọn
+   và phiên đang có menu còn hiệu lực, xử lý trực tiếp (`direct_choice`) mà không
+   chạy classifier. Ngược lại, nếu không có menu đang chờ, câu hỏi mới (kể cả có
+   chứa số) được chuyển tiếp bình thường vào router.
+3. Chuẩn hóa chuỗi văn bản (NFC, gộp khoảng trắng, PyVi word segmentation) và ghép
+   chuỗi `<s> question </s></s> previous </s></s> procedure </s>` (tối đa 128 token).
+   PhoBERT tính toán đồng thời 4 heads:
+   - `scope`: `IN_SCOPE`, `OUT_OF_SCOPE`, `MIXED_SCOPE`.
+   - `flow`: `NEW`, `FOLLOW_UP`.
+   - `mix`: `False`, `True` (cảnh báo nhiều thủ tục).
+   - `sections`: 11 sigmoid binary heads độc lập.
+4. Trọng tài phạm vi (Scope Arbitration) & xác định thủ tục:
+   - `OUT_OF_SCOPE`: Nếu P(OUT) trong dải `[0.50, 0.85)` và khớp catalog/alias thì kéo về `IN_SCOPE`. Nếu vẫn OUT, tính BM25 + Cosine similarity; nếu Top 1 $\ge 0.70$ và Margin $\ge 0.08$, mở confirmation menu (2-3 thủ tục). Ngược lại, từ chối trả lời.
+   - `MIXED_SCOPE`: Tách mệnh đề bằng regex và phân loại độc lập bằng PhoBERT. Nếu không tách được vế hợp lệ ($\le 8$ mảnh), gọi Qwen extractive rewrite (128 token) và bắt buộc PhoBERT kiểm chứng lại thành `IN_SCOPE`.
+   - `IN_SCOPE`: Xác định mã thủ tục từ catalog. Nếu trùng tên mở disambiguation menu; nếu thiếu mã cụ thể thì kích hoạt cơ chế dự phòng tìm kiếm ngữ nghĩa (`unresolved_semantic_hits`).
+5. Truy hồi (Retrieval):
+   - `procedure_direct`: Khi là câu hỏi tiếp theo cùng thủ tục và cùng section.
+   - `procedure_filtered`: Lọc vector theo mã thủ tục và nhãn sections dự đoán.
+   - `semantic`: Tìm kiếm ngữ nghĩa FAISS khi chưa rõ mã thủ tục (semantic fallback).
+6. Ghép prompt trong ngân sách ngữ cảnh token: Cắt gọt chunk theo `max_chunk_tokens`
+   để vừa vặn cửa sổ context `num_ctx`.
+7. Qwen sinh câu trả lời có cấu trúc JSON gồm: `answer`, `action`, `evidence_status`.
+   Hệ thống kiểm tra schema và ghi nhận đầy đủ trace chẩn đoán.
 
 ## 3. Tham số RAG đang dùng
 
-`configs/rag/inference.yaml` dùng cho hỏi đáp; các tham số không khai báo lấy mặc định từ `src/vigovbot/rag/config.py`. `configs/rag/evaluation.yaml` khai báo thêm dữ liệu và đầu ra đánh giá.
+`configs/rag/inference.yaml` và `inference-docker.yaml` dùng cho hỏi đáp; các tham số không khai báo lấy mặc định từ `src/vigovbot/rag/config.py`.
 
 | Tham số | Giá trị mặc định / cấu hình hiện tại | Ý nghĩa |
 |---|---|---|
 | `embedding.model` | `BAAI/bge-m3` | Encoder cho câu hỏi |
-| `embedding.device` | `cpu` | Dành VRAM cho Qwen; có thể đổi khi đủ tài nguyên |
-| `llm.model` | `qwen2.5:7b` | Tên model trong Ollama |
-| `llm.ollama_url` | `http://localhost:11434` | Địa chỉ Ollama |
-| `llm.temperature` | `0.0` | Giảm tính ngẫu nhiên |
-| `llm.seed` | `42` | Seed gửi cho Ollama |
-| `llm.num_ctx` | `8192` | Cửa sổ ngữ cảnh yêu cầu |
+| `embedding.device` | `cpu` | Dành VRAM cho Qwen; có thể đổi sang `cuda` khi đủ tài nguyên |
+| `llm.model` | `qwen2.5:7b` | Tên model sinh trong Ollama hoặc adapter QLoRA |
+| `llm.ollama_url` | `http://localhost:11434` | Địa chỉ Ollama (trên container dùng `http://ollama:11434`) |
+| `llm.temperature` | `0.0` | Giảm tính ngẫu nhiên khi sinh văn bản |
+| `llm.seed` | `42` | Seed sinh câu trả lời |
+| `llm.num_ctx` | `8192` | Cửa sổ ngữ cảnh cho câu trả lời |
 | `llm.num_predict` | `512` | Số token sinh tối đa |
-| `llm.routing_num_ctx` | `4096` | Cửa sổ ngữ cảnh riêng cho routing |
-| `llm.routing_num_predict` | `128` | Số token routing sinh tối đa |
 | `llm.timeout` | `300` giây | Timeout HTTP khi sinh câu trả lời |
-| `llm.keep_alive` | `10m` | Tham số giữ model gửi trong request; pipeline yêu cầu dỡ model khi đóng phiên |
-| `retrieval.top_k` | `5` | Số kết quả FAISS tối đa đưa trực tiếp vào LLM |
+| `retrieval.top_k` | `5` | Số kết quả FAISS tối đa đưa vào LLM |
 | `retrieval.max_chunk_tokens` | `1200` | Giới hạn token của mỗi chunk đưa vào prompt |
-| `conversation.routing_enabled` | `true` | Bật định tuyến nhiều lượt và xét bằng chứng có cấu trúc |
-| `web.debug_routing` | `false` | Trả raw JSON router trong API và hiển thị mục debug trên UI |
+| `conversation.routing_contract` | `v2` | Hợp đồng định tuyến v2 (mặc định hiện hành) |
+| `conversation.routing_backend` | `phobert` | Backend phân loại cục bộ dùng PhoBERT fine-tuned 4-head |
+| `conversation.routing_phobert_path` | `outputs/phobert_v3_finetuned_20261028/checkpoint` | Đường dẫn checkpoint PhoBERT local |
+| `conversation.routing_phobert_threads` | `2` | Số luồng CPU intra-op cho PhoBERT inference |
+| `conversation.procedure_aliases_path` | `configs/rag/procedure-aliases.yaml` | Danh sách alias kiểm duyệt ánh xạ trực tiếp đến mã TTHC |
+| `conversation.procedure_confirmation_score_threshold` | `0.70` | Ngưỡng điểm gated tối thiểu mở menu xác nhận thủ tục |
+| `conversation.procedure_confirmation_margin_threshold` | `0.08` | Khoảng cách điểm tối thiểu giữa Top 1 và Top 2 |
+| `conversation.procedure_confirmation_bm25_weight` | `0.50` | Trọng số BM25 trong xác nhận thủ tục |
+| `conversation.procedure_confirmation_cosine_weight` | `0.50` | Trọng số Cosine similarity trong xác nhận thủ tục |
+| `conversation.unresolved_semantic_retrieval_enabled` | `true` | Bật tìm kiếm ngữ nghĩa dự phòng khi chưa khớp mã TTHC |
 | `data.allow_legacy_corpus` | `false` | Mặc định yêu cầu corpus có provenance/manifest |
+
+> [!NOTE]
+> **Về mô hình Reranker:**
+> Kết quả đo lường thực nghiệm (`outputs/benchmarks/reranker_latency_10_20261029.json`) cho thấy
+> mô hình `BAAI/bge-reranker-v2-m3` chạy trên CPU có độ trễ trung bình **12,28 giây/truy vấn**
+> (chậm gấp 48,2 lần so với FAISS thuần 258ms). Do đó, runtime online hiện tại không bật reranker
+> (`rerank_s = 0.0`) mà truy xuất trực tiếp top-k từ FAISS để đảm bảo trải nghiệm tương tác trực tuyến.
 
 Ngân sách prompt trả lời là `8192 - 512 - 256 = 7424` token, trong đó 256 token
 được dự phòng cho template. Ngân sách này bao gồm system prompt, câu hỏi và trích
-đoạn. Router cũng kiểm tra prompt riêng theo cùng giới hạn; lịch sử quá dài gây lỗi
-thay vì bị cắt âm thầm. Chunk có thể bị cắt ngắn hoặc không được đưa vào khi hết
-chỗ. `max_chunk_tokens` tính bằng **token**, khác với tham số chunking tính bằng
-**ký tự**.
+đoạn. `max_chunk_tokens` tính bằng **token**, khác với tham số chunking tính bằng **ký tự**.
 
 ## 4. Triển khai runtime bằng Docker
 
 ### 4.1. Chuẩn bị và khởi động
 
-Runtime hiện hành không cần Python, virtual environment hoặc Ollama trên
-Windows. Cần Docker Desktop dùng WSL2 backend, NVIDIA GPU hoạt động trong
-container và corpus `Data/vector/unified`. Từ PowerShell tại gốc repository:
+Runtime hiện hành có thể chạy hoàn toàn qua Docker Compose trên WSL2 backend:
 
 ```powershell
 docker compose up --build -d
@@ -241,8 +276,8 @@ Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không
 Với corpus đã có trên host và được mount vào container:
 
 ```powershell
-docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker-ollama.yaml
-docker compose exec -T web vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?" --config configs/rag/inference-docker-ollama.yaml
+docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker.yaml
+docker compose exec -T web vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?" --config configs/rag/inference-docker.yaml
 ```
 
 `prepare` chỉ chuẩn bị corpus/cache, chưa gọi LLM; `ask` cũng tự kiểm tra cache
@@ -254,13 +289,11 @@ trước khi truy vấn. Cấu hình Docker gọi Ollama bằng tên service
 
 ```powershell
 docker compose cp history.json web:/tmp/history.json
-docker compose exec -T web vigov ask "Còn lệ phí thì sao?" --history /tmp/history.json --config configs/rag/inference-docker-ollama.yaml
+docker compose exec -T web vigov ask "Còn lệ phí thì sao?" --history /tmp/history.json --config configs/rag/inference-docker.yaml
 ```
 
 CLI không tự lưu lịch sử giữa hai lần chạy; ứng dụng gọi phải giữ và gửi lại đúng
-lịch sử. Khi `conversation.routing_enabled: false`, pipeline chạy chế độ đối chứng
-cũ: chỉ viết lại khi có history, không phân loại phạm vi và không bắt buộc đầu ra
-xét bằng chứng có cấu trúc.
+lịch sử.
 
 Kết quả `ask` được in dưới dạng JSON:
 
@@ -268,13 +301,13 @@ Kết quả `ask` được in dưới dạng JSON:
 |---|---|
 | `prediction` | Câu trả lời của Qwen |
 | `action`, `evidence_status` | Hành động và mức bằng chứng do model trả về |
-| `routing`, `retrieval_query` | Quyết định định tuyến và truy vấn độc lập thực tế |
-| `routing_attempts`, `fallback_reason`, `decision_reason` | Số lần phân loại và phân biệt fallback kỹ thuật với hỏi làm rõ hợp lệ |
+| `routing`, `retrieval_query` | Quyết định định tuyến và truy vấn thực tế |
+| `routing_attempts`, `fallback_reason`, `decision_reason` | Số lần phân loại và lý do điều hướng/hỏi làm rõ |
 | `retrieved` | Các chunk đã tìm được, kèm ID, điểm, file và mã thủ tục |
 | `context_used` | Nguồn và phần văn bản thực sự đưa vào prompt sau khi cắt token |
 | `prompt_tokens_estimated` | Số token prompt ước tính bằng tokenizer Qwen |
-| `routing_s`, `retrieval_s`, `generation_s`, `latency_s` | Thời gian từng bước và toàn lượt; không gồm toàn bộ thời gian khởi tạo CLI/model |
-| `raw_routing`, `raw_ollama` | Phản hồi gốc của lần định tuyến và sinh |
+| `routing_s`, `retrieval_s`, `generation_s`, `latency_s` | Thời gian từng bước và toàn lượt suy luận |
+| `retrieval_strategy` | Chiến lược truy hồi (`procedure_direct`, `procedure_filtered`, `semantic`) |
 
 `retrieved` có thể nhiều nội dung hơn `context_used`; khi kiểm tra căn cứ câu trả lời, cần xem phần thực sự được đưa vào prompt.
 
@@ -290,36 +323,18 @@ docker compose ps
 Mở `http://localhost:8001`. Server nạp encoder, tokenizer, FAISS và SQLite một
 lần, cung cấp `GET /api/health`, `GET /api/models` và `POST /api/chat`. UI giữ
 lịch sử riêng cho từng model trong trình duyệt và gửi lại qua mỗi request; server
-không lưu phiên hội thoại. Các request chat được khóa và xử lý model đã chọn theo
+giữ cache HMAC state tối đa 256 phiên. Các request chat được khóa và xử lý model đã chọn theo
 thứ tự để dùng chung tài nguyên an toàn. Retriever mở SQLite ở chế độ read-only
 cho thread HTTP và có khóa nội bộ quanh encoder, FAISS, SQLite và thao tác đóng.
 
-`configs/rag/inference.yaml` khai báo sẵn hai lựa chọn cùng dùng `qwen2.5:7b`:
+`configs/rag/inference-docker.yaml` khai báo sẵn các lựa chọn cùng dùng `qwen2.5:7b`:
 
 - `mode: base`: gửi câu hỏi và lịch sử thẳng tới Qwen, không gọi embedding,
   FAISS/SQLite hoặc prompt RAG; kết quả không có nguồn.
-- `mode: rag`: chạy toàn bộ router, truy hồi và xét bằng chứng; kết quả có các
+- `mode: rag`: chạy toàn bộ router PhoBERT 4-head, truy hồi và xét bằng chứng; kết quả có các
   nguồn được truy hồi.
 
-Chọn cả hai trên UI để xem hai câu trả lời cạnh nhau. Đây là so sánh chế độ suy
-luận trên cùng model instruction `qwen2.5:7b`; chữ "base" không chỉ một base
-checkpoint riêng chưa instruction-tune.
-
-API trả thêm `routing_diagnostics` cho nhánh RAG. UI hiển thị rõ lỗi định dạng
-phân loại sau hai lần thay vì chỉ hiện câu mặc định như một câu hỏi làm rõ.
-Để xem JSON gốc, đặt `web.debug_routing: true` trong cấu hình và khởi động lại
-server; mặc định không trả raw response. Câu fallback được thay bằng thông báo
-trung tính trong history, giữ nguyên câu hỏi người dùng. History mất khi reload.
-
-Nếu `web.models` trống, server dùng model Ollama trong nhóm `llm` với ID
-`default` và `mode: rag`. Có thể khai báo tối đa tám lựa chọn trong một request,
-với provider `ollama` hoặc `openai_compatible`. Provider bên ngoài chỉ đọc khóa
-từ biến môi trường có tên trong `api_key_env`; không ghi khóa trực tiếp vào YAML.
-Nhánh RAG của provider OpenAI-compatible yêu cầu hỗ trợ `json_schema` strict,
-gồm nhánh `anyOf` và ràng buộc `minLength`; lỗi không hỗ trợ được báo trực tiếp,
-không âm thầm bỏ schema. Ollama cục bộ đã được kiểm chứng với schema này.
-Đây là server nghiên cứu không có xác thực, TLS, lưu phiên hay kiểm soát truy cập;
-giữ mặc định loopback và chỉ bind `0.0.0.0` trong mạng tin cậy.
+API trả thêm `routing_diagnostics` và trace cho nhánh RAG. Để xem JSON gốc, đặt `web.debug_routing: true` trong cấu hình và khởi động lại server.
 
 ## 5. Chạy đánh giá
 
@@ -343,27 +358,7 @@ vigov rag run
 
 Đầu ra mặc định ở `outputs/qwen2_5_7b_rag_results`, có manifest lần chạy, kết quả dự đoán, lỗi nếu có, `case_metrics.jsonl`, `case_metrics.csv`, `summary.json` và báo cáo theo nhóm. Metric gồm exact match, accuracy chuẩn hóa, BLEU-4, ROUGE, BERTScore, source recall@k và thời gian xử lý. BERTScore mặc định dùng `xlm-roberta-large` trên CPU, batch size 1.
 
-Manifest gắn kết quả với code, cấu hình, dữ liệu, corpus, môi trường và digest model Ollama. Chọn thư mục đầu ra mới khi thay đổi thí nghiệm để không trộn kết quả không tương thích.
-
-## 6. Colab và giới hạn hiện tại
-
-Notebook tạo corpus: `ipynb/build_corpus.ipynb`; notebook RAG:
-`ipynb/base_rag/lqwen2_5_7B_rag.ipynb`. Notebook cài package từ checkout và tạo
-cấu hình riêng. Cần chọn `GIT_REF` đã có trên GitHub và chuyển đủ ba artifact
-corpus giữa các môi trường.
-
-Các điểm cần tính đến khi sử dụng:
-
-- Truy hồi hiện lấy top-k mà chưa có ngưỡng điểm tối thiểu hoặc reranker. Router
-  chặn câu ngoài phạm vi và bước sinh tự xét bằng chứng, nhưng cả hai vẫn phụ thuộc
-  hành vi LLM; chunk ít liên quan có thể dẫn đến quyết định sai.
-- Lỗi OCR, thiếu trang, chunk bị cắt hoặc dữ liệu thủ tục chưa cập nhật đều có thể làm câu trả lời thiếu/sai. Pipeline không tự kiểm chứng hiệu lực của nội dung nguồn.
-- SQLite giúp đọc metadata theo nhu cầu, nhưng FAISS vẫn nạp chỉ mục vào RAM; bước tạo corpus giữ metadata và ma trận vector trong RAM. Cần tính tài nguyên theo corpus và model thực tế, chưa có cấu hình RAM/VRAM tối thiểu được đảm bảo trong mã nguồn.
-- Có web server/UI cục bộ cơ bản nhưng chưa có xác thực, TLS, persistence hội
-  thoại, quản lý người dùng hoặc triển khai production. Lịch sử nằm ở client;
-  nhiều worker/process sẽ không tự chia sẻ phiên hay tài nguyên đã nạp.
-
-## 7. Đối chiếu với mã nguồn
+## 6. Đối chiếu với mã nguồn
 
 | Nội dung | File chính |
 |---|---|
@@ -372,17 +367,20 @@ Các điểm cần tính đến khi sử dụng:
 | Chunking theo cấu trúc | [markdown.py](../../src/vigovbot/chunking/markdown.py) |
 | Tạo embedding và corpus FAISS | [corpus_builder.py](../../src/vigovbot/embeddings/corpus_builder.py) |
 | Cache SQLite | [vector_store.py](../../src/vigovbot/vectordb/vector_store.py) |
-| Truy hồi | [retriever.py](../../src/vigovbot/retrieval/retriever.py) |
+| Bộ phân loại PhoBERT 4-Head | [phobert_router.py](../../src/vigovbot/rag/phobert_router.py) |
+| Quản lý phiên và điều phối RAG v2 | [conversation.py](../../src/vigovbot/rag/conversation.py) |
+| Khám phá thủ tục và confirmation | [procedure_discovery.py](../../src/vigovbot/retrieval/procedure_discovery.py) |
+| Nhãn mục và mapping sections | [sections.py](../../src/vigovbot/rag/sections.py) |
+| Làm rõ và quản lý Menu | [clarification.py](../../src/vigovbot/rag/clarification.py) |
+| Truy hồi kết hợp (Retriever) | [retriever.py](../../src/vigovbot/retrieval/retriever.py) |
 | Prompt và ngân sách token | [prompt_templates.py](../../src/vigovbot/prompts/prompt_templates.py) |
-| Gọi Ollama | [llm_client.py](../../src/vigovbot/llm/llm_client.py) |
-| Định tuyến hội thoại và kiểm tra JSON | [routing.py](../../src/vigovbot/rag/routing.py) |
-| Điều phối RAG | [pipeline.py](../../src/vigovbot/rag/pipeline.py) |
+| Gọi Ollama / LLM client | [llm_client.py](../../src/vigovbot/llm/llm_client.py) |
+| Điều phối RAG cổ điển (legacy) | [pipeline.py](../../src/vigovbot/rag/pipeline.py) |
 | Giá trị cấu hình mặc định | [config.py](../../src/vigovbot/rag/config.py) |
 | Web server và API cục bộ | [app.py](../../src/vigovbot/server/app.py) |
 | Adapter Ollama/OpenAI-compatible | [providers.py](../../src/vigovbot/server/providers.py) |
 
-
-## Truy xuất nhanh cho câu hỏi nối tiếp
+## 7. Truy xuất nhanh cho câu hỏi nối tiếp
 
 Khi router trả `follow_up`, RAG có thể lấy trực tiếp chunk SQLite theo mã thủ tục
 và `section_type` của câu hỏi mới, không tạo embedding hoặc tìm kiếm FAISS.
@@ -409,95 +407,16 @@ hoặc không được xác nhận, dùng retrieval bình thường. Generation 
 bằng chứng và áp dụng ngân sách token; nguồn thiếu dữ liệu không được bù bằng
 thủ tục khác. Kết quả trực tiếp không có điểm tương đồng vector giả.
 
-`retrieval_strategy` nhận `procedure_direct`, `procedure_semantic` hoặc `semantic`;
-`semantic` là đường tìm kiếm hiện có, bao gồm lọc mã/tên khi phù hợp.
-Trong routing hội thoại, nếu catalog không nhận diện được tên thủ tục thì các hit
-semantic dùng để dò danh mục được giữ làm evidence và trace ghi `semantic`; mã
-tường minh không có trong catalog không đi vào fallback này.
-Giá trị là `null` khi routing dừng trước bước retrieval.
-Trace evaluation giữ riêng thời gian routing, retrieval và generation, kèm lý do
-fallback. Base/QLoRA không dùng ngữ cảnh truy xuất này.
+`retrieval_strategy` nhận `procedure_direct`, `procedure_filtered` hoặc `semantic`:
+- `procedure_direct`: Truy xuất trực tiếp từ cache SQLite theo mã TTHC và section đã xác nhận.
+- `procedure_filtered`: Truy xuất vector FAISS có lọc trước theo metadata mã TTHC.
+- `semantic`: Tìm kiếm vector FAISS toàn cục (kèm semantic fallback khi catalog chưa giải quyết được tên thủ tục cụ thể nhưng câu hỏi thuộc phạm vi).
 
-UI giữ lịch sử và ngữ cảnh riêng cho từng model trong bộ nhớ của tab. Nút
-**Hội thoại mới** xóa cả hai; reload cũng xóa. Không reset khi đang sinh câu trả lời.
+## 8. Quản lý trạng thái và menu lựa chọn
 
+Khi bật routing PhoBERT v2, RAG kiểm tra metadata và quản lý trạng thái hội thoại:
+- **Menu chọn thủ tục (Disambiguation Menu):** Khi câu hỏi khớp với nhiều mã thủ tục khác nhau trong catalog, hệ thống trả danh sách tối đa 5 lựa chọn để người dùng chọn cụ thể.
+- **Menu xác nhận thủ tục (Confirmation Menu):** Khi câu hỏi bị xếp loại `OUT_OF_SCOPE` nhưng thuật toán BM25 + Cosine similarity tìm thấy thủ tục có điểm gated $\ge 0.70$ và margin $\ge 0.08$, hệ thống mở menu 2-3 phương án để người dùng xác nhận. Lượt này không gọi retrieval và không sinh câu trả lời.
+- **Menu chọn mục nội dung (Section Menu):** Khi câu hỏi chỉ nêu tên thủ tục chung chung mà chưa nêu rõ nội dung cần tra cứu (ví dụ: *"Thủ tục cấp hộ chiếu"*), hệ thống mở menu danh sách các section khả dụng của thủ tục đó.
 
-## Hỏi lại theo thủ tục và mục nội dung
-
-Khi bật routing, RAG kiểm tra metadata trước khi sinh câu trả lời. Câu chỉ nêu
-thủ tục (ví dụ “Thủ tục đăng kí tạm trú ở Việt Nam”) sẽ được hỏi chọn phần cần
-biết. Nếu nhiều mã cùng phù hợp, hệ thống hỏi chọn thủ tục trước; không tự chọn
-mã có cấp thực hiện rộng hơn. Mỗi danh sách thủ tục có tối đa năm lựa chọn.
-Mã chính xác được ưu tiên, tên được chuẩn hóa dấu và “đăng kí/đăng ký”.
-Tên chưa khớp dùng ứng viên từ retrieval có từ nội dung chung với tên thủ tục;
-người dùng phải xác nhận, điểm vector không tự xác định thủ tục. Không có ứng
-viên phù hợp thì đề nghị bổ sung tên, mã hoặc cơ quan.
-
-Danh sách section lấy từ toàn bộ metadata SQLite của thủ tục, không chỉ top-k.
-Các nhãn gồm thông tin chung, trình tự, hồ sơ, cách thức nộp/thời hạn/phí,
-căn cứ pháp lý và nội dung khác; section chưa biết giữ tên trong metadata.
-Câu đã rõ mục tiêu hoặc yêu cầu “tổng quan/toàn bộ” được trả lời trực tiếp sau
-khi xác định thủ tục. Mục tiêu như “hồ sơ” được giữ qua lượt chọn thủ tục.
-Có thể trả lời bằng số, mã, tên hoặc diễn đạt như “tôi muốn biết hồ sơ”.
-Số ngoài danh sách lặp lại lựa chọn; câu hỏi đổi thủ tục bỏ lựa chọn đang chờ.
-
-`answer_question` nhận thêm `clarification_context=None` và
-`clarification_scope=""`, trả `clarification_context` khi cần lựa chọn.
-API `/api/chat` và `/api/chat/stream` nhận `clarification_contexts`, object ánh xạ
-model ID sang context nguyên vẹn của kết quả trước. Phạm vi model do server đặt.
-`action=clarify` đi kèm `decision_reason=procedure_required|section_required`
-trong chẩn đoán routing. Context được xóa sau khi trả lời hoặc chuyển chủ đề.
-Base/QLoRA không áp dụng bước metadata này.
-
-Context chứa loại lựa chọn, mã ứng viên, section, mục tiêu, fingerprint lịch sử,
-catalog và chữ ký HMAC theo tiến trình. Backend kiểm tra các trường này trước
-khi dùng lựa chọn; bằng chứng trả lời luôn đọc lại từ corpus. Context sai model,
-sai lịch sử, bị sửa hoặc được gửi sau khi backend khởi động lại không được tái
-sử dụng. Đây không phải cơ chế đăng nhập/xác thực phiên. Client cũ không gửi
-context có thể tiếp tục qua lịch sử: backend tái tạo danh sách từ metadata và
-chỉ chấp nhận khi khớp chính xác định dạng câu hỏi lại. UI giữ context riêng
-mỗi model trong bộ nhớ tab, xóa khi bấm **Hội thoại mới** hoặc reload.
-
-Kiểm chứng ngày 2026-10-27: 123 test Python liên quan và 2 test JavaScript đạt;
-HTTP thường → streaming đã kiểm tra với corpus SQLite/model giả lập. Đọc
-SQLite thực tế ở chế độ chỉ đọc xác nhận 6.192 thủ tục, đăng ký tạm trú mã
-`1.004194` có sáu section. Chưa xác minh lượt hội thoại mới bằng model thật
-hoặc thao tác trình duyệt tại mốc kiểm chứng ban đầu này; kết quả cập nhật bên dưới.
-
-
-### Giữ thủ tục khi chọn dòng và hỏi nối tiếp
-
-Có thể sao chép nguyên dòng `4. Cách thức nộp, thời hạn và phí` (kể cả dấu chấm
-được escape trong Markdown). Backend đối chiếu cả số lẫn nhãn với danh sách;
-không coi mã như `1.000894` là số mục. Số và nhãn không khớp thì hỏi chọn lại.
-
-Sau câu trả lời có bằng chứng, câu ngắn như “Hồ sơ, giấy tờ của thủ tục” dùng
-lại mã trong `retrieval_context` khi fingerprint lịch sử, corpus và chunk đều
-hợp lệ. Nhãn `new_question` từ router không làm mất mã trong trường hợp này.
-Câu đổi thủ tục hoặc context không hợp lệ vẫn không được gắn vào thủ tục cũ.
-Nếu lịch sử còn danh sách đang chờ nhưng sau đó có lỗi “Chưa tìm thấy thủ tục
-phù hợp” từ parser cũ, backend có thể khôi phục qua tối đa ba lượt lỗi chỉ khi
-các câu xen giữa là lựa chọn hợp lệ của chính danh sách đó.
-
-Kiểm chứng cập nhật 2026-10-27: 103 test Python liên quan, 2 test JavaScript,
-Ruff/compileall đạt; backend đã restart và health trả `ok`. Chuỗi Qwen thật
-qua `/api/chat` và `/api/chat/stream` giữ mã kết hôn `1.000894` khi chọn dòng
-phí rồi hỏi hồ sơ; lượt cuối lấy `required_documents` bằng `procedure_direct`.
-Chưa xác minh thao tác trên trình duyệt thật.
-
-
-Có thể sao chép nguyên dòng lựa chọn **thủ tục**, gồm số thứ tự, tên, mã và
-cấp/cơ quan thực hiện. Backend dùng chung nhãn hiển thị và nhãn đối chiếu;
-metadata cuối dòng chỉ mô tả lựa chọn, không trở thành mục tiêu hỏi thông tin
-chung. Nếu chưa có mục tiêu, chọn thủ tục sẽ chuyển sang chọn section; nếu đã
-hỏi hồ sơ/phí thì tiếp tục nội dung đó. Xác minh API sau restart ngày 2026-10-27:
-mục 5 → `1.000180`, mục 1 → `2.000037`, đều chuyển sang `section_required`.
-
-
-Yêu cầu “các/những thủ tục”, “danh sách thủ tục”, “liệt kê các thủ tục” hoặc
-“tất cả các thủ tục” được xử lý như tìm danh sách lựa chọn. Nếu catalog có một
-tên khớp ngắn và nhiều biến thể dài hơn chứa cùng cụm tên, hiển thị các biến thể
-để chọn, không tự chốt tên ngắn. Mã cụ thể vẫn được ưu tiên. Danh sách có tối
-đa năm mục và báo khi còn thêm; có thể bổ sung đối tượng/cơ quan để thu hẹp.
-API thật ngày 2026-10-27 đã xác nhận câu “Các thủ tục cấp lại chứng chỉ kiểm
-định viên” trả danh sách, rồi chọn mục hết hạn chuyển sang section mã 1.000187.
+Trạng thái được ký bằng HMAC SHA-256 (`state_secret`), lưu trong bộ nhớ server tối đa 256 phiên. Client chỉ cần gửi tin nhắn văn bản và lịch sử; server tự đối chiếu và khôi phục trạng thái an toàn.

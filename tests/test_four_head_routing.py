@@ -204,16 +204,20 @@ class FourHeadTests(unittest.TestCase):
         self.assertIsNone(result["menu"])
 
     def test_rejecting_or_confirming_procedure_menu_never_selects_an_item(self):
-        add_procedure(self.retriever, "1.000004")
+        for index in range(4, 10):
+            add_procedure(self.retriever, f"1.00000{index}",
+                          f"Đăng ký tạm trú trường hợp {index}")
         if hasattr(self.retriever, "_clarification_catalog"):
             del self.retriever._clarification_catalog
         self.history, self.state = [], None
         first = self.ask("Các thủ tục đăng ký tạm trú", route("Đăng ký tạm trú"))
         self.assertEqual(first["menu"]["kind"], "procedure")
+        first_ids = {option["id"] for option in first["menu"]["options"]}
         self.router.reset_mock()
         rejected = self.ask("Không phải mấy cái trên")
         self.router.assert_not_called()
         self.assertEqual(rejected["menu"]["kind"], "procedure")
+        self.assertTrue(first_ids.isdisjoint(option["id"] for option in rejected["menu"]["options"]))
         self.assertEqual(rejected["conversation_state"]["selected"], [])
         confirmed = self.ask("Đúng rồi")
         self.router.assert_not_called()
