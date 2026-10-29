@@ -163,6 +163,7 @@ def classify_phobert(question, history, state, settings, clarifier):
     identity = clarifier.resolve_identity(question, allow_short_name=True)
     codes = extract_source_codes(question) or identity["codes"]
     confirmation = None
+    mixed_scope_fallback_allowed = False
     if scope == "OUT_OF_SCOPE" and codes:
         probability = prediction.get("probabilities", {}).get("scope", {}).get("Ngoài phạm vi")
         curated_alias = identity["source"] == "curated_alias" and len(codes) == 1
@@ -191,6 +192,7 @@ def classify_phobert(question, history, state, settings, clarifier):
                            tokens=sum(p["encoded_length"] for p in predictions), errors=[],
                            predictions=predictions, adapter_decisions=adapter_decisions,
                            procedure_confirmation=confirmation,
+                           mixed_scope_fallback_allowed=mixed_scope_fallback_allowed,
                            checkpoint=router.identity)
 
     def clarify(text):
@@ -212,6 +214,7 @@ def classify_phobert(question, history, state, settings, clarifier):
                 if pred["scope"] == "IN_SCOPE":
                     supported.append((part, pred))
         if len(supported) != 1 or supported[0][1]["mix"]:
+            mixed_scope_fallback_allowed = len(parts) == 1 and not supported
             return clarify("Bạn vui lòng tách rõ phần hỏi về một thủ tục hành chính và nội dung cần tra cứu.")
         question, supported_prediction = supported[0]
         sections = supported_prediction["sections"]

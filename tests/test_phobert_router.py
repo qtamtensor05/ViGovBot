@@ -262,6 +262,81 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.assertEqual(result["action"], "partial")
         self.assertNotIn("viết thơ", result["retrieval_query"])
         self.assertNotIn("viết thơ", json.dumps(self.answer.call_args.args[0], ensure_ascii=False))
+        self.llm_router.assert_not_called()
+
+    def test_mixed_scope_natural_conjunctions_use_selective_rewrite_and_reclassify(self):
+        for connector in ("nhưng", "với lại", "tiện thể cho tôi hỏi thêm", "còn việc"):
+            with self.subTest(connector=connector):
+                self.history, self.state = [], None
+                self.model.reset_mock(side_effect=True)
+                self.answer.reset_mock()
+                self.llm_router.reset_mock(side_effect=True)
+                self.llm_router.return_value = (json.dumps({"query": "Phí đăng ký kết hôn"}), {}, .05)
+                result = self.ask(f"Phí đăng ký kết hôn {connector} viết thơ", [
+                    prediction(scope="MIXED_SCOPE"), prediction(["FEE"]),
+                ])
+                self.assertEqual(result["action"], "partial")
+                self.assertIn("Phí đăng ký kết hôn", result["retrieval_query"])
+                self.assertNotIn("viết thơ", json.dumps(self.answer.call_args.args[0], ensure_ascii=False))
+                self.assertEqual(result["raw_routing"]["mixed_scope_rewrite"]["outcome"], "accepted_after_phobert")
+                self.assertEqual(len(result["raw_routing"]["predictions"]), 2)
+                self.llm_router.assert_called_once()
+                messages, call_settings = self.llm_router.call_args.args
+                self.assertIn("Lệ phí đăng ký kết hôn", messages[0]["content"])
+                self.assertEqual(call_settings["num_predict"], 128)
+                self.assertEqual(call_settings["temperature"], 0)
+
+    def test_mixed_scope_rewrite_rejects_nonextractive_candidate(self):
+        self.llm_router.side_effect = None
+        self.llm_router.return_value = (json.dumps({"query": "Thủ tục xin cấp thị thực"}), {}, .05)
+        result = self.ask("Phí đăng ký kết hôn nhưng viết thơ", [prediction(scope="MIXED_SCOPE")])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["raw_routing"]["mixed_scope_rewrite"]["outcome"],
+                         "non_extractive_or_dropped_qualifier")
+        self.assertEqual(len(result["raw_routing"]["predictions"]), 1)
+        self.answer.assert_not_called()
+
+    def test_mixed_scope_rewrite_candidate_must_pass_phobert_scope(self):
+        self.llm_router.side_effect = None
+        self.llm_router.return_value = (json.dumps({"query": "viết thơ"}), {}, .05)
+        result = self.ask("Phí đăng ký kết hôn nhưng viết thơ", [
+            prediction(scope="MIXED_SCOPE"), prediction(scope="OUT_OF_SCOPE"),
+        ])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["raw_routing"]["mixed_scope_rewrite"]["outcome"],
+                         "reclassification_rejected")
+        self.assertEqual(len(result["raw_routing"]["predictions"]), 2)
+        self.answer.assert_not_called()
+
+    def test_mixed_scope_rewrite_llm_failure_keeps_clarification_and_skips_retrieval(self):
+        self.llm_router.side_effect = RuntimeError("router unavailable")
+        result = self.ask("Phí đăng ký kết hôn nhưng viết thơ", [prediction(scope="MIXED_SCOPE")])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["raw_routing"]["mixed_scope_rewrite"]["outcome"], "rewrite_failed")
+        self.assertEqual(result["retrieved"], [])
+        self.answer.assert_not_called()
+
+    def test_mixed_scope_multiple_split_parts_do_not_use_single_query_rewriter(self):
+        result = self.ask("Phí đăng ký kết hôn; Hồ sơ đăng ký kết hôn; viết thơ", [
+            prediction(scope="MIXED_SCOPE"), prediction(["FEE"]), prediction(["DOSSIER"]),
+            prediction(scope="OUT_OF_SCOPE"),
+        ])
+        self.assertEqual(result["action"], "clarify")
+        self.assertFalse(result["raw_routing"]["mixed_scope_fallback_allowed"])
+        self.llm_router.assert_not_called()
+        self.answer.assert_not_called()
+
+    def test_mixed_scope_rewrite_cannot_drop_a_narrowing_qualifier(self):
+        self.llm_router.side_effect = None
+        self.llm_router.return_value = (json.dumps({"query": "Phí đăng ký kết hôn"}), {}, .05)
+        result = self.ask("Phí đăng ký kết hôn cho người nước ngoài nhưng viết thơ", [
+            prediction(scope="MIXED_SCOPE"),
+        ])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["raw_routing"]["mixed_scope_rewrite"]["outcome"],
+                         "non_extractive_or_dropped_qualifier")
+        self.model.predict.assert_called_once()
+        self.answer.assert_not_called()
 
     def test_missing_checkpoint_never_falls_back_to_llm(self):
         with patch("vigovbot.rag.phobert_router.get_router", side_effect=FileNotFoundError("checkpoint")):

@@ -74,7 +74,14 @@ báo nhiều thủ tục, hệ thống yêu cầu hỏi riêng từng thủ tụ
 vào mọi nguồn. Đây là giới hạn của checkpoint/adapter hiện tại, không phải khả
 năng phân rã như router LLM cũ. Với hỗn hợp phạm vi, adapter thử phân loại các mệnh
 đề tách bằng dấu câu/“và” bằng chính PhoBERT; chỉ truy xuất nếu tách được đúng một
-mệnh đề trong phạm vi. Nếu chưa tách rõ, hỏi lại. Phần ngoài phạm vi có thông báo.
+mệnh đề trong phạm vi. Chỉ khi regex còn một mảnh và không tìm thấy phần hỗ trợ,
+adapter mới gọi Qwen với giới hạn 128 token để trích đúng một đoạn liên tiếp;
+đoạn không còn giữ mã hoặc qualifier hẹp
+bị từ chối. PhoBERT phải phân loại lại đoạn trích thành một yêu cầu `IN_SCOPE`
+duy nhất mới cho retrieval. Khi chấp nhận, scope tổng thể vẫn là `MIXED_SCOPE` để
+câu trả lời ghi chú phần ngoài phạm vi. Nếu LLM lỗi/trả rỗng, câu không phải đoạn
+trích nguyên văn, hoặc PhoBERT không xác nhận, hệ thống hỏi lại và không retrieval.
+Nhánh này không được gọi cho `IN_SCOPE` hoặc `OUT_OF_SCOPE`.
 
 ## Cấu hình và Docker
 

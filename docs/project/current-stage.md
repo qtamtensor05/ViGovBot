@@ -117,3 +117,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 - Curated alias có thể xác nhận trực tiếp mã; hybrid BM25/cosine với qualifier
   penalty chỉ được mở confirmation menu cho cụm ngắn đủ score và margin. Menu
   không retrieval/generation; chọn mới nâng scope, phủ nhận giữ ngoài phạm vi.
+
+- Khi PhoBERT dự đoán `MIXED_SCOPE` mà split câu bằng dấu câu/“và” thất bại,
+  Qwen được gọi một lần để trích câu hỏi nguyên văn; PhoBERT phải xác nhận lại
+  `IN_SCOPE` trước retrieval. API thật đã trả đúng phí mã 1.000894 và ghi chú phần
+  ngoài phạm vi. Chưa đo tỷ lệ ca mixed trong traffic hoặc hiệu năng đại diện.

@@ -7,7 +7,7 @@ from collections import OrderedDict
 from itertools import zip_longest
 from threading import Lock
 
-from vigovbot.rag.classification import classify, fallback
+from vigovbot.rag.classification import classify, fallback, rewrite_mixed_scope
 from vigovbot.rag.clarification import Clarifier, _signature, selection_index
 from vigovbot.rag.sections import SECTION_INTENTS, available_sections, explicit_section_intents, section_query
 from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK
@@ -182,6 +182,50 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
         if phobert:
             from vigovbot.rag.phobert_router import classify_phobert
             route, trace = classify_phobert(question, history, router_state, settings, clarifier)
+            if (route["scope"] == "MIXED_SCOPE" and route["needs_clarification"]
+                    and trace.get("mixed_scope_fallback_allowed")):
+                candidate, rewrite_trace = rewrite_mixed_scope(question, tokenizer, settings, router_fn)
+                accepted = False
+                reason = rewrite_trace["outcome"]
+                folded_candidate = _fold(candidate).strip(" .?!")
+                folded_question = _fold(question).strip(" .?!")
+                if candidate:
+                    original_codes = extract_source_codes(question)
+                    candidate_codes = extract_source_codes(candidate)
+                    from vigovbot.retrieval.procedure_discovery import NEGATIVE_QUALIFIERS, fold
+                    dropped_qualifiers = [q for q in NEGATIVE_QUALIFIERS
+                                          if fold(q) in fold(question) and fold(q) not in fold(candidate)]
+                    if (not folded_candidate or folded_candidate == folded_question
+                            or folded_candidate not in folded_question
+                            or original_codes != candidate_codes or dropped_qualifiers):
+                        reason = "non_extractive_or_dropped_qualifier"
+                    else:
+                        clean_route, clean_trace = classify_phobert(
+                            candidate, history, router_state, settings, clarifier)
+                        trace["predictions"].extend(clean_trace["predictions"])
+                        trace["adapter_decisions"].extend(clean_trace["adapter_decisions"])
+                        trace["attempts"] += clean_trace["attempts"]
+                        trace["tokens"] += clean_trace["tokens"]
+                        trace["errors"].extend(clean_trace["errors"])
+                        trace["seconds"] += clean_trace["seconds"]
+                        accepted = (clean_route["scope"] == "IN_SCOPE"
+                                    and not clean_route["mixed_procedures"]
+                                    and not clean_route["needs_clarification"]
+                                    and len(clean_route["requests"]) == 1)
+                        reason = "accepted_after_phobert" if accepted else "reclassification_rejected"
+                        rewrite_trace["verification_prediction"] = clean_trace["predictions"][-1]
+                        if accepted:
+                            # Keep the original mixed label so the final answer
+                            # marks the out-of-scope clause as unsupported.
+                            route = {**clean_route, "scope": "MIXED_SCOPE", "mixed_procedures": False}
+                trace["seconds"] += rewrite_trace["seconds"]
+                trace["tokens"] += rewrite_trace["tokens"]
+                trace["attempts"] += rewrite_trace["attempts"]
+                trace["mixed_scope_rewrite"] = {**rewrite_trace, "outcome": reason}
+                trace["adapter_decisions"].append({
+                    "type": "mixed_scope_llm_rewrite", "outcome": reason,
+                    "query": candidate if accepted else "",
+                })
         else:
             route, trace = classify(question, history, router_state, tokenizer, settings, router_fn)
         catalog_candidates = [] if phobert else clarifier.discover(question)

@@ -376,3 +376,9 @@ chưa chứng minh giảm đều tổng latency. Chi tiết ở
 - **Mục tiêu:** Hỗ trợ cụm tìm kiếm phổ thông mà không cho semantic candidate tự retrieval.
 - **Thực hiện:** Thêm curated alias; catalog BM25 + exact cosine dùng encoder/index hiện có; phạt qualifier thiếu; gate độ dài, score và margin; menu xác nhận có state riêng, chọn mới vào scope và phủ nhận giữ ngoài phạm vi.
 - **Kết quả:** 394 test đạt, 22 skipped. API thật: “đổi bằng lái xe máy” dùng alias tới 1.115978, mở menu section, 0 nguồn và generation 0; “làm hộ chiếu” không mở confirmation vì margin 0,009926 < 0,08. Ngưỡng chưa được calibration trên benchmark nhãn thật.
+
+## 2026-10-29 — Fallback LLM chọn lọc cho MIXED_SCOPE
+
+- **Mục tiêu:** Tách một yêu cầu hành chính khỏi phần ngoài lề dùng liên từ tự nhiên khi split xác định không thành công.
+- **Thực hiện:** Chỉ gọi Qwen khi PhoBERT `MIXED_SCOPE` và regex không tách được phần hỗ trợ; nhiều phần hỗ trợ hoặc một phần dự đoán nhiều thủ tục vẫn hỏi lại. Yêu cầu đoạn trích liên tiếp có giới hạn 128 token, giữ mã/qualifier, rồi xác nhận lại bằng PhoBERT. Lỗi/đầu ra rỗng/ngoài phạm vi đều hỏi lại; scope `MIXED_SCOPE` vẫn được giữ để ghi chú phần bỏ qua.
+- **Kết quả:** 401 test đạt, 22 skipped; 73 test routing liên quan, Ruff, compileall và diff check đạt. API thật trích “Phí đăng ký kết hôn” từ câu mixed, PhoBERT xác nhận `IN_SCOPE`, RAG lấy một nguồn mã 1.000894 và phản hồi `partial`. Chưa đo tỷ lệ mixed traffic 3–7% hoặc hiệu năng tổng thể.

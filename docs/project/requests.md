@@ -277,3 +277,9 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Nhận cụm tên thủ tục rút gọn nhưng không tự chọn semantic candidate hoặc truy xuất khi scope chưa được xác nhận.
 - **Thực hiện:** Alias kiểm duyệt được xác nhận trực tiếp; các ca khác dùng BM25/cosine, qualifier penalty, giới hạn sáu từ, score 0,70 và margin 0,08 để quyết định có mở menu hay không.
 - **Kết quả:** Hoàn tất trên web local; 394 test đạt, 22 skipped. Alias “đổi bằng lái xe máy” trỏ đúng 1.115978 và không retrieval. “Làm hộ chiếu” bị giữ ngoài phạm vi do margin không đạt, chứng minh gate không mở menu mơ hồ.
+
+## 2026-10-29 — Fallback chọn lọc cho MIXED_SCOPE
+
+- **Mục tiêu:** Xử lý câu mixed có liên từ tự nhiên mà bộ tách dấu câu hiện tại không phân đoạn được.
+- **Thực hiện:** Chỉ gọi LLM khi PhoBERT đã phân loại `MIXED_SCOPE`, regex chỉ còn một mảnh và không tìm được phần hỗ trợ; đoạn trích phải giữ mã/qualifier rồi được PhoBERT phân loại lại trước retrieval. Nhiều mảnh hỗ trợ vẫn hỏi lại để không làm rơi ý.
+- **Kết quả:** Hoàn tất và restart web local. 401 test đạt, 22 skipped; 73 test routing liên quan đạt, Ruff/compileall/diff check đạt. API thật cho “Phí đăng ký kết hôn, tiện thể cho hỏi cách nấu phở” lấy đúng mã 1.000894, trả `partial`, 1 nguồn, rewriter 11,10 giây; câu ngoài phạm vi không vào nhánh này. Tỷ lệ MIXED_SCOPE 3–7% chưa được đo trên dữ liệu thật.
