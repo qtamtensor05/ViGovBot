@@ -9,7 +9,8 @@ giữ ngữ cảnh đề mục, bảng và metadata cần cho embedding/truy h�
 
 ```text
 Markdown → làm sạch → trích xuất metadata → phân loại section
-         → tách block/bảng → áp dụng giới hạn và overlap → TTHCChunk[]
+         → chiếu bảng tổng hợp theo taxonomy → tách block/bảng
+         → áp dụng giới hạn và overlap → TTHCChunk[]
 ```
 
 ## Đầu vào và đầu ra
@@ -26,6 +27,11 @@ giản hơn khi chỉ cần danh sách đoạn văn bản.
 
 - Kích thước chunk, overlap và giới hạn bảng lấy từ `ChunkingSettings`.
 - Header của bảng được lặp lại khi bảng phải chia thành nhiều chunk.
+- Bảng `CÁCH THỨC THỰC HIỆN` có đủ cột chuẩn được chiếu thành
+  `submission_method`, `processing_time` và `fee`; mỗi projection giữ hình thức
+  nộp làm khóa liên kết. Bảng không nhận diện chắc chắn được giữ nguyên thay vì
+  đoán ý nghĩa cột.
+- `KẾT QUẢ XỬ LÝ` và `KẾT QUẢ THỰC HIỆN` sinh section `result`.
 - Nội dung rỗng hoặc cấu trúc không thể xử lý phát sinh `TTHCChunkingError`.
 - Module không đọc PDF và không ghi artifact; trách nhiệm đó thuộc pipeline indexing.
 

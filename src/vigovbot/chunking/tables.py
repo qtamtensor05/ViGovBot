@@ -1,6 +1,7 @@
 """Pure Markdown table repair and presentation; no chunker configuration required."""
 
 import re
+import unicodedata
 
 
 def _is_table_line(line: str) -> bool:
@@ -101,4 +102,84 @@ def repeat_table_header(bodies: list[str], table_header: str) -> list[str]:
             body = f"{table_header}\n{remainder}" if remainder else table_header
         result.append(body)
     return result
+
+
+def _fold_cell(value: str) -> str:
+    value = re.sub(r"[*_`]+", "", value)
+    normalized = unicodedata.normalize("NFD", value.casefold())
+    return " ".join("".join(c for c in normalized if unicodedata.category(c) != "Mn")
+                    .replace("đ", "d").split())
+
+
+def project_submission_table(text: str) -> dict[str, str]:
+    """Project a standard submission/deadline/fee table into routing-aligned tables.
+
+    The three projections keep the submission method as their join key. If the
+    expected columns cannot be identified, return an empty mapping so callers
+    preserve the original section rather than guessing at column semantics.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    header_index = None
+    indexes = {}
+    aliases = {
+        "submission_method": ("hinh thuc nop", "cach thuc nop"),
+        "processing_time": ("thoi han giai quyet", "thoi gian giai quyet"),
+        "fee": ("phi, le phi", "phi le phi", "le phi", "phi"),
+        "description": ("mo ta",),
+    }
+    for index, line in enumerate(lines):
+        if not _is_table_line(line):
+            continue
+        cells = [cell.strip() for cell in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
+        folded = [_fold_cell(cell) for cell in cells]
+        candidate = {}
+        for field, names in aliases.items():
+            matches = [column for column, value in enumerate(folded) if value in names]
+            if matches:
+                candidate[field] = matches[0]
+        if all(field in candidate for field in ("submission_method", "processing_time", "fee")):
+            header_index, indexes = index, candidate
+            break
+    if header_index is None:
+        return {}
+
+    rows = []
+    required_width = max(indexes.values()) + 1
+    for line in lines[header_index + 1:]:
+        if not _is_table_line(line):
+            continue
+        cells = [cell.strip() for cell in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
+        if cells and all(re.fullmatch(r"\s*:?-{3,}:?\s*", cell) for cell in cells):
+            continue
+        cells.extend([""] * (required_width - len(cells)))
+        method = cells[indexes["submission_method"]].strip()
+        if not method:
+            continue
+        rows.append({field: cells[column].strip() for field, column in indexes.items()})
+    if not rows:
+        return {}
+
+    def table(title, columns):
+        seen = set()
+        body = []
+        for row in rows:
+            values = tuple(row.get(field, "") for field, _ in columns)
+            if values in seen:
+                continue
+            seen.add(values)
+            body.append("|" + "|".join(values) + "|")
+        headers = "|" + "|".join(label for _, label in columns) + "|"
+        separator = "|" + "|".join("---" for _ in columns) + "|"
+        return "\n".join((f"# **{title}**", "", headers, separator, *body))
+
+    processing_columns = [("submission_method", "Hình thức nộp"),
+                          ("processing_time", "Thời hạn giải quyết")]
+    if "description" in indexes:
+        processing_columns.append(("description", "Mô tả"))
+    return {
+        "submission_method": table("CÁCH THỨC NỘP HỒ SƠ", (("submission_method", "Hình thức nộp"),)),
+        "processing_time": table("THỜI HẠN GIẢI QUYẾT", tuple(processing_columns)),
+        "fee": table("PHÍ, LỆ PHÍ", (("submission_method", "Hình thức nộp"),
+                                        ("fee", "Phí, lệ phí"))),
+    }
 

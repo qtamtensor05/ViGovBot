@@ -115,6 +115,7 @@ def evaluation_trace(result, mode):
         "decision_reason": result.get("decision_reason"),
         "evidence_status": result.get("evidence_status"),
         "routing_attempts": result.get("routing_attempts"),
+        "routing_classifier": result.get("raw_routing") if result.get("routing_backend") == "phobert" else None,
         "fallback_reason": result.get("fallback_reason"),
         "context_used": result.get("context_used", []),
         "citations_status": citation_status,
@@ -195,8 +196,23 @@ class ChatApplication:
             else:
                 models[mid] = {"provider": model.provider, "identity_status": "unverifiable"}
             models[mid]["settings"] = model.model_dump(mode="json", exclude={"api_key_env"})
-        return {"source_sha256": source_fingerprint(), "retrieval": getattr(self.retriever, "evaluation_identity", None),
-                "models": models, "settings": self.config.inference_settings()}
+        routing = None
+        if self.config.inference_settings().get("routing_backend") == "phobert":
+            from vigovbot.rag.phobert_router import get_router
+            routing_settings = self.config.inference_settings()
+            alias_path = Path(routing_settings["procedure_aliases_path"])
+            routing = {
+                "backend": "phobert",
+                "checkpoint": get_router(routing_settings).identity,
+                "procedure_aliases_sha256": file_hash(alias_path),
+            }
+        settings = {
+            key: str(value) if isinstance(value, Path) else value
+            for key, value in self.config.inference_settings().items()
+        }
+        return {"routing": routing, "source_sha256": source_fingerprint(),
+                "retrieval": getattr(self.retriever, "evaluation_identity", None),
+                "models": models, "settings": settings}
 
     def _settings(self, model):
         settings = self.config.inference_settings()

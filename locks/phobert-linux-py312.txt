@@ -1,0 +1,6 @@
+# Small PhoBERT segmentation layer; Torch/Transformers/scikit-learn come from the base inference locks.
+# Versions match the supplied PhoBERT reproduction lock.
+pyvi==0.1.1
+sklearn-crfsuite==0.5.0
+python-crfsuite==0.9.12
+tabulate==0.10.0

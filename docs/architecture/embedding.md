@@ -14,6 +14,11 @@ JSON object, JSON array hoặc JSON Lines. Mỗi chunk phải có `chunk_id` duy
 và `text_content` là chuỗi không rỗng. Metadata khác là tùy chọn, giữ nguyên
 schema JSON của nguồn. Chunker TTHC tiếp tục sinh `source_file`, `source_code`,
 `procedure_name`, `section_type`, `context_prefix`, `parent_section` như trước.
+Taxonomy section mới đồng bộ với router gồm `metadata_identity`,
+`procedure_step`, `required_documents`, `submission_method`, `processing_time`,
+`fee`, `result`, `legal_basis` và `other`. Giá trị tổng hợp legacy
+`submission_deadline_fee` chỉ được đọc qua cầu tương thích, không còn được
+ingestion mới phát sinh.
 Nếu có `context_prefix`, encoder yêu cầu chuỗi và chỉ thêm khi nội dung chưa
 chứa prefix. Nội dung bảng/JSON cần được adapter chuẩn hóa thành chuỗi trước
 khi tạo embedding; formatter prompt có thể nhận object/list trực tiếp.

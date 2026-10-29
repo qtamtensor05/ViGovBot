@@ -6,6 +6,8 @@ import threading
 import unicodedata
 from pathlib import Path
 
+from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK
+
 SOURCE_CODE_RE = re.compile(r"(?<![\w.])\d+\.\d{6}(?:[_-][A-Za-z0-9]+)?(?![\w.])", re.IGNORECASE)
 IDENTITY_LEVEL_RE = re.compile(r"\|\*\*Cấp thực hiện\*\*\|([^|\n]*)")
 # A question naming many procedures is too broad to constrain; fall back to semantic search.
@@ -52,8 +54,10 @@ def preferred_section_types(question):
          "metadata_identity"),
         (("trinh tu", "quy trinh", "cac buoc", "buoc nao"), "procedure_step"),
         (("ho so", "giay to", "thanh phan", "can mang", "can chuan bi"), "required_documents"),
-        (("phi", "le phi", "thoi han", "bao lau", "cach thuc", "hinh thuc nop", "bao nhieu tien", "may ngay"),
-         "submission_deadline_fee"),
+        (("phi", "le phi", "bao nhieu tien"), "fee"),
+        (("thoi han", "bao lau", "may ngay"), "processing_time"),
+        (("cach thuc", "hinh thuc nop", "nop the nao"), "submission_method"),
+        (("ket qua", "nhan duoc gi"), "result"),
         (("can cu", "co so phap ly"), "legal_basis"),
     )
     preferred = tuple(
@@ -85,6 +89,9 @@ class Retriever:
         self._db_lock = threading.Lock()
         self._procedure_names = None
         self._procedure_levels = {}
+        self._procedure_discovery = None
+        self._procedure_discovery_aliases = None
+        self._procedure_discovery_lock = threading.Lock()
         count = self.db.execute("SELECT count(*) FROM chunks").fetchone()[0]
         if count != self.index.ntotal or self.index.d != 1024 or self.index.metric_type != faiss.METRIC_INNER_PRODUCT:
             self.db.close()
@@ -224,8 +231,18 @@ class Retriever:
                 "json_extract(payload, '$.source_code') COLLATE NOCASE = ? ORDER BY row_id", (code,),
             ).fetchall()
         hits = [{**json.loads(payload), "row_id": row_id} for row_id, payload in rows]
-        hits = [hit for hit in hits if hit.get("section_type") in sections]
-        if set(sections) - {hit["section_type"] for hit in hits}:
+        available = {hit.get("section_type") for hit in hits}
+        resolved_sections = []
+        missing = []
+        for section in sections:
+            if section in available:
+                resolved_sections.append(section)
+            elif LEGACY_SECTION_FALLBACK.get(section) in available:
+                resolved_sections.append(LEGACY_SECTION_FALLBACK[section])
+            else:
+                missing.append(section)
+        hits = [hit for hit in hits if hit.get("section_type") in set(resolved_sections)]
+        if missing:
             return None, "missing_section", code
         # Large sections need semantic ranking rather than arbitrary truncation.
         if len(hits) > top_k:
@@ -293,6 +310,43 @@ class Retriever:
                     code: {**entry, "sections": sorted(entry["sections"])} for code, entry in sorted(catalog.items())
                 }
             return self._clarification_catalog
+
+    def discover_procedures(self, query, aliases, *, top_k=3, alpha=.45, qualifier_penalty=.5):
+        """Search a small exact-cosine catalog matrix plus normalized BM25."""
+        import numpy as np
+        from vigovbot.retrieval.procedure_discovery import ProcedureDiscovery
+
+        alias_key = tuple((code, tuple(items)) for code, items in sorted(aliases.items()))
+        with self._procedure_discovery_lock:
+            if self._procedure_discovery is None or self._procedure_discovery_aliases != alias_key:
+                representatives, priorities = {}, {}
+                with self._db_lock:
+                    rows = self.db.execute(
+                        "SELECT row_id, json_extract(payload, '$.source_code'), "
+                        "json_extract(payload, '$.procedure_name'), json_extract(payload, '$.section_type') "
+                        "FROM chunks ORDER BY row_id"
+                    ).fetchall()
+                for row_id, code, name, section in rows:
+                    if not isinstance(code, str) or not isinstance(name, str) or not code or not name:
+                        continue
+                    priority = 0 if section == "metadata_identity" else 1
+                    if code in representatives and priorities[code] <= priority:
+                        continue
+                    representatives[code] = (row_id, {"code": code, "name": name,
+                                                       "aliases": list(aliases.get(code, ()))})
+                    priorities[code] = priority
+                ordered = [representatives[code] for code in sorted(representatives)]
+                vectors = np.asarray([self.index.reconstruct(row_id) for row_id, _ in ordered], dtype=np.float32)
+                self._procedure_discovery = ProcedureDiscovery([entry for _, entry in ordered], vectors)
+                self._procedure_discovery_aliases = alias_key
+        with self._encoder_lock:
+            vector = np.asarray(self.encoder.encode(
+                [query], batch_size=1, convert_to_numpy=True, normalize_embeddings=False,
+                show_progress_bar=False), dtype=np.float32)
+        if vector.shape != (1, self.index.d) or not np.isfinite(vector).all() or not np.any(vector):
+            raise ValueError("Vector truy vấn catalog không hợp lệ")
+        return self._procedure_discovery.search(
+            query, vector[0], top_k=top_k, alpha=alpha, qualifier_penalty=qualifier_penalty)
 
     def procedure_details(self, code):
         """Read identifying labels only; never send chunk bodies as menu options."""

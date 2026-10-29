@@ -77,7 +77,7 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.data.cache_dir, Path(work).resolve() / "cache")
             self.assertEqual(config.inference_settings()["top_k"], 5)
             self.assertTrue(config.inference_settings()["routing_enabled"])
-            self.assertEqual(config.inference_settings()["routing_backend"], "llm")
+            self.assertEqual(config.inference_settings()["routing_backend"], "phobert")
             self.assertTrue(config.conversation.routing_model_path.is_absolute())
 
     def test_qlora_adapter_environment_override_and_yaml_fallback(self):

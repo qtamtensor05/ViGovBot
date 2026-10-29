@@ -10,13 +10,16 @@ from threading import Lock
 from vigovbot.rag.classification import classify, fallback
 from vigovbot.rag.clarification import Clarifier, _signature, selection_index
 from vigovbot.rag.sections import SECTION_INTENTS, available_sections, explicit_section_intents, section_query
+from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK
 from vigovbot.rag.response import generate_answer
 from vigovbot.prompts.prompt_templates import build_messages, validate_history
 from vigovbot.retrieval.retriever import _fold, extract_source_codes
 from vigovbot.utils.helpers import json_hash
 
 MIXED_NOTICE = "\n\nPhần yêu cầu ngoài thủ tục hành chính nằm ngoài phạm vi hỗ trợ."
-_MENU_REJECTION = re.compile(r"^(?:khong phai|khong co|khong dung)(?:\s+(?:may|cac|nhung))?\s+(?:cai|muc|thu tuc)?\s*(?:tren|nay|do)?$", re.I)
+_MENU_REJECTION = re.compile(
+    r"^(?:khong phai|khong co|khong dung)(?:(?:\s+(?:may|cac|nhung))?"
+    r"\s+(?:cai|muc|thu tuc)?\s*(?:tren|nay|do)?)?$", re.I)
 _BARE_CONFIRMATION = frozenset({"dung", "dung roi", "phai", "phai roi", "ok", "dong y"})
 _OTHER_VARIANT = frozenset({"truong hop khac", "cac truong hop khac", "thu tuc khac", "loai khac"})
 _STATES = OrderedDict()
@@ -64,7 +67,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                         router_fn, conversation_state=None, selection=None, clarification_scope="", **_):
     started = time.perf_counter()
     history = validate_history(history)
-    clarifier = Clarifier(retriever, clarification_scope)
+    phobert = settings.get("routing_backend") == "phobert"
+    clarifier = Clarifier(retriever, clarification_scope, settings)
     corpus = json_hash({"catalog": clarifier.catalog, "identity": getattr(retriever, "evaluation_identity", {})})
     if conversation_state is None:
         # Text-only clients can return the exact history without carrying opaque state.
@@ -87,7 +91,7 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
         if route["scope"] == "MIXED_SCOPE":
             text += MIXED_NOTICE
         result.update(prediction=text, decision_reason=reason, routing=route, classification=route,
-                      routing_backend="clarification" if option or invalid else "llm",
+                      routing_backend="clarification" if option or invalid else ("phobert" if phobert else "llm"),
                       routing_attempts=trace["attempts"], routing_s=trace["seconds"],
                       routing_prompt_tokens_estimated=trace["tokens"], fallback_reason=trace.get("fallback_reason"),
                       raw_routing=trace, latency_s=time.perf_counter()-started, menu=next_menu)
@@ -104,19 +108,21 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 _STATES.popitem(last=False)
         return result
 
-    def menu_result(kind, index, codes, *, prefix=""):
+    def menu_result(kind, index, codes, *, prefix="", confirmation=False):
         request = requests[index]
         if kind == "procedure":
             options = [dict(id=code, label=clarifier.procedure_labels(code)[-1],
                             aliases=[code, *clarifier.procedure_labels(code)]) for code in codes[:5]]
-            title = "Bạn muốn hỏi thủ tục nào trong danh sách sau?"
+            title = ("Hệ thống nhận thấy bạn đang tìm kiếm thủ tục hành chính. "
+                     "Có phải bạn muốn tìm hiểu một trong các thủ tục sau?" if confirmation else
+                     "Bạn muốn hỏi thủ tục nào trong danh sách sau?")
         else:
             code = request["code"]
             options = [dict(id=s, label=SECTION_INTENTS[s][0], aliases=[s])
                        for s in available_sections(clarifier.catalog[code]["sections"],
                            eligibility=retriever.has_eligibility(code), forms=retriever.has_forms(code))]
             title = f"Bạn muốn xem mục nào của thủ tục {clarifier.catalog[code]['name']} — Mã: {code}?"
-        value = dict(kind=kind, request_index=index, options=options)
+        value = dict(kind=kind, request_index=index, options=options, confirmation=confirmation)
         value["id"] = json_hash([value, requests, history, question, time.time_ns()])
         text = prefix + title + "\n" + "\n".join(f"{i}. {o['label']}" for i, o in enumerate(options, 1))
         if kind == "procedure" and len(codes) > 5:
@@ -134,6 +140,10 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
     folded_question = _fold(question).strip(" .?!")
     if menu and menu["kind"] == "procedure" and _MENU_REJECTION.fullmatch(folded_question):
         requests, route = state["requests"], state["classification"]
+        if menu.get("confirmation"):
+            result.update(actual_route="out_of_scope", action="abstain")
+            return finish("Hệ thống hỗ trợ tra cứu thủ tục hành chính Việt Nam. Nội dung bạn hỏi nằm ngoài phạm vi hỗ trợ.",
+                          "confirmation_rejected")
         return menu_result("procedure", menu["request_index"], [o["id"] for o in menu["options"]],
                            prefix="Các lựa chọn trên chưa đúng. Bạn có thể nêu trường hợp, tên hoặc mã cụ thể.\n")
     if menu and folded_question in _BARE_CONFIRMATION:
@@ -161,15 +171,21 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
         else:
             request["sections"] = [option["id"]]
             request["query"] = SECTION_INTENTS[option["id"]][0]
-        route = {**route, "conversation": "FOLLOW_UP", "needs_clarification": False, "clarification": "",
+        route = {**route, "scope": "IN_SCOPE" if menu.get("confirmation") else route["scope"],
+                 "conversation": "FOLLOW_UP", "needs_clarification": False, "clarification": "",
+                 "query": request["query"] if menu.get("confirmation") else route["query"],
                  "sections": list(dict.fromkeys(s for r in requests for s in r["sections"])),
                  "requests": [{k: r[k] for k in ("procedure", "query", "sections")} for r in requests]}
     else:
         router_state = ({"selected": state.get("selected", []), "requests": state.get("requests", []),
                          "menu": menu} if state else None)
-        route, trace = classify(question, history, router_state, tokenizer, settings, router_fn)
-        catalog_candidates = clarifier.discover(question)
-        if route["scope"] == "OUT_OF_SCOPE" and catalog_candidates:
+        if phobert:
+            from vigovbot.rag.phobert_router import classify_phobert
+            route, trace = classify_phobert(question, history, router_state, settings, clarifier)
+        else:
+            route, trace = classify(question, history, router_state, tokenizer, settings, router_fn)
+        catalog_candidates = [] if phobert else clarifier.discover(question)
+        if not phobert and route["scope"] == "OUT_OF_SCOPE" and catalog_candidates:
             explicit_sections = explicit_section_intents(question)
             requests = [dict(procedure=question, query=question, sections=explicit_sections)]
             route = {"scope": "IN_SCOPE", "conversation": "NEW", "mixed_procedures": False,
@@ -178,6 +194,11 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             if len(catalog_candidates) > 1:
                 return menu_result("procedure", 0, catalog_candidates)
             requests[0]["code"] = catalog_candidates[0]
+        confirmation = trace.get("procedure_confirmation")
+        if route["scope"] == "OUT_OF_SCOPE" and confirmation and confirmation.get("eligible"):
+            requests = [dict(procedure=question, query=question, sections=[])]
+            candidates = [candidate["code"] for candidate in confirmation["candidates"]]
+            return menu_result("procedure", 0, candidates, confirmation=True)
         if route["scope"] == "OUT_OF_SCOPE":
             result.update(actual_route="out_of_scope", action="abstain")
             return finish("Hệ thống hỗ trợ tra cứu thủ tục hành chính Việt Nam. Nội dung bạn hỏi nằm ngoài phạm vi hỗ trợ.",
@@ -187,7 +208,7 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             return finish(route["clarification"], "routing_fallback" if trace.get("fallback_reason") else "ambiguous_question",
                           selected=state.get("selected", []) if state and route["conversation"] == "FOLLOW_UP" else [])
         requests = copy.deepcopy(route["requests"])
-        explicit_sections = explicit_section_intents(question)
+        explicit_sections = [] if phobert else explicit_section_intents(question)
         if route["conversation"] == "FOLLOW_UP" and explicit_sections and len(requests) == 1:
             requests[0]["sections"] = explicit_sections
             requests[0]["query"] = ", ".join(SECTION_INTENTS[s][0] for s in explicit_sections)
@@ -195,7 +216,7 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                      "requests": copy.deepcopy(requests)}
         # A corpus-backed discovery/bare-name request has no section goal.
         # Do not let an LLM invent requested fields from the available label list.
-        if route["conversation"] == "NEW" and len(requests) == 1:
+        if not phobert and route["conversation"] == "NEW" and len(requests) == 1:
             discovery = clarifier.inspect(question)
             if discovery and not discovery["goal"]:
                 requests[0]["sections"] = []
@@ -205,8 +226,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
         # Signed state is authoritative for an elliptical, single-procedure follow-up.
         if route["conversation"] == "FOLLOW_UP":
             selected = state.get("selected", []) if state else []
-            named = clarifier.matches(question)
-            if not state or (len(selected) > 1 and not named):
+            named = clarifier.matches(question, allow_short_name=phobert)
+            if (not state and not named) or (len(selected) > 1 and not named):
                 return finish("Bạn đang hỏi tiếp thủ tục nào? Vui lòng nêu tên hoặc mã thủ tục.", "ambiguous_question")
             if len(selected) == 1 and len(requests) == 1 and not named:
                 requests[0]["code"] = selected[0]
@@ -215,7 +236,15 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
     for index, request in enumerate(requests):
         if request.get("code"):
             continue
-        codes = clarifier.matches(request["procedure"])
+        # Resolving identity is independent of inspect(), whose None also means
+        # one known procedure with a goal (no clarification menu is needed).
+        # A fully named single request takes precedence over a drifting rewrite.
+        named = clarifier.matches(question, allow_short_name=phobert) if len(requests) == 1 and route["scope"] == "IN_SCOPE" else []
+        codes = (named or clarifier.matches(request["query"])
+                 or clarifier.matches(request["procedure"])
+                 or clarifier.matches("Thủ tục " + request["procedure"]))
+        if named:
+            request["query"] = question
         explicit = extract_source_codes(request["procedure"])
         if explicit and not codes:
             request["missing"] = True
@@ -239,6 +268,14 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             request["code"] = codes[0]
     for index, request in enumerate(requests):
         if request.get("code") and not request["sections"]:
+            confirmation_selection = bool(option and menu and menu.get("confirmation"))
+            if (phobert and not confirmation_selection
+                    and not clarifier.is_bare_identity(request["query"], request["code"])):
+                # The checkpoint can legitimately emit no section when every
+                # probability is below its saved threshold. A specific query
+                # and an exact corpus identity are still sufficient to search
+                # all sections of that procedure without inventing a label.
+                continue
             result["retrieval_s"] = time.perf_counter()-retrieval_started
             return menu_result("section", index, [])
 
@@ -255,12 +292,20 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
         queries.append(query)
         ranked = []
         if code:
-            types = list(dict.fromkeys(t for s in request["sections"] for t in SECTION_INTENTS[s][1]))
+            types = [] if any(not SECTION_INTENTS[s][1] for s in request["sections"]) else list(
+                dict.fromkeys(t for s in request["sections"] for t in SECTION_INTENTS[s][1]))
             groups = []
             for section_type in types or [None]:
-                section_hits = retriever.search(query, settings["top_k"], section_types=[section_type] if section_type else None)
-                groups.append([h for h in section_hits if h.get("source_code") == code
-                               and (section_type is None or h.get("section_type") == section_type)])
+                section_hits = retriever.search(query, settings["top_k"], section_types=[section_type] if section_type else ([] if phobert else None))
+                group = [h for h in section_hits if h.get("source_code") == code
+                         and (section_type is None or h.get("section_type") == section_type)]
+                if not group and section_type in LEGACY_SECTION_FALLBACK:
+                    legacy = LEGACY_SECTION_FALLBACK[section_type]
+                    section_hits = retriever.search(
+                        query, settings["top_k"], section_types=[legacy] if legacy else [])
+                    group = [h for h in section_hits if h.get("source_code") == code
+                             and (legacy is None or h.get("section_type") == legacy)]
+                groups.append(group)
             ranked = list({h["chunk_id"]: h for group in zip_longest(*groups)
                            for h in group if h is not None}.values())[:settings["top_k"]]
         key = f"sq_{index+1}"

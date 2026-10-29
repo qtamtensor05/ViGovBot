@@ -13,6 +13,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from vigovbot.chunking.tables import (
     repair_table_continuations, flatten_tables, first_table_header, repeat_table_header,
+    project_submission_table,
 )
 from vigovbot.chunking.headings import (
     SectionType, SOURCE_CODE_RE, TTHCChunkingError, sanitize_text,
@@ -125,7 +126,21 @@ class TTHCStructureAwareChunker:
             else:
                 lines.append(line.rstrip())
         append_section()
-        return sections
+        expanded: list[Section] = []
+        for section in sections:
+            projections = (project_submission_table(section.text)
+                           if section.section_type == "submission_method" else {})
+            if projections:
+                expanded.extend(Section(section_id=0, title={
+                    "submission_method": "CÁCH THỨC NỘP HỒ SƠ",
+                    "processing_time": "THỜI HẠN GIẢI QUYẾT",
+                    "fee": "PHÍ, LỆ PHÍ",
+                }[section_type], section_type=section_type, text=text)
+                                for section_type, text in projections.items())
+            else:
+                expanded.append(section)
+        return [Section(section_id=index, title=section.title, section_type=section.section_type,
+                        text=section.text) for index, section in enumerate(expanded, 1)]
 
     _first_table_header = staticmethod(first_table_header)
 

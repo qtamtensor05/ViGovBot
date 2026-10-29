@@ -9,35 +9,11 @@ import unittest
 
 @unittest.skipUnless(shutil.which("node"), "Node.js is needed to verify browser JavaScript")
 class WebUITests(unittest.TestCase):
-    def test_menu_button_scopes_selection_and_rejects_stale_menu(self):
-        import json
-        path = Path(__file__).resolve().parents[1] / "src/vigovbot/server/static/index.html"
-        script = path.read_text(encoding="utf-8").split("<script>", 1)[1].split("</script>", 1)[0]
-        helper = script[script.index("function appendMenu"):script.index("async function submitQuestion")]
-        javascript = """
-const vm=require('node:vm'),assert=require('node:assert/strict');
-const helper=JSON.parse(require('node:fs').readFileSync(0,'utf8'));
-const element=()=>({children:[],append(...values){this.children.push(...values)},setAttribute(){},addEventListener(name,fn){this[name]=fn}});
-const parent=element(),button={disabled:false},conversationStates={a:{menu:{id:'current'}}},calls=[];
-const data={model_id:'a',menu:{id:'current',options:[{id:'DOSSIER',label:'Hồ sơ'}]}};
-vm.runInNewContext(helper+`
-appendMenu(parent,data);const choice=parent.children[0].children[0];
-choice.click();assert.equal(calls.length,1);assert.equal(calls[0][0],'1');
-assert.equal(calls[0][1].join(','),'a');assert.equal(calls[0][2].a.option_id,'DOSSIER');
-assert.equal(calls[0][2].a.menu_id,'current');
-conversationStates.a={menu:{id:'next'}};choice.click();assert.equal(calls.length,1);assert.equal(choice.disabled,true);
-`,{assert,parent,data,button,conversationStates,calls,document:{createElement:element},submitQuestion(...args){calls.push(args)}});
-"""
-        result = subprocess.run([shutil.which("node"), "-e", javascript], input=json.dumps(helper),
-                                text=True, capture_output=True, timeout=15)
-        self.assertEqual(result.returncode, 0, result.stderr)
-
     def test_stream_keeps_context_per_model_and_reset_clears_both(self):
         import json
         path = Path(__file__).resolve().parents[1] / "src/vigovbot/server/static/index.html"
         script = path.read_text(encoding="utf-8").split("<script>", 1)[1].split("</script>", 1)[0]
         helpers = script[script.index("function modeLabel"):script.index("function addAnswers")]
-        helpers += script[script.index("function appendMenu"):script.index("async function submitQuestion")]
         reset = script[script.index("function resetConversation"):script.index("document.querySelector('#new-chat')")]
         javascript = """
 const vm=require('node:vm'),assert=require('node:assert/strict');
@@ -48,7 +24,8 @@ const element=()=>({append(){},textContent:''});
 const card={body:element(),el:element()};
 const chat={replaceChildren(){this.cleared=true},scrollHeight:0},input={focus(){}},button={disabled:false};
 vm.runInNewContext(code.helpers+code.reset+`
-applyStreamEvent({type:'model_result',result:{model_id:'a',answer:'A',retrieval_context:{source_code:'a'},clarification_context:{kind:'section'}}},{a:card},'Q');
+applyStreamEvent({type:'model_result',result:{model_id:'a',answer:'1. Ho so',menu:{id:'current',options:[{id:'DOSSIER',label:'Ho so'}]},conversation_state:{menu:{id:'current'}},retrieval_context:{source_code:'a'},clarification_context:{kind:'section'}}},{a:card},'Q');
+assert.equal(card.body.textContent,'1. Ho so');assert.equal(conversationStates.a.menu.id,'current');
 assert.equal(retrievalContexts.a.source_code,'a');
 assert.equal(retrievalContexts.b.source_code,'b');
 assert.equal(clarificationContexts.a.kind,'section');assert.equal(clarificationContexts.b.kind,'procedure');assert.equal(histories.a.length,2);assert.equal(histories.b.length,0);

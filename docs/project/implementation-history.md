@@ -339,3 +339,40 @@ chưa chứng minh giảm đều tổng latency. Chi tiết ở
 - **Mục tiêu:** Chuẩn hóa hợp đồng máy đọc được cho dữ liệu Golden và kết quả evaluation hiện hành.
 - **Thực hiện:** Tạo schema Draft 2020-12 trong `schema/`; mô tả đầy đủ trường lồng nhau của Golden và toàn bộ cấu trúc Evaluation v2, không dùng tham chiếu tới file ngoài.
 - **Kết quả:** Validate thành công 3.850 case train/val/test và evaluation record do `src/vigovbot/evaluation/records.py` tạo; `git diff --check` đạt.
+
+
+## 2026-10-29 — Giữ mã thủ tục khi không cần menu
+
+- **Mục tiêu:** Không loại bỏ bằng chứng đúng khi tên router thiếu tiền tố Thủ tục.
+- **Thực hiện:** Xác định mã từ câu hỏi/tên độc lập với inspect menu; ưu tiên câu hỏi đơn thủ tục có tên xác nhận trong corpus, hỗ trợ tiền tố và pháp lí; giữ menu cho tên trùng. Bổ sung hồi quy và restart web dùng bind mount.
+- **Kết quả:** 125 kiểm thử liên quan, Ruff và compileall đạt. Web local đã nạp bản sửa; hai câu nguyên văn qua API streaming lấy đúng mã 1.000894: phí 1 đoạn, pháp lý 4 đoạn trong lượt hỏi tiếp. Chưa kiểm tra trực quan trình duyệt hoặc độ đầy đủ của câu trả lời sinh; chưa tái hiện trạng thái gây chọn nhầm 1.010998 ban đầu.
+
+## 2026-10-29 — PhoBERT bốn head thay router mặc định
+
+- **Mục tiêu:** Dùng checkpoint routing đã huấn luyện cho phạm vi, mạch hội thoại, trộn thủ tục và mục nội dung.
+- **Thực hiện:** Thêm inference local giữ nguyên PyVi, ba segment, 128 token, CLS pooling và ngưỡng metadata; adapter corpus/state không gọi Qwen hoặc từ khóa section; cấu hình mặc định, dependency Docker và mount checkpoint read-only; trace/identity có xác suất, ngưỡng và hash.
+- **Kết quả:** 35 checksum đạt; parity token/xác suất đạt 7/7. Image web build/recreate thành công; API thật dùng backend PhoBERT và trả đúng nguồn 1.000894 cho phí/pháp lý, ngoài phạm vi không retrieval. Catalog sửa false OUT_OF_SCOPE cho tên thủ tục mà không thêm section; menu văn bản và lựa chọn số hoạt động, lựa chọn không chạy classifier. Runtime/routing trong image đạt 146 test (2 skipped), 7 test cấu hình đạt; full host đạt 383 test (22 skipped). Một câu nhiều thủ tục bị head mix dự đoán sai, nên adapter hỏi/chọn thủ tục bảo thủ và chưa có khẳng định chất lượng tổng thể.
+
+## 2026-10-29 — Retrieval khi PhoBERT không vượt ngưỡng section
+
+- **Mục tiêu:** Trả lời câu hỏi có mục tiêu cụ thể thay vì mở menu khi đã xác định chính xác thủ tục nhưng mọi xác suất section dưới ngưỡng.
+- **Thực hiện:** Giữ `sections=[]`, tìm toàn bộ section của đúng mã cho câu hỏi có nội dung; chỉ giữ menu khi đầu vào là tên hoặc mã thủ tục trần. Không thêm từ khóa section hoặc sửa checkpoint.
+- **Kết quả:** 52 test routing đạt; Ruff, compileall và diff check đạt. Container web healthy. API thật trả đúng đối tượng “Tổ chức (không bao gồm doanh nghiệp, HTX)” từ mã 3.000622 và có chunk `tthc_3_000622_sec_metadata_identity_1_p1`.
+
+## 2026-10-29 — Đồng bộ taxonomy chunk với PhoBERT
+
+- **Mục tiêu:** Loại bỏ lệch pha giữa các nhãn phí, thời hạn, cách nộp, kết quả và section tổng hợp của corpus.
+- **Thực hiện:** Chiếu bảng cách thức thực hiện thành ba section giữ hình thức nộp làm khóa; nhận diện kết quả xử lý thành `result`; ánh xạ routing 1-1 và thêm cầu đọc corpus legacy chỉ khi section mới không có hit.
+- **Kết quả:** 388 test đạt, 22 skipped. Dữ liệu thật 3.000622 tạo đủ bốn nhóm mới, từ 12 thành 14 chunk và giữ đúng phí/thời hạn/cách nộp/kết quả. Chưa rebuild hoặc công bố corpus FAISS mới.
+
+## 2026-10-29 — Arbitration phạm vi theo confidence
+
+- **Mục tiêu:** Không ghi đè mù `OUT_OF_SCOPE` chỉ vì câu chứa mã hoặc tên thủ tục trong catalog.
+- **Thực hiện:** Chỉ override trong band `0,50 ≤ P(OUT) < 0,85`; giữ ngoài phạm vi ở ngưỡng cao hoặc ngoài band. Trace ghi object gồm xác suất, band và outcome.
+- **Kết quả:** 80 test routing tập trung đạt; Ruff, compileall và diff check đạt. Đã có hồi quy tại biên `0,85`; chưa benchmark confusion matrix để hiệu chỉnh ngưỡng.
+
+## 2026-10-29 — Hybrid confirmation cho thực thể thủ tục
+
+- **Mục tiêu:** Hỗ trợ cụm tìm kiếm phổ thông mà không cho semantic candidate tự retrieval.
+- **Thực hiện:** Thêm curated alias; catalog BM25 + exact cosine dùng encoder/index hiện có; phạt qualifier thiếu; gate độ dài, score và margin; menu xác nhận có state riêng, chọn mới vào scope và phủ nhận giữ ngoài phạm vi.
+- **Kết quả:** 394 test đạt, 22 skipped. API thật: “đổi bằng lái xe máy” dùng alias tới 1.115978, mở menu section, 0 nguồn và generation 0; “làm hộ chiếu” không mở confirmation vì margin 0,009926 < 0,08. Ngưỡng chưa được calibration trên benchmark nhãn thật.

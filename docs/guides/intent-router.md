@@ -1,12 +1,12 @@
 # Intent router siêu nhẹ
 
 Tài liệu này dành cho `conversation.routing_contract: v1`. Mặc định hiện tại là
-[routing v2 bốn nhóm nhãn](four-head-routing.md), chỉ dùng backend `llm`.
+[routing v2 bốn nhóm nhãn](four-head-routing.md), dùng backend `phobert`.
 Muốn dùng artifact FastText bảy nhãn phải đặt rõ `routing_contract: v1`.
 
-ViGovBot hỗ trợ ba backend tại `conversation.routing_backend`:
+Chế độ tương thích v1 hỗ trợ ba backend tại `conversation.routing_backend`:
 
-- `llm`: giữ nguyên router Qwen và là mặc định an toàn.
+- `llm`: dùng router Qwen khi được chọn tường minh.
 - `fasttext`: dùng classifier để benchmark. Chỉ hai nhánh đủ tin cậy
   `in_scope.new_question` và `out_of_scope.new_question` được quyết định trực
   tiếp; trường hợp khác trả yêu cầu làm rõ bảo thủ.

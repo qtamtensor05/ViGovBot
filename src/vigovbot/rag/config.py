@@ -61,14 +61,25 @@ class ConversationConfig(StrictModel):
     decompose_queries: bool = False
     routing_enabled: bool = True
     citations_enabled: bool = False
-    routing_backend: str = Field(default="llm", pattern=r"^(llm|fasttext|hybrid)$")
+    routing_backend: str = Field(default="phobert", pattern=r"^(phobert|llm|fasttext|hybrid)$")
+    routing_phobert_path: Path = Path("outputs/phobert_v3_finetuned_20261028/checkpoint")
+    routing_phobert_threads: int = Field(default=2, gt=0, le=32)
+    procedure_aliases_path: Path = Path("procedure-aliases.yaml")
+    procedure_confirmation_alpha: float = Field(default=.45, ge=0, le=1)
+    procedure_confirmation_score: float = Field(default=.70, ge=0, le=1)
+    procedure_confirmation_margin: float = Field(default=.08, ge=0, le=1)
+    procedure_confirmation_max_words: int = Field(default=6, ge=1, le=20)
+    procedure_confirmation_top_k: int = Field(default=3, ge=2, le=5)
+    procedure_qualifier_penalty: float = Field(default=.5, gt=0, le=1)
     routing_model_path: Path = Path("outputs/routing/intent-router.bin")
     routing_metadata_path: Path = Path("outputs/routing/intent-router.metadata.json")
 
     @model_validator(mode="after")
     def check_routing_contract(self):
-        if self.routing_contract == "v2" and self.routing_backend != "llm":
-            raise ValueError("Routing v2 requires llm; seven-label FastText artifacts support v1 only")
+        if self.routing_contract == "v2" and self.routing_backend not in {"llm", "phobert"}:
+            raise ValueError("Routing v2 requires phobert or llm; seven-label FastText artifacts support v1 only")
+        if self.routing_backend == "phobert" and self.routing_contract != "v2":
+            raise ValueError("PhoBERT requires routing_contract v2")
         return self
 
 
@@ -133,7 +144,7 @@ def load_config(path):
         value = getattr(config.data, key)
         if value is not None:
             setattr(config.data, key, (path.parent / value).resolve())
-    for key in ("routing_model_path", "routing_metadata_path"):
+    for key in ("routing_model_path", "routing_metadata_path", "routing_phobert_path", "procedure_aliases_path"):
         value = getattr(config.conversation, key)
         setattr(config.conversation, key, (path.parent / value).resolve())
     for model in config.web.models:

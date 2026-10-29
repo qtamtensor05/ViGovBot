@@ -61,7 +61,12 @@ services:
       - ./configs:/app/configs:ro
       - ./Data/vector/unified:/app/Data/vector/unified:ro
       - rag-cache:/app/outputs/rag_cache
-      - ./outputs/routing:/app/outputs/routing:ro
+      - type: bind
+        source: ./outputs/phobert_v3_finetuned_20261028/checkpoint
+        target: /app/outputs/phobert_v3_finetuned_20261028/checkpoint
+        read_only: true
+        bind:
+          create_host_path: false
       - huggingface-cache:/var/cache/huggingface
 
   web-gpu:
@@ -86,7 +91,12 @@ services:
       - ./configs:/app/configs:ro
       - ./Data/vector/unified:/app/Data/vector/unified:ro
       - rag-cache:/app/outputs/rag_cache
-      - ./outputs/routing:/app/outputs/routing:ro
+      - type: bind
+        source: ./outputs/phobert_v3_finetuned_20261028/checkpoint
+        target: /app/outputs/phobert_v3_finetuned_20261028/checkpoint
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         source: ${QLORA_ADAPTER_PATH:-./outputs/qlora/best_adapter}
         target: /app/models/qlora

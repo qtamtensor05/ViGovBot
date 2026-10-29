@@ -6,6 +6,10 @@ import hmac
 import json
 import re
 import secrets
+from functools import lru_cache
+from pathlib import Path
+
+import yaml
 
 from vigovbot.retrieval.retriever import _contains_phrase, _fold, extract_source_codes, preferred_section_types
 from vigovbot.utils.helpers import json_hash
@@ -14,6 +18,10 @@ SECTION_LABELS = {
     "metadata_identity": "Thông tin chung",
     "procedure_step": "Trình tự thực hiện",
     "required_documents": "Hồ sơ, giấy tờ",
+    "submission_method": "Cách thức nộp hồ sơ",
+    "processing_time": "Thời hạn giải quyết",
+    "fee": "Phí và lệ phí",
+    "result": "Kết quả thực hiện",
     "submission_deadline_fee": "Cách thức nộp, thời hạn và phí",
     "legal_basis": "Căn cứ pháp lý",
     "other": "Nội dung khác",
@@ -46,23 +54,106 @@ def selection_index(text):
     return int(match[1]) if match else None
 
 
-class Clarifier:
-    def __init__(self, retriever, scope=""):
-        self.retriever = retriever
-        self.catalog = retriever.clarification_catalog()
-        self.scope = scope
+@lru_cache(maxsize=8)
+def load_procedure_aliases(path):
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Missing procedure aliases: {path}")
+    value = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(value, dict) or value.get("version") != 1 or not isinstance(value.get("procedures"), dict):
+        raise ValueError("Procedure aliases require version 1 and a procedures mapping")
+    aliases, owners = {}, {}
+    for code, items in value["procedures"].items():
+        if not isinstance(code, str) or not isinstance(items, list) or not items:
+            raise ValueError("Invalid procedure aliases entry")
+        normalized = []
+        for item in items:
+            folded = _fold(item).strip(" .?!") if isinstance(item, str) else ""
+            if len(folded.split()) < 2:
+                raise ValueError(f"Procedure alias is too short: {code}")
+            if folded in owners and owners[folded] != code:
+                raise ValueError(f"Procedure alias is ambiguous: {item}")
+            owners[folded] = code
+            normalized.append(folded)
+        aliases[code] = tuple(dict.fromkeys(normalized))
+    return aliases
 
-    def matches(self, query):
+
+class Clarifier:
+    def __init__(self, retriever, scope="", settings=None):
+        self.retriever = retriever
+        # Alias enrichment is request-local: never mutate the retriever's cached
+        # catalog because another session/configuration can use another alias set.
+        self.catalog = {
+            code: {**item, "sections": list(item["sections"])}
+            for code, item in retriever.clarification_catalog().items()
+        }
+        self.scope = scope
+        path = (settings or {}).get("procedure_aliases_path")
+        self.aliases = load_procedure_aliases(str(path)) if path else {}
+        unknown = set(self.aliases) - set(self.catalog)
+        if unknown:
+            raise ValueError(f"Procedure aliases reference unknown codes: {sorted(unknown)}")
+        for code, aliases in self.aliases.items():
+            self.catalog[code]["aliases"] = list(aliases)
+
+    def resolve_identity(self, query, *, allow_short_name=False):
         codes = extract_source_codes(query)
         if codes:
-            return [code for code in self.catalog if code.casefold() in {c.casefold() for c in codes}]
-        folded = _fold(query)
-        matched = [code for code, item in self.catalog.items() if _contains_phrase(folded, _fold(item["name"]))]
-        # A specific name takes precedence over a generic name contained within it.
-        return [code for code in matched if not any(
-            _fold(self.catalog[code]["name"]) != _fold(self.catalog[other]["name"])
-            and _contains_phrase(_fold(self.catalog[other]["name"]), _fold(self.catalog[code]["name"]))
+            return {"codes": [code for code in self.catalog if code.casefold() in {c.casefold() for c in codes}],
+                    "source": "code"}
+        folded = _fold(query).strip(" .?!")
+        exact_alias_codes = [code for code, aliases in self.aliases.items() if folded in aliases]
+        if exact_alias_codes:
+            return {"codes": list(dict.fromkeys(exact_alias_codes)), "source": "curated_alias"}
+        mentioned_alias_codes = [code for code, aliases in self.aliases.items()
+                                 if any(_contains_phrase(folded, alias) for alias in aliases)]
+        if mentioned_alias_codes:
+            # A mention still resolves an entity after scope is established, but
+            # cannot bypass a highly confident OUT_OF_SCOPE prediction.
+            return {"codes": list(dict.fromkeys(mentioned_alias_codes)), "source": "alias_mention"}
+        names = {code: _fold(item["name"]) for code, item in self.catalog.items()}
+        if allow_short_name:
+            names = {code: re.sub(r"^thu tuc\s+", "", name) for code, name in names.items()}
+        matched = [code for code, name in names.items() if _contains_phrase(folded, name)]
+        matched = [code for code in matched if not any(
+            names[code] != names[other] and _contains_phrase(names[other], names[code])
             for other in matched)]
+        return {"codes": matched, "source": "name" if matched else None}
+
+    def matches(self, query, *, allow_short_name=False):
+        return self.resolve_identity(query, allow_short_name=allow_short_name)["codes"]
+
+    def is_bare_identity(self, query, code):
+        folded = _fold(query).strip(" .?!")
+        name = re.sub(r"^thu tuc\s+", "", _fold(self.catalog[code]["name"]))
+        values = {code.casefold(), f"ma {code.casefold()}", name, f"thu tuc {name}"}
+        values.update(self.aliases.get(code, ()))
+        return folded in values
+
+    def confirmation_candidates(self, query, settings):
+        discover = getattr(self.retriever, "discover_procedures", None)
+        too_long = len(re.findall(r"\w+", _fold(query))) > settings.get(
+            "procedure_confirmation_max_words", 6)
+        if (not callable(discover)
+                or getattr(self.retriever, "_procedure_discovery_lock", None) is None
+                or too_long):
+            return None
+        candidates = discover(
+            query, self.aliases,
+            top_k=settings.get("procedure_confirmation_top_k", 3),
+            alpha=settings.get("procedure_confirmation_alpha", .45),
+            qualifier_penalty=settings.get("procedure_qualifier_penalty", .5),
+        )
+        if len(candidates) < 2:
+            return None
+        score, margin = candidates[0]["gated_score"], candidates[0]["gated_score"] - candidates[1]["gated_score"]
+        return {"eligible": score >= settings.get("procedure_confirmation_score", .70)
+                and margin >= settings.get("procedure_confirmation_margin", .08),
+                "word_count": len(re.findall(r"\w+", _fold(query))), "margin": round(margin, 6),
+                "score_threshold": settings.get("procedure_confirmation_score", .70),
+                "margin_threshold": settings.get("procedure_confirmation_margin", .08),
+                "candidates": candidates}
 
     def discover(self, query):
         """Find catalog names for a short action/object description without semantic drift."""

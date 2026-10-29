@@ -65,8 +65,8 @@ vào bảng thắng/thua của ba kiến trúc production.
 
 ### Phase 0 - Chốt dữ liệu và contract
 
-1. Đưa Golden thật vào `Data/` cùng manifest/hash; giữ file schema mẫu trong
-   `examples/QA` và đổi mô tả để tránh nhầm nó là dataset chạy được.
+1. Đưa Golden thật vào `Data/` cùng manifest/hash; gỡ các JSON mẫu QA v1 khỏi
+   `examples/QA` và dùng ví dụ/schema tại `examples/evaluation_v2`.
 2. Viết validator cho JSON/JSONL, ID duy nhất, enum, split, context/citation ID,
    answerable/unanswerable và leakage ở cấp thủ tục.
 3. Rút gọn schema v2 nếu cần: metric per-case chỉ giữ metric thực sự có nghĩa;

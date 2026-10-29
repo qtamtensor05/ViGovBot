@@ -123,6 +123,31 @@ class IngestionTests(unittest.TestCase):
         with self.assertRaises(TTHCChunkingError):
             chunker.process_document("")
 
+    def test_submission_table_and_result_are_split_to_routing_taxonomy(self):
+        markdown = SAMPLE + """
+
+## CÁCH THỨC THỰC HIỆN
+
+|**Hình thức nộp**|**Thời hạn giải quyết**|**Phí, lệ phí**|**Mô tả**|
+|---|---|---|---|
+|Trực tuyến|7 ngày làm việc|Miễn phí|Kể từ ngày nhận đủ hồ sơ hợp lệ|
+|Trực tiếp|10 ngày|20.000 VNĐ|Trả tại bộ phận một cửa|
+
+## KẾT QUẢ XỬ LÝ
+
+Giấy chứng nhận được cấp.
+"""
+        records = TTHCStructureAwareChunker().process_document(markdown, "1.000005.pdf")
+        grouped = {section: [r for r in records if r["section_type"] == section]
+                   for section in ("submission_method", "processing_time", "fee", "result")}
+        self.assertTrue(all(grouped.values()))
+        self.assertIn("|Trực tuyến|Miễn phí|", grouped["fee"][0]["text_content"])
+        self.assertNotIn("7 ngày làm việc", grouped["fee"][0]["text_content"])
+        self.assertIn("|Trực tuyến|7 ngày làm việc|Kể từ ngày", grouped["processing_time"][0]["text_content"])
+        self.assertNotIn("Miễn phí", grouped["processing_time"][0]["text_content"])
+        self.assertIn("|Trực tuyến|", grouped["submission_method"][0]["text_content"])
+        self.assertIn("Giấy chứng nhận được cấp", grouped["result"][0]["text_content"])
+
     def test_html_cleanup_preserves_markdown_and_code(self):
         text = "<b>Hồ sơ</b><br>&amp;amp; giấy tờ\n| Cột |\n|---|\n| Nội dung |"
         self.assertEqual(sanitize_text(text), "Hồ sơ & giấy tờ\n| Cột |\n|---|\n| Nội dung |")

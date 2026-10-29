@@ -1,12 +1,12 @@
 # Đánh giá RAG nhiều lượt với qa_test_v4
 
 **Mặc định hiện tại:** [routing v2 bốn nhóm nhãn](four-head-routing.md), router
-base độc lập và menu theo trạng thái. Phần hợp đồng `scope/relation` dưới đây
+PhoBERT local và menu theo trạng thái. Phần hợp đồng `scope/relation` dưới đây
 mô tả chế độ tương thích `conversation.routing_contract: v1`.
 
 RAG nhận `history` là danh sách các cặp `{"role": "user", "content": "..."}` /
-`{"role": "assistant", "content": "..."}`. Mặc định, mỗi câu hỏi đi qua bước phân
-loại bằng LLM hiện tại, kể cả lượt đầu. Bước này chỉ nhận câu hỏi và lịch sử.
+`{"role": "assistant", "content": "..."}`. Trong chế độ v1 này, mỗi câu hỏi đi qua bước phân
+loại bằng LLM, kể cả lượt đầu. Bước này chỉ nhận câu hỏi và lịch sử.
 
 ## Điều hướng hội thoại và xét bằng chứng
 

@@ -239,3 +239,41 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Cung cấp schema độc lập, đầy đủ trường cho dataset Golden và kết quả evaluation theo từng case.
 - **Thực hiện:** Thêm `schema/golden_dataset.schema.json` và `schema/evaluation_case.schema.json`; khai báo trực tiếp cấu trúc Golden, execution output, các nhóm metric, provenance và trạng thái chấm điểm, không phụ thuộc schema ngoài thư mục.
 - **Kết quả:** Hoàn tất; hai schema hợp lệ theo JSON Schema Draft 2020-12, 3.850 dòng Golden và một evaluation record sinh bởi code hiện tại đều validate thành công.
+
+
+## 2026-10-29 — Sửa xác định thủ tục trước truy xuất
+
+- **Mục tiêu:** Không bỏ tài liệu đúng khi tên router thiếu tiền tố Thủ tục.
+- **Thực hiện:** Tách xác định mã từ câu hỏi/tên khỏi quyết định mở menu; bổ sung kiểm thử kết hôn và đối chứng API local.
+- **Kết quả:** 125 kiểm thử liên quan, Ruff và compileall đạt. Web local đã nạp bản sửa; hai câu nguyên văn qua API streaming lấy đúng mã 1.000894: phí 1 đoạn, pháp lý 4 đoạn trong lượt hỏi tiếp. Chưa kiểm tra trực quan trình duyệt hoặc độ đầy đủ của câu trả lời sinh; chưa tái hiện trạng thái gây chọn nhầm 1.010998 ban đầu.
+
+
+## 2026-10-29 — Tích hợp PhoBERT routing
+
+- **Mục tiêu:** Dùng checkpoint PhoBERT bốn head thay router LLM và ghi đè section bằng từ khóa trong cấu hình vận hành.
+- **Thực hiện:** Kiểm tra bundle, giữ PyVi/128 token/ngưỡng metadata; tích hợp định danh thủ tục bằng corpus và state, kiểm thử offline rồi API local. Không sửa checkpoint hoặc tạo lại index.
+- **Kết quả:** Hoàn tất trên web local. 35 checksum đạt; adapter khớp token và xác suất script gốc trên 7 ca. Image web đã build/recreate, identity công bố backend/hash PhoBERT; API thật trả đúng phí 1 đoạn và căn cứ pháp lý 4 đoạn của mã 1.000894, ngoài phạm vi dừng trước retrieval. Tên thủ tục bị head phạm vi gán sai được catalog xác nhận, mở menu văn bản; nhập số phí trả đúng nguồn mà không chạy lại classifier. Bộ runtime/routing trong image đạt 146 test, 2 skipped; 7 test cấu hình đạt. Full host đạt 383 test, 22 skipped. Full suite trong image inference không áp dụng vì thiếu dependency evaluation và chỉ có một adapter QLoRA trong workspace. Chưa kiểm tra trực quan trình duyệt; checkpoint gán sai head trộn thủ tục cho một câu đối chứng nên không tuyên bố độ chính xác tổng thể.
+
+## 2026-10-29 — Không mở menu khi câu hỏi cụ thể thiếu nhãn section
+
+- **Mục tiêu:** Trả lời câu hỏi “đối tượng thực hiện” của thủ tục 3.000622 dù PhoBERT không có nhãn riêng và không vượt ngưỡng section.
+- **Thực hiện:** Cho phép tìm toàn bộ section khi mã thủ tục là duy nhất và câu hỏi không phải tên/mã trần; giữ nguyên output checkpoint và menu cho truy vấn chỉ có danh tính.
+- **Kết quả:** Hoàn tất trên web local; API thật trả đúng đáp án và nguồn `metadata_identity` của 3.000622. 52 test liên quan và kiểm tra tĩnh đạt.
+
+## 2026-10-29 — Chuẩn hóa taxonomy chunking theo 11 nhãn PhoBERT
+
+- **Mục tiêu:** Tách phí, thời hạn, cách nộp và kết quả thành metadata section độc lập để lọc retrieval chính xác.
+- **Thực hiện:** Sửa chunker/config/schema routing, thêm projection bảng có fail-safe và fallback chỉ đọc cho corpus legacy.
+- **Kết quả:** Hoàn tất source và hồi quy; 388 test đạt, 22 skipped. Mẫu thật 3.000622 sinh đúng `submission_method`, `processing_time`, `fee`, `result`. Chưa thay artifact runtime hoặc đo tuyên bố giảm 60–70% token.
+
+## 2026-10-29 — Gating catalog override theo xác suất
+
+- **Mục tiêu:** Giảm false positive khi câu ngoài lề chỉ nhắc tên/mã thủ tục.
+- **Thực hiện:** Dùng band `[0,50; 0,85)` cho catalog override và ghi toàn bộ arbitration vào trace.
+- **Kết quả:** Hoàn tất source; 80 test routing đạt. Ngưỡng là policy cấu hình cứng theo yêu cầu, chưa được calibration bằng benchmark.
+
+## 2026-10-29 — Curated alias và confirmation menu phòng thủ
+
+- **Mục tiêu:** Nhận cụm tên thủ tục rút gọn nhưng không tự chọn semantic candidate hoặc truy xuất khi scope chưa được xác nhận.
+- **Thực hiện:** Alias kiểm duyệt được xác nhận trực tiếp; các ca khác dùng BM25/cosine, qualifier penalty, giới hạn sáu từ, score 0,70 và margin 0,08 để quyết định có mở menu hay không.
+- **Kết quả:** Hoàn tất trên web local; 394 test đạt, 22 skipped. Alias “đổi bằng lái xe máy” trỏ đúng 1.115978 và không retrieval. “Làm hộ chiếu” bị giữ ngoài phạm vi do margin không đạt, chứng minh gate không mở menu mơ hồ.

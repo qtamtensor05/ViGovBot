@@ -1,5 +1,17 @@
 # Trạng thái hệ thống hiện tại
 
+## Tích hợp PhoBERT routing — 2026-10-29
+
+- **Mục tiêu:** Thay phân loại LLM và ghi đè nhãn section bằng checkpoint PhoBERT.
+- **Thực hiện:** Nạp local bốn head/PyVi/ngưỡng gốc, adapter corpus/state, cấu hình mặc định và mount read-only; lớp dependency Docker riêng.
+- **Kết quả:** Web local đang chạy PhoBERT; identity công bố hash checkpoint. Adapter khớp token/xác suất script gốc trên 7 ca. API thật xác nhận phí, căn cứ pháp lý hỏi tiếp, ngoài phạm vi và menu tên thủ tục → nhập số. Bộ runtime/routing trong image đạt 146 test, 2 skipped; 7 test cấu hình đạt. Full host đạt 383 test, 22 skipped. Chưa kiểm tra trực quan trình duyệt; head trộn thủ tục còn một ca đối chứng dự đoán sai.
+
+## Xác định mã thủ tục trước truy xuất — 2026-10-29
+
+- **Mục tiêu:** Giữ bằng chứng đúng khi router trả tên thiếu tiền tố Thủ tục.
+- **Thực hiện:** Xác định mã độc lập với menu, ưu tiên tên/mã trong câu hỏi đơn thủ tục; bổ sung biến thể pháp lí.
+- **Kết quả:** 125 kiểm thử liên quan, Ruff và compileall đạt. Web local đã nạp bản sửa; hai câu nguyên văn qua API streaming lấy đúng mã 1.000894: phí 1 đoạn, pháp lý 4 đoạn trong lượt hỏi tiếp. Chưa kiểm tra trực quan trình duyệt hoặc độ đầy đủ của câu trả lời sinh; chưa tái hiện trạng thái gây chọn nhầm 1.010998 ban đầu.
+
 ## Hợp đồng đánh giá bốn cấu hình v3.2 — 2026-10-28
 
 - **Mục tiêu:** Thống nhất hợp đồng mới, bỏ tương thích schema đầu ra cũ.
@@ -21,7 +33,7 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 
 ## Thực hiện
 
-- Routing mặc định v2: bốn nhóm nhãn, model base Qwen độc lập, trạng thái có chữ ký, menu có nút chọn và truy hồi theo từng thủ tục/section. Hợp đồng v1 giữ cho FastText/hybrid; v2 không dùng early exit prefix. Xem [hướng dẫn](../guides/four-head-routing.md).
+- Routing mặc định v2: bốn nhóm nhãn, model base Qwen độc lập, trạng thái có chữ ký, menu dạng văn bản trên web và truy hồi theo từng thủ tục/section. Hợp đồng v1 giữ cho FastText/hybrid; v2 không dùng early exit prefix. Xem [hướng dẫn](../guides/four-head-routing.md).
 
 - RAG đã có bước hỏi lại theo metadata: chọn thủ tục khi nhiều mã phù hợp,
   chọn section khi thiếu mục tiêu; context riêng từng model trên API thường/streaming
@@ -88,3 +100,20 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   1,170 → 1,456 s do nạp danh mục. Tổng latency vẫn phụ thuộc routing/generation.
 
 - Kiểm chứng routing v2: 303 ca đạt, 22 ca bỏ qua trong 325 test; Ruff, compileall và diff check đạt. Catalog sửa nhãn ngoài phạm vi sai khi câu hỏi khớp hành động/đối tượng thủ tục, đồng thời xếp hạng ứng viên theo khoảng cách từ khóa để tránh trôi miền semantic. API Qwen thật xác nhận “thuê đất” trong phạm vi và “thành lập trường” chỉ trả ứng viên giáo dục. Chưa thao tác trình duyệt thật do không có browser kết nối.
+
+- PhoBERT không vượt ngưỡng section nhưng đã xác định chính xác một thủ tục và
+  câu hỏi còn mục tiêu cụ thể thì retrieval tìm toàn bộ section của đúng mã;
+  câu chỉ nêu tên/mã vẫn mở menu. API thật xác nhận câu hỏi đối tượng thực hiện
+  của mã 3.000622 trả đúng `metadata_identity_1_p1`.
+
+- Chunking mới đồng bộ bốn section chi tiết với PhoBERT: `submission_method`,
+  `processing_time`, `fee`, `result`. Runtime hiện vẫn dùng corpus legacy và cầu
+  đọc tương thích; chưa rebuild/công bố FAISS nên chưa đo mức giảm token.
+
+- Arbitration phạm vi chỉ cho catalog đổi `OUT_OF_SCOPE` khi
+  `0,50 ≤ P(OUT) < 0,85`; trace ghi xác suất, band và outcome. Câu trần “Đăng ký
+  kết hôn” có thể bị giữ ngoài phạm vi vì checkpoint từng cho `P(OUT)≈0,925`.
+
+- Curated alias có thể xác nhận trực tiếp mã; hybrid BM25/cosine với qualifier
+  penalty chỉ được mở confirmation menu cho cụm ngắn đủ score và margin. Menu
+  không retrieval/generation; chọn mới nâng scope, phủ nhận giữ ngoài phạm vi.

@@ -49,6 +49,9 @@ def inference_session(config, paths):
 
     encoder = retriever = None
     try:
+        if config.conversation.routing_backend == "phobert" and config.conversation.routing_enabled:
+            from vigovbot.rag.phobert_router import get_router
+            get_router(config.inference_settings())
         encoder_settings = config.embedding.model_dump()
         if paths[2].get("embedding") is not None:
             encoder_settings["revision"] = paths[2]["embedding"]["revision"]
@@ -93,8 +96,8 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Question must be nonempty")
     if settings.get("routing_contract") == "v2" and settings.get("routing_enabled", True):
-        if settings.get("routing_backend", "llm") != "llm":
-            raise ValueError("Routing v2 requires llm")
+        if settings.get("routing_backend", "llm") not in {"llm", "phobert"}:
+            raise ValueError("Routing v2 requires phobert or llm")
         from vigovbot.rag.conversation import answer_conversation
         return answer_conversation(
             question, retriever, tokenizer, settings, history=history,
@@ -111,7 +114,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
     rerank_s = 0.0
     sub_queries, sub_retrieval = None, None
     retrieval_strategy, retrieval_fallback_reason = None, None
-    clarifier = (Clarifier(retriever, clarification_scope)
+    clarifier = (Clarifier(retriever, clarification_scope, settings)
                  if routing_enabled and callable(getattr(type(retriever), "clarification_catalog", None)) else None)
     pending = clarifier.pending(history, clarification_context) if clarifier else None
     invalid_context = clarifier and clarification_context is not None and pending is None

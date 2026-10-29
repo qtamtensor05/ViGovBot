@@ -24,6 +24,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
       -r locks/ollama-web-linux-py312.txt \
     && rm -rf /wheels
 
+COPY locks/phobert-linux-py312.txt ./locks/phobert-linux-py312.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install -r locks/phobert-linux-py312.txt
+
 COPY pyproject.toml ./
 COPY README.md LICENSE ./
 COPY src ./src
@@ -45,6 +49,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY locks/web-linux-py312.txt ./locks/web-linux-py312.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install -r locks/web-linux-py312.txt
+
+COPY locks/phobert-linux-py312.txt ./locks/phobert-linux-py312.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install -r locks/phobert-linux-py312.txt
 
 COPY pyproject.toml ./
 COPY README.md LICENSE ./

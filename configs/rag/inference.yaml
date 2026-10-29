@@ -9,16 +9,14 @@ embedding:
 llm:
   model: qwen2.5:7b
   ollama_url: &ollama_url http://localhost:11434
-  routing_num_ctx: 4096
-  routing_num_predict: 768
-  routing_model: qwen2.5:7b
-  routing_base_url: http://localhost:11434
 retrieval:
   top_k: 5
   max_chunk_tokens: 1200
   max_metadata_tokens: 256
 conversation:
-  routing_backend: llm
+  routing_backend: phobert
+  routing_phobert_path: ../../outputs/phobert_v3_finetuned_20261028/checkpoint
+  routing_phobert_threads: 2
   routing_model_path: ../../outputs/routing/intent-router.bin
   routing_metadata_path: ../../outputs/routing/intent-router.metadata.json
 web:

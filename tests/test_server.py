@@ -11,6 +11,27 @@ except ModuleNotFoundError as exc:
 
 
 class WebChatTests(unittest.TestCase):
+    def test_evaluation_identity_serializes_phobert_path_and_hashes(self):
+        from pathlib import Path
+
+        old_settings = self.config.inference_settings
+        self.config.inference_settings = lambda: {
+            **old_settings(), "routing_backend": "phobert",
+            "routing_phobert_path": Path("checkpoint"),
+            "procedure_aliases_path": Path("configs/rag/procedure-aliases.yaml").resolve(),
+        }
+        router = SimpleNamespace(identity={"heads.pt": "sha256"})
+        self.app.models["local"].model_dump = lambda **_: {"provider": "ollama", "model": "qwen"}
+        with (patch("vigovbot.rag.pipeline.source_fingerprint", return_value="source"),
+              patch("vigovbot.rag.phobert_router.get_router", return_value=router),
+              patch("requests.get") as request):
+            request.return_value.json.return_value = {"models": []}
+            value = self.app.evaluation_identity()
+        self.assertEqual(value["routing"]["backend"], "phobert")
+        self.assertEqual(value["routing"]["checkpoint"], router.identity)
+        self.assertRegex(value["routing"]["procedure_aliases_sha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(value["settings"]["routing_phobert_path"], "checkpoint")
+
     def test_v2_state_and_selection_round_trip_streaming(self):
         old_settings = self.config.inference_settings
         self.config.inference_settings = lambda: {**old_settings(), "routing_contract": "v2"}

@@ -5,7 +5,8 @@ from html import unescape
 from typing import Literal
 
 SectionType = Literal[
-    "metadata_identity", "procedure_step", "required_documents", "submission_deadline_fee", "legal_basis", "other"
+    "metadata_identity", "procedure_step", "required_documents", "submission_method",
+    "processing_time", "fee", "result", "submission_deadline_fee", "legal_basis", "other"
 ]
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 BOLD_HEADING_RE = re.compile(r"^\s*\*\*([^*\n]+?)\*\*\s*:?[ \t]*$")

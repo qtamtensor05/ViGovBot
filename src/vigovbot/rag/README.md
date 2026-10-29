@@ -3,7 +3,8 @@
 ## Trách nhiệm
 
 `vigovbot.rag` là lớp điều phối use case của hệ thống. Module kết nối corpus,
-encoder truy vấn, bộ truy hồi, bộ tạo prompt, Ollama và pipeline đánh giá. Module
+encoder truy vấn, bộ truy hồi, bộ tạo prompt, Ollama và pipeline đánh giá. Routing mặc định dùng PhoBERT; hợp đồng và giới hạn
+được mô tả trong [hướng dẫn](../../../docs/guides/four-head-routing.md). Module
 không thực hiện trích xuất PDF, tạo embedding tài liệu hoặc xây dựng FAISS index.
 
 ## Vị trí trong kiến trúc
@@ -13,7 +14,7 @@ RAGConfig
    │
    ├── prepare_corpus() ──> FAISS index + metadata SQLite
    │
-   ├── routing_messages() ──> LLM router ──> new/follow-up/clarify/abstain
+   ├── PhoBERT 4 head ──> adapter corpus/state ──> new/follow-up/clarify/abstain
    │                                             │
    ├── load_encoder() ────> Retriever <──────────┘
    │                            │
@@ -35,6 +36,8 @@ RAGConfig
 |---|---|
 | `config.py` | Mô hình cấu hình Pydantic, kiểm tra trường và phân giải đường dẫn tương đối |
 | `pipeline.py` | Điều phối chuẩn bị corpus, phiên inference, hỏi đáp và đánh giá |
+| `phobert_router.py` | Nạp checkpoint bốn head local, PyVi, ngưỡng metadata và adapter theo corpus/state |
+| `conversation.py` | Điều phối v2, menu ký và truy xuất từng mục/thủ tục |
 | `routing.py` | Prompt, JSON Schema và validator cho định tuyến hội thoại/đầu ra có cấu trúc |
 | `__main__.py` | Giao diện CLI cho `prepare`, `ask`, `web`, `smoke`, `evaluate`, `report`, `run` |
 | `version.py` | Phiên bản pipeline dùng trong manifest thí nghiệm |

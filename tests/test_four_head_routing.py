@@ -52,6 +52,45 @@ class FourHeadTests(unittest.TestCase):
         return [json.loads(row[0]) for row in self.retriever.db.execute("SELECT payload FROM chunks")
                 if not codes or json.loads(row[0])["source_code"] in codes][:top_k]
 
+    def test_prefixed_catalog_identity_survives_missing_menu_and_router_prefix(self):
+        add_procedure(self.retriever, "1.000894", "Thủ tục đăng ký kết hôn",
+                      sections=("submission_deadline_fee", "legal_basis"))
+        for field, section in (("Phí và lệ phí", "FEE"), ("Căn cứ pháp lí", "LEGAL_BASIS")):
+            for prefix in ("cho thủ tục ", ""):
+                with self.subTest(field=field, prefix=prefix):
+                    self.history, self.state = [], None
+                    question = field + " " + prefix + "đăng kí kết hôn là bao nhiêu"
+                    classification = route("Đăng ký kết hôn", [section], query=question,
+                                           requests=[dict(procedure="Đăng ký kết hôn", query=question,
+                                                          sections=[section])])
+                    result = self.ask(question, classification)
+                    self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})
+                    self.assertEqual(result["conversation_state"]["selected"], ["1.000894"])
+                    self.assertIsNone(result["menu"])
+                    self.assertEqual(result["action"], "answer")
+
+    def test_explicit_identity_wins_over_wrong_router_procedure(self):
+        add_procedure(self.retriever, "1.000894", "Thủ tục đăng ký kết hôn",
+                      sections=("submission_deadline_fee",))
+        result = self.ask("Phí cho thủ tục đăng kí kết hôn", route("Cấp hộ chiếu", ["FEE"]))
+        self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})
+        self.assertNotIn("Cấp hộ chiếu", result["retrieval_query"])
+
+    def test_prefixed_duplicate_names_still_require_procedure_choice(self):
+        for code in ("1.000894", "2.000894"):
+            add_procedure(self.retriever, code, "Thủ tục đăng ký kết hôn",
+                          sections=("submission_deadline_fee",))
+        result = self.ask("Lệ phí đăng ký kết hôn", route("Đăng ký kết hôn", ["FEE"]))
+        self.assertEqual({o["id"] for o in result["menu"]["options"]}, {"1.000894", "2.000894"})
+        self.answer.assert_not_called()
+
+    def test_legal_li_follow_up_overrides_stale_fee_section(self):
+        self.ask("Cấp hộ chiếu", route())
+        result = self.ask("Căn cứ pháp lí", route(sections=["FEE"], conversation="FOLLOW_UP"))
+        self.assertEqual(result["classification"]["sections"], ["LEGAL_BASIS"])
+        self.assertIn("legal_basis", result["retrieval_query"])
+        self.assertNotIn("submission_deadline_fee", result["retrieval_query"])
+
     def test_direct_menu_number_and_button_skip_router(self):
         first = self.ask("Cấp hộ chiếu", route())
         self.assertEqual(first["menu"]["kind"], "section")
@@ -220,7 +259,7 @@ class FourHeadTests(unittest.TestCase):
         queries = result["actual_sub_queries"]
         self.assertIn("required_documents", queries[0]["query"])
         self.assertNotIn("submission_deadline_fee", queries[0]["query"])
-        self.assertIn("submission_deadline_fee", queries[1]["query"])
+        self.assertIn("Mục dữ liệu: fee", queries[1]["query"])
         self.assertEqual(set(result["conversation_state"]["selected"]), {"1.000001", "2.000002"})
 
     def test_ambiguous_request_preserves_other_request_through_menu(self):
