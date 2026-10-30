@@ -1,5 +1,38 @@
 # Quy trình đánh giá RAG có kiểm chứng - QA v4.2
 
+> **Hợp đồng hiện hành (2026-10-30):** workflow canonical là `vigov eva`
+> với Dataset v3 tại `Data/dataset_v3`. Lệnh `run` ghi
+> `prediction.schema.json` v3.2, `score` ghi `evaluation_case.schema.json` v3.2
+> và summary theo `evaluation_summary.schema.json`. Các đoạn `run-v2`/
+> `export-v2` bên dưới chỉ còn giá trị lịch sử và không mô tả artifact hiện hành.
+
+Luồng hiện hành:
+
+```powershell
+$env:PYTHONUTF8 = "1"
+vigov eva validate --dataset Data/dataset_v3 --split test
+vigov eva run --dataset Data/dataset_v3 --split test --profile rag --run-id rag-v3
+vigov eva score --run-id rag-v3
+vigov eva report --run-id rag-v3
+```
+
+Profile QLoRA phải thêm `--model-metadata <json>`; JSON cần khai báo
+`base_model`, `model_revision` và ít nhất một trong `adapter_revision` hoặc
+`checkpoint_revision`. Collector từ chối chạy nếu thiếu provenance này, thay vì
+tự tạo định danh artifact. `partial` từ API được chuẩn hóa thành
+`partial_answer`; `correct_premise` được giữ thành action độc lập.
+Prediction end-to-end thành công cũng lưu `execution.routing`; scorer chuẩn hóa
+`clarify -> clarification_request`, `out_of_scope -> refusal` và ghi
+`routing.route_accuracy`. Summary có metric tổng và metric tách theo cohort
+`turn_type:new_question`/`turn_type:follow_up`.
+
+Trước khi chạy toàn bộ, kiểm tra split và schema Golden:
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/validate_dataset_v3.py
+```
+
 ## Evaluation Run v2 offline trên Golden dataset
 
 Golden canonical mới nằm tại `Data/golden_dataset` với ba split

@@ -471,6 +471,18 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Thực hiện:** Bỏ suy diễn lựa chọn hết hạn chỉ từ số trong văn bản; tiếp tục từ chối selection có cấu trúc khi không có menu và số đi cùng conversation state không xác thực.
 - **Kết quả:** AST và `git diff --check` đạt. Chưa chạy unit test hoặc API.
 
+## Đồng bộ Dataset và Evaluation v3.2 - 2026-10-30
+
+- **Mục tiêu:** Dùng trực tiếp split Dataset v3 và thống nhất toàn bộ artifact đánh giá với schema v3.2.
+- **Thực hiện:** Thêm resolver split mới/legacy, validator leakage, schema summary và cơ chế đồng bộ schema nhúng; chuyển collector/scorer end-to-end và retrieval-only, chuẩn hóa action/architecture, provenance QLoRA và trace prompt/context thật.
+- **Kết quả:** Dataset 7.100 case pass schema; train/test 4.258/2.838 không trùng ID hoặc nhóm truy vấn chuẩn hóa. Smoke RAG thật tạo prediction, case-score và summary hợp lệ; web healthy sau restart. 389 test đạt, 21 skipped; Ruff, compileall và `git diff --check` đạt.
+
+## Follow-up stateless phục hồi thủ tục từ user history - 2026-10-30
+
+- **Mục tiêu:** Cho case follow-up có history chuẩn vào retrieval khi không có signed state, đồng thời giữ biên an toàn của menu.
+- **Thực hiện:** Chỉ khôi phục một định danh corpus-backed từ lượt `user`; đưa định danh vào classifier context và request retrieval. Không dùng assistant text, không suy menu, không kế thừa qua mã lạ hoặc nhiều thủ tục.
+- **Kết quả:** Hồi quy đúng case căn cước `1.116405/AUTHORITY`; signed state sai có thể fallback an toàn, câu NEW không dính chủ đề cũ. 395 test đạt, 21 skipped; Ruff, compileall và diff check đạt.
+
 ## Mở rewrite MIXED_SCOPE khi chưa xác nhận được vế hỗ trợ - 2026-10-29
 
 - **Mục tiêu:** Cho LLM đề xuất vế hành chính trích nguyên văn khi PhoBERT không xác nhận được vế nào trong câu đã tách.
@@ -482,3 +494,9 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Không loại bỏ kết quả semantic chỉ vì không có mã thủ tục khớp catalog.
 - **Thực hiện:** Giữ hits dò danh mục theo từng request chưa định danh, đưa lại vào danh sách evidence và ghi `retrieval_strategy=semantic`; mã nguồn tường minh không tồn tại vẫn không được tìm kiếm chéo.
 - **Kết quả:** AST và `git diff --check` đạt. Chưa chạy unit test hoặc API.
+
+## Chấm routing và cohort cho Evaluation v3.2 - 2026-10-30
+
+- **Mục tiêu:** Cho prediction và score phản ánh route cuối, đồng thời so sánh riêng chất lượng follow-up và new-question.
+- **Thực hiện:** Bổ sung `execution.routing`, chuẩn hóa route runtime sang nhãn Golden, chấm `route_accuracy` và tổng hợp `cohort_metric_aggregates` theo `turn_type`; đồng bộ schema, ví dụ và tài liệu vận hành.
+- **Kết quả:** Hợp đồng prediction/case-score/summary và hồi quy đạt. Collector giữ đúng `included_text` từ prompt trace; smoke 10 câu được resume và chấm lại với 10/10 prediction thành công, gồm 5/5 follow-up và 5/5 new-question.

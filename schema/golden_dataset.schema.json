@@ -62,7 +62,8 @@
             "answer",
             "partial_answer",
             "clarify",
-            "abstain"
+            "abstain",
+            "correct_premise"
           ]
         },
         "reference_answers": {
@@ -434,7 +435,8 @@
               "expected_action": {
                 "enum": [
                   "clarify",
-                  "abstain"
+                  "abstain",
+                  "correct_premise"
                 ]
               }
             }

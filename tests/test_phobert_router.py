@@ -85,6 +85,8 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.addCleanup(self.retriever.close)
         add_procedure(self.retriever, "1.000894", "Thủ tục đăng ký kết hôn",
                       sections=("submission_deadline_fee", "legal_basis", "required_documents"))
+        add_procedure(self.retriever, "1.116405", "Cấp, cấp đổi, cấp lại thẻ căn cước",
+                      sections=("metadata_identity",))
         self.settings = dict(routing_backend="phobert", routing_phobert_path="unused", num_ctx=16000,
                              num_predict=512, top_k=5, max_chunk_tokens=1200)
         self.model = Mock(identity={"heads.pt": "verified-hash"})
@@ -122,6 +124,83 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.assertEqual({h["section_type"] for h in result["retrieved"]}, {"legal_basis"})
         self.assertEqual(self.model.predict.call_args.args[1:], ("Trả lời", "Thủ tục đăng ký kết hôn"))
         self.llm_router.assert_not_called()
+
+    def test_stateless_follow_up_recovers_unique_user_history_identity(self):
+        self.history = [
+            {"role": "user", "content": "Tôi đang tìm hiểu Cấp, cấp đổi, cấp lại thẻ căn cước (mã 1.116405)."},
+            {"role": "assistant", "content": "Bạn muốn xem nội dung nào của thủ tục này?"},
+        ]
+        result = self.ask("Còn cơ quan có thẩm quyền thì sao?", [
+            prediction(["AUTHORITY"], flow="FOLLOW_UP"),
+        ])
+        self.assertEqual(result["actual_route"], "rag_search")
+        self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.116405"})
+        self.assertEqual({h["section_type"] for h in result["retrieved"]}, {"metadata_identity"})
+        self.assertEqual(result["conversation_state"]["selected"], ["1.116405"])
+        self.assertIn({"type": "history_identity_recovery", "outcome": "accepted",
+                       "source_code": "1.116405"}, result["raw_routing"]["adapter_decisions"])
+
+    def test_stateless_follow_up_recovers_unique_name_without_code(self):
+        self.history = [
+            {"role": "user", "content": "Tôi đang tìm hiểu Cấp, cấp đổi, cấp lại thẻ căn cước."},
+            {"role": "assistant", "content": "Bạn muốn xem nội dung nào?"},
+        ]
+        result = self.ask("Còn cơ quan có thẩm quyền thì sao?", [
+            prediction(["AUTHORITY"], flow="FOLLOW_UP"),
+        ])
+        self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.116405"})
+
+    def test_invalid_signed_state_falls_back_to_verified_user_history(self):
+        self.history = [
+            {"role": "user", "content": "Tôi đang tìm hiểu mã (1.116405)."},
+            {"role": "assistant", "content": "Bạn muốn xem nội dung nào?"},
+        ]
+        self.state = {"version": 2, "signature": "invalid"}
+        result = self.ask("Còn cơ quan có thẩm quyền thì sao?", [
+            prediction(["AUTHORITY"], flow="FOLLOW_UP"),
+        ])
+        self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.116405"})
+
+    def test_stateless_new_named_question_does_not_inherit_history_identity(self):
+        self.history = [
+            {"role": "user", "content": "Tôi đang tìm hiểu mã (1.116405)."},
+            {"role": "assistant", "content": "Bạn muốn xem nội dung nào?"},
+        ]
+        result = self.ask("Hồ sơ thủ tục đăng ký kết hôn", [prediction(["DOSSIER"], flow="NEW")])
+        self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})
+
+    def test_stateless_follow_up_rejects_ambiguous_assistant_only_and_numeric_history(self):
+        histories = [
+            [{"role": "user", "content": "Toi hoi ma (1.000894) va (1.116405)."},
+             {"role": "assistant", "content": "Ban muon xem muc nao?"}],
+            [{"role": "user", "content": "Toi can ho tro."},
+             {"role": "assistant", "content": "Co the ban hoi ma 1.116405."}],
+        ]
+        for history in histories:
+            with self.subTest(history=history):
+                self.history, self.state = history, None
+                result = self.ask("Con co quan thi sao?", [prediction(["AUTHORITY"], flow="FOLLOW_UP")])
+                self.assertEqual(result["action"], "clarify")
+                self.assertEqual(result["retrieved"], [])
+        self.history = [
+            {"role": "user", "content": "Toi dang tim hieu ma (1.116405)."},
+            {"role": "assistant", "content": "1. Co quan thuc hien\n2. Ho so"},
+        ]
+        self.state = None
+        result = self.ask("2", [prediction(["DOSSIER"], flow="FOLLOW_UP")])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["retrieved"], [])
+
+    def test_newer_unknown_code_blocks_inheritance_from_older_user_history(self):
+        self.history = [
+            {"role": "user", "content": "Toi dang tim hieu ma (1.116405)."},
+            {"role": "assistant", "content": "Ban muon xem muc nao?"},
+            {"role": "user", "content": "Khong, toi hoi ma (9.999999)."},
+            {"role": "assistant", "content": "Ban vui long noi noi dung can xem."},
+        ]
+        result = self.ask("Con co quan thi sao?", [prediction(["AUTHORITY"], flow="FOLLOW_UP")])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["retrieved"], [])
 
     def test_keyword_cannot_overwrite_checkpoint_and_unknown_out_of_scope_stays_out(self):
         result = self.ask("Căn cứ pháp lý thủ tục đăng ký kết hôn", [prediction(["DOSSIER"])])

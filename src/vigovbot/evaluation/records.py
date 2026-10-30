@@ -1,4 +1,4 @@
-"""Build Evaluation Run v2 artifacts from Golden data and cached predictions only."""
+"""Build Evaluation v3.2 artifacts from Golden data and cached predictions only."""
 
 from __future__ import annotations
 
@@ -16,13 +16,14 @@ from .io import read_jsonl
 from vigovbot.artifacts import file_hash as _sha256
 from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
-ARCHITECTURES = {"base", "finetuned", "rag_base"}
+ARCHITECTURES = {"base", "finetuned", "rag", "finetuned_rag"}
+ARCHITECTURE_ALIASES = {"rag_base": "rag", "rag_finetuned": "finetuned_rag"}
 DEFAULT_WEB_MODELS = {
     "base": "qwen-base",
     "finetuned": "qwen-qlora",
-    "rag_base": "qwen-rag",
+    "rag": "qwen-rag",
 }
-OFFLINE_SCORER_VERSION = "2"
+OFFLINE_SCORER_VERSION = "3.2.0"
 REFERENCE_KEYS = [
     "exact_match", "normalized_exact_match", "token_precision", "token_recall", "token_f1",
     "rouge_1_precision", "rouge_1_recall", "rouge_1_f1", "rouge_2_precision", "rouge_2_recall",
@@ -30,7 +31,8 @@ REFERENCE_KEYS = [
     "bertscore_recall", "bertscore_f1", "embedding_cosine_similarity", "chrf", "chrf_pp", "sacrebleu",
     "meteor", "character_error_rate", "word_error_rate",
 ]
-QUERY_KEYS = ["router_accuracy", "query_rewrite_similarity", "sub_query_recall", "sub_query_precision"]
+ROUTING_KEYS = ["route_accuracy"]
+QUERY_KEYS = ["query_rewrite_similarity", "sub_query_recall", "sub_query_precision"]
 RETRIEVAL_KEYS = [
     *(f"hit_at_{k}" for k in (1, 3, 5, 10)), *(f"recall_at_{k}" for k in (1, 3, 5, 10)),
     *(f"precision_at_{k}" for k in (1, 3, 5, 10)), "mrr_at_5", "mrr_at_10", "map_at_10",
@@ -44,7 +46,7 @@ GENERATION_KEYS = [
 ]
 ROBUSTNESS_KEYS = [
     "format_compliance", "negative_constraint_pass", "noise_robustness_pass", "false_premise_rejection",
-    "ood_correctness", "abstention_correct", "false_refusal", "unsupported_answer",
+    "ood_correctness", "action_accuracy", "abstention_correct", "false_refusal", "unsupported_answer",
 ]
 PERFORMANCE_KEYS = [
     "rewrite_latency_ms", "retrieval_latency_ms", "rerank_latency_ms", "generation_latency_ms",
@@ -108,10 +110,40 @@ def _show_progress(label: str, current: int, total: int, started: float, counts=
     )
 
 
+def canonical_architecture(value: str) -> str:
+    architecture = ARCHITECTURE_ALIASES.get(value, value)
+    if architecture not in ARCHITECTURES:
+        raise ValueError(f"Unsupported architecture: {value}")
+    return architecture
+
+
+def canonical_route(value: str | None) -> str | None:
+    return {
+        "rag_search": "rag_search",
+        "direct_answer": "direct_answer",
+        "clarify": "clarification_request",
+        "clarification_request": "clarification_request",
+        "out_of_scope": "refusal",
+        "refusal": "refusal",
+    }.get(value)
+
+
+def golden_split_path(dataset: Path, split: str) -> Path:
+    """Resolve the v3 split layout first while retaining legacy dataset support."""
+    dataset = Path(dataset)
+    candidates = (
+        dataset / split / f"golden_{split}.jsonl",
+        dataset / f"{split}_golden.jsonl",
+    )
+    path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if path is None:
+        searched = ", ".join(str(candidate) for candidate in candidates)
+        raise FileNotFoundError(f"Golden split not found; searched: {searched}")
+    return path
+
+
 def load_golden(dataset: Path, split: str) -> tuple[Path, list[dict]]:
-    path = Path(dataset) / f"{split}_golden.jsonl"
-    if not path.is_file():
-        raise FileNotFoundError(f"Golden split not found: {path}")
+    path = golden_split_path(dataset, split)
     rows = list(read_jsonl(path))
     if not rows:
         raise ValueError(f"Golden split is empty: {path}")
@@ -162,12 +194,180 @@ def _post_json(endpoint: str, payload: dict, timeout: float) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
+def _canonical_action(value, *, has_answer: bool) -> str | None:
+    aliases = {"partial": "partial_answer"}
+    value = aliases.get(value, value)
+    if value is None and has_answer:
+        return "answer"
+    if value not in {"answer", "partial_answer", "clarify", "abstain", "correct_premise", None}:
+        raise ValueError(f"Unsupported response action: {value}")
+    return value
+
+
+def _measurement(value, source: str, reason: str):
+    if isinstance(value, (int, float)) and value >= 0:
+        return {"value": value, "status": "measured", "source": source, "reason": None}
+    return {"value": None, "status": "unavailable", "source": None, "reason": reason}
+
+
+def _context(item: dict, rank: int) -> dict | None:
+    context_id = item.get("context_id", item.get("chunk_id"))
+    text = item.get("text") or item.get("text_content") or item.get("included_text")
+    if not isinstance(context_id, str) or not context_id.strip() or not isinstance(text, str) or not text.strip():
+        return None
+    return {
+        "rank": rank,
+        "context_id": context_id,
+        "score": item.get("score") if isinstance(item.get("score"), (int, float)) else None,
+        "text": text,
+        "procedure_id": item.get("procedure_id", item.get("source_code")),
+        "section_type": item.get("section_type"),
+        "metadata": {key: value for key, value in item.items() if key not in {
+            "context_id", "chunk_id", "text", "text_content", "included_text", "score",
+            "procedure_id", "source_code",
+            "section_type"}},
+    }
+
+
+def _prediction_from_response(*, golden: dict, result: dict, split: str, run_id: str,
+                              architecture: str, model_id: str, dataset_sha256: str,
+                              elapsed_seconds: float, model_metadata: dict | None = None,
+                              evaluation_scope: str = "end_to_end") -> dict:
+    trace = result.get("evaluation_trace")
+    if not isinstance(trace, dict) or trace.get("schema_version") != "1.0":
+        raise ValueError("Evaluation trace v1.0 is required for a schema v3.2 prediction")
+    answer = result.get("answer")
+    if not isinstance(answer, str) or not answer.strip():
+        raise ValueError("Web response contains an empty answer")
+    architecture = canonical_architecture(architecture)
+    is_rag = architecture in {"rag", "finetuned_rag"}
+    action = _canonical_action(result.get("action"), has_answer=True)
+    telemetry = trace.get("telemetry") if isinstance(trace.get("telemetry"), dict) else {}
+    settings = trace.get("effective_settings") if isinstance(trace.get("effective_settings"), dict) else {}
+
+    query_value = trace.get("retrieval_query") or golden["input"]["question"]
+    sub_queries = []
+    for index, item in enumerate(trace.get("actual_sub_queries") or [], 1):
+        if isinstance(item, dict) and isinstance(item.get("query"), str):
+            sub_queries.append({"sub_query_id": str(item.get("sub_query_id") or f"sq-{index}"),
+                                "query": item["query"]})
+    query_processing = ({
+        "standalone_query": query_value,
+        "sub_queries": sub_queries,
+        "rewrite_applied": _normalize(query_value) != _normalize(golden["input"]["question"]),
+        "decomposition_applied": len(sub_queries) >= 2,
+    } if is_rag else None)
+    raw_route = trace.get("routing") if isinstance(trace.get("routing"), dict) else {}
+    actual_route = trace.get("actual_route")
+    canonical_actual_route = canonical_route(actual_route)
+    routing = ({
+        "actual_route": actual_route,
+        "canonical_route": canonical_actual_route,
+        "scope": raw_route.get("scope"),
+        "conversation": raw_route.get("conversation"),
+        "relation": raw_route.get("relation"),
+        "sections": list(dict.fromkeys(raw_route.get("sections") or [])),
+        "mixed_procedures": raw_route.get("mixed_procedures"),
+        "backend": trace.get("routing_backend"),
+        "fallback_reason": trace.get("fallback_reason"),
+    } if isinstance(actual_route, str) else None)
+
+    retrieved = []
+    for rank, item in enumerate(result.get("sources") or [], 1):
+        if isinstance(item, dict):
+            normalized = _context(item, rank)
+            if normalized:
+                retrieved.append(normalized)
+    prompt_contexts = []
+    for rank, item in enumerate(trace.get("context_used") or [], 1):
+        if isinstance(item, dict):
+            normalized = _context(item, rank)
+            if normalized:
+                prompt_contexts.append({"context_id": normalized["context_id"], "text": normalized["text"]})
+    sub_query_results = []
+    raw_sub_results = trace.get("sub_query_retrieval") or {}
+    for sub_query in sub_queries:
+        raw_contexts = raw_sub_results.get(sub_query["sub_query_id"], []) if isinstance(raw_sub_results, dict) else []
+        contexts = []
+        for rank, item in enumerate(raw_contexts, 1):
+            if isinstance(item, dict):
+                normalized = _context(item, rank)
+                if normalized:
+                    contexts.append(normalized)
+        sub_query_results.append({**sub_query, "top_k": max(1, len(raw_contexts) or settings.get("top_k") or 1),
+                                  "contexts": contexts})
+    retrieval = ({
+        "query": query_value,
+        "top_k": max(1, settings.get("top_k") or trace.get("retrieval_top_k") or len(retrieved) or 1),
+        "contexts": retrieved,
+        "sub_query_results": sub_query_results,
+    } if is_rag and (retrieved or action in {"answer", "partial_answer"}) else None)
+    skip_reason = None if retrieval is not None else ("architecture_without_retrieval" if not is_rag else
+                                                       trace.get("decision_reason") or "retrieval_skipped")
+
+    prompt_messages = trace.get("prompt_messages")
+    if not isinstance(prompt_messages, list) or not prompt_messages:
+        prompt_messages = [*golden["input"].get("chat_history", []),
+                           {"role": "user", "content": golden["input"]["question"]}]
+    citations = []
+    for item in trace.get("citations") or []:
+        if isinstance(item, dict) and isinstance(item.get("source_id"), str):
+            citations.append({"claim": str(item.get("claim") or item.get("text") or answer),
+                              "source_id": item["source_id"]})
+    generation = {
+        "actual_output": answer,
+        "citations": citations,
+        "finish_reason": trace.get("finish_reason"),
+        "prompt_messages": prompt_messages,
+        "prompt_contexts": prompt_contexts,
+    }
+    if is_rag and action in {"answer", "partial_answer"} and not prompt_contexts:
+        raise ValueError("RAG answer is missing the exact prompt contexts")
+
+    unavailable = "Provider/runtime did not expose this measurement"
+    measurements = {
+        "ttft_ms": _measurement(telemetry.get("ttft_seconds") * 1000 if isinstance(telemetry.get("ttft_seconds"), (int, float)) else None, "provider", unavailable),
+        "prompt_tokens": _measurement(telemetry.get("prompt_tokens"), "provider", unavailable),
+        "completion_tokens": _measurement(telemetry.get("completion_tokens"), "provider", unavailable),
+        "total_tokens": _measurement(telemetry.get("total_tokens"), "provider", unavailable),
+        "generation_tokens_per_second": _measurement(telemetry.get("generation_tokens_per_second"), "provider", unavailable),
+        "peak_allocated_vram_gb": _measurement(telemetry.get("peak_allocated_vram_gb"), "provider", unavailable),
+        "gpu_utilization_percent": _measurement(telemetry.get("gpu_utilization_percent"), "provider", unavailable),
+        "cost_usd": _measurement(telemetry.get("cost_usd"), "provider", unavailable),
+    }
+    query_ms = sum(value * 1000 for value in (telemetry.get("routing_seconds"), telemetry.get("rewrite_seconds"))
+                   if isinstance(value, (int, float))) if is_rag else None
+    retrieval_ms = telemetry.get("retrieval_seconds") * 1000 if isinstance(telemetry.get("retrieval_seconds"), (int, float)) else (0.0 if is_rag and retrieval is None else None)
+    generation_ms = telemetry.get("generation_seconds") * 1000 if isinstance(telemetry.get("generation_seconds"), (int, float)) else elapsed_seconds * 1000
+    model_config = {"answer_model": model_id, "settings": settings, **(model_metadata or {})}
+    from .provenance import fingerprint
+    robustness_pair = golden.get("evaluation_plan", {}).get("robustness_pair")
+    return {
+        "schema_version": "3.2.0", "test_id": golden["test_id"], "run_id": run_id, "split": split,
+        "evaluation_scope": evaluation_scope, "input": golden["input"], "architecture": architecture,
+        "provenance": {"dataset_sha256": dataset_sha256, "dataset_version": golden["version"],
+                       "corpus_revision": golden.get("evaluation_plan", {}).get("corpus_revision") if is_rag else None,
+                       "index_revision": fingerprint({"model": settings.get("model"), "top_k": settings.get("top_k")}) if is_rag else None},
+        "evaluation_context": {"requested_cutoffs": golden.get("evaluation_plan", {}).get("cutoffs", []) if is_rag else [],
+                               "robustness_pair": robustness_pair},
+        "execution": {"status": "success", "model_config": model_config, "query_processing": query_processing,
+                      "routing": routing,
+                      "retrieval": retrieval, "generation": generation,
+                      "telemetry": {"total_latency_ms": elapsed_seconds * 1000,
+                                    "query_processing_latency_ms": query_ms,
+                                    "retrieval_latency_ms": retrieval_ms,
+                                    "generation_latency_ms": generation_ms,
+                                    "measurements": measurements, "pricing": None},
+                      "action": action, "retrieval_skip_reason": skip_reason},
+    }
+
+
 def capture_predictions(*, dataset: Path, split: str, architecture: str, output: Path, limit: int | None = None,
            endpoint: str = "http://localhost:8001/api/chat", model_id: str | None = None,
-           timeout: float = 300, post_json=None, resume=False, complete_trace=False) -> dict:
+           timeout: float = 300, post_json=None, resume=False, complete_trace=False,
+           model_metadata: dict | None = None, run_id: str | None = None) -> dict:
     """Run selected Golden questions through an existing web endpoint without exposing gold labels."""
-    if architecture not in ARCHITECTURES:
-        raise ValueError(f"Unsupported architecture_type: {architecture}")
+    architecture = canonical_architecture(architecture)
     if limit is not None and limit < 1:
         raise ValueError("limit must be positive")
     if timeout <= 0:
@@ -175,6 +375,14 @@ def capture_predictions(*, dataset: Path, split: str, architecture: str, output:
     model_id = model_id or DEFAULT_WEB_MODELS.get(architecture)
     if not model_id:
         raise ValueError(f"--model-id is required for architecture {architecture}")
+    if architecture in {"finetuned", "finetuned_rag"}:
+        required = {"base_model", "model_revision"}
+        if not isinstance(model_metadata, dict) or required - set(model_metadata) or not (
+                model_metadata.get("adapter_revision") or model_metadata.get("checkpoint_revision")):
+            raise ValueError(
+                "Fine-tuned capture requires base_model, model_revision and adapter_revision or "
+                "checkpoint_revision model metadata"
+            )
     _, golden_rows = load_golden(dataset, split)
     selected = golden_rows[:limit] if limit else golden_rows
     output = Path(output)
@@ -188,17 +396,20 @@ def capture_predictions(*, dataset: Path, split: str, architecture: str, output:
     from .provenance import fingerprint
     run_identity = fingerprint({"cases": selected, "model": model_id, "endpoint": endpoint,
                                 "architecture": architecture, "complete_trace": complete_trace})
+    artifact_run_id = run_id or run_identity
+    dataset_sha256 = _sha256(golden_split_path(dataset, split))
     cached = {}
     if resume and output.exists():
         cached, _ = load_predictions(output)
-        if any(p.get("run_identity") != run_identity for p in cached.values()):
+        if any(p.get("run_id") != artifact_run_id or
+               p.get("provenance", {}).get("config_sha256") != run_identity for p in cached.values()):
             raise ValueError("Resume requires matching dataset, model, endpoint and trace contract")
-        if any(p.get("execution_status") != "success" for p in cached.values()):
+        if any(p.get("execution", {}).get("status") != "success" for p in cached.values()):
             import shutil
             import os
             backup = Path(str(output) + ".failed-attempt-" + datetime.now().strftime("%Y%m%d%H%M%S%f"))
             shutil.copy2(output, backup)
-            cached = {cid: p for cid, p in cached.items() if p.get("execution_status") == "success"}
+            cached = {cid: p for cid, p in cached.items() if p.get("execution", {}).get("status") == "success"}
             temporary = Path(str(output) + ".retry-tmp")
             with temporary.open("x", encoding="utf-8") as pending:
                 for row in cached.values():
@@ -207,7 +418,7 @@ def capture_predictions(*, dataset: Path, split: str, architecture: str, output:
     with output.open("a" if resume else "x", encoding="utf-8") as handle:
         for index, golden in enumerate(selected, 1):
             if golden["test_id"] in cached:
-                counts[cached[golden["test_id"]]["execution_status"]] += 1
+                counts[cached[golden["test_id"]]["execution"]["status"]] += 1
                 continue
             # Intentionally exclude ground_truth, taxonomy and all evaluation labels.
             payload = {
@@ -227,45 +438,40 @@ def capture_predictions(*, dataset: Path, split: str, architecture: str, output:
                     raise ValueError(f"Web response has no result for model {model_id}")
                 if result.get("error"):
                     raise RuntimeError(str(result["error"]))
-                answer = result.get("answer")
-                if not isinstance(answer, str) or not answer.strip():
-                    raise ValueError("Web response contains an empty answer")
-                sources = result.get("sources") if isinstance(result.get("sources"), list) else []
-                prediction = {
-                    "id": golden["test_id"], "question": golden["input"]["question"],
-                    "answer": answer, "action": result.get("action"),
-                    "retrieved_chunk_ids": [source["chunk_id"] for source in sources
-                                             if isinstance(source, dict) and isinstance(source.get("chunk_id"), str)],
-                    "retrieved_scores": [source.get("score") for source in sources if isinstance(source, dict)],
-                    "retrieved": sources, "citations": None, "citations_status": "unavailable",
-                    "history_mode": "reference_history",
-                    "latency_seconds": result.get("latency_s", time.perf_counter() - started),
-                    "execution_status": "success", "web_model_id": model_id,
-                }
-                trace = result.get("evaluation_trace")
-                prediction["evaluation_trace_status"] = "unsupported_version" if isinstance(trace, dict) else "unavailable"
-                if isinstance(trace, dict) and trace.get("schema_version") == "1.0":
-                    prediction["evaluation_trace_status"] = "available"
-                    prediction["evaluation_trace"] = trace
-                    for key in ("actual_route", "routing", "retrieval_query", "decision_reason",
-                                "evidence_status", "context_used", "citations", "citations_status", "telemetry",
-                                "actual_sub_queries", "sub_query_retrieval", "decomposition_status", "retrieval_top_k",
-                                "retrieval_candidate_top_k", "finish_reason", "provider_calls", "effective_settings"):
-                        if key in trace:
-                            prediction[key] = trace[key]
+                elapsed = result.get("latency_s", time.perf_counter() - started)
+                prediction = _prediction_from_response(
+                    golden=golden, result=result, split=split, run_id=artifact_run_id,
+                    architecture=architecture, model_id=model_id, dataset_sha256=dataset_sha256,
+                    elapsed_seconds=elapsed, model_metadata=model_metadata,
+                )
                 counts["success"] += 1
             except Exception as exc:
+                unavailable = "Execution did not complete"
+                model_config = {"answer_model": model_id, "settings": {}, **(model_metadata or {})}
                 prediction = {
-                    "id": golden["test_id"], "question": golden["input"]["question"],
-                    "answer": None, "action": None, "retrieved_chunk_ids": [],
-                    "citations": None, "citations_status": "unavailable",
-                    "history_mode": "reference_history", "latency_seconds": time.perf_counter() - started,
-                    "execution_status": "error", "error": f"{type(exc).__name__}: {exc}",
-                    "web_model_id": model_id, "evaluation_trace_status": "unavailable",
+                    "schema_version": "3.2.0", "test_id": golden["test_id"], "run_id": artifact_run_id,
+                    "split": split, "evaluation_scope": "end_to_end", "input": golden["input"],
+                    "architecture": architecture,
+                    "provenance": {"dataset_sha256": dataset_sha256, "dataset_version": golden["version"],
+                                   "corpus_revision": None, "index_revision": None},
+                    "evaluation_context": {"requested_cutoffs": golden.get("evaluation_plan", {}).get("cutoffs", [])
+                                           if architecture in {"rag", "finetuned_rag"} else [],
+                                           "robustness_pair": golden.get("evaluation_plan", {}).get("robustness_pair")},
+                    "execution": {"status": "error", "error": f"{type(exc).__name__}: {exc}",
+                                  "model_config": model_config, "query_processing": None, "routing": None,
+                                  "retrieval": None,
+                                  "generation": None, "action": None, "retrieval_skip_reason": None,
+                                  "telemetry": {"total_latency_ms": None, "query_processing_latency_ms": None,
+                                                "retrieval_latency_ms": None, "generation_latency_ms": None,
+                                                "measurements": {key: _measurement(None, "runtime", unavailable)
+                                                                 for key in ("ttft_ms", "prompt_tokens", "completion_tokens",
+                                                                             "total_tokens", "generation_tokens_per_second",
+                                                                             "peak_allocated_vram_gb", "gpu_utilization_percent",
+                                                                             "cost_usd")}, "pricing": None}},
                 }
                 counts["error"] += 1
-            prediction["run_identity"] = run_identity
-            trace_counts[prediction["evaluation_trace_status"]] += 1
+            prediction["provenance"]["config_sha256"] = run_identity
+            trace_counts["available" if prediction["execution"]["status"] == "success" else "unavailable"] += 1
             handle.write(json.dumps(prediction, ensure_ascii=False, allow_nan=False) + "\n")
             handle.flush()
             now = time.perf_counter()
@@ -292,6 +498,8 @@ def _answer(prediction: dict) -> str | None:
     value = prediction.get("answer", prediction.get("prediction", prediction.get("actual_output")))
     if value is None:
         value = prediction.get("generation_output", {}).get("actual_output")
+    if value is None:
+        value = (prediction.get("execution", {}).get("generation") or {}).get("actual_output")
     return value if isinstance(value, str) and value.strip() else None
 
 
@@ -299,10 +507,17 @@ def _retrieved_ids(prediction: dict) -> list[str]:
     values = prediction.get("retrieved_chunk_ids")
     if values is None:
         values = prediction.get("retrieval_output", {}).get("retrieved_context_ids", [])
+    if values is None or values == []:
+        values = [item.get("context_id") for item in
+                  (prediction.get("execution", {}).get("retrieval") or {}).get("contexts", [])]
     return [value for value in values or [] if isinstance(value, str)]
 
 
 def _citations(prediction: dict) -> list:
+    execution_generation = prediction.get("execution", {}).get("generation") or {}
+    if "citations" in execution_generation:
+        values = execution_generation["citations"]
+        return values if isinstance(values, list) else []
     values = prediction.get("citations")
     if values is None:
         values = prediction.get("retrieval_output", {}).get("citations", [])
@@ -356,7 +571,7 @@ def _milliseconds(value):
 
 
 def _performance(prediction: dict, execution_status: str) -> dict:
-    telemetry = prediction.get("telemetry") or {}
+    telemetry = prediction.get("telemetry") or prediction.get("execution", {}).get("telemetry") or {}
     raw = prediction.get("performance") or {}
     result = _empty(PERFORMANCE_KEYS)
     aliases = {
@@ -370,10 +585,13 @@ def _performance(prediction: dict, execution_status: str) -> dict:
         result[target] = raw.get(milliseconds, telemetry.get(milliseconds))
         if result[target] is None:
             result[target] = _milliseconds(raw.get(seconds, telemetry.get(seconds)))
-    result["total_latency_ms"] = raw.get("total_latency_ms", _milliseconds(prediction.get("latency_seconds")))
+    result["total_latency_ms"] = raw.get("total_latency_ms", telemetry.get(
+        "total_latency_ms", _milliseconds(prediction.get("latency_seconds"))))
+    measurements = telemetry.get("measurements") or {}
     for key in ("generation_tokens_per_second", "prompt_tokens", "completion_tokens", "total_tokens",
                 "peak_allocated_vram_gb", "peak_reserved_vram_gb", "gpu_utilization_percent", "cost_usd"):
-        result[key] = raw.get(key, telemetry.get(key))
+        measured = measurements.get(key) if isinstance(measurements.get(key), dict) else {}
+        result[key] = raw.get(key, telemetry.get(key, measured.get("value")))
     result["timed_out"] = execution_status == "timeout"
     result["oom"] = execution_status == "oom"
     result["execution_failed"] = execution_status in {"timeout", "oom", "error"}
@@ -398,7 +616,7 @@ def _format_compliance(answer: str, expected: str | None) -> float | None:
 
 
 def _status_from_prediction(prediction: dict, answer: str | None) -> str:
-    explicit = prediction.get("execution_status")
+    explicit = prediction.get("execution_status", prediction.get("execution", {}).get("status"))
     if explicit in {"success", "timeout", "oom", "error", "not_run"}:
         return explicit
     error = str(prediction.get("error", "")).casefold()
@@ -411,10 +629,11 @@ def _status_from_prediction(prediction: dict, answer: str | None) -> str:
 
 def _metric_details(computed: set[str], not_applicable: set[str], has_prediction: bool) -> dict:
     details = {}
-    all_keys = REFERENCE_KEYS + QUERY_KEYS + RETRIEVAL_KEYS + GENERATION_KEYS + ROBUSTNESS_KEYS + PERFORMANCE_KEYS
+    all_keys = (REFERENCE_KEYS + ROUTING_KEYS + QUERY_KEYS + RETRIEVAL_KEYS + GENERATION_KEYS
+                + ROBUSTNESS_KEYS + PERFORMANCE_KEYS)
     for key in all_keys:
         if key in computed:
-            details[key] = _detail("computed", scorer=f"vigovbot-evaluation-v2-offline-{OFFLINE_SCORER_VERSION}")
+            details[key] = _detail("computed", scorer=f"vigovbot-evaluation-v3-offline-{OFFLINE_SCORER_VERSION}")
         elif key in not_applicable:
             details[key] = _detail("not_applicable", "Metric does not apply to this architecture or Golden case")
         elif not has_prediction:
@@ -426,15 +645,62 @@ def _metric_details(computed: set[str], not_applicable: set[str], has_prediction
 
 def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: str,
                  architecture: str, model_config: dict, provenance: dict) -> dict:
-    if architecture not in ARCHITECTURES:
-        raise ValueError(f"Unsupported architecture_type: {architecture}")
+    architecture = canonical_architecture(architecture)
+    supplied_prediction = prediction is not None
+    if prediction is None:
+        dataset_sha256 = provenance.get("golden_sha256")
+        if not isinstance(dataset_sha256, str):
+            raise ValueError("Not-run case requires golden_sha256 provenance")
+        unavailable = "Prediction was not supplied"
+        answer_model = model_config.get("model_name") or model_config.get("answer_model")
+        execution_model = {"answer_model": answer_model, "settings": {}}
+        if architecture in {"finetuned", "finetuned_rag"}:
+            if not model_config.get("base_model") or not model_config.get("model_revision") or not (
+                    model_config.get("adapter_revision") or model_config.get("checkpoint_revision")):
+                raise ValueError("Fine-tuned not-run export requires model artifact provenance")
+            for key in ("base_model", "model_revision", "adapter_revision", "checkpoint_revision",
+                        "quantization", "decoding"):
+                if key in model_config:
+                    execution_model[key] = model_config[key]
+        prediction = {
+            "schema_version": "3.2.0", "test_id": golden["test_id"], "run_id": run_id, "split": split,
+            "evaluation_scope": "end_to_end", "input": golden["input"], "architecture": architecture,
+            "provenance": {"dataset_sha256": dataset_sha256, "dataset_version": golden["version"],
+                           "corpus_revision": None, "index_revision": None},
+            "evaluation_context": {"requested_cutoffs": golden.get("evaluation_plan", {}).get("cutoffs", [])
+                                   if architecture in {"rag", "finetuned_rag"} else [],
+                                   "robustness_pair": golden.get("evaluation_plan", {}).get("robustness_pair")},
+            "execution": {"status": "not_run", "model_config": execution_model, "query_processing": None,
+                          "routing": None,
+                          "retrieval": None, "generation": None, "action": None, "retrieval_skip_reason": None,
+                          "telemetry": {"total_latency_ms": None, "query_processing_latency_ms": None,
+                                        "retrieval_latency_ms": None, "generation_latency_ms": None,
+                                        "measurements": {key: _measurement(None, "runtime", unavailable)
+                                                         for key in ("ttft_ms", "prompt_tokens", "completion_tokens",
+                                                                     "total_tokens", "generation_tokens_per_second",
+                                                                     "peak_allocated_vram_gb", "gpu_utilization_percent",
+                                                                     "cost_usd")}, "pricing": None}},
+        }
     prediction = prediction or {}
+    if prediction and prediction.get("schema_version") != "3.2.0":
+        raise ValueError("Evaluation v3.2 scoring requires prediction schema_version 3.2.0")
+    if prediction and prediction.get("run_id") != run_id:
+        raise ValueError("Prediction run_id does not match the score run_id")
+    if prediction and prediction.get("test_id") != golden["test_id"]:
+        raise ValueError("Prediction test_id does not match Golden")
+    if prediction and prediction.get("input") != golden["input"]:
+        raise ValueError("Prediction input does not match Golden")
+    if prediction and prediction.get("provenance", {}).get("dataset_version") != golden["version"]:
+        raise ValueError("Prediction dataset_version does not match Golden")
+    if prediction and canonical_architecture(prediction.get("architecture")) != architecture:
+        raise ValueError("Prediction architecture does not match the score architecture")
     answer = _answer(prediction)
-    has_prediction = bool(prediction)
+    has_prediction = supplied_prediction
     execution_status = _status_from_prediction(prediction, answer) if has_prediction else "not_run"
     computed, not_applicable = set(), set()
 
     reference = _empty(REFERENCE_KEYS)
+    routing_scores = _empty(ROUTING_KEYS)
     query = _empty(QUERY_KEYS)
     retrieval = _empty(RETRIEVAL_KEYS)
     generation = _empty(GENERATION_KEYS)
@@ -457,17 +723,27 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
             computed.add("format_compliance")
         # Natural-language constraints require reviewed rules or judgments; literal
         # string absence is not evidence that the instruction was respected.
-        action = prediction.get("action")
+        action = prediction.get("execution", {}).get("action", prediction.get("action"))
+        expected_action = golden.get("evaluation_plan", {}).get("expected_action")
+        if isinstance(action, str) and isinstance(expected_action, str):
+            robustness["action_accuracy"] = action == expected_action
+            robustness["false_refusal"] = action in {"abstain", "clarify"} and expected_action in {
+                "answer", "partial_answer"}
+            computed.update({"action_accuracy", "false_refusal"})
         if golden["taxonomy"].get("is_unanswerable") and isinstance(action, str):
             robustness["abstention_correct"] = action == "abstain"
             robustness["unsupported_answer"] = action not in {"abstain", "clarify"}
             computed.update({"abstention_correct", "unsupported_answer"})
 
-    actual_route = prediction.get("actual_route", prediction.get("routing"))
+    query_trace = prediction.get("execution", {}).get("query_processing") or {}
+    routing_trace = prediction.get("execution", {}).get("routing") or {}
+    actual_route = routing_trace.get("canonical_route") or canonical_route(
+        prediction.get("actual_route", prediction.get("routing")))
     if isinstance(actual_route, str):
-        query["router_accuracy"] = float(actual_route == ground_truth.get("expected_route"))
-        computed.add("router_accuracy")
-    rewritten = prediction.get("actual_rewritten_query", prediction.get("retrieval_query"))
+        routing_scores["route_accuracy"] = float(actual_route == ground_truth.get("expected_route"))
+        computed.add("route_accuracy")
+    rewritten = prediction.get("actual_rewritten_query", prediction.get(
+        "retrieval_query", query_trace.get("standalone_query")))
     if isinstance(rewritten, str) and ground_truth.get("ground_truth_standalone_query"):
         query["query_rewrite_similarity"] = _prf(_tokens(rewritten), _tokens(
             ground_truth["ground_truth_standalone_query"]))[2]
@@ -475,9 +751,17 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
 
     retrieved_ids = _retrieved_ids(prediction)
     relevant_ids = [value for value in ground_truth.get("ground_truth_context_ids", []) if isinstance(value, str)]
-    is_rag = architecture == "rag_base"
+    is_rag = architecture in {"rag", "finetuned_rag"}
+    retrieval_only = prediction.get("evaluation_scope") == "retrieval"
+    if retrieval_only:
+        not_applicable.update(REFERENCE_KEYS + GENERATION_KEYS + ROBUSTNESS_KEYS)
+        not_applicable.update({"generation_latency_ms", "ttft_ms", "generation_tokens_per_second",
+                               "prompt_tokens", "completion_tokens", "total_tokens"})
     if not is_rag:
         not_applicable.update(RETRIEVAL_KEYS)
+        not_applicable.update(QUERY_KEYS)
+        not_applicable.update({"source_groundedness", "retrieved_context_faithfulness"})
+        not_applicable.update({"retrieval_latency_ms", "rerank_latency_ms"})
     elif golden["taxonomy"].get("is_unanswerable") or not relevant_ids:
         not_applicable.update(RETRIEVAL_KEYS)
     elif has_prediction and (retrieved_ids or "retrieved_chunk_ids" in prediction or "retrieval_output" in prediction):
@@ -490,14 +774,17 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
                       for item in _citations(prediction)}
     actual_sources.discard(None)
     citation_status = prediction.get("citations_status")
-    citation_trace = isinstance(prediction.get("citations"), list) or isinstance(
-        prediction.get("retrieval_output", {}).get("citations"), list)
+    citation_trace = ("citations" in (prediction.get("execution", {}).get("generation") or {}) or
+                      isinstance(prediction.get("citations"), list) or isinstance(
+                          prediction.get("retrieval_output", {}).get("citations"), list))
     # Old run wrote an empty list even when the API had no citation trace.
     if prediction.get("web_model_id") and citation_status is None and not actual_sources:
         citation_trace = False
     if citation_status in {"unavailable", "disabled"}:
         citation_trace = False
-    if expected_sources and has_prediction and citation_trace:
+    if not is_rag:
+        not_applicable.update({"citation_precision", "citation_recall", "invalid_citation_rate"})
+    elif expected_sources and has_prediction and citation_trace:
         citation_hits = len(expected_sources & actual_sources)
         generation["citation_precision"] = citation_hits / len(actual_sources) if actual_sources else 0.0
         generation["citation_recall"] = citation_hits / len(expected_sources)
@@ -509,86 +796,60 @@ def build_record(golden: dict, prediction: dict | None, *, split: str, run_id: s
         not_applicable.update({"citation_precision", "citation_recall", "invalid_citation_rate"})
 
     computed.update(key for key, value in performance.items() if value is not None)
+    computed.difference_update(not_applicable)
     details = _metric_details(computed, not_applicable, has_prediction)
-    model = {
-        "architecture_type": architecture,
-        "model_name": model_config["model_name"],
-        "checkpoint_revision": model_config.get("checkpoint_revision"),
-        "adapter_revision": model_config.get("adapter_revision"),
-        "quantization": model_config.get("quantization"),
-        "seed": model_config.get("seed"),
-        "decoding": model_config.get("decoding", {}),
-        "prompt_template_sha256": model_config.get("prompt_template_sha256"),
-        "corpus_revision": model_config.get("corpus_revision"),
-        "index_revision": model_config.get("index_revision"),
-        "retrieval_top_k": model_config.get("retrieval_top_k"),
-        "golden_metadata_filters_used": bool(model_config.get("golden_metadata_filters_used", False)),
+    def metric(name, value):
+        detail = details[name]
+        status = detail["status"]
+        return {"value": value if status == "computed" else None, "status": status,
+                "scorer_version": detail.get("scorer_version"), "reason": detail.get("reason")}
+
+    generation_metrics = {name: metric(name, value) for name, value in {**reference, **generation}.items()
+                          if name not in {"source_groundedness", "retrieved_context_faithfulness",
+                                          "citation_precision", "citation_recall", "invalid_citation_rate"}}
+    groundedness_metrics = {name: metric(name, generation[name]) for name in
+                            ("source_groundedness", "retrieved_context_faithfulness")}
+    citation_metrics = {name: metric(name, generation[name]) for name in
+                        ("citation_precision", "citation_recall", "invalid_citation_rate")}
+    metric_groups = {
+        "routing": {name: metric(name, value) for name, value in routing_scores.items()},
+        "query_processing": {name: metric(name, value) for name, value in query.items()},
+        "retrieval": {name: metric(name, value) for name, value in retrieval.items()},
+        "generation": generation_metrics,
+        "groundedness": groundedness_metrics,
+        "citation": citation_metrics,
+        "robustness": {name: metric(name, value) for name, value in robustness.items()},
+        "performance": {name: metric(name, value) for name, value in performance.items()},
     }
-    result = {
-        "schema_version": "2.0.0", "run_id": run_id, "test_id": golden["test_id"], "split": split,
-        "golden": {key: golden[key] for key in ("version", "taxonomy", "input", "ground_truth")},
-        "system_execution_output": {
-            "model_config": model,
-            "query_processing": {
-                "actual_route": actual_route, "actual_rewritten_query": rewritten,
-                "actual_sub_queries": prediction.get("actual_sub_queries", []),
-            },
-            "retrieval_output": {
-                "retrieval_top_k": prediction.get("retrieval_top_k"),
-                "sub_query_retrieval": prediction.get("sub_query_retrieval"),
-                "retrieved_context_ids": retrieved_ids,
-                "retrieved_scores": prediction.get("retrieved_scores", []),
-                "retrieved_contexts": prediction.get("context_used", []),
-                "citations": _citations(prediction),
-            },
-            "generation_output": {
-                "actual_output": answer,
-                "extracted_claims": prediction.get("extracted_claims", []),
-                "extracted_citations": prediction.get("extracted_citations", []),
-                "finish_reason": prediction.get("finish_reason"),
-            },
-            "performance": performance,
-            "provider_calls": prediction.get("provider_calls", []),
-            "effective_settings": prediction.get("effective_settings"),
-            "execution_status": execution_status,
-        },
+    if retrieval_only:
+        metric_groups = {key: metric_groups[key] for key in ("retrieval", "performance")}
+    result = {key: prediction[key] for key in (
+        "schema_version", "test_id", "run_id", "split", "evaluation_scope", "input", "provenance",
+        "execution", "evaluation_context", "architecture")}
+    from .provenance import fingerprint
+    result.update({
+        "golden": golden,
         "evaluation_results": {
-            "reference_based_scores": reference, "query_processing_scores": query,
-            "retrieval_scores": retrieval, "generation_scores": generation,
-            "robustness_and_style_scores": robustness, "performance_scores": performance,
-            "pairwise_arena": None, "human_calibration": None, "metric_details": details,
-            "quality_gates": {}, "error_analysis": {
-                "error_categories": [execution_status] if execution_status in {"timeout", "oom", "error"} else [],
-                "notes": prediction.get("error"),
-            },
+            "scoring_status": "partial" if has_prediction else "not_scored",
+            "metrics": metric_groups if has_prediction else {},
+            "relevance_contract": "binary_golden_context_ids" if is_rag else None,
+            "metric_contracts": ({"precision_denominator": "returned_items", "ndcg_gain": "binary",
+                                  "ndcg_discount": "log2_rank_plus_one",
+                                  "average_precision_denominator": "min_k_known_relevant"} if is_rag else None),
+            "provenance": {"scorer_version": f"vigovbot-evaluation-v3-{OFFLINE_SCORER_VERSION}",
+                           "prediction_sha256": fingerprint(prediction)},
         },
-        "provenance": provenance,
-        "scoring_status": "partial" if has_prediction else "not_scored",
-    }
+    })
     validate_record(result)
     return result
 
 
 def validate_record(record: dict) -> None:
-    required = {"schema_version", "run_id", "test_id", "split", "golden", "system_execution_output",
-                "evaluation_results"}
-    if set(record) - (required | {"provenance", "scoring_status"}) or required - set(record):
-        raise ValueError("Evaluation v2 root fields do not match the contract")
-    if record["schema_version"] != "2.0.0" or record["split"] not in {"train", "val", "test", "unknown"}:
-        raise ValueError("Unsupported Evaluation v2 schema version or split")
-    evaluation = record["evaluation_results"]
-    expected_groups = {
-        "reference_based_scores", "query_processing_scores", "retrieval_scores", "generation_scores",
-        "robustness_and_style_scores", "performance_scores", "pairwise_arena", "human_calibration",
-        "metric_details", "quality_gates", "error_analysis",
-    }
-    if set(evaluation) != expected_groups:
-        raise ValueError("Evaluation v2 result groups do not match the contract")
-    for group, keys in (("reference_based_scores", REFERENCE_KEYS), ("query_processing_scores", QUERY_KEYS),
-                        ("retrieval_scores", RETRIEVAL_KEYS), ("generation_scores", GENERATION_KEYS),
-                        ("robustness_and_style_scores", ROBUSTNESS_KEYS), ("performance_scores", PERFORMANCE_KEYS)):
-        if set(evaluation[group]) != set(keys):
-            raise ValueError(f"Evaluation v2 keys do not match schema group {group}")
+    required = {"schema_version", "run_id", "test_id", "split", "golden", "execution",
+                "evaluation_results", "provenance", "evaluation_context", "architecture", "input",
+                "evaluation_scope"}
+    if set(record) != required or record["schema_version"] != "3.2.0":
+        raise ValueError("Evaluation case does not match the v3.2 root contract")
 
 
 def export_scores(*, dataset: Path, split: str, predictions: Path | None, architecture: str, model_name: str,
@@ -606,19 +867,23 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
         raise ValueError(f"Predictions contain {len(extra)} IDs outside Golden split; first: {extra[:3]}")
     if prediction_path and missing and not allow_partial:
         raise ValueError(f"Predictions miss {len(missing)} Golden IDs; pass --allow-partial for a partial cached run")
+    golden_sha256 = _sha256(golden_path)
+    if any(row.get("provenance", {}).get("dataset_sha256") != golden_sha256
+           for row in prediction_rows.values()):
+        raise ValueError("Prediction dataset_sha256 does not match the selected Golden split")
     config = json.loads(Path(model_config_path).read_text(encoding="utf-8-sig")) if model_config_path else {}
     if not isinstance(config, dict):
         raise ValueError("Model config must be a JSON object")
     config["model_name"] = model_name
     provenance = {
-        "golden_dataset": str(golden_path), "golden_sha256": _sha256(golden_path),
+        "golden_dataset": str(golden_path), "golden_sha256": golden_sha256,
         "predictions": str(prediction_path) if prediction_path else None,
         "predictions_sha256": _sha256(prediction_path) if prediction_path else None,
         "judgments": str(judgments) if judgments else None,
         "judgments_sha256": _sha256(Path(judgments)) if judgments else None,
         "model_config": str(model_config_path) if model_config_path else None,
         "model_config_sha256": _sha256(Path(model_config_path)) if model_config_path else None,
-        "scorer_versions": {"offline_v2": OFFLINE_SCORER_VERSION},
+        "scorer_versions": {"offline_v3": OFFLINE_SCORER_VERSION},
         "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "inference_performed": False,
     }
@@ -627,6 +892,8 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
     counts = collections.Counter()
     cohorts = collections.defaultdict(collections.Counter)
     aggregate_values = collections.defaultdict(lambda: collections.defaultdict(list))
+    cohort_aggregate_values = collections.defaultdict(
+        lambda: collections.defaultdict(lambda: collections.defaultdict(list)))
     progress_started = time.perf_counter()
     with output.open("x", encoding="utf-8") as handle:
         for index, golden in enumerate(golden_rows, 1):
@@ -634,17 +901,23 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
                                   architecture=architecture, model_config=config, provenance=provenance)
             extend_record(record, prediction_rows.get(golden["test_id"], {}), reviews.get(golden["test_id"]))
             handle.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
-            status = record["system_execution_output"]["execution_status"]
+            status = record["execution"]["status"]
             counts[status] += 1
-            cohort = "unanswerable" if golden["taxonomy"].get("is_unanswerable") else "answerable"
-            cohorts[cohort]["expected"] += 1
-            cohorts[cohort]["predicted"] += int(golden["test_id"] in prediction_rows)
-            cohorts[cohort]["successful"] += int(status == "success")
-            for group in ("reference_based_scores", "query_processing_scores", "retrieval_scores",
-                          "generation_scores", "robustness_and_style_scores", "performance_scores"):
-                for metric, value in record["evaluation_results"][group].items():
-                    if isinstance(value, (int, float)) and math.isfinite(value):
-                        aggregate_values[group][metric].append(float(value))
+            cohort_names = [
+                "unanswerable" if golden["taxonomy"].get("is_unanswerable") else "answerable",
+                "turn_type:" + str(golden["taxonomy"].get("turn_type", "unknown")),
+            ]
+            for cohort in cohort_names:
+                cohorts[cohort]["expected"] += 1
+                cohorts[cohort]["predicted"] += int(golden["test_id"] in prediction_rows)
+                cohorts[cohort]["successful"] += int(status == "success")
+            for group, metrics in record["evaluation_results"]["metrics"].items():
+                for metric, value in metrics.items():
+                    measured = value.get("value") if value.get("status") == "computed" else None
+                    if isinstance(measured, (int, float)) and math.isfinite(measured):
+                        aggregate_values[group][metric].append(float(measured))
+                        for cohort in cohort_names:
+                            cohort_aggregate_values[cohort][group][metric].append(float(measured))
             if index % 100 == 0 or index == len(golden_rows):
                 _show_progress("score", index, len(golden_rows), progress_started)
     metric_aggregates = {
@@ -652,12 +925,21 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
                 for metric, values in sorted(metrics.items())}
         for group, metrics in aggregate_values.items()
     }
+    cohort_metric_aggregates = {
+        cohort: {
+            group: {metric: {"mean": sum(values) / len(values), "n": len(values)}
+                    for metric, values in sorted(metrics.items())}
+            for group, metrics in groups.items()
+        }
+        for cohort, groups in sorted(cohort_aggregate_values.items())
+    }
     summary = {
-        "schema_version": "2.0.0", "run_id": run_id, "architecture_type": architecture,
+        "schema_version": "3.2.0", "run_id": run_id, "architecture": canonical_architecture(architecture),
         "model_name": model_name, "split": split, "expected": len(golden_rows),
         "prediction_records": len(prediction_rows), "missing_predictions": len(missing),
         "execution_status": dict(sorted(counts.items())),
         "cohorts": {name: dict(values) for name, values in sorted(cohorts.items())},
+        "cohort_metric_aggregates": cohort_metric_aggregates,
         "normalization_version": NORMALIZATION_VERSION,
         "metric_aggregates": metric_aggregates,
         "output": str(output), "provenance": provenance,

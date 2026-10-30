@@ -101,7 +101,7 @@ def evaluation_trace(result, mode):
     duration = raw.get("eval_duration")
     return {
         "schema_version": "1.0",
-        "actual_route": result.get("actual_route"),
+        "actual_route": result.get("actual_route") or ("direct_answer" if mode != "rag" else None),
         "routing": result.get("routing"),
         "retrieval_query": result.get("retrieval_query"),
         "retrieval_strategy": result.get("retrieval_strategy"),
@@ -115,9 +115,11 @@ def evaluation_trace(result, mode):
         "decision_reason": result.get("decision_reason"),
         "evidence_status": result.get("evidence_status"),
         "routing_attempts": result.get("routing_attempts"),
+        "routing_backend": result.get("routing_backend"),
         "routing_classifier": result.get("raw_routing") if result.get("routing_backend") == "phobert" else None,
         "fallback_reason": result.get("fallback_reason"),
         "context_used": result.get("context_used", []),
+        "prompt_messages": result.get("prompt_messages", []),
         "citations_status": citation_status,
         "citations": [{**item, "source_id": item["chunk_id"]} for item in citations] if available else None,
         "token_estimates": {key: result.get(key) for key in
@@ -358,7 +360,8 @@ class ChatApplication:
                             answer, action, evidence = parse_answer(answer, require_evidence=True)
                         result = {"prediction": answer, "action": action, "evidence_status": evidence,
                                   "raw_ollama": raw, "generation_s": generation_s, "latency_s": generation_s,
-                                  "context_used": replay.get("context_used", [])}
+                                  "context_used": replay.get("context_used", []),
+                                  "prompt_messages": messages}
                     elif mode in {"base", "qlora"}:
                         started = time.perf_counter()
                         messages = [
@@ -372,6 +375,7 @@ class ChatApplication:
                             "raw_ollama": raw,
                             "action": None,
                             "retrieved": [],
+                            "prompt_messages": messages,
                             "generation_s": generation_s,
                             "latency_s": time.perf_counter() - started,
                         }

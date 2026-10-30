@@ -80,6 +80,24 @@ def identifiers_missing_from_hits(question, hits):
     return [identifier for identifier in identifiers if identifier.casefold() not in evidence]
 
 
+def procedure_from_user_history(history, clarifier, *, allow_short_name=False):
+    """Recover one corpus-backed procedure without trusting assistant text or menu state."""
+    for message in reversed(history):
+        if message["role"] != "user":
+            continue
+        content = message["content"]
+        explicit_codes = list(dict.fromkeys(code.casefold() for code in extract_source_codes(content)))
+        identity = clarifier.resolve_identity(content, allow_short_name=allow_short_name)
+        candidates = identity["codes"]
+        if explicit_codes:
+            # A newer unknown or conflicting code is a subject change, not permission
+            # to silently inherit an older procedure from history.
+            return candidates[0] if len(explicit_codes) == len(candidates) == 1 else None
+        if candidates:
+            return candidates[0] if len(candidates) == 1 else None
+    return None
+
+
 def answer_conversation(question, retriever, tokenizer, settings, history=None, *, answer_fn,
                         router_fn, conversation_state=None, selection=None, clarification_scope="", **_):
     started = time.perf_counter()
@@ -210,8 +228,15 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                  "sections": list(dict.fromkeys(s for r in requests for s in r["sections"])),
                  "requests": [{k: r[k] for k in ("procedure", "query", "sections")} for r in requests]}
     else:
+        recovered_history_code = None
+        if (not state and selection_index(question) is None
+                and not clarifier.matches(question, allow_short_name=phobert)):
+            recovered_history_code = procedure_from_user_history(
+                history, clarifier, allow_short_name=phobert)
         router_state = ({"selected": state.get("selected", []), "requests": state.get("requests", []),
-                         "menu": menu} if state else None)
+                         "menu": menu} if state else
+                        {"selected": [recovered_history_code], "requests": [], "menu": None}
+                        if recovered_history_code else None)
         if phobert:
             from vigovbot.rag.phobert_router import classify_phobert
             route, trace = classify_phobert(question, history, router_state, settings, clarifier)
@@ -300,11 +325,19 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 route = {**route, "sections": [], "requests": copy.deepcopy(requests)}
                 if discovery["kind"] == "procedure":
                     return menu_result("procedure", 0, discovery["codes"])
-        # Signed state is authoritative for an elliptical, single-procedure follow-up.
+        # Signed state stays authoritative; a stateless client may recover only
+        # one corpus-backed identity from prior user text, never menu state.
         if route["conversation"] == "FOLLOW_UP":
             selected = state.get("selected", []) if state else []
             named = clarifier.matches(question, allow_short_name=phobert)
-            if (not state and not named) or (len(selected) > 1 and not named):
+            if not selected and not named and recovered_history_code:
+                selected = [recovered_history_code]
+                trace.setdefault("adapter_decisions", []).append({
+                    "type": "history_identity_recovery",
+                    "outcome": "accepted",
+                    "source_code": recovered_history_code,
+                })
+            if (not selected and not named) or (len(selected) > 1 and not named):
                 return finish("Bạn đang hỏi tiếp thủ tục nào? Vui lòng nêu tên hoặc mã thủ tục.", "ambiguous_question")
             if len(selected) == 1 and len(requests) == 1 and not named:
                 requests[0]["code"] = selected[0]
@@ -429,7 +462,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
         return finish("Tài liệu hiện có chưa cung cấp đủ thông tin để trả lời nội dung bạn hỏi.", "no_context")
     (answer, raw, elapsed, action, evidence, diagnostics, citations, _, status) = generate_answer(
         messages, used, tokenizer, settings, answer_fn, True, True)
-    result.update(context_used=used, prompt_tokens_estimated=tokens, generation_s=elapsed, raw_ollama=raw,
+    result.update(context_used=used, prompt_messages=messages, prompt_tokens_estimated=tokens,
+                  generation_s=elapsed, raw_ollama=raw,
                   action=action, evidence_status=evidence, generation_diagnostics=diagnostics,
                   citations=citations, citations_status=status)
     if route["scope"] == "MIXED_SCOPE" and action == "answer":

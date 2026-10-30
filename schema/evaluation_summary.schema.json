@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vigovbot.local/schema/evaluation_summary.schema.json",
+  "title": "Evaluation summary v3.2",
+  "description": "Tổng hợp một lần chấm case-score v3.2; không chứa điểm tự suy diễn từ dữ liệu thiếu.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "architecture",
+    "model_name",
+    "split",
+    "expected",
+    "prediction_records",
+    "missing_predictions",
+    "execution_status",
+    "cohorts",
+    "cohort_metric_aggregates",
+    "normalization_version",
+    "metric_aggregates",
+    "output",
+    "provenance",
+    "note"
+  ],
+  "properties": {
+    "schema_version": {"const": "3.2.0"},
+    "run_id": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "architecture": {"enum": ["base", "finetuned", "rag", "finetuned_rag"]},
+    "model_name": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "split": {"enum": ["train", "val", "test", "unknown"]},
+    "expected": {"type": "integer", "minimum": 0},
+    "prediction_records": {"type": "integer", "minimum": 0},
+    "missing_predictions": {"type": "integer", "minimum": 0},
+    "execution_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "success": {"type": "integer", "minimum": 0},
+        "timeout": {"type": "integer", "minimum": 0},
+        "oom": {"type": "integer", "minimum": 0},
+        "error": {"type": "integer", "minimum": 0},
+        "not_run": {"type": "integer", "minimum": 0}
+      }
+    },
+    "cohorts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["expected", "predicted", "successful"],
+        "properties": {
+          "expected": {"type": "integer", "minimum": 0},
+          "predicted": {"type": "integer", "minimum": 0},
+          "successful": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "cohort_metric_aggregates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mean", "n"],
+            "properties": {
+              "mean": {"type": "number"},
+              "n": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      }
+    },
+    "normalization_version": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "metric_aggregates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mean", "n"],
+          "properties": {
+            "mean": {"type": "number"},
+            "n": {"type": "integer", "minimum": 1}
+          }
+        }
+      }
+    },
+    "output": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "golden_dataset",
+        "golden_sha256",
+        "predictions",
+        "predictions_sha256",
+        "judgments",
+        "judgments_sha256",
+        "model_config",
+        "model_config_sha256",
+        "scorer_versions",
+        "created_at",
+        "inference_performed"
+      ],
+      "properties": {
+        "golden_dataset": {"type": "string", "minLength": 1},
+        "golden_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "predictions": {"type": ["string", "null"]},
+        "predictions_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "judgments": {"type": ["string", "null"]},
+        "judgments_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "model_config": {"type": ["string", "null"]},
+        "model_config_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "scorer_versions": {"type": "object", "additionalProperties": {"type": "string"}},
+        "created_at": {"type": "string", "format": "date-time"},
+        "inference_performed": {"const": false}
+      }
+    },
+    "note": {"type": "string", "minLength": 1}
+  }
+}

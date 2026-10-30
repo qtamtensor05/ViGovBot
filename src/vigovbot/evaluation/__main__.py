@@ -10,7 +10,7 @@ def main(argv=None):
     configure_console()
     parser = argparse.ArgumentParser(description="Golden: validate -> run -> score -> report")
     parser.add_argument("command", choices=["validate", "run", "score", "report", "evaluate", "compare"])
-    parser.add_argument("--dataset", type=Path, default=Path("Data/golden_dataset"))
+    parser.add_argument("--dataset", type=Path, default=Path("Data/dataset_v3"))
     parser.add_argument("--split", choices=["train", "val", "test"], default="test")
     parser.add_argument("--profile", choices=["base", "rag", "qlora"])
     parser.add_argument("--run-id")
@@ -18,6 +18,8 @@ def main(argv=None):
     parser.add_argument("--scope", choices=["full", "retrieval"], default="full")
     parser.add_argument("--endpoint", default="http://localhost:8001/api/chat")
     parser.add_argument("--config", type=Path, default=Path("configs/rag/inference.yaml"))
+    parser.add_argument("--model-metadata", type=Path,
+                        help="JSON provenance for fine-tuned model/adapter revisions")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--timeout", type=float, default=300)

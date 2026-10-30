@@ -6,7 +6,7 @@ from vigovbot.artifacts import file_hash, output_lock
 from .records import load_golden, capture_predictions, export_scores, DEFAULT_WEB_MODELS
 from .provenance import fingerprint
 
-PROFILES = {"base": "base", "rag": "rag_base", "qlora": "finetuned"}
+PROFILES = {"base": "base", "rag": "rag", "qlora": "finetuned"}
 
 
 def run_directory(root, run_id):
@@ -51,6 +51,8 @@ def _dispatch(args, directory):
                     "endpoint": args.endpoint, "limit": args.limit,
                     "complete_trace": args.complete_trace, "top_k": args.top_k,
                     "config": str(args.config.resolve()), "config_sha256": file_hash(args.config),
+                    "model_metadata": str(args.model_metadata.resolve()) if args.model_metadata else None,
+                    "model_metadata_sha256": file_hash(args.model_metadata) if args.model_metadata else None,
                     "model_id": DEFAULT_WEB_MODELS[PROFILES[args.profile]]}
         if manifest_path.exists():
             if not args.resume:
@@ -65,11 +67,13 @@ def _dispatch(args, directory):
                 raise ValueError("Retrieval capture cannot resume partial files; use a new run-id")
             report = run_retrieval(dataset=args.dataset, view=None, split=args.split,
                                    config_path=args.config, output=predictions,
-                                   top_k=args.top_k, limit=args.limit)
+                                   top_k=args.top_k, limit=args.limit, run_id=args.run_id)
         else:
+            model_metadata = _read(args.model_metadata) if args.model_metadata else None
             report = capture_predictions(dataset=args.dataset, split=args.split, architecture=PROFILES[args.profile],
                             output=predictions, limit=args.limit, endpoint=args.endpoint,
-                            timeout=args.timeout, resume=args.resume, complete_trace=args.complete_trace)
+                            timeout=args.timeout, resume=args.resume, complete_trace=args.complete_trace,
+                            model_metadata=model_metadata, run_id=args.run_id)
         if args.command == "run" or report.get("execution_status", {}).get("error"):
             return report
     if not manifest_path.exists():
@@ -96,10 +100,11 @@ def _dispatch(args, directory):
             if args.command == "score" or not args.resume:
                 raise FileExistsError("Scores already exist")
         elif manifest["scope"] == "retrieval":
-            from .retrieval_benchmark import score_retrieval
-            score_retrieval(dataset=dataset, view=None, split=manifest["split"],
-                            predictions=predictions, unit_map=None, output=score_path,
-                            ks=args.ks, limit=manifest["limit"])
+            summary = export_scores(
+                dataset=dataset, split=manifest["split"], predictions=predictions,
+                architecture="rag", model_name=manifest["model_id"], run_id=manifest["run_id"],
+                output=directory / "case-scores.jsonl", allow_partial=args.allow_partial)
+            _write(score_path, summary)
         else:
             judgments = directory / "judgments.jsonl"
             if args.judge_model:
@@ -107,10 +112,9 @@ def _dispatch(args, directory):
                 judge(dataset=dataset, split=manifest["split"], predictions=predictions, output=judgments,
                       model=args.judge_model, endpoint=args.judge_endpoint,
                       resume=args.resume, allow_partial=args.allow_partial)
-            supplemental = None
             if args.bertscore or args.extended_metrics:
                 from .scoring import score_supplemental
-                supplemental = score_supplemental(
+                score_supplemental(
                     dataset=dataset, split=manifest["split"], predictions=predictions,
                     architecture=PROFILES[manifest["profile"]], output=directory / "supplemental.json",
                     bertscore=args.bertscore, bert_model=args.bert_model, bert_device=args.bert_device,
@@ -121,8 +125,7 @@ def _dispatch(args, directory):
                                 run_id=manifest["run_id"], output=directory / "case-scores.jsonl",
                                 judgments=judgments if judgments.exists() else None,
                                 allow_partial=args.allow_partial)
-            _write(score_path, {"summary": summary, "supplemental": supplemental,
-                                "predictions_sha256": file_hash(predictions)})
+            _write(score_path, summary)
         if args.command == "score":
             return _read(score_path)
     if not score_path.exists():

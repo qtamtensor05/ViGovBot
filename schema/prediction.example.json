@@ -47,6 +47,17 @@
       "rewrite_applied": false,
       "decomposition_applied": true
     },
+    "routing": {
+      "actual_route": "rag_search",
+      "canonical_route": "rag_search",
+      "scope": "IN_SCOPE",
+      "conversation": "NEW",
+      "relation": null,
+      "sections": ["DOSSIER", "FEE"],
+      "mixed_procedures": false,
+      "backend": "fixture",
+      "fallback_reason": null
+    },
     "retrieval": {
       "query": "Hồ sơ và lệ phí của thủ tục minh họa?",
       "top_k": 5,

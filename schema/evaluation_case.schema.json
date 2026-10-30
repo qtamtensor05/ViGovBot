@@ -59,6 +59,7 @@
         "status",
         "model_config",
         "query_processing",
+        "routing",
         "retrieval",
         "generation",
         "telemetry",
@@ -87,6 +88,16 @@
           "anyOf": [
             {
               "$ref": "#/$defs/common_queryProcessing"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "routing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_routing"
             },
             {
               "type": "null"
@@ -122,6 +133,7 @@
             "partial_answer",
             "clarify",
             "abstain",
+            "correct_premise",
             null
           ]
         },
@@ -222,9 +234,6 @@
           },
           "then": {
             "properties": {
-              "action": {
-                "type": "string"
-              },
               "telemetry": {
                 "properties": {
                   "total_latency_ms": {
@@ -291,6 +300,15 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "routing": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "route_accuracy": {
+                  "$ref": "#/$defs/common_boundedMetric"
+                }
+              }
+            },
             "query_processing": {
               "type": "object",
               "propertyNames": {
@@ -648,6 +666,9 @@
         "properties": {
           "execution": {
             "properties": {
+              "action": {
+                "type": "string"
+              },
               "generation": {
                 "type": "object",
                 "properties": {
@@ -925,6 +946,9 @@
     {
       "if": {
         "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
           "execution": {
             "properties": {
               "status": {
@@ -3024,7 +3048,26 @@
             "Định chế tài chính",
             "Định danh và xác thực điện tử",
             "Ưu đãi, miễn trừ",
-            "Ứng phó sự cố tràn dầu BQP"
+            "Ứng phó sự cố tràn dầu BQP",
+            "Bảo vệ quyền lợi người tiêu dùng",
+            "Bảo đảm trật tự, an toàn giao thông đường bộ",
+            "Chuyển đổi công ty nhà nước được thành lập và hoạt động theo Luật Doanh nghiệp nhà nước thành công ty trách nhiệm hữu hạn một thành viên tổ chức và hoạt động theo quy định tại Luật Doanh nghiệp",
+            "Chất lượng sản phẩm hàng hóa",
+            "Các cơ sở giáo dục khác",
+            "Dịch vụ cung cấp điện mới",
+            "Dịch vụ thương mại",
+            "Hỗ trợ doanh nghiệp",
+            "Hỗ trợ tổ hợp tác, hợp tác xã, liên hiệp hợp tác xã",
+            "Kiến trúc",
+            "Lý lịch tư pháp",
+            "Quản lý Cạnh tranh",
+            "Quản lý chương trình mục tiêu quốc gia",
+            "Thương mại biên giới và miền núi",
+            "Tổng hợp",
+            "sàn giao dịch các-bon trong nước",
+            "Đăng ký công dân",
+            "Đấu thầu lựa chọn nhà đầu tư",
+            "Đầu tư bằng vốn hỗ trợ phát triển chính thức (ODA) và viện trợ không hoàn lại không thuộc hỗ trợ phát triển chính thức"
           ]
         },
         "turn_type": {
@@ -3273,6 +3316,158 @@
           }
         }
       ]
+    },
+    "golden_metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "status",
+        "scorer_version"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "computed",
+            "not_applicable",
+            "not_run",
+            "missing_input",
+            "error",
+            "needs_review"
+          ]
+        },
+        "scorer_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "computed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": [
+                  "number",
+                  "boolean"
+                ]
+              },
+              "scorer_version": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "common_routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actual_route",
+        "canonical_route",
+        "scope",
+        "conversation",
+        "relation",
+        "sections",
+        "mixed_procedures",
+        "backend",
+        "fallback_reason"
+      ],
+      "properties": {
+        "actual_route": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "canonical_route": {
+          "enum": [
+            "rag_search",
+            "direct_answer",
+            "clarification_request",
+            "refusal",
+            null
+          ]
+        },
+        "scope": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "conversation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "relation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "mixed_procedures": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "backend": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fallback_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   }
 }

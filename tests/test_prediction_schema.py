@@ -5,8 +5,9 @@ from tests.schema_fixtures import ROOT, SCHEMAS, prediction, validator
 
 
 class PredictionSchemaTests(unittest.TestCase):
-    def test_only_three_self_contained_schemas(self):
-        self.assertEqual(set(SCHEMAS), {"golden_dataset", "prediction", "evaluation_case"})
+    def test_only_self_contained_evaluation_schemas(self):
+        self.assertEqual(set(SCHEMAS), {
+            "golden_dataset", "prediction", "evaluation_case", "evaluation_summary"})
         def check(value):
             if isinstance(value, dict):
                 if "$ref" in value:

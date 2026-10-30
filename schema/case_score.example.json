@@ -7,6 +7,15 @@
   "evaluation_results": {
     "scoring_status": "partial",
     "metrics": {
+      "routing": {
+        "route_accuracy": {
+          "value": 1,
+          "status": "computed",
+          "scorer_version": "synthetic-example-v1",
+          "reason": "Route thuc te khop expected_route.",
+          "unit": "ratio"
+        }
+      },
       "retrieval": {
         "hit_at_1": {
           "value": 1,
@@ -331,6 +340,17 @@
       ],
       "rewrite_applied": false,
       "decomposition_applied": true
+    },
+    "routing": {
+      "actual_route": "rag_search",
+      "canonical_route": "rag_search",
+      "scope": "IN_SCOPE",
+      "conversation": "NEW",
+      "relation": null,
+      "sections": ["DOSSIER", "FEE"],
+      "mixed_procedures": false,
+      "backend": "fixture",
+      "fallback_reason": null
     },
     "retrieval": {
       "query": "Hồ sơ và lệ phí của thủ tục minh họa?",

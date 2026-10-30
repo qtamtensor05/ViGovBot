@@ -1,5 +1,23 @@
 # Trạng thái hệ thống hiện tại
 
+## Evaluation v3.2 có routing và cohort - 2026-10-30
+
+- **Mục tiêu:** Prediction và score phản ánh được route cuối, đồng thời tách kết quả follow-up/new-question.
+- **Thực hiện:** `execution.routing` giữ route thô/canonical và nhãn classifier quan sát được; case-score có `routing.route_accuracy`; summary có `cohort_metric_aggregates` theo turn type.
+- **Kết quả:** Hợp đồng schema và hồi quy đã đạt. Lỗi collector bỏ qua `included_text` trong trace đã được sửa; run smoke hiện có 10/10 prediction thành công, gồm 5/5 follow-up và 5/5 new-question, không còn case lỗi do thiếu prompt context.
+
+## Follow-up không có signed state - 2026-10-30
+
+- **Mục tiêu:** Xử lý history tham chiếu của evaluator và client stateless mà không tin nội dung assistant hoặc menu không ký.
+- **Thực hiện:** Router khôi phục duy nhất một định danh thủ tục có trong catalog từ các lượt `user` mới nhất; signed state vẫn ưu tiên và lựa chọn số vẫn bắt buộc state hợp lệ.
+- **Kết quả:** Follow-up có mã hoặc tên duy nhất tiếp tục retrieval đúng thủ tục; nhiều/mã lạ/assistant-only vẫn `clarify`, câu hỏi thủ tục mới không kế thừa chủ đề cũ. 395 test đạt, 21 skipped.
+
+## Dataset và Evaluation v3.2 - 2026-10-30
+
+- **Mục tiêu:** Dùng một hợp đồng đánh giá thống nhất cho Dataset v3, prediction, case-score và summary.
+- **Thực hiện:** Resolver ưu tiên `Data/dataset_v3/{split}/golden_{split}.jsonl` và vẫn đọc layout legacy. Collector/scorer end-to-end và retrieval-only dùng schema v3.2, action/architecture canonical, trace prompt/context thật và provenance fine-tuned bắt buộc.
+- **Kết quả:** Dataset 7.100 case hợp lệ; train/test 4.258/2.838 không trùng ID hoặc nhóm `(domain, standalone_query)`. Smoke RAG thật và ba artifact đánh giá pass schema; web Docker healthy. Full suite đạt 389 test, 21 skipped.
+
 ## Hiển thị trạng thái đánh giá cho từng câu trả lời Web - 2026-10-30
 
 - **Mục tiêu:** Làm rõ kết quả và mức bằng chứng của từng phản hồi ngay trên Web.

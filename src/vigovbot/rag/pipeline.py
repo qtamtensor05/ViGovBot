@@ -372,6 +372,7 @@ def answer_question(question, retriever, tokenizer, settings, history=None, *, s
              if key in h} for h in hits
         ],
         "context_used": used,
+        "prompt_messages": messages,
         "prompt_tokens_estimated": tokens,
         "retrieval_s": retrieval_s,
         "rerank_s": rerank_s,

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from vigovbot.evaluation.io import read_jsonl
 from vigovbot.evaluation.retrieval_benchmark import rerank_retrieval, run_retrieval, score_retrieval
+from tests.schema_fixtures import validator
 
 
 class RetrievalBenchmarkTests(unittest.TestCase):
@@ -44,8 +45,10 @@ class RetrievalBenchmarkTests(unittest.TestCase):
             )
             rows = list(read_jsonl(output))
         retriever.search.assert_called_once_with("Hồ sơ gồm gì?", 20)
-        self.assertEqual(rows[0]["retrieved_chunk_ids"], ["c1"])
-        self.assertEqual(rows[0]["context_used"][0]["included_text"], "Hồ sơ A")
+        validator("prediction").validate(rows[0])
+        contexts = rows[0]["execution"]["retrieval"]["contexts"]
+        self.assertEqual([item["context_id"] for item in contexts], ["c1"])
+        self.assertEqual(contexts[0]["text"], "Hồ sơ A")
         self.assertFalse(report["inference_performed"])
         self.assertEqual(report["llm_calls"], 0)
 

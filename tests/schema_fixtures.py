@@ -30,6 +30,11 @@ def prediction(scope="end_to_end", status="success"):
             "query_processing": ({"standalone_query": "Lệ phí?",
                                   "sub_queries": [], "rewrite_applied": False, "decomposition_applied": False}
                                  if status == "success" else None),
+            "routing": ({"actual_route": "rag_search", "canonical_route": "rag_search",
+                         "scope": "IN_SCOPE", "conversation": "NEW", "relation": None,
+                         "sections": [], "mixed_procedures": False, "backend": "fixture",
+                         "fallback_reason": None}
+                        if status == "success" and scope == "end_to_end" else None),
             "retrieval": None if status == "not_run" else {
                 "query": "Lệ phí?", "top_k": 5, "sub_query_results": [],
                 "contexts": [{"rank": 1, "context_id": "chunk-1", "score": 0.9, "text": "Miễn phí"}]},

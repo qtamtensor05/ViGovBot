@@ -1,14 +1,16 @@
 # Hợp đồng đánh giá bốn cấu hình v3.2
 
-Ba schema độc lập: `golden_dataset.schema.json` mô tả nhãn chuẩn,
+Bốn schema độc lập: `golden_dataset.schema.json` mô tả nhãn chuẩn,
 `prediction.schema.json` mô tả dữ liệu thực tế phải thu, và
-`evaluation_case.schema.json` bổ sung kết quả chấm vào prediction.
+`evaluation_case.schema.json` bổ sung kết quả chấm vào prediction;
+`evaluation_summary.schema.json` mô tả tổng hợp của cả lần chạy.
 Mọi $ref đều nội bộ. Hai file *.example.json là dữ liệu giả lập để xem cấu trúc.
 
-**Phạm vi thay đổi: schema, ví dụ và kiểm thử. Collector/scorer chưa được đổi.**
-JSONL cũ không bị ghi lại. Golden mới yêu cầu `evaluation_plan`; dữ liệu cũ chưa
-có khối này cần được gán nhãn/bổ sung trong một bước migration được yêu cầu riêng.
-Không được tự suy ra các nhãn còn thiếu để làm cho dữ liệu pass.
+Collector và scorer canonical tại `src/vigovbot/evaluation/` ghi schema v3.2.
+Dataset mặc định là `Data/dataset_v3`, với split tại
+`train/golden_train.jsonl` và `test/golden_test.jsonl`; resolver vẫn đọc được
+layout legacy `{split}_golden.jsonl`. Không được tự suy ra nhãn hoặc measurement
+còn thiếu để làm cho dữ liệu pass.
 
 ## Cấu hình và phạm vi chấm
 
@@ -30,10 +32,11 @@ Fine-tuning phải ghi base_model, model_revision và ít nhất một định d
 adapter_revision hoặc checkpoint_revision không rỗng. Có thể thêm quantization,
 decoding. Đây là định danh artifact, không chứng minh model đã được tải.
 
-NEW/FOLLOW_UP lấy từ taxonomy.turn_type để phân nhóm; không chấm router.
-Prediction không nhận actual_route; nhóm query_processing không nhận các điểm
-route/router/scope/conversation/section accuracy. expected_route còn trong
-golden để giữ cấu trúc dataset, nhưng không dùng làm mục tiêu chấm trong phạm vi này.
+NEW/FOLLOW_UP lấy từ `taxonomy.turn_type` để phân nhóm. Prediction lưu quyết định
+thực thi tại `execution.routing`, gồm route thô, route canonical, scope,
+conversation, relation, sections, mixed flag, backend và fallback. Scorer chỉ
+chấm `routing.route_accuracy` với `ground_truth.expected_route`; các head nội bộ
+chưa có nhãn Golden tương ứng nên chỉ được lưu để phân tích, không tự suy ra điểm.
 
 Groundedness ở đây là mức bám vào context được cấp. Độ đúng so với đáp án chuẩn
 của Base/fine-tuning vẫn chấm trong generation.semantic_correctness; không
@@ -44,6 +47,7 @@ generation latency, kể cả khi ghi 0.
 
 | Nhóm điểm | Prediction khi thành công | Nhãn đối chiếu trong golden |
 |---|---|---|
+| Route cuối | execution.routing.actual_route/canonical_route | expected_route |
 | Hit, Precision, Recall, RR, AP, nDCG | query, top_k, contexts có rank/ID/score/text | context ID chuẩn, cutoffs, relevance_completeness |
 | Query rewrite | standalone_query, rewrite_applied nếu có tiền xử lý | ground_truth_standalone_query |
 | Sub-query precision/recall | sub_queries có ID/query, decomposition_applied | sub_query_targets |
@@ -52,7 +56,7 @@ generation latency, kể cả khi ghi 0.
 | Key-fact coverage | actual_output | key_facts_required, fact_evidence |
 | Citation precision/recall | citations có claim và source_id, [] nếu không trích dẫn | expected_citations |
 | Faithfulness, context relevance, semantic correctness, hallucination | prompt_messages, prompt_contexts chính xác sau cắt ngân sách, câu trả lời và toàn bộ retrieved text | đáp án/fact/bằng chứng chuẩn, corpus_revision |
-| False refusal, abstention, action accuracy | action: answer/partial_answer/clarify/abstain | expected_action và is_unanswerable |
+| False refusal, abstention, action accuracy | action: answer/partial_answer/clarify/abstain/correct_premise | expected_action và is_unanswerable |
 | Format, negative constraints | actual_output, prompt_messages | expected_format, format_rules, negative_rules |
 | Latency | total/query_processing/retrieval/generation_latency_ms bắt buộc là số | không cần nhãn |
 | TTFT, token, tốc độ, tài nguyên, chi phí | measurements có value/status/source/reason; chi phí có pricing | không cần nhãn |
@@ -73,7 +77,8 @@ log2(rank+1); AP@k chia min(k, số relevant chuẩn đã biết).
 ## Prediction thành công không được để rỗng tùy ý
 
 - Với RAG, `query_processing` bắt buộc có standalone query, cờ rewrite/decompose
-  và sub-query; không yêu cầu route. Base/fine-tuning có thể để null.
+  và sub-query. Mọi end-to-end success phải có `execution.routing`; Base và
+  fine-tuning dùng route canonical `direct_answer`.
 - Khi decomposition=true: có ít nhất hai sub-query và hai kết quả truy hồi riêng.
 - Context truy hồi phải có text; trả lời RAG phải lưu prompt_messages và ít nhất
   một prompt_context có chính xác phần văn bản đưa vào model.
@@ -123,4 +128,7 @@ JSON Schema kiểm tra cấu trúc và điều kiện, không so sánh được 
 - measurement thời gian/token/chi phí tự nhất quán; metric theo run kèm n,
   danh sách loại mẫu, warm-up và concurrency nếu chấm throughput.
 
-Những kiểm tra liên kết này chưa được thêm vào runtime trong phạm vi schema-only.
+Runtime hiện kiểm tra `test_id`, input, dataset version/hash, run ID, architecture,
+coverage và ID ngoài split trước khi chấm. Các liên kết claim/context, tính liên
+tục rank, quan hệ clean/noisy và nhất quán chi phí vẫn là validator ngữ nghĩa cần
+tiếp tục mở rộng; JSON Schema không tự chứng minh được các quan hệ này.

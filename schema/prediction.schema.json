@@ -57,6 +57,7 @@
         "status",
         "model_config",
         "query_processing",
+        "routing",
         "retrieval",
         "generation",
         "telemetry",
@@ -85,6 +86,16 @@
           "anyOf": [
             {
               "$ref": "#/$defs/common_queryProcessing"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "routing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/common_routing"
             },
             {
               "type": "null"
@@ -120,6 +131,7 @@
             "partial_answer",
             "clarify",
             "abstain",
+            "correct_premise",
             null
           ]
         },
@@ -220,9 +232,6 @@
           },
           "then": {
             "properties": {
-              "action": {
-                "type": "string"
-              },
               "telemetry": {
                 "properties": {
                   "total_latency_ms": {
@@ -365,6 +374,36 @@
         "properties": {
           "execution": {
             "properties": {
+              "routing": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
+          "execution": {
+            "properties": {
+              "status": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "action": {
+                "type": "string"
+              },
               "generation": {
                 "type": "object",
                 "properties": {
@@ -456,6 +495,9 @@
     {
       "if": {
         "properties": {
+          "evaluation_scope": {
+            "const": "end_to_end"
+          },
           "execution": {
             "properties": {
               "status": {
@@ -724,6 +766,80 @@
   ],
   "additionalProperties": false,
   "$defs": {
+    "common_routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actual_route",
+        "canonical_route",
+        "scope",
+        "conversation",
+        "relation",
+        "sections",
+        "mixed_procedures",
+        "backend",
+        "fallback_reason"
+      ],
+      "properties": {
+        "actual_route": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "canonical_route": {
+          "enum": [
+            "rag_search",
+            "direct_answer",
+            "clarification_request",
+            "refusal",
+            null
+          ]
+        },
+        "scope": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "conversation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "relation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "mixed_procedures": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "backend": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fallback_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
     "golden_input": {
       "type": "object",
       "additionalProperties": false,
@@ -1557,6 +1673,424 @@
                 "type": "string",
                 "minLength": 1,
                 "pattern": "\\S"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "golden_taxonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "turn_type",
+        "complexity_type",
+        "has_topic_shift",
+        "difficulty",
+        "eval_split",
+        "is_unanswerable",
+        "adversarial_type"
+      ],
+      "properties": {
+        "domain": {
+          "type": "string",
+          "enum": [
+            "An toàn bức xạ và hạt nhân",
+            "An toàn thực phẩm",
+            "An toàn vệ sinh lao động",
+            "An toàn đập, hồ chứa thuỷ điện",
+            "An toàn, vệ sinh lao động",
+            "Biến đổi khí hậu",
+            "Biển và hải đảo",
+            "Báo chí",
+            "Báo chí BQP",
+            "Bưu chính",
+            "Bản quyền tác giả",
+            "Bảo hiểm",
+            "Bảo hiểm xã hội",
+            "Bảo hiểm y tế",
+            "Bảo trợ xã hội",
+            "Bảo tồn thiên nhiên và Đa dạng sinh học",
+            "Bảo vệ công trình quốc phòng và khu quân sự",
+            "Bảo vệ dữ liệu cá nhân",
+            "Bảo đảm an ninh hàng không",
+            "Bồi thường nhà nước",
+            "Chính sách",
+            "Chính sách BQP",
+            "Chăn nuôi",
+            "Chế độ, chính sách đối với nhà giáo",
+            "Chứng khoán",
+            "Chứng nhận chất lượng an toàn kỹ thuật và bảo vệ môi trường",
+            "Chứng nhận lãnh sự, hợp pháp hóa lãnh sự",
+            "Chứng thực",
+            "Cấp, quản lý căn cước",
+            "Công chức, viên chức",
+            "Công chứng",
+            "Công chứng, chứng thực",
+            "Công nghiệp công nghệ số, công nghệ thông tin, điện tử",
+            "Công nghiệp hỗ trợ",
+            "Công nghiệp nặng",
+            "Công nghiệp quốc phòng",
+            "Công nghiệp tiêu dùng",
+            "Công nghiệp địa phương",
+            "Công tác Văn phòng",
+            "Công tác dân tộc",
+            "Công tác lãnh sự",
+            "Công tác thanh niên",
+            "Cấp sổ BHXH, thẻ BHYT",
+            "Cụm Công nghiệp",
+            "Di sản văn hóa",
+            "Du lịch",
+            "Dân quân tự vệ",
+            "Dân số, Bà mẹ - Trẻ em",
+            "Dược phẩm",
+            "Dầu khí",
+            "Dịch vụ trong quá trình thực hiện HĐMBĐ",
+            "Dữ liệu",
+            "Dự trữ",
+            "Gia đình",
+            "Giao thông vận tải",
+            "Giám định",
+            "Giám định thương mại",
+            "Giám định tư pháp",
+            "Giáo dục dân tộc",
+            "Giáo dục mầm non",
+            "Giáo dục nghề nghiệp",
+            "Giáo dục nghề nghiệp (G07-LĐ06)",
+            "Giáo dục quốc phòng và an ninh",
+            "Giáo dục thường xuyên",
+            "Giáo dục tiểu học",
+            "Giáo dục trung học",
+            "Giáo dục và Đào tạo thuộc hệ thống giáo dục quốc dân",
+            "Giáo dục đại học",
+            "Giáo dục, đào tạo với nước ngoài",
+            "Giải quyết tố cáo BQP",
+            "Giảm nghèo",
+            "Hoạt động công nghệ thông tin ngân hàng",
+            "Hoạt động của các tổ chức hợp tác, nghiên cứu song phương",
+            "Hoạt động của các tổ chức phi chính phủ nước ngoài",
+            "Hoạt động kho quỹ",
+            "Hoạt động khoa học và công nghệ",
+            "Hoạt động khác",
+            "Hoạt động mua bán quốc tế chuyên ngành văn hóa",
+            "Hoạt động ngoại hối",
+            "Hoạt động thanh toán",
+            "Hoạt động thông tin tín dụng",
+            "Hoạt động tiền tệ",
+            "Hoạt động tín dụng",
+            "Hoạt động xây dựng",
+            "Hàng hải và đường thủy nội địa",
+            "Hàng không",
+            "Hòa giải thương mại",
+            "Hòa giải ở cơ sở",
+            "Hóa chất",
+            "Hạ tầng kỹ thuật",
+            "Hải quan",
+            "Hồi hương",
+            "HỖ TRỢ TIẾP CẬN ĐẤT ĐAI, MẶT BẰNG SẢN XUẤT KINH DOANH",
+            "Hỗ trợ doanh nghiệp nhỏ và vừa",
+            "Hỗ trợ pháp lý cho doanh nghiệp nhỏ và vừa",
+            "Hỗ trợ đầu tư",
+            "Hộ tịch",
+            "Hội nghị, hội thảo quốc tế",
+            "Hội nhập kinh tế quốc tế",
+            "Hợp tác quốc tế",
+            "Khen thưởng BQP",
+            "Khiếu nại BQP",
+            "Khiếu nại, tố cáo",
+            "Kho bạc Nhà nước",
+            "Khoa học công nghệ",
+            "Khoa học và Công nghệ",
+            "Khoáng sản",
+            "Khám bệnh, chữa bệnh",
+            "Khám bệnh, chữa bệnh BQP",
+            "Khí tượng, thủy văn",
+            "Kinh doanh bất động sản",
+            "Kinh doanh khí",
+            "Kinh tế hợp tác và Phát triển nông thôn",
+            "Kiểm lâm",
+            "Kiểm soát các hoạt động hợp pháp liên quan đến ma túy",
+            "Kiểm tra kiến thức pháp luật về trật tự, an toàn giao thông đường bộ",
+            "Kiểm định chất lượng giáo dục",
+            "Kiểm định kỹ thuật an toàn lao động",
+            "Kế toán, kiểm toán",
+            "Lao động",
+            "Lao động, tiền lương",
+            "Lao động, tiền lương và bảo hiểm xã hội",
+            "Luật sư",
+            "Lâm nghiệp và Kiểm lâm",
+            "Lưu thông hàng hóa trong nước",
+            "Miễn thị thực",
+            "Môi trường",
+            "Mật mã dân sự",
+            "Mỹ phẩm",
+            "Mỹ thuật, nhiếp ảnh, triển lãm",
+            "Nghĩa vụ quân sự",
+            "Nghề thủ công mỹ nghệ",
+            "Nghệ thuật biểu diễn",
+            "Người có công",
+            "Nhà ở và công sở",
+            "Nuôi con nuôi",
+            "Nông nghiệp",
+            "Nông nghiệp và Môi trường",
+            "Năng lượng",
+            "Nước",
+            "Phát thanh, truyền hình và thông tin điện tử",
+            "Phát triển đô thị",
+            "Phòng bệnh",
+            "Phòng cháy, chữa cháy",
+            "Phòng vệ thương mại",
+            "Phòng, chống tệ nạn xã hội",
+            "Quy hoạch đô thị và nông thôn",
+            "Quản lý biên giới",
+            "Quản lý bán hàng đa cấp",
+            "Quản lý chất lượng công trình xây dựng",
+            "Quản lý chất lượng nông lâm sản và thủy sản",
+            "Quản lý chất lượng sản phẩm, hàng hoá",
+            "Quản lý công sản",
+            "Quản lý doanh nghiệp",
+            "Quản lý giá",
+            "Quản lý hoạt động vật liệu nổ công nghiệp, tiền chất thuốc nổ BQP",
+            "Quản lý kết cấu hạ tầng giao thông",
+            "Quản lý lao động ngoài nước",
+            "Quản lý ngành nghề đầu tư, kinh doanh có điều kiện về an ninh, trật tự",
+            "Quản lý nhiệm vụ khoa học, công nghệ và đổi mới sáng tạo sử dụng ngân sách nhà nước của Bộ Công Thương",
+            "Quản lý nhà nước về hội, quỹ",
+            "Quản lý nhà nước về khu công nghiệp, khu kinh tế",
+            "Quản lý nợ",
+            "Quản lý thuế, phí, lệ phí và thu khác của ngân sách nhà nước",
+            "Quản lý vùng trời",
+            "Quản lý vũ khí, vật liệu nổ, công cụ hỗ trợ và pháo",
+            "Quản lý xuất nhập cảnh",
+            "Quản lý Đê điều và Phòng, chống thiên tai",
+            "Quản tài viên",
+            "Quảng cáo",
+            "Quốc tịch",
+            "Sát hạch, cấp giấy phép lái xe",
+            "Sản xuất, lắp ráp ô tô",
+            "Sở giao dịch hàng hóa",
+            "Sở hữu trí tuệ",
+            "Thanh toán chi phí tố tụng",
+            "Thi hành án dân sự",
+            "Thi đua - khen thưởng",
+            "Thi đua khen thưởng",
+            "Thi đua – Khen thưởng",
+            "Thi đua, khen thưởng",
+            "Thi, tuyển sinh",
+            "Thiết bị y tế",
+            "Thu BHXH, BHYT, BHTN, BH tai nạn lao động, BNN",
+            "Thuế",
+            "Thành lập và hoạt động của doanh nghiệp",
+            "Thành lập và hoạt động của tổ hợp tác không đăng ký",
+            "Thành lập và hoạt động của tổ hợp tác, hợp tác xã, liên hiệp hợp tác xã",
+            "Thành lập và hoạt động doanh nghiệp (hộ kinh doanh)",
+            "Thành lập và hoạt động doanh nghiệp xã hội",
+            "Thành lập và hoạt động ngân hàng",
+            "Thành lập và sắp xếp lại doanh nghiệp do Nhà nước nắm giữ 100 phần trăm vốn điều lệ",
+            "Thông tin đối ngoại",
+            "Thú y",
+            "Thương mại quốc tế",
+            "Thương mại điện tử",
+            "Thể dục thể thao",
+            "Thủy lợi",
+            "Thủy sản",
+            "Thừa hành viên",
+            "Thực hiện chính sách BHXH",
+            "Thực hiện chính sách BHYT",
+            "Tiêu chuẩn nhà giáo, cán bộ quản lý giáo dục",
+            "Tiêu chuẩn đo lường chất lượng",
+            "Tiêu chuẩn đo lường chất lượng (Bộ Công Thương)",
+            "Trẻ em",
+            "Trọng tài thương mại",
+            "Trồng trọt",
+            "Trồng trọt và Bảo vệ thực vật",
+            "Trợ giúp pháp lý",
+            "Tuyển sinh quân sự",
+            "Tài chính doanh nghiệp",
+            "Tài chính ngân hàng",
+            "Tài chính đất đai",
+            "Tài nguyên nước",
+            "Tài sản kết cấu hạ tầng chợ do Nhà nước đầu tư, quản lý",
+            "Tín ngưỡng, tôn giáo",
+            "Tòa án",
+            "Tư vấn pháp luật",
+            "Tần số vô tuyến điện",
+            "Tổ chức cai nghiên ma túy và quản lý sau cai nghiện",
+            "Tổ chức cán bộ",
+            "Tổ chức, cán bộ",
+            "Viễn thông và Internet",
+            "Việc làm",
+            "Việc làm (G07-LĐ11)",
+            "Văn bằng, chứng chỉ",
+            "Văn hóa",
+            "Văn học",
+            "Văn thư và Lưu trữ nhà nước",
+            "Vận chuyển hàng hóa nguy hiểm",
+            "Vật liệu nổ công nghiệp, tiền chất thuốc nổ",
+            "Vật liệu xây dựng",
+            "Xe - máy quân sự",
+            "Xuất Bản, In và Phát hành",
+            "Xuất nhập khẩu",
+            "Xúc tiến thương mại",
+            "Y Dược cổ truyền",
+            "Điện",
+            "Điện lực",
+            "Điện ảnh",
+            "Đo đạc, bản đồ và thông tin địa lý",
+            "Đào tạo và Nghiên cứu khoa học",
+            "Đăng kiểm",
+            "Đăng ký biện pháp bảo đảm",
+            "Đăng ký hoạt động của Ngân hàng Chính sách xã hội",
+            "Đăng ký, quản lý con dấu",
+            "Đăng ký, quản lý cư trú",
+            "Đăng ký, quản lý phương tiện giao thông cơ giới, xe máy chuyên dùng",
+            "Đường bộ",
+            "Đường sắt",
+            "Đảm bảo an toàn thông tin, an ninh mạng",
+            "Đất đai",
+            "Đấu giá tài sản",
+            "Đấu thầu",
+            "Đầu tư theo phương thức đối tác công tư",
+            "Đầu tư tại Việt nam",
+            "Đầu tư từ Việt nam ra nước ngoài",
+            "Đầu tư vào nông nghiệp, nông thôn",
+            "Địa chất và khoáng sản",
+            "Định chế tài chính",
+            "Định danh và xác thực điện tử",
+            "Ưu đãi, miễn trừ",
+            "Ứng phó sự cố tràn dầu BQP",
+            "Bảo vệ quyền lợi người tiêu dùng",
+            "Bảo đảm trật tự, an toàn giao thông đường bộ",
+            "Chuyển đổi công ty nhà nước được thành lập và hoạt động theo Luật Doanh nghiệp nhà nước thành công ty trách nhiệm hữu hạn một thành viên tổ chức và hoạt động theo quy định tại Luật Doanh nghiệp",
+            "Chất lượng sản phẩm hàng hóa",
+            "Các cơ sở giáo dục khác",
+            "Dịch vụ cung cấp điện mới",
+            "Dịch vụ thương mại",
+            "Hỗ trợ doanh nghiệp",
+            "Hỗ trợ tổ hợp tác, hợp tác xã, liên hiệp hợp tác xã",
+            "Kiến trúc",
+            "Lý lịch tư pháp",
+            "Quản lý Cạnh tranh",
+            "Quản lý chương trình mục tiêu quốc gia",
+            "Thương mại biên giới và miền núi",
+            "Tổng hợp",
+            "sàn giao dịch các-bon trong nước",
+            "Đăng ký công dân",
+            "Đấu thầu lựa chọn nhà đầu tư",
+            "Đầu tư bằng vốn hỗ trợ phát triển chính thức (ODA) và viện trợ không hoàn lại không thuộc hỗ trợ phát triển chính thức"
+          ]
+        },
+        "turn_type": {
+          "enum": [
+            "new_question",
+            "follow_up"
+          ]
+        },
+        "complexity_type": {
+          "enum": [
+            "single_hop",
+            "multi_intent"
+          ]
+        },
+        "has_topic_shift": {
+          "type": "boolean"
+        },
+        "difficulty": {
+          "enum": [
+            "medium",
+            "hard"
+          ]
+        },
+        "eval_split": {
+          "enum": [
+            "in_domain",
+            "out_of_distribution"
+          ]
+        },
+        "is_unanswerable": {
+          "type": "boolean"
+        },
+        "adversarial_type": {
+          "enum": [
+            "none",
+            "false_premise"
+          ]
+        }
+      }
+    },
+    "golden_metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "status",
+        "scorer_version"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "computed",
+            "not_applicable",
+            "not_run",
+            "missing_input",
+            "error",
+            "needs_review"
+          ]
+        },
+        "scorer_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "computed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": [
+                  "number",
+                  "boolean"
+                ]
+              },
+              "scorer_version": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
               }
             }
           }

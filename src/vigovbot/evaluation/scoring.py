@@ -1,4 +1,4 @@
-"""Supplemental offline metrics for immutable Evaluation Run v2 predictions."""
+"""Supplemental offline metrics for immutable Evaluation v3.2 predictions."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 from vigovbot.artifacts import file_hash
 from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
-from .records import ARCHITECTURES, load_golden, load_predictions
+from .records import canonical_architecture, load_golden, load_predictions
 
 
 SCORER_VERSION = "1"
@@ -104,9 +104,8 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
                      bert_batch_size: int = 8, bert_score_fn=None, extended=False,
                      embedding_model="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
                      allow_partial=False) -> dict:
-    """Score cached v2 predictions without model inference or modifying exported results."""
-    if architecture not in ARCHITECTURES:
-        raise ValueError(f"Unsupported architecture_type: {architecture}")
+    """Score cached v3.2 predictions without model inference or modifying exported results."""
+    architecture = canonical_architecture(architecture)
     golden_path, golden_rows = load_golden(Path(dataset), split)
     prediction_rows, prediction_path = load_predictions(Path(predictions))
     golden_ids = {row["test_id"] for row in golden_rows}
@@ -125,7 +124,7 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
     per_case = []
     for golden in golden_rows:
         prediction = prediction_rows[golden["test_id"]]
-        answer = prediction.get("answer")
+        answer = (prediction.get("execution", {}).get("generation") or {}).get("actual_output")
         if not isinstance(answer, str) or not answer.strip():
             raise ValueError(f"Prediction {golden['test_id']} has no answer")
         ordered_predictions.append(answer)
@@ -144,13 +143,14 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
         for key in lexical
     }
     retrieval = {"map_at_5": None}
-    if architecture == "rag_base":
+    if architecture in {"rag", "finetuned_rag"}:
         map_rows = []
         for golden in golden_rows:
             relevant = [item for item in golden["ground_truth"].get("ground_truth_context_ids", []) if isinstance(item, str)]
             if not relevant:
                 continue
-            retrieved = prediction_rows[golden["test_id"]].get("retrieved_chunk_ids") or []
+            retrieval = prediction_rows[golden["test_id"]].get("execution", {}).get("retrieval") or {}
+            retrieved = [item.get("context_id") for item in retrieval.get("contexts", [])]
             value = _average_precision_at_5([item for item in retrieved if isinstance(item, str)], relevant)
             per_case[golden_rows.index(golden)]["map_at_5"] = value
             map_rows.append(value)
@@ -202,7 +202,7 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
                                                    "contract": "L2-normalized sentence embeddings, dot product, macro mean"}
 
     report = {
-        "schema_version": "2.0.0-supplement-1", "architecture_type": architecture, "split": split,
+        "schema_version": "3.2.0-supplement-1", "architecture": architecture, "split": split,
         "expected": expected, "scored_records": len(golden_rows),
         "prediction_records": len(prediction_rows), "missing_predictions": len(missing_ids),
         "partial": bool(missing_ids),

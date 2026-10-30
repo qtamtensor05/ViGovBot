@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from tests.test_evaluation_v2 import golden, write_jsonl
+from tests.test_evaluation_v2 import base_api_result, golden, prediction, write_jsonl
 
 
 class CompleteCaptureTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class CompleteCaptureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_jsonl(root / "test_golden.jsonl", [golden()])
-            write_jsonl(root / "p.jsonl", [{"id": "TC_1", "answer": "fixture"}])
+            write_jsonl(root / "p.jsonl", [prediction(golden(), "base")])
             with patch.dict(sys.modules, {"sentence_transformers": SimpleNamespace(SentenceTransformer=lambda *a, **k: Encoder())}), patch("vigovbot.evaluation.scoring.meteor_vi", return_value=0.75):
                 report = score_supplemental(dataset=root, split="test", predictions=root / "p.jsonl",
                                           architecture="base", output=root / "scores.json", extended=True)
@@ -43,7 +43,7 @@ class CompleteCaptureTests(unittest.TestCase):
         from vigovbot.evaluation.noise import run_noise
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            g = golden()
+            g = golden("TC_1")
             g["ground_truth"]["distractor_injection"] = {"distractor_contexts": ["irrelevant distractor"]}
             write_jsonl(root / "test_golden.jsonl", [g])
             original = [{"role": "user", "content": "fixed clean prompt"}]
@@ -78,10 +78,10 @@ class CompleteCaptureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_jsonl(root / "test_golden.jsonl", [golden("TC_1"), golden("TC_2")])
-            send = Mock(side_effect=[{"results": [{"model_id": "qwen-base", "answer": "ok"}]}, RuntimeError("offline")])
+            send = Mock(side_effect=[{"results": [base_api_result("ok")]}, RuntimeError("offline")])
             args = dict(dataset=root, split="test", architecture="base", output=root / "predictions.jsonl")
             capture_predictions(**args, post_json=send)
-            send = Mock(return_value={"results": [{"model_id": "qwen-base", "answer": "recovered"}]})
+            send = Mock(return_value={"results": [base_api_result("recovered")]})
             capture_predictions(**args, post_json=send, resume=True)
             self.assertEqual(send.call_count, 1)
             self.assertEqual(len((root / "predictions.jsonl").read_text(encoding="utf-8").splitlines()), 2)

@@ -332,3 +332,21 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Xử lý câu mixed có liên từ tự nhiên mà bộ tách dấu câu hiện tại không phân đoạn được.
 - **Thực hiện:** Chỉ gọi LLM khi PhoBERT đã phân loại `MIXED_SCOPE`, regex chỉ còn một mảnh và không tìm được phần hỗ trợ; đoạn trích phải giữ mã/qualifier rồi được PhoBERT phân loại lại trước retrieval. Nhiều mảnh hỗ trợ vẫn hỏi lại để không làm rơi ý.
 - **Kết quả:** Hoàn tất và restart web local. 401 test đạt, 22 skipped; 73 test routing liên quan đạt, Ruff/compileall/diff check đạt. API thật cho “Phí đăng ký kết hôn, tiện thể cho hỏi cách nấu phở” lấy đúng mã 1.000894, trả `partial`, 1 nguồn, rewriter 11,10 giây; câu ngoài phạm vi không vào nhánh này. Tỷ lệ MIXED_SCOPE 3–7% chưa được đo trên dữ liệu thật.
+
+## 2026-10-30 - Đồng bộ Dataset và Evaluation v3.2
+
+- **Mục tiêu:** Dùng trực tiếp split train/test của Dataset v3 và thống nhất Golden, prediction, case-score, summary với collector/scorer canonical.
+- **Thực hiện:** Chuyển resolver, action/architecture, trace prompt, collector/scorer end-to-end và retrieval-only sang hợp đồng v3.2; thêm schema summary, validator split và giữ đọc layout Golden legacy.
+- **Kết quả:** Dataset 7.100 case hợp lệ, train/test 4.258/2.838, 4 case loại có lý do, không trùng ID hoặc nhóm `(domain, standalone_query)`. Prediction, case-score và summary của smoke RAG thật đều pass schema; web healthy sau restart. Full suite đạt 389 test, bỏ qua 21 test phụ thuộc tùy chọn; Ruff, compileall và diff check đạt.
+
+## 2026-10-30 - Khôi phục định danh cho follow-up không có signed state
+
+- **Mục tiêu:** Cho phép history tham chiếu chứa đúng một thủ tục đã xác minh tiếp tục vào retrieval mà không làm yếu cơ chế bảo vệ menu và lựa chọn số.
+- **Thực hiện:** Khôi phục tối đa một mã/tên/alias có trong catalog từ lượt `user` gần nhất; truyền định danh đó cho router và retrieval nhưng không phục hồi menu từ văn bản. Signed state hợp lệ vẫn ưu tiên; mã lạ, nhiều thủ tục, assistant-only và lựa chọn số đều dừng an toàn.
+- **Kết quả:** Case tương đương `GOLDEN_V3_000984` đi `rag_search`, chọn đúng `1.116405` và `metadata_identity`. Full suite đạt 395 test, 21 skipped; 95 test conversation/server liên quan, Ruff, compileall và diff check đạt.
+
+## 2026-10-30 - Hoàn thiện chấm routing và cohort cho Evaluation v3.2
+
+- **Mục tiêu:** Đảm bảo smoke RAG theo schema mới lưu được quyết định route và báo cáo riêng follow-up/new-question.
+- **Thực hiện:** Thêm `execution.routing` vào prediction/case-score, chuẩn hóa route runtime sang nhãn Golden, đưa `route_accuracy` vào nhóm routing và tổng hợp metric theo `turn_type` trong summary.
+- **Kết quả:** Schema prediction/case-score/summary, collector và scorer đã đồng bộ; routing được chấm bằng `route_accuracy`, summary tách cohort `turn_type:follow_up` và `turn_type:new_question`. Collector đã đọc đúng `included_text` là context thực tế sau cắt ngân sách token. Run smoke được resume và chấm lại với 10/10 prediction thành công, gồm 5/5 follow-up và 5/5 new-question.

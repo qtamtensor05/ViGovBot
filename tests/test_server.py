@@ -229,7 +229,7 @@ class WebChatTests(unittest.TestCase):
                 return_value=("answer", {"private": True}, 0.2))):
             trace = self.app.chat({"question": "x", "evaluation_trace": True})["results"][0]["evaluation_trace"]
         self.assertEqual(trace["telemetry"]["generation_seconds"], 0.2)
-        self.assertIsNone(trace["actual_route"])
+        self.assertEqual(trace["actual_route"], "direct_answer")
         self.assertIsNone(trace["telemetry"]["retrieval_seconds"])
 
     def test_fallback_diagnostics_and_opt_in_raw_routing(self):

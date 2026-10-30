@@ -5,320 +5,216 @@ import json
 import tempfile
 import unittest
 from contextlib import redirect_stderr
+from copy import deepcopy
 from pathlib import Path
-from unittest.mock import patch
 
 try:
     from vigovbot.evaluation.io import read_jsonl
     from vigovbot.evaluation.records import (
-        ARCHITECTURES,
-        DEFAULT_WEB_MODELS,
-        build_record,
-        export_scores,
-        load_golden,
-        load_predictions,
-        capture_predictions,
+        ARCHITECTURES, DEFAULT_WEB_MODELS, build_record, capture_predictions,
+        export_scores, load_golden, load_predictions,
     )
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 
+from tests.schema_fixtures import prediction as prediction_fixture, validator
+from tests.test_golden_schema import case as golden_fixture
 
-def golden(test_id="TC_1", *, unanswerable=False):
-    contexts = [] if unanswerable else ["chunk-1"]
-    citations = [] if unanswerable else [{"claim": "Lệ phí 10.000 đồng", "source_id": "chunk-1"}]
-    return {
-        "test_id": test_id,
-        "version": "test-v1",
-        "taxonomy": {
-            "domain": "test", "turn_type": "new_question", "complexity_type": "single_hop",
-            "has_topic_shift": False, "difficulty": "easy", "eval_split": "in_domain",
-            "is_unanswerable": unanswerable, "adversarial_type": "none",
-        },
-        "input": {"chat_history": [], "question": "Lệ phí bao nhiêu?", "task_constraint": None,
-                  "metadata_filters": None},
-        "ground_truth": {
-            "expected_route": "rag_search", "ground_truth_standalone_query": "Lệ phí bao nhiêu?",
-            "ground_truth_sub_queries": [], "sub_query_context_mapping": {},
-            "ground_truth_context_ids": contexts, "ground_truth_contexts": [],
-            "distractor_injection": {"distractor_context_ids": [], "distractor_contexts": [],
-                                     "conflict_type": "none", "injected_noise_ratio": 0.0},
-            "expected_answer": "Lệ phí 10.000 đồng.",
-            "key_facts_required": [] if unanswerable else ["10.000 đồng"],
-            "expected_citations": citations, "expected_format": "markdown_text",
-            "negative_constraints": ["20.000 đồng"],
-        },
-    }
+
+def golden(test_id="GOLDEN_FIXTURE_1", *, unanswerable=False):
+    row = deepcopy(golden_fixture())
+    row["test_id"] = test_id
+    if unanswerable:
+        row["taxonomy"]["is_unanswerable"] = True
+        row["ground_truth"].update(ground_truth_context_ids=[], ground_truth_contexts=[],
+                                   expected_citations=[], key_facts_required=[])
+        row["evaluation_plan"].update(expected_action="abstain", fact_evidence=[])
+    return row
+
+
+def prediction(row=None, architecture="rag"):
+    row = row or golden()
+    value = prediction_fixture()
+    value.update(test_id=row["test_id"], input=deepcopy(row["input"]), architecture=architecture)
+    value["provenance"]["dataset_version"] = row["version"]
+    if architecture == "base":
+        value["evaluation_context"]["requested_cutoffs"] = []
+        value["provenance"].update(corpus_revision=None, index_revision=None)
+        value["execution"].update(query_processing=None, retrieval=None,
+                                  routing={"actual_route": "direct_answer", "canonical_route": "direct_answer",
+                                           "scope": None, "conversation": None, "relation": None,
+                                           "sections": [], "mixed_procedures": None, "backend": None,
+                                           "fallback_reason": None},
+                                  retrieval_skip_reason="architecture_without_retrieval")
+        value["execution"]["generation"].update(citations=[], prompt_contexts=[])
+        value["execution"]["telemetry"].update(query_processing_latency_ms=None,
+                                                retrieval_latency_ms=None)
+    return value
 
 
 def write_jsonl(path, rows):
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
 
 
-class EvaluationV2Tests(unittest.TestCase):
-    def test_supported_architectures_exclude_combined_qlora_rag(self):
-        self.assertEqual(ARCHITECTURES, {"base", "finetuned", "rag_base"})
-        self.assertNotIn("rag_finetuned", DEFAULT_WEB_MODELS)
+def api_result():
+    return {"model_id": "qwen-rag", "answer": "Miễn phí", "action": "answer",
+            "sources": [{"chunk_id": "chunk-1", "score": 0.9, "text_content": "Miễn phí"}],
+            "latency_s": 0.5,
+            "evaluation_trace": {
+                "actual_route": "rag_search",
+                "routing": {"scope": "IN_SCOPE", "conversation": "NEW", "sections": [],
+                            "mixed_procedures": False},
+                "routing_backend": "fixture",
+                "schema_version": "1.0", "retrieval_query": "Lệ phí?", "actual_sub_queries": [],
+                "sub_query_retrieval": {}, "retrieval_top_k": 5, "decision_reason": "evidence_assessment",
+                "context_used": [{"chunk_id": "chunk-1", "score": 0.9, "included_text": "Miễn phí",
+                                  "content_truncated": False}],
+                "prompt_messages": [{"role": "user", "content": "Lệ phí?\nTài liệu: Miễn phí"}],
+                "citations": [{"source_id": "chunk-1", "claim": "Miễn phí"}],
+                "finish_reason": "stop", "effective_settings": {"model": "fixture", "top_k": 5},
+                "telemetry": {"routing_seconds": 0.02, "rewrite_seconds": 0.01,
+                              "retrieval_seconds": 0.1, "generation_seconds": 0.37,
+                              "prompt_tokens": 20, "completion_tokens": 4, "total_tokens": 24},
+            }}
 
-    def test_supplemental_offline_scores_cached_predictions_without_inference(self):
-        from vigovbot.evaluation.scoring import score_supplemental
 
-        def bert_score(predictions, references, **kwargs):
-            self.assertEqual(predictions, ["Lệ phí 10.000 đồng."])
-            self.assertEqual(references, ["Lệ phí 10.000 đồng."])
-            self.assertEqual(kwargs["model_type"], "fixture")
-            return [0.1], [0.2], [0.3]
+def base_api_result(answer="Miễn phí"):
+    return {"model_id": "qwen-base", "answer": answer, "action": "answer", "sources": [],
+            "latency_s": 0.2, "evaluation_trace": {
+                "schema_version": "1.0", "actual_route": "direct_answer",
+                "prompt_messages": [{"role": "user", "content": "Lệ phí?"}],
+                "context_used": [], "citations": [], "effective_settings": {"model": "fixture"},
+                "telemetry": {"generation_seconds": 0.2}}}
 
+
+class EvaluationV3Tests(unittest.TestCase):
+    def test_supported_architectures_are_schema_vocabulary(self):
+        self.assertEqual(ARCHITECTURES, {"base", "finetuned", "rag", "finetuned_rag"})
+        self.assertEqual(DEFAULT_WEB_MODELS["rag"], "qwen-rag")
+
+    def test_v3_split_layout_and_legacy_layout_are_resolved(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            write_jsonl(root / "test/golden_test.jsonl", [golden()])
+            path, rows = load_golden(root, "test")
+            self.assertEqual(path, root / "test/golden_test.jsonl")
+            self.assertEqual(len(rows), 1)
+            (root / "test/golden_test.jsonl").unlink()
             write_jsonl(root / "test_golden.jsonl", [golden()])
-            predictions = root / "predictions.jsonl"
-            write_jsonl(predictions, [{"id": "TC_1", "answer": "Lệ phí 10.000 đồng.",
-                                       "retrieved_chunk_ids": ["chunk-1", "noise"]}])
-            output = root / "offline.json"
-            report = score_supplemental(dataset=root, split="test", predictions=predictions,
-                                      architecture="rag_base", output=output, bertscore=True,
-                                      bert_model="fixture", bert_score_fn=bert_score)
-            output_exists = output.exists()
-        self.assertEqual(report["metrics"]["retrieval"]["map_at_5"], 1.0)
-        self.assertEqual(report["metrics"]["lexical"]["bertscore_f1"], 0.3)
-        self.assertEqual(report["metrics"]["metric_details"]["map_at_5"]["n"], 1)
-        self.assertTrue(output_exists)
+            self.assertEqual(load_golden(root, "test")[0], root / "test_golden.jsonl")
 
-    def test_supplemental_offline_scores_explicit_partial_subset(self):
-        from vigovbot.evaluation.scoring import score_supplemental
-
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            other = golden()
-            other["test_id"] = "TC_2"
-            write_jsonl(root / "test_golden.jsonl", [golden(), other])
-            predictions = root / "predictions.jsonl"
-            write_jsonl(predictions, [{"id": "TC_1", "answer": "partial"}])
-            report = score_supplemental(
-                dataset=root, split="test", predictions=predictions,
-                architecture="base", output=root / "offline.json", allow_partial=True,
-            )
-        self.assertEqual(report["expected"], 2)
-        self.assertEqual(report["scored_records"], 1)
-        self.assertEqual(report["missing_predictions"], 1)
-        self.assertTrue(report["partial"])
-
-    def test_capture_predictions_sends_only_question_history_and_records_trace(self):
+    def test_capture_writes_schema_v32_without_gold_leakage(self):
         captured = []
-
         def post_json(endpoint, payload, timeout):
-            captured.append((endpoint, payload, timeout))
-            return {"results": [{
-                "model_id": "qwen-rag", "answer": "Lệ phí 10.000 đồng.", "action": "answer",
-                "sources": [{"chunk_id": "chunk-1", "score": 0.9}], "latency_s": 0.5,
-            }]}
-
+            captured.append(payload)
+            return {"results": [api_result()]}
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            write_jsonl(root / "test_golden.jsonl", [golden()])
+            write_jsonl(root / "test/golden_test.jsonl", [golden()])
             output = root / "predictions.jsonl"
             progress = io.StringIO()
             with redirect_stderr(progress):
-                report = capture_predictions(dataset=root, split="test", architecture="rag_base", output=output,
-                                endpoint="http://web/api/chat", post_json=post_json)
-            prediction = next(read_jsonl(output))
-        self.assertEqual(captured[0], (
-            "http://web/api/chat",
-            {"question": "Lệ phí bao nhiêu?", "models": ["qwen-rag"], "histories": {"qwen-rag": []},
-             "evaluation_trace": True},
-            300,
-        ))
-        serialized_payload = json.dumps(captured[0][1], ensure_ascii=False)
-        self.assertNotIn("expected_answer", serialized_payload)
-        self.assertNotIn("ground_truth", serialized_payload)
-        self.assertNotIn("chunk-1", serialized_payload)
-        self.assertEqual(prediction["id"], "TC_1")
-        self.assertEqual(prediction["retrieved_chunk_ids"], ["chunk-1"])
+                report = capture_predictions(dataset=root, split="test", architecture="rag", output=output,
+                                             post_json=post_json)
+            row = next(read_jsonl(output))
+        validator("prediction").validate(row)
+        self.assertEqual(row["schema_version"], "3.2.0")
+        self.assertEqual(row["execution"]["routing"]["canonical_route"], "rag_search")
+        self.assertEqual(row["execution"]["retrieval"]["contexts"][0]["text"], "Miễn phí")
+        self.assertEqual(row["execution"]["generation"]["prompt_contexts"], [
+            {"context_id": "chunk-1", "text": "Miễn phí"}
+        ])
+        self.assertNotIn("ground_truth", json.dumps(captured[0], ensure_ascii=False))
         self.assertEqual(report["execution_status"], {"success": 1})
-        self.assertFalse(report["gold_labels_sent_to_model"])
         self.assertIn("[run] 1/1 (100.0%)", progress.getvalue())
-        self.assertIsNone(prediction["citations"])
-        self.assertEqual(prediction["citations_status"], "unavailable")
-        self.assertEqual(report["evaluation_trace_status"], {"unavailable": 1})
 
-    def test_citation_missing_is_distinct_from_observed_empty(self):
-        variants = [
-            ({"citations": None, "citations_status": "unavailable"}, None),
-            ({"citations": [], "citations_status": "disabled"}, None),
-            ({"citations": [], "web_model_id": "qwen-rag"}, None),
-            ({}, None),
-            ({"citations": [], "citations_status": "validated_references_not_semantic_support"}, 0.0),
-            ({"citations": [], "citations_status": "invalid_model_output"}, 0.0),
-            ({"citations": [{"source_id": "chunk-1"}]}, 1.0),
-        ]
-        for fields, expected in variants:
-            with self.subTest(fields=fields):
-                record = build_record(golden(), {"id": "TC_1", "answer": "x", **fields}, split="test",
-                                      run_id="r", architecture="rag_base", model_config={"model_name": "m"}, provenance={})
-                result = record["evaluation_results"]
-                self.assertEqual(result["generation_scores"]["citation_recall"], expected)
-                self.assertEqual(result["metric_details"]["citation_recall"]["status"],
-                                 "missing_input" if expected is None else "computed")
-
-    def test_local_http_trace_reaches_export_without_gold_leakage(self):
-        import threading
-        from tests.http_server import HTTPServer as ThreadingHTTPServer
-        from types import SimpleNamespace
-        try:
-            from vigovbot.server.app import ChatApplication, create_asgi_app as make_handler
-        except ModuleNotFoundError as exc:
-            skip_missing_dependency(exc)
-        model = SimpleNamespace(id="qwen-rag", provider="openai_compatible", model="fixture",
-                                base_url="unused", api_key_env=None, mode="rag")
-        config = SimpleNamespace(web=SimpleNamespace(models=[model]), inference_settings=lambda: {"top_k": 5})
-        app = ChatApplication(config, "retriever", "tokenizer")
-        result = {
-            "prediction": "Lệ phí 10.000 đồng.", "action": "answer", "actual_route": "rag_search",
-            "routing": {"scope": "in_scope", "relation": "new_question"},
-            "retrieval_query": "Lệ phí bao nhiêu?", "retrieved": [{"chunk_id": "chunk-1", "score": 0.9}],
-            "citations": [{"chunk_id": "chunk-1", "claim": "10.000 đồng"}],
-            "citations_status": "validated_references_not_semantic_support",
-            "routing_s": 0.1, "retrieval_s": 0.2, "generation_s": 0.3, "latency_s": 0.6,
-            "prompt_tokens_estimated": 123, "raw_ollama": {"secret": "must-not-export"},
-        }
-        with patch("vigovbot.server.app.answer_question", return_value=result) as answer:
-            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
-            thread = threading.Thread(target=server.serve_forever, daemon=True)
-            thread.start()
-            try:
-                with tempfile.TemporaryDirectory() as work:
-                    root = Path(work)
-                    write_jsonl(root / "test_golden.jsonl", [golden()])
-                    predictions = root / "predictions.jsonl"
-                    capture_predictions(dataset=root, split="test", architecture="rag_base", output=predictions,
-                           endpoint=f"http://127.0.0.1:{server.server_port}/api/chat")
-                    row = next(read_jsonl(predictions))
-                    self.assertNotIn("must-not-export", json.dumps(row))
-                    self.assertEqual(row["evaluation_trace"]["token_estimates"]["prompt_tokens_estimated"], 123)
-                    self.assertIsNone(row["telemetry"]["prompt_tokens"])
-                    output = root / "results.jsonl"
-                    export_scores(dataset=root, split="test", architecture="rag_base", predictions=predictions,
-                              model_name="fixture", run_id="r", output=output)
-                    scores = next(read_jsonl(output))["evaluation_results"]
-                    self.assertEqual(scores["query_processing_scores"]["router_accuracy"], 1.0)
-                    self.assertEqual(scores["query_processing_scores"]["query_rewrite_similarity"], 1.0)
-                    self.assertEqual(scores["generation_scores"]["citation_recall"], 1.0)
-                    self.assertEqual(scores["performance_scores"]["generation_latency_ms"], 300.0)
-                    self.assertEqual(scores["performance_scores"]["retrieval_latency_ms"], 200.0)
-                    self.assertIsNone(scores["performance_scores"]["ttft_ms"])
-                    self.assertNotIn("ground_truth", str(answer.call_args))
-                    self.assertNotIn("10.000", str(answer.call_args))
-            finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
-
-    def test_capture_predictions_records_http_failure_without_fabricating_answer(self):
+    def test_capture_failure_is_a_valid_error_prediction(self):
         def fail(*_):
             raise TimeoutError("request timed out")
-
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            write_jsonl(root / "test_golden.jsonl", [golden()])
+            write_jsonl(root / "test/golden_test.jsonl", [golden()])
             output = root / "predictions.jsonl"
-            report = capture_predictions(dataset=root, split="test", architecture="base", output=output, post_json=fail)
-            prediction = next(read_jsonl(output))
-        self.assertEqual(report["execution_status"], {"error": 1})
-        self.assertIsNone(prediction["answer"])
-        self.assertEqual(prediction["execution_status"], "error")
-        self.assertIn("TimeoutError", prediction["error"])
-
-    def test_build_rag_record_scores_only_available_offline_inputs(self):
-        prediction = {
-            "id": "TC_1", "answer": "Lệ phí 10.000 đồng.", "action": "answer",
-            "retrieved_chunk_ids": ["chunk-1", "noise"], "citations": [{"source_id": "chunk-1"}],
-            "retrieval_query": "Lệ phí bao nhiêu?", "latency_seconds": 1.25,
-            "telemetry": {"retrieval_seconds": 0.25, "generation_seconds": 1.0},
-        }
-        record = build_record(
-            golden(), prediction, split="test", run_id="run-1", architecture="rag_base",
-            model_config={"model_name": "model"}, provenance={"inference_performed": False},
-        )
-        results = record["evaluation_results"]
-        self.assertEqual(record["system_execution_output"]["execution_status"], "success")
-        self.assertEqual(results["reference_based_scores"]["normalized_exact_match"], 1.0)
-        self.assertEqual(results["retrieval_scores"]["recall_at_1"], 1.0)
-        self.assertEqual(results["retrieval_scores"]["precision_at_3"], 0.5)
-        self.assertEqual(results["generation_scores"]["citation_recall"], 1.0)
-        self.assertEqual(results["performance_scores"]["total_latency_ms"], 1250.0)
-        self.assertIsNone(results["generation_scores"]["semantic_correctness"])
-        self.assertEqual(results["metric_details"]["semantic_correctness"]["status"], "missing_input")
-        self.assertIsNone(results["robustness_and_style_scores"]["negative_constraint_pass"])
-        self.assertEqual(results["metric_details"]["negative_constraint_pass"]["status"], "missing_input")
-
-    def test_base_marks_retrieval_not_applicable_instead_of_zero(self):
-        record = build_record(
-            golden(), {"id": "TC_1", "answer": "x"}, split="test", run_id="run-1",
-            architecture="base", model_config={"model_name": "model"}, provenance={},
-        )
-        retrieval = record["evaluation_results"]["retrieval_scores"]
-        self.assertTrue(all(value is None for value in retrieval.values()))
-        self.assertTrue(all(
-            record["evaluation_results"]["metric_details"][key]["status"] == "not_applicable"
-            for key in retrieval
-        ))
-
-    def test_unanswerable_without_relevance_labels_excludes_retrieval_metrics(self):
-        record = build_record(
-            golden(unanswerable=True), {"id": "TC_1", "answer": "Nguồn không nêu.", "action": "abstain"},
-            split="test", run_id="run-1", architecture="rag_base", model_config={"model_name": "model"},
-            provenance={},
-        )
-        self.assertTrue(record["evaluation_results"]["robustness_and_style_scores"]["abstention_correct"])
-        self.assertEqual(record["evaluation_results"]["metric_details"]["recall_at_10"]["status"],
-                         "not_applicable")
-
-    def test_export_requires_exact_ids_by_default_and_supports_explicit_partial(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            write_jsonl(root / "test_golden.jsonl", [golden("TC_1"), golden("TC_2")])
-            predictions = root / "predictions.jsonl"
-            write_jsonl(predictions, [{"id": "TC_1", "answer": "Lệ phí 10.000 đồng."}])
-            output = root / "run.jsonl"
-            with self.assertRaisesRegex(ValueError, "miss 1 Golden IDs"):
-                export_scores(dataset=root, split="test", predictions=predictions, architecture="finetuned",
-                          model_name="adapter", run_id="run-1", output=output)
-            progress = io.StringIO()
-            with redirect_stderr(progress):
-                summary = export_scores(
-                    dataset=root, split="test", predictions=predictions, architecture="finetuned",
-                    model_name="adapter", run_id="run-1", output=output, allow_partial=True,
-                )
-            rows = list(read_jsonl(output))
-        self.assertEqual(summary["missing_predictions"], 1)
-        self.assertEqual(summary["cohorts"]["answerable"], {"expected": 2, "predicted": 1, "successful": 1})
-        self.assertEqual(summary["metric_aggregates"]["reference_based_scores"]["normalized_exact_match"]["n"], 1)
-        self.assertEqual([row["scoring_status"] for row in rows], ["partial", "not_scored"])
-        self.assertFalse(rows[0]["provenance"]["inference_performed"])
-        self.assertIn("[score] 2/2 (100.0%)", progress.getvalue())
-
-    def test_export_rejects_prediction_ids_from_another_benchmark(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            write_jsonl(root / "test_golden.jsonl", [golden()])
-            predictions = root / "predictions.jsonl"
-            write_jsonl(predictions, [{"id": "qa2_00007", "answer": "cached"}])
-            with self.assertRaisesRegex(ValueError, "outside Golden split"):
-                export_scores(dataset=root, split="test", predictions=predictions, architecture="base",
-                          model_name="model", run_id="run-1", output=root / "run.jsonl")
-
-    def test_export_without_predictions_is_an_explicit_not_run_skeleton(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            write_jsonl(root / "test_golden.jsonl", [golden()])
-            output = root / "run.jsonl"
-            summary = export_scores(dataset=root, split="test", predictions=None, architecture="base",
-                                model_name="model", run_id="run-1", output=output)
+            capture_predictions(dataset=root, split="test", architecture="base", output=output, post_json=fail)
             row = next(read_jsonl(output))
+        validator("prediction").validate(row)
+        self.assertEqual(row["execution"]["status"], "error")
+        self.assertIsNone(row["execution"]["generation"])
+
+    def test_build_record_and_export_are_schema_v32(self):
+        case = golden()
+        pred = prediction(case)
+        record = build_record(case, pred, split="test", run_id="fixture", architecture="rag",
+                              model_config={"model_name": "fixture"}, provenance={})
+        validator("evaluation_case").validate(record)
+        metric = record["evaluation_results"]["metrics"]["generation"]["normalized_exact_match"]
+        self.assertEqual(metric["status"], "computed")
+        route = record["evaluation_results"]["metrics"]["routing"]["route_accuracy"]
+        self.assertEqual((route["status"], route["value"]), ("computed", 1.0))
+
+    def test_retrieval_only_prediction_builds_schema_v32_case_score(self):
+        case = golden()
+        pred = prediction_fixture("retrieval")
+        pred.update(test_id=case["test_id"], input=deepcopy(case["input"]))
+        pred["provenance"]["dataset_version"] = case["version"]
+        pred["execution"]["action"] = None
+        record = build_record(case, pred, split="test", run_id="fixture", architecture="rag",
+                              model_config={"model_name": "fixture"}, provenance={})
+        validator("evaluation_case").validate(record)
+        performance = record["evaluation_results"]["metrics"]["performance"]
+        self.assertEqual(performance["generation_latency_ms"]["status"], "not_applicable")
+
+    def test_unanswerable_case_is_scored_by_expected_action(self):
+        case = golden(unanswerable=True)
+        pred = prediction(case)
+        pred["execution"].update(action="abstain", retrieval=None,
+                                 retrieval_skip_reason="source_does_not_contain_answer")
+        pred["execution"]["generation"].update(citations=[], prompt_contexts=[])
+        record = build_record(case, pred, split="test", run_id="fixture", architecture="rag",
+                              model_config={"model_name": "fixture"}, provenance={})
+        action = record["evaluation_results"]["metrics"]["robustness"]["action_accuracy"]
+        self.assertEqual((action["status"], action["value"]), ("computed", True))
+
+    def test_export_requires_coverage_and_supports_explicit_partial(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first, second = golden("GOLDEN_1"), golden("GOLDEN_2")
+            golden_path = root / "test/golden_test.jsonl"
+            write_jsonl(golden_path, [first, second])
+            predictions = root / "predictions.jsonl"
+            pred = prediction(first, "base")
+            from vigovbot.artifacts import file_hash
+            pred["provenance"]["dataset_sha256"] = file_hash(golden_path)
+            write_jsonl(predictions, [pred])
+            output = root / "case-scores.jsonl"
+            with self.assertRaisesRegex(ValueError, "miss 1 Golden IDs"):
+                export_scores(dataset=root, split="test", predictions=predictions, architecture="base",
+                              model_name="fixture", run_id="fixture", output=output)
+            summary = export_scores(dataset=root, split="test", predictions=predictions, architecture="base",
+                                    model_name="fixture", run_id="fixture", output=output, allow_partial=True)
+            records = list(read_jsonl(output))
+        self.assertEqual(summary["schema_version"], "3.2.0")
+        validator("evaluation_summary").validate(summary)
         self.assertEqual(summary["missing_predictions"], 1)
-        self.assertEqual(summary["execution_status"], {"not_run": 1})
-        self.assertEqual(row["scoring_status"], "not_scored")
-        self.assertEqual(row["evaluation_results"]["metric_details"]["token_f1"]["status"], "not_run")
+        self.assertEqual(summary["cohorts"]["turn_type:new_question"]["expected"], 2)
+        self.assertIn("turn_type:new_question", summary["cohort_metric_aggregates"])
+        self.assertEqual([row["evaluation_results"]["scoring_status"] for row in records],
+                         ["partial", "not_scored"])
+        for row in records:
+            validator("evaluation_case").validate(row)
+
+    def test_supplemental_scores_v3_cached_prediction(self):
+        from vigovbot.evaluation.scoring import score_supplemental
+        case = golden()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_jsonl(root / "test/golden_test.jsonl", [case])
+            predictions = root / "predictions.jsonl"
+            write_jsonl(predictions, [prediction(case)])
+            report = score_supplemental(dataset=root, split="test", predictions=predictions,
+                                        architecture="rag", output=root / "supplemental.json")
+        self.assertEqual(report["schema_version"], "3.2.0-supplement-1")
 
     def test_duplicate_ids_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -327,7 +223,7 @@ class EvaluationV2Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "duplicate test_id"):
                 load_golden(root, "test")
             predictions = root / "predictions.jsonl"
-            write_jsonl(predictions, [{"id": "TC_1", "answer": "a"}, {"id": "TC_1", "answer": "b"}])
+            write_jsonl(predictions, [prediction(), prediction()])
             with self.assertRaisesRegex(ValueError, "duplicate prediction ID"):
                 load_predictions(predictions)
 

@@ -60,10 +60,10 @@ def _selection(dataset, view, split, limit):
     cases = [{"id": row["test_id"], "split": split,
               "evidence": [{"unit_id": item} for item in row["ground_truth"]["ground_truth_context_ids"]]}
              for row in rows]
-    return path, path, queries, cases, "golden_context_ids"
+    return path, path, queries, cases, "golden_context_ids", rows
 
 
-def run_retrieval(*, dataset, view, split, config_path, output, top_k, limit=None):
+def run_retrieval(*, dataset, view, split, config_path, output, top_k, limit=None, run_id=None):
     """Write ranked retrieval results. Gold evidence is not read by the retriever."""
     if top_k < 1 or (limit is not None and limit < 1):
         raise ValueError("top_k and limit must be positive")
@@ -73,7 +73,8 @@ def run_retrieval(*, dataset, view, split, config_path, output, top_k, limit=Non
     run_path = output.with_suffix(output.suffix + ".run.json")
     if run_path.exists():
         raise FileExistsError(f"Retrieval run manifest already exists: {run_path}")
-    query_path, case_path, queries, _, relevance_contract = _selection(dataset, view, split, limit)
+    query_path, case_path, queries, _, relevance_contract, golden_rows = _selection(dataset, view, split, limit)
+    golden_by_id = {row["test_id"]: row for row in golden_rows}
     config = load_config(config_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     started_at = datetime.now().astimezone()
@@ -91,31 +92,48 @@ def run_retrieval(*, dataset, view, split, config_path, output, top_k, limit=Non
             latencies.append(latency)
             retrieved = [
                 {
-                    "rank": rank,
-                    **{key: hit[key] for key in (
-                        "row_id", "score", "chunk_id", "source_file", "source_code",
-                        "procedure_name", "section_type",
-                    ) if key in hit},
+                    "rank": rank, "context_id": hit["chunk_id"], "score": float(hit["score"]),
+                    "text": hit["text_content"], "procedure_id": hit.get("source_code"),
+                    "section_type": hit.get("section_type"),
+                    "metadata": {key: hit[key] for key in ("row_id", "source_file", "procedure_name")
+                                 if key in hit},
                 }
                 for rank, hit in enumerate(hits, 1)
             ]
+            golden = golden_by_id[row["id"]]
+            def unavailable(reason):
+                return {"value": None, "status": "not_applicable", "source": None, "reason": reason}
             artifact = {
-                "id": row["id"],
-                "question": question.strip(),
-                "retrieved_chunk_ids": [hit["chunk_id"] for hit in hits],
-                "retrieved_scores": [float(hit["score"]) for hit in hits],
-                "retrieved": retrieved,
-                "context_used": [
-                    {
-                        **{key: hit[key] for key in (
-                            "chunk_id", "source_file", "source_code", "procedure_name", "section_type",
-                        ) if key in hit},
-                        "included_text": hit["text_content"],
-                    }
-                    for hit in hits
-                ],
-                "retrieval_latency_ms": latency * 1000,
-                "execution_status": "success",
+                "schema_version": "3.2.0", "test_id": row["id"],
+                "run_id": run_id or fingerprint({"ids": selected_ids, "config": file_hash(Path(config_path))}),
+                "split": split, "evaluation_scope": "retrieval", "input": golden["input"],
+                "architecture": "rag",
+                "provenance": {"dataset_sha256": file_hash(query_path), "dataset_version": golden["version"],
+                               "corpus_revision": golden.get("evaluation_plan", {}).get("corpus_revision"),
+                               "index_revision": corpus_info["cache_sha256"]["index"]},
+                "evaluation_context": {"requested_cutoffs": golden.get("evaluation_plan", {}).get("cutoffs", []),
+                                       "robustness_pair": golden.get("evaluation_plan", {}).get("robustness_pair")},
+                "execution": {
+                    "status": "success", "action": None, "retrieval_skip_reason": None,
+                    "model_config": {"answer_model": None, "embedding_model": str(config.embedding.model),
+                                     "settings": {"top_k": top_k}},
+                    "query_processing": {"standalone_query": question.strip(), "sub_queries": [],
+                                         "rewrite_applied": False, "decomposition_applied": False},
+                    "routing": None,
+                    "retrieval": {"query": question.strip(), "top_k": top_k, "contexts": retrieved,
+                                  "sub_query_results": []},
+                    "generation": None,
+                    "telemetry": {"total_latency_ms": latency * 1000,
+                                  "query_processing_latency_ms": 0.0,
+                                  "retrieval_latency_ms": latency * 1000,
+                                  "generation_latency_ms": None,
+                                  "measurements": {key: unavailable("Retrieval-only evaluation has no generation")
+                                                   for key in ("ttft_ms", "prompt_tokens", "completion_tokens",
+                                                               "total_tokens", "generation_tokens_per_second",
+                                                               "peak_allocated_vram_gb", "gpu_utilization_percent",
+                                                               "cost_usd")},
+                                  "pricing": None},
+                },
             }
             handle.write(json.dumps(artifact, ensure_ascii=False) + "\n")
             handle.flush()
@@ -166,7 +184,7 @@ def score_retrieval(*, dataset, view, split, predictions, unit_map, output, ks, 
         raise ValueError("ks must contain positive integers")
     if output.exists():
         raise FileExistsError(f"Retrieval score output already exists: {output}")
-    _, case_path, selected_queries, cases, relevance_contract = _selection(dataset, view, split, limit)
+    _, case_path, selected_queries, cases, relevance_contract, _ = _selection(dataset, view, split, limit)
     selected_ids = {row["id"] for row in selected_queries}
     prediction_rows = list(read_jsonl(predictions))
     if {row["id"] for row in prediction_rows} != selected_ids or len(prediction_rows) != len(selected_ids):
