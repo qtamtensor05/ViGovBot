@@ -338,6 +338,21 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.assertEqual({o["id"] for o in result["menu"]["options"]}, {"1.000894", "2.000894"})
         self.answer.assert_not_called()
 
+    def test_explicit_code_resolves_one_of_duplicate_names_without_menu(self):
+        name = "Tách thửa hoặc hợp thửa đất"
+        add_procedure(self.retriever, "1.115201", name)
+        add_procedure(self.retriever, "1.115490", name)
+
+        result = self.ask(
+            "Cho mình nội dung bước 2 khi thực hiện Tách thửa hoặc hợp thửa đất "
+            "(mã 1.115490, tỉnh Thanh Hóa).",
+            [prediction(["PROCEDURE"])],
+        )
+
+        self.assertEqual(result["actual_route"], "rag_search")
+        self.assertIsNone(result["menu"])
+        self.assertEqual({hit["source_code"] for hit in result["retrieved"]}, {"1.115490"})
+
     def test_result_searches_all_sections_of_selected_procedure(self):
         result = self.ask("Kết quả đăng ký kết hôn", [prediction(["RESULT"])])
         self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})

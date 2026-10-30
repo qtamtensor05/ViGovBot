@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -13,6 +14,9 @@ from vigovbot.utils.text import normalize_vietnamese
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "Data/dataset_v3"
+PROCEDURE_HEADER_RE = re.compile(
+    r"\[Thủ tục:\s*(.*?)\s*\|\s*Mã TTHC:\s*([0-9]+(?:\.[0-9]+)+)", re.IGNORECASE
+)
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -42,6 +46,46 @@ def resolved_groups(rows: list[dict]) -> dict[tuple[str, str], list[str]]:
                normalize_vietnamese(row["ground_truth"]["ground_truth_standalone_query"]))
         groups[key].append(row["test_id"])
     return groups
+
+
+def ambiguous_identity_candidates(rows: list[dict]) -> list[dict]:
+    """Return answerable cases whose evidence picks one code from a duplicated name.
+
+    These are review candidates rather than hard failures because a question can
+    disambiguate a procedure with a locality or another qualifier instead of a code.
+    """
+    identities = defaultdict(set)
+    targets = {}
+    for row in rows:
+        matches = {
+            (normalize_vietnamese(name), code)
+            for context in row.get("ground_truth", {}).get("ground_truth_contexts", [])
+            for name, code in PROCEDURE_HEADER_RE.findall(context)
+        }
+        if len(matches) == 1:
+            name, code = next(iter(matches))
+            targets[row.get("test_id")] = (name, code)
+        for name, code in matches:
+            identities[name].add(code)
+
+    candidates = []
+    for row in rows:
+        target = targets.get(row.get("test_id"))
+        if not target or row.get("ground_truth", {}).get("expected_route") != "rag_search":
+            continue
+        name, code = target
+        if len(identities[name]) < 2:
+            continue
+        inputs = row.get("input", {})
+        history = " ".join(message.get("content", "") for message in inputs.get("chat_history", []))
+        filters = inputs.get("metadata_filters") or {}
+        identity_text = " ".join((history, inputs.get("question", ""),
+                                  row["ground_truth"].get("ground_truth_standalone_query", ""),
+                                  str(filters.get("source_code", ""))))
+        if code.casefold() not in identity_text.casefold():
+            candidates.append({"test_id": row["test_id"], "target_code": code,
+                               "same_name_codes": sorted(identities[name])})
+    return candidates
 
 
 def main() -> None:
@@ -90,9 +134,12 @@ def main() -> None:
     mismatches = {key: (report.get(key), value) for key, value in expected.items() if report.get(key) != value}
     if mismatches:
         raise ValueError(f"golden_split_report mismatch: {mismatches}")
+    ambiguous_candidates = ambiguous_identity_candidates(rows["all"])
     print(json.dumps({"status": "pass", "counts": {key: len(value) for key, value in rows.items()},
                       "schema_errors": 0, "train_test_id_overlap": 0,
-                      "resolved_query_group_overlap": 0}, ensure_ascii=False))
+                      "resolved_query_group_overlap": 0,
+                      "ambiguous_identity_candidate_count": len(ambiguous_candidates),
+                      "ambiguous_identity_candidates": ambiguous_candidates[:20]}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

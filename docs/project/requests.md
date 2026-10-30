@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Sửa Golden smoke trùng tên thủ tục - 2026-10-30
+
+- **Mục tiêu:** Loại bỏ sai lệch routing do Golden yêu cầu một mã thủ tục cụ thể nhưng câu hỏi chỉ nêu tên trùng với nhiều bản ghi trong catalog.
+- **Thực hiện:** Bổ sung mã `1.115490` cho `GOLDEN_V3_006630`, đồng bộ Golden/SFT, thêm kiểm tra ứng viên định danh mơ hồ và hồi quy giữ hành vi hỏi làm rõ khi thiếu mã.
+- **Kết quả:** Golden/SFT local đã đồng bộ; 52 test tập trung và full suite 402 test đều đạt (15 skipped); validator 7.100 case, Ruff, compile và diff check đều đạt. Smoke lần 3 chạy mới 10/10 case thành công, route accuracy 100%; `GOLDEN_V3_006630` truy xuất đúng mã `1.115490` và trả `answer`. Hai lỗi action độc lập còn lại là `GOLDEN_V3_001984` và `GOLDEN_V3_005750`.
+
 ## Hiển thị trạng thái đánh giá cho từng câu trả lời Web - 2026-10-30
 
 - **Mục tiêu:** Cho người dùng biết câu trả lời là đầy đủ, một phần, cần làm rõ hay từ chối; đồng thời thấy mức bằng chứng và cách truy xuất.
@@ -362,3 +368,8 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Giữ đúng thủ tục trong hội thoại nhưng chuyển retrieval sang mục người dùng nêu rõ như trình tự hoặc căn cứ pháp lý.
 - **Thực hiện:** Cho từ khóa section rõ ràng hiệu chỉnh nhãn section của PhoBERT với một request trong phạm vi; không thay đổi scope, thủ tục hoặc mixed-procedure. Bổ sung trace và hồi quy cho chuỗi hỏi đăng ký kết hôn.
 - **Kết quả:** Hoàn tất source và runtime local. API thật giữ mã `1.000894`, lần lượt truy xuất `required_documents`, `procedure_step` và `legal_basis` theo ba câu hỏi nối tiếp.
+## 2026-10-30 - Gom metadata các thủ tục trùng tên trong Dataset v3
+
+- **Mục tiêu:** Tạo từng thư mục cho mỗi nhóm tên thủ tục trùng trong Dataset v3 và đặt metadata đầy đủ của các mã cùng tên cạnh nhau để kiểm duyệt định danh.
+- **Thực hiện:** Sinh dữ liệu dẫn xuất từ `golden_all.jsonl` và SQLite metadata runtime; giữ nguyên Golden, split train/test và corpus nguồn.
+- **Kết quả:** Hoàn tất 46 nhóm, 168 mã, 5.768 chunk metadata và 168 PDF; manifest tổng và từng nhóm đã được đối chiếu không thiếu file, nhóm hoặc sai mã; checksum nguồn và hướng dẫn sử dụng đã được bổ sung.
