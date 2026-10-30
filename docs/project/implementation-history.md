@@ -512,3 +512,9 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Tái chấm prediction đã lưu bằng lexical, embedding và BERTScore mà không inference lại, đồng thời xuất một bộ artifact điểm thống nhất.
 - **Thực hiện:** Thêm `--rescore`, metric từng case, kiểm tra hash Golden/prediction, merge supplemental vào case-score/summary/report và thay artifact qua thư mục tạm; bổ sung dependency evaluation.
 - **Kết quả:** Hồi quy merge/rescore đạt; smoke thực tế tái chấm 10/10 và SHA-256 prediction không đổi. Dependency BERTScore/sentence-transformers import được, Transformers đúng pin 4.57.3 và `pip check` đạt; trọng số metric thật chưa tải/chạy.
+
+## Tạo split SFT từ Dataset v3 - 2026-10-30
+
+- **Mục tiêu:** Chuẩn bị hai tập train/validation SFT từ `Data/dataset_v3/train/golden_train.jsonl` mà không thay đổi nguồn Golden hoặc dùng tập test.
+- **Thực hiện:** Chuyển lossless lịch sử hội thoại, câu hỏi và `expected_answer` sang schema `id/messages`; chia xác định bằng SHA-256 với seed 42 theo nhóm `(domain, standalone_query)` để cùng nhóm không rơi vào hai split.
+- **Kết quả:** Tạo cục bộ `Data/dataset_v3/finetuning/train_sft.jsonl` gồm 3.385 case và `validation_sft.jsonl` gồm 873 case. Toàn bộ 4.258 ID được bảo toàn; không trùng ID hoặc nhóm truy vấn giữa hai split; schema hội thoại và phép kiểm tra Dataset v3 đạt.

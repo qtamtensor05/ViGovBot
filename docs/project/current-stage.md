@@ -132,6 +132,7 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   dùng ngân sách `8192`/`512`.
 - QLoRA dùng adapter đã huấn luyện; RAG vẫn là nguồn căn cứ cho nội dung hiện hành.
 - Evaluation v2 tách prediction, scoring, judge và export; Golden SFT tách train/validation.
+- Dataset v3 có artifact fine-tuning cục bộ tại `Data/dataset_v3/finetuning/`: train 3.385 case và validation 873 case, chia xác định theo nhóm domain/truy vấn để tránh leakage.
 - Web dùng `/api/chat/stream` để hiển thị token dần theo quá trình sinh; endpoint
   `/api/chat` cũ vẫn giữ nguyên cho evaluation và client hiện có.
 
