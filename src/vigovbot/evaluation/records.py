@@ -852,9 +852,50 @@ def validate_record(record: dict) -> None:
         raise ValueError("Evaluation case does not match the v3.2 root contract")
 
 
+def _supplemental_rows(supplemental: dict | None, *, golden_sha256: str,
+                       predictions_sha256: str | None) -> tuple[dict[str, dict], dict]:
+    if supplemental is None:
+        return {}, {}
+    if supplemental.get("schema_version") != "3.2.0-supplement-1":
+        raise ValueError("Unsupported supplemental score schema")
+    provenance = supplemental.get("provenance") or {}
+    if provenance.get("golden_sha256") != golden_sha256:
+        raise ValueError("Supplemental Golden hash does not match the selected split")
+    if provenance.get("predictions_sha256") != predictions_sha256:
+        raise ValueError("Supplemental prediction hash does not match predictions.jsonl")
+    rows = supplemental.get("per_case")
+    if not isinstance(rows, list):
+        raise ValueError("Supplemental score requires per_case metrics")
+    by_id = {}
+    for row in rows:
+        test_id = row.get("test_id") if isinstance(row, dict) else None
+        if not isinstance(test_id, str) or not test_id or test_id in by_id:
+            raise ValueError("Supplemental per_case IDs must be unique non-empty strings")
+        by_id[test_id] = row
+    return by_id, provenance
+
+
+def _merge_supplemental(record: dict, row: dict | None, details: dict, scorer_version: str) -> None:
+    if not row:
+        return
+    metrics = record["evaluation_results"]["metrics"]
+    for name, value in row.items():
+        if name == "test_id" or not isinstance(value, (int, float)) or not math.isfinite(value):
+            continue
+        group = "retrieval" if name == "map_at_5" else "generation"
+        metric = {"value": float(value), "status": "computed", "scorer_version": scorer_version,
+                  "reason": None}
+        contract = details.get(name) if isinstance(details.get(name), dict) else {}
+        if isinstance(contract.get("contract"), str):
+            metric["evidence"] = [{"contract": contract["contract"]}]
+        metrics.setdefault(group, {})[name] = metric
+
+
 def export_scores(*, dataset: Path, split: str, predictions: Path | None, architecture: str, model_name: str,
               run_id: str, output: Path, model_config_path: Path | None = None, allow_partial: bool = False,
-              judgments: Path | None = None) -> dict:
+              judgments: Path | None = None, supplemental: dict | None = None,
+              supplemental_path: Path | None = None, output_reference: Path | None = None,
+              supplemental_reference: Path | None = None) -> dict:
     golden_path, golden_rows = load_golden(dataset, split)
     prediction_rows, prediction_path = load_predictions(predictions)
     from .extended import load_reviews, extend_record
@@ -868,9 +909,17 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
     if prediction_path and missing and not allow_partial:
         raise ValueError(f"Predictions miss {len(missing)} Golden IDs; pass --allow-partial for a partial cached run")
     golden_sha256 = _sha256(golden_path)
+    predictions_sha256 = _sha256(prediction_path) if prediction_path else None
     if any(row.get("provenance", {}).get("dataset_sha256") != golden_sha256
            for row in prediction_rows.values()):
         raise ValueError("Prediction dataset_sha256 does not match the selected Golden split")
+    supplemental_by_id, supplemental_provenance = _supplemental_rows(
+        supplemental, golden_sha256=golden_sha256, predictions_sha256=predictions_sha256)
+    extra_supplemental = sorted(set(supplemental_by_id) - set(golden_ids))
+    if extra_supplemental:
+        raise ValueError(f"Supplemental scores contain IDs outside Golden split: {extra_supplemental[:3]}")
+    supplemental_details = ((supplemental or {}).get("metrics") or {}).get("metric_details") or {}
+    supplemental_version = str(supplemental_provenance.get("scorer_version") or "offline-v3-supplement")
     config = json.loads(Path(model_config_path).read_text(encoding="utf-8-sig")) if model_config_path else {}
     if not isinstance(config, dict):
         raise ValueError("Model config must be a JSON object")
@@ -878,7 +927,7 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
     provenance = {
         "golden_dataset": str(golden_path), "golden_sha256": golden_sha256,
         "predictions": str(prediction_path) if prediction_path else None,
-        "predictions_sha256": _sha256(prediction_path) if prediction_path else None,
+        "predictions_sha256": predictions_sha256,
         "judgments": str(judgments) if judgments else None,
         "judgments_sha256": _sha256(Path(judgments)) if judgments else None,
         "model_config": str(model_config_path) if model_config_path else None,
@@ -887,6 +936,10 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
         "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "inference_performed": False,
     }
+    if supplemental is not None:
+        provenance["supplemental"] = str(supplemental_reference or supplemental_path) if supplemental_path else None
+        provenance["supplemental_sha256"] = _sha256(supplemental_path) if supplemental_path else None
+        provenance["scorer_versions"]["supplemental"] = supplemental_version
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     counts = collections.Counter()
@@ -900,6 +953,8 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
             record = build_record(golden, prediction_rows.get(golden["test_id"]), split=split, run_id=run_id,
                                   architecture=architecture, model_config=config, provenance=provenance)
             extend_record(record, prediction_rows.get(golden["test_id"], {}), reviews.get(golden["test_id"]))
+            _merge_supplemental(record, supplemental_by_id.get(golden["test_id"]),
+                                supplemental_details, supplemental_version)
             handle.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
             status = record["execution"]["status"]
             counts[status] += 1
@@ -942,8 +997,10 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
         "cohort_metric_aggregates": cohort_metric_aggregates,
         "normalization_version": NORMALIZATION_VERSION,
         "metric_aggregates": metric_aggregates,
-        "output": str(output), "provenance": provenance,
-        "note": "Offline export only; no model, retriever, BERTScore or external judge was run.",
+        "output": str(output_reference or output), "provenance": provenance,
+        "note": ("Offline export from immutable predictions; supplemental metrics were merged."
+                 if supplemental is not None else
+                 "Offline export only; no model, retriever, BERTScore or external judge was run."),
     }
     summary_path = Path(str(output) + ".summary.json")
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")

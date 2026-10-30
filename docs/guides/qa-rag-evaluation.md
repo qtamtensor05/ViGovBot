@@ -385,3 +385,27 @@ vigov eva retrieval-rerank `
 Manifest rerank tách thời gian tải model khỏi vùng rerank và cộng vùng warm với
 `wall_seconds` của Retrieval manifest. Ranking mới giữ cả hạng/điểm FAISS và
 điểm reranker để audit; chấm lại bằng `retrieval-score` như trên.
+
+# Tái chấm Prediction Evaluation v3.2
+
+Sau khi đã có `predictions.jsonl`, có thể chạy lexical mở rộng, embedding cosine và
+BERTScore mà không inference lại. Với run đã có điểm, bắt buộc dùng `--rescore`:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m vigovbot.evaluation score `
+  --run-id <run-id> `
+  --output-root outputs/evaluation `
+  --extended-metrics `
+  --bertscore `
+  --bert-model xlm-roberta-large `
+  --bert-device cpu `
+  --bert-batch-size 8 `
+  --rescore
+```
+
+`--extended-metrics` chấm chrF/chrF++, SacreBLEU, CER/WER, METEOR và embedding
+cosine; `--bertscore` chấm precision/recall/F1. Kết quả từng case được hợp nhất vào
+`case-scores.jsonl`; aggregate được tạo lại trong `scores.json` và `report.json`.
+`supplemental.json` giữ chi tiết cấu hình, model và hash prediction. Quá trình chỉ
+thay artifact điểm sau khi toàn bộ lần chấm mới thành công.

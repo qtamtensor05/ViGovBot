@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## Extended metrics sau prediction - 2026-10-30
+
+- **Mục tiêu:** Cho phép tái chấm prediction bất biến và xuất một bộ case-score/summary/report thống nhất.
+- **Thực hiện:** `score --rescore` dựng artifact dẫn xuất trong thư mục tạm; lexical/embedding/BERTScore được gắn theo từng case và khóa bằng hash đầu vào.
+- **Kết quả:** Luồng merge và tái chấm run đã tồn tại đã được xác minh; smoke 10/10 giữ nguyên prediction. Extra `evaluation` và môi trường hiện tại có đủ BERTScore/sentence-transformers với Transformers 4.57.3; trọng số metric thật chưa được tải/chạy.
+
 ## Evaluation v3.2 có routing và cohort - 2026-10-30
 
 - **Mục tiêu:** Prediction và score phản ánh được route cuối, đồng thời tách kết quả follow-up/new-question.
@@ -191,3 +197,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   Qwen được gọi một lần để trích câu hỏi nguyên văn; PhoBERT phải xác nhận lại
   `IN_SCOPE` trước retrieval. API thật đã trả đúng phí mã 1.000894 và ghi chú phần
   ngoài phạm vi. Chưa đo tỷ lệ ca mixed trong traffic hoặc hiệu năng đại diện.
+
+- Section được nêu rõ trong câu hỏi như hồ sơ, trình tự hoặc căn cứ pháp lý có
+  thể hiệu chỉnh nhãn section PhoBERT cho một request `IN_SCOPE`; scope và danh
+  tính thủ tục vẫn giữ nguyên. API local đã xác nhận chuỗi follow-up mã 1.000894
+  truy xuất đúng `required_documents`, `procedure_step` và `legal_basis`.

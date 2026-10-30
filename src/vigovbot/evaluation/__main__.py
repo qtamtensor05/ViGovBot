@@ -29,6 +29,8 @@ def main(argv=None):
     parser.add_argument("--judge-endpoint", default="http://localhost:11434")
     parser.add_argument("--bertscore", action="store_true")
     parser.add_argument("--extended-metrics", action="store_true")
+    parser.add_argument("--rescore", action="store_true",
+                        help="Rebuild derived score artifacts from existing predictions without inference")
     parser.add_argument("--bert-model", default="xlm-roberta-large")
     parser.add_argument("--bert-device", choices=["cpu", "cuda"], default="cpu")
     parser.add_argument("--bert-batch-size", type=int, default=16)
@@ -40,6 +42,8 @@ def main(argv=None):
         parser.error("--run-id is required")
     if args.command in {"run", "evaluate"} and not args.profile:
         parser.error("--profile is required")
+    if args.rescore and args.command not in {"score", "evaluate"}:
+        parser.error("--rescore is only valid with score or evaluate")
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be positive")
     if args.timeout <= 0 or args.top_k < 1 or args.bert_batch_size < 1 or any(k < 1 for k in args.ks):

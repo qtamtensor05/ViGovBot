@@ -500,3 +500,15 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Cho prediction và score phản ánh route cuối, đồng thời so sánh riêng chất lượng follow-up và new-question.
 - **Thực hiện:** Bổ sung `execution.routing`, chuẩn hóa route runtime sang nhãn Golden, chấm `route_accuracy` và tổng hợp `cohort_metric_aggregates` theo `turn_type`; đồng bộ schema, ví dụ và tài liệu vận hành.
 - **Kết quả:** Hợp đồng prediction/case-score/summary và hồi quy đạt. Collector giữ đúng `included_text` từ prompt trace; smoke 10 câu được resume và chấm lại với 10/10 prediction thành công, gồm 5/5 follow-up và 5/5 new-question.
+
+## Hiệu chỉnh section rõ ràng trên PhoBERT - 2026-10-30
+
+- **Mục tiêu:** Không để nhãn section sai của PhoBERT giữ retrieval ở hồ sơ khi người dùng hỏi rõ trình tự hoặc căn cứ pháp lý.
+- **Thực hiện:** Ưu tiên section từ cụm từ rõ ràng cho một request `IN_SCOPE`, giữ nguyên scope và thủ tục; ghi quyết định vào trace và thêm hồi quy hội thoại.
+- **Kết quả:** 139 test routing liên quan, Ruff và compileall đạt. API thật sau restart giữ mã 1.000894 và trả đúng 4 chunk hồ sơ, 5 chunk trình tự, 4 chunk căn cứ pháp lý. Full suite chạy 399 test, còn một lỗi dependency Transformers/`tensorflow_text` không liên quan thay đổi.
+
+## Hợp nhất extended metrics sau prediction - 2026-10-30
+
+- **Mục tiêu:** Tái chấm prediction đã lưu bằng lexical, embedding và BERTScore mà không inference lại, đồng thời xuất một bộ artifact điểm thống nhất.
+- **Thực hiện:** Thêm `--rescore`, metric từng case, kiểm tra hash Golden/prediction, merge supplemental vào case-score/summary/report và thay artifact qua thư mục tạm; bổ sung dependency evaluation.
+- **Kết quả:** Hồi quy merge/rescore đạt; smoke thực tế tái chấm 10/10 và SHA-256 prediction không đổi. Dependency BERTScore/sentence-transformers import được, Transformers đúng pin 4.57.3 và `pip check` đạt; trọng số metric thật chưa tải/chạy.

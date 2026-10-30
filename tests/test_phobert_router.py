@@ -84,7 +84,8 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.retriever = fixture_retriever()
         self.addCleanup(self.retriever.close)
         add_procedure(self.retriever, "1.000894", "Thủ tục đăng ký kết hôn",
-                      sections=("submission_deadline_fee", "legal_basis", "required_documents"))
+                      sections=("submission_deadline_fee", "legal_basis", "required_documents",
+                                "procedure_step"))
         add_procedure(self.retriever, "1.116405", "Cấp, cấp đổi, cấp lại thẻ căn cước",
                       sections=("metadata_identity",))
         self.settings = dict(routing_backend="phobert", routing_phobert_path="unused", num_ctx=16000,
@@ -104,9 +105,7 @@ class PhoBERTConversationTests(unittest.TestCase):
     def ask(self, question, predictions):
         self.model.predict.side_effect = copy.deepcopy(predictions)
         with (patch("vigovbot.rag.phobert_router.get_router", return_value=self.model),
-              patch.object(self.retriever, "search", side_effect=self.search),
-              patch("vigovbot.rag.conversation.explicit_section_intents",
-                    side_effect=AssertionError("Keyword classification must not run"))):
+              patch.object(self.retriever, "search", side_effect=self.search)):
             result = answer_conversation(question, self.retriever, CharacterTokenizer(), self.settings,
                                          history=self.history, conversation_state=self.state,
                                          answer_fn=self.answer, router_fn=self.llm_router)
@@ -202,13 +201,37 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.assertEqual(result["action"], "clarify")
         self.assertEqual(result["retrieved"], [])
 
-    def test_keyword_cannot_overwrite_checkpoint_and_unknown_out_of_scope_stays_out(self):
+    def test_explicit_section_overrides_checkpoint_but_not_out_of_scope(self):
         result = self.ask("Căn cứ pháp lý thủ tục đăng ký kết hôn", [prediction(["DOSSIER"])])
-        self.assertEqual(result["classification"]["sections"], ["DOSSIER"])
-        self.assertEqual({h["section_type"] for h in result["retrieved"]}, {"required_documents"})
+        self.assertEqual(result["classification"]["sections"], ["LEGAL_BASIS"])
+        self.assertEqual({h["section_type"] for h in result["retrieved"]}, {"legal_basis"})
+        self.assertIn({
+            "type": "explicit_section_override",
+            "outcome": "accepted",
+            "predicted_sections": ["DOSSIER"],
+            "explicit_sections": ["LEGAL_BASIS"],
+        }, result["raw_routing"]["adapter_decisions"])
         result = self.ask("Viết thơ", [prediction(scope="OUT_OF_SCOPE")])
         self.assertEqual(result["actual_route"], "out_of_scope")
         self.assertEqual(result["retrieved"], [])
+
+    def test_explicit_follow_ups_change_section_and_keep_signed_procedure(self):
+        result = self.ask("Thủ tục đăng ký kết hôn cần những giấy tờ nào", [prediction(["DOSSIER"])])
+        self.assertEqual({h["section_type"] for h in result["retrieved"]}, {"required_documents"})
+
+        result = self.ask("Trình tự thực hiện của thủ tục này là gì", [
+            prediction(["DOSSIER"], flow="FOLLOW_UP"),
+        ])
+        self.assertEqual(result["classification"]["sections"], ["PROCEDURE"])
+        self.assertEqual({h["section_type"] for h in result["retrieved"]}, {"procedure_step"})
+        self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})
+
+        result = self.ask("Căn cứ pháp lý của thủ tục này là gì", [
+            prediction(["DOSSIER"], flow="FOLLOW_UP"),
+        ])
+        self.assertEqual(result["classification"]["sections"], ["LEGAL_BASIS"])
+        self.assertEqual({h["section_type"] for h in result["retrieved"]}, {"legal_basis"})
+        self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})
 
     def test_exact_corpus_identity_overrides_false_out_of_scope_without_adding_sections(self):
         result = self.ask("Đăng ký kết hôn", [prediction(scope="OUT_OF_SCOPE")])
@@ -319,7 +342,8 @@ class PhoBERTConversationTests(unittest.TestCase):
         result = self.ask("Kết quả đăng ký kết hôn", [prediction(["RESULT"])])
         self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})
         self.assertEqual({h["section_type"] for h in result["retrieved"]},
-                         {"submission_deadline_fee", "legal_basis", "required_documents"})
+                         {"submission_deadline_fee", "legal_basis", "required_documents",
+                          "procedure_step"})
         self.assertIn("Mục dữ liệu: result", result["retrieval_query"])
 
     def test_new_question_does_not_inherit_previous_selected_procedure(self):

@@ -350,3 +350,15 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Đảm bảo smoke RAG theo schema mới lưu được quyết định route và báo cáo riêng follow-up/new-question.
 - **Thực hiện:** Thêm `execution.routing` vào prediction/case-score, chuẩn hóa route runtime sang nhãn Golden, đưa `route_accuracy` vào nhóm routing và tổng hợp metric theo `turn_type` trong summary.
 - **Kết quả:** Schema prediction/case-score/summary, collector và scorer đã đồng bộ; routing được chấm bằng `route_accuracy`, summary tách cohort `turn_type:follow_up` và `turn_type:new_question`. Collector đã đọc đúng `included_text` là context thực tế sau cắt ngân sách token. Run smoke được resume và chấm lại với 10/10 prediction thành công, gồm 5/5 follow-up và 5/5 new-question.
+
+## 2026-10-30 - Hợp nhất extended metrics vào Evaluation v3.2
+
+- **Mục tiêu:** Chấm lại prediction đã lưu bằng lexical, embedding và BERTScore mà không inference lại, đồng thời đưa điểm vào case-score, summary và report chính.
+- **Thực hiện:** Bổ sung `--rescore`, tính metric từng case, hợp nhất supplemental theo hash Golden/prediction và thay thế đồng bộ các artifact điểm qua thư mục tạm.
+- **Kết quả:** Luồng merge/rescore và schema đạt hồi quy; smoke thực tế tái chấm 10/10 case, giữ nguyên SHA-256 của `predictions.jsonl`. Dependency BERTScore/sentence-transformers đã cài và `pip check` đạt; trọng số metric thật chưa tải/chạy.
+
+## 2026-10-30 - Hiệu chỉnh section rõ ràng khi PhoBERT dự đoán sai
+
+- **Mục tiêu:** Giữ đúng thủ tục trong hội thoại nhưng chuyển retrieval sang mục người dùng nêu rõ như trình tự hoặc căn cứ pháp lý.
+- **Thực hiện:** Cho từ khóa section rõ ràng hiệu chỉnh nhãn section của PhoBERT với một request trong phạm vi; không thay đổi scope, thủ tục hoặc mixed-procedure. Bổ sung trace và hồi quy cho chuỗi hỏi đăng ký kết hôn.
+- **Kết quả:** Hoàn tất source và runtime local. API thật giữ mã `1.000894`, lần lượt truy xuất `required_documents`, `procedure_step` và `legal_basis` theo ba câu hỏi nối tiếp.

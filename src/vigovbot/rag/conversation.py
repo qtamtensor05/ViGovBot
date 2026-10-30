@@ -310,12 +310,22 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             return finish(route["clarification"], "routing_fallback" if trace.get("fallback_reason") else "ambiguous_question",
                           selected=state.get("selected", []) if state and route["conversation"] == "FOLLOW_UP" else [])
         requests = copy.deepcopy(route["requests"])
-        explicit_sections = [] if phobert else explicit_section_intents(question)
-        if route["conversation"] == "FOLLOW_UP" and explicit_sections and len(requests) == 1:
+        explicit_sections = explicit_section_intents(question)
+        if (route["scope"] == "IN_SCOPE" and (phobert or route["conversation"] == "FOLLOW_UP")
+                and explicit_sections and len(requests) == 1
+                and not route.get("mixed_procedures", False)):
+            predicted_sections = list(requests[0]["sections"])
             requests[0]["sections"] = explicit_sections
             requests[0]["query"] = ", ".join(SECTION_INTENTS[s][0] for s in explicit_sections)
             route = {**route, "sections": explicit_sections, "query": requests[0]["query"],
                      "requests": copy.deepcopy(requests)}
+            if predicted_sections != explicit_sections:
+                trace.setdefault("adapter_decisions", []).append({
+                    "type": "explicit_section_override",
+                    "outcome": "accepted",
+                    "predicted_sections": predicted_sections,
+                    "explicit_sections": explicit_sections,
+                })
         # A corpus-backed discovery/bare-name request has no section goal.
         # Do not let an LLM invent requested fields from the available label list.
         if not phobert and route["conversation"] == "NEW" and len(requests) == 1:

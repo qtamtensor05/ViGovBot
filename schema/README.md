@@ -74,6 +74,11 @@ chiếu với bằng chứng đã biết; chunk chưa gán nhãn không chứng 
 là không liên quan. Precision chia số item thực trả về; nDCG dùng binary gain,
 log2(rank+1); AP@k chia min(k, số relevant chuẩn đã biết).
 
+Các metric lexical/embedding/BERTScore hậu xử lý được ghi trước vào
+`supplemental.json`, khóa bằng SHA-256 của Golden và prediction, sau đó hợp nhất
+vào metric từng case. `--rescore` chỉ dựng lại artifact điểm dẫn xuất, không thay
+đổi `predictions.jsonl` hoặc gọi lại model trả lời.
+
 ## Prediction thành công không được để rỗng tùy ý
 
 - Với RAG, `query_processing` bắt buộc có standalone query, cờ rewrite/decompose
