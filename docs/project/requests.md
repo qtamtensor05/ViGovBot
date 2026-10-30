@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Gom case Golden theo tên thủ tục trùng - 2026-10-30
+
+- **Mục tiêu:** Tập hợp các case Golden đề cập tên thủ tục trùng vào đúng thư mục nhóm để kiểm duyệt các trường hợp cùng tên nhưng khác mã.
+- **Thực hiện:** Thêm collector khớp tên chuẩn hóa trên câu hỏi, truy vấn độc lập và lịch sử hội thoại, chọn nhóm có tên dài nhất và ghi case nguyên dòng kèm summary định danh ground truth vào từng folder.
+- **Kết quả:** Hoàn tất cho 46 nhóm với 794 case; 539 case khớp mã trong nhóm, 255 case dùng mã ngoài nhóm và 3 case thiếu định danh nguồn. Golden, split và metadata nguồn không bị sửa.
+
 ## Sửa Golden smoke trùng tên thủ tục - 2026-10-30
 
 - **Mục tiêu:** Loại bỏ sai lệch routing do Golden yêu cầu một mã thủ tục cụ thể nhưng câu hỏi chỉ nêu tên trùng với nhiều bản ghi trong catalog.

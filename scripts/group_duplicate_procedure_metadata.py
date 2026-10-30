@@ -36,6 +36,12 @@ Dataset v3. Golden, split train/test và vector index nguồn không bị thay �
 - `<folder>/manifest.json`: tên gốc, tên chuẩn hóa và danh sách mã trong nhóm.
 - `<folder>/<source_code>.json`: toàn bộ metadata chunk của mã đó trong corpus.
 - `<folder>/<source_code>.pdf`: PDF nguồn tương ứng để kiểm duyệt trực tiếp.
+- `<folder>/golden_cases.jsonl`: case Golden có câu hỏi, truy vấn độc lập hoặc
+  lịch sử hội thoại đề cập tên nhóm; giữ nguyên từng dòng Golden gốc.
+- `<folder>/golden_cases_summary.json`: field khớp, tên/mã thủ tục trong ground
+  truth và cờ `code_in_group` cho từng case.
+- `golden_cases_manifest.json`: quy tắc khớp, checksum nguồn và thống kê case
+  theo từng nhóm.
 
 Manifest nhóm lưu đường dẫn PDF nguồn, kích thước và SHA-256 để phát hiện nhầm
 phiên bản hoặc thay đổi tài liệu sau khi cây dữ liệu được sinh.
@@ -44,9 +50,18 @@ Tên được xem là trùng sau khi chuẩn hóa chữ hoa/thường, dấu ti�
 trắng và dấu chấm cuối câu. Không tự động kết luận mọi Golden dùng tên đó đều
 sai; cần đối chiếu mã, cấp thực hiện, địa phương và lịch sử hội thoại.
 
+Mỗi case thường chỉ vào một thư mục: nhóm có tên chuẩn hóa dài nhất xuất hiện
+trong câu hỏi; nếu nhiều nhóm cùng độ dài tên, case có mặt ở tất cả nhóm đó.
+`code_in_group=false` là case cần rà soát vì ground truth dùng mã khác
+với các mã trong nhóm, thường là biến thể địa phương hoặc cấp thực hiện cùng tên.
+`ground_truth_name_exact_match=false` cho biết tên thủ tục đích chỉ chứa tên nhóm
+như một phần của tên dài hơn, không trùng khít tên nhóm. Lọc case cần rà soát
+bằng `code_in_group=false` trong `golden_cases_summary.json`.
+
 Sinh lại bằng `scripts/group_duplicate_procedure_metadata.py` với đường dẫn đến
 SQLite metadata cache tương ứng corpus cần kiểm duyệt. Generator không ghi đè
-thư mục đã tồn tại.
+thư mục đã tồn tại. Sau khi có cây nhóm, chạy
+`scripts/collect_duplicate_procedure_golden_cases.py` để cập nhật case Golden.
 """
 
 

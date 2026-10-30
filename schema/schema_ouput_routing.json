@@ -1,0 +1,26 @@
+{
+    /* ================= 1. KẾT QUẢ DỰ ĐOÁN TỪ PHOBERT ================= */
+    "scope": "IN_SCOPE", // "IN_SCOPE" | "OUT_OF_SCOPE" | "MIXED_SCOPE"
+    "conversation": "NEW", // "NEW" | "FOLLOW_UP"
+    "mixed_procedures": false, // true | false
+    "sections": [
+        "DOSSIER",
+        "FEE"
+    ], // Danh sách mục cần hỏi (nếu có)
+    "query": "Hồ sơ và lệ phí thuê đất?", // Query độc lập đã làm sạch
+    /* ================= 2. ĐỐI SOÁT THỰC THỂ CATALOG ================= */
+    "procedure_name": "thuê đất", // Tên thủ tục nhận diện được
+    "matched_procedure_codes": [ // Danh sách các mã TTHC khớp trong Catalog
+        "1.013945",
+        "2.013945"
+    ],
+    "matched_procedure_count": 2, // n thủ tục khớp tên hoặc mã (thay cho num_of_retrival)
+    /* ================= 3. ĐỊNH TUYẾN LUỒNG & HÀNH ĐỘNG (FLOW & ACTION) ================= */
+    "target_flow": "procedure_disambiguation_menu", // Tên luồng trực quan để debug/báo cáo
+    "action": "clarify", // "clarify" | "answer" | "abstain"
+    "decision_reason": "procedure_required", // "procedure_required" | "section_required" | "sufficient" | "out_of_scope" | ...
+    /* ================= 4. THÔNG TIN LÀM RÕ (NẾU CÓ MENU) ================= */
+    "needs_clarification": true, // true nếu rơi vào nhánh clarify
+    "menu_kind": "procedure", // "procedure" | "section" | null
+    "clarification": "Bạn muốn hỏi thủ tục nào trong danh sách sau?"
+}

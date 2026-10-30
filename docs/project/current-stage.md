@@ -145,6 +145,7 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 ## Kết quả
 
 - `Data/dataset_v3/duplicate_procedure_names/` chứa 46 folder tên trùng, 168 mã, 5.768 chunk metadata và 168 PDF nguồn từ corpus hiện hành. Mỗi folder có manifest nhóm, JSON metadata và PDF kèm checksum cho từng mã; Golden, split train/test và vector index không thay đổi.
+- Mỗi folder tên trùng có thêm `golden_cases.jsonl` và `golden_cases_summary.json`; `golden_cases_manifest.json` ghi 794 case, gồm 539 case khớp mã trong nhóm, 255 case dùng mã ngoài nhóm cần rà soát và 3 case thiếu định danh nguồn. Golden gốc và split không thay đổi.
 
 - Schema độc lập cho Golden Dataset và Evaluation v2 nằm tại `schema/`; toàn bộ
   3.850 dòng Golden và evaluation record sinh từ `build_record` đã validate theo

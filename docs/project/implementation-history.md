@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Gom case Golden theo tên thủ tục trùng - 2026-10-30
+
+- **Mục tiêu:** Đưa các case Golden đề cập tên thủ tục trùng vào đúng thư mục nhóm để rà soát định danh theo mã, cấp và địa phương.
+- **Thực hiện:** Thêm `scripts/collect_duplicate_procedure_golden_cases.py` khớp tên chuẩn hóa trên câu hỏi, truy vấn độc lập và lịch sử hội thoại; chọn nhóm có tên dài nhất; ghi `golden_cases.jsonl` (nguyên dòng Golden), `golden_cases_summary.json` và `golden_cases_manifest.json`.
+- **Kết quả:** Phân 794 case vào 46 nhóm, không trùng assignment; 539 case có mã ground truth thuộc nhóm, 255 case dùng mã ngoài nhóm cần rà soát và 3 case thiếu định danh nguồn. Test mới, test generator, Ruff, compileall và script kiểm chứng độc lập đều đạt; checksum, nội dung dòng Golden và summary khớp nguồn.
+
 ## Sửa Golden smoke trùng tên thủ tục - 2026-10-30
 
 - **Mục tiêu:** Tách lỗi dữ liệu đánh giá khỏi lỗi PhoBERT routing và giữ nguyên nguyên tắc không tự chọn thủ tục trùng tên.
