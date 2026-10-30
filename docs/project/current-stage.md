@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## Golden smoke phân biệt thủ tục trùng tên - 2026-10-30
+
+- **Mục tiêu:** Không chấm hành vi hỏi làm rõ an toàn thành routing sai khi Golden ngầm chọn một mã trong nhiều thủ tục trùng tên.
+- **Thực hiện:** `GOLDEN_V3_006630` nêu rõ Thanh Hóa, mã `1.115490` và `metadata_filters.source_code`; validator liệt kê candidate có tên bằng nhau nhưng thiếu mã để rà soát.
+- **Kết quả:** Smoke mới `dataset-v3-train-rag-10-20261030-run-3` đạt route accuracy 10/10. Case đích có `IN_SCOPE/NEW/PROCEDURE`, chỉ truy xuất `1.115490` và trả `answer`; runtime vẫn hỏi chọn khi tên trùng mà không có mã.
+
 ## Extended metrics sau prediction - 2026-10-30
 
 - **Mục tiêu:** Cho phép tái chấm prediction bất biến và xuất một bộ case-score/summary/report thống nhất.
@@ -137,6 +143,9 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   `/api/chat` cũ vẫn giữ nguyên cho evaluation và client hiện có.
 
 ## Kết quả
+
+- `Data/dataset_v3/duplicate_procedure_names/` chứa 46 folder tên trùng, 168 mã, 5.768 chunk metadata và 168 PDF nguồn từ corpus hiện hành. Mỗi folder có manifest nhóm, JSON metadata và PDF kèm checksum cho từng mã; Golden, split train/test và vector index không thay đổi.
+- Mỗi folder tên trùng có thêm `golden_cases.jsonl` và `golden_cases_summary.json`; `golden_cases_manifest.json` ghi 794 case, gồm 539 case khớp mã trong nhóm, 255 case dùng mã ngoài nhóm cần rà soát và 3 case thiếu định danh nguồn. Golden gốc và split không thay đổi.
 
 - Schema độc lập cho Golden Dataset và Evaluation v2 nằm tại `schema/`; toàn bộ
   3.850 dòng Golden và evaluation record sinh từ `build_record` đã validate theo

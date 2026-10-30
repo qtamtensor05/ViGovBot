@@ -1,5 +1,17 @@
 # Lịch sử thay đổi hệ thống
 
+## Gom case Golden theo tên thủ tục trùng - 2026-10-30
+
+- **Mục tiêu:** Đưa các case Golden đề cập tên thủ tục trùng vào đúng thư mục nhóm để rà soát định danh theo mã, cấp và địa phương.
+- **Thực hiện:** Thêm `scripts/collect_duplicate_procedure_golden_cases.py` khớp tên chuẩn hóa trên câu hỏi, truy vấn độc lập và lịch sử hội thoại; chọn nhóm có tên dài nhất; ghi `golden_cases.jsonl` (nguyên dòng Golden), `golden_cases_summary.json` và `golden_cases_manifest.json`.
+- **Kết quả:** Phân 794 case vào 46 nhóm, không trùng assignment; 539 case có mã ground truth thuộc nhóm, 255 case dùng mã ngoài nhóm cần rà soát và 3 case thiếu định danh nguồn. Test mới, test generator, Ruff, compileall và script kiểm chứng độc lập đều đạt; checksum, nội dung dòng Golden và summary khớp nguồn.
+
+## Sửa Golden smoke trùng tên thủ tục - 2026-10-30
+
+- **Mục tiêu:** Tách lỗi dữ liệu đánh giá khỏi lỗi PhoBERT routing và giữ nguyên nguyên tắc không tự chọn thủ tục trùng tên.
+- **Thực hiện:** Bổ sung mã `1.115490` và tỉnh Thanh Hóa cho `GOLDEN_V3_006630`, đồng bộ Golden/SFT local, thêm candidate audit và hồi quy cho cả có/thiếu mã.
+- **Kết quả:** Validator 7.100 case đạt và nêu 269 candidate cần rà soát; 52 test tập trung và full suite 402 test đều đạt (15 skipped). Smoke lần 3 chạy mới 10/10 prediction thành công, route accuracy tăng từ 90% lên 100%, action accuracy từ 70% lên 80%; hai lỗi action còn lại không phải lỗi routing.
+
 ## Hiển thị trạng thái đánh giá cho từng câu trả lời Web - 2026-10-30
 
 - **Mục tiêu:** Không buộc người dùng suy đoán trạng thái runtime từ nội dung câu trả lời.
@@ -518,3 +530,8 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Chuẩn bị hai tập train/validation SFT từ `Data/dataset_v3/train/golden_train.jsonl` mà không thay đổi nguồn Golden hoặc dùng tập test.
 - **Thực hiện:** Chuyển lossless lịch sử hội thoại, câu hỏi và `expected_answer` sang schema `id/messages`; chia xác định bằng SHA-256 với seed 42 theo nhóm `(domain, standalone_query)` để cùng nhóm không rơi vào hai split.
 - **Kết quả:** Tạo cục bộ `Data/dataset_v3/finetuning/train_sft.jsonl` gồm 3.385 case và `validation_sft.jsonl` gồm 873 case. Toàn bộ 4.258 ID được bảo toàn; không trùng ID hoặc nhóm truy vấn giữa hai split; schema hội thoại và phép kiểm tra Dataset v3 đạt.
+## 2026-10-30 - Gom metadata thủ tục trùng tên trong Dataset v3
+
+- **Mục tiêu:** Đặt các phiên bản thủ tục cùng tên và metadata tương ứng cạnh nhau để kiểm duyệt định danh theo mã, cấp và địa phương.
+- **Thực hiện:** Thêm generator xác định tên trùng từ `golden_all.jsonl`, đọc payload theo mã từ SQLite corpus và sinh cây `Data/dataset_v3/duplicate_procedure_names/` với manifest tổng, manifest nhóm và file metadata từng mã.
+- **Kết quả:** Sinh 46 folder cho 168 mã, gồm 5.768 chunk metadata và 168 PDF nguồn. Toàn bộ PDF khớp SHA-256 nguồn, mở được 1.914 trang và không thiếu mã/context/nhóm. Manifest lưu checksum Golden, metadata cache và từng PDF; test liên quan, Ruff, compileall, validator Dataset v3 và diff check đều đạt. Dữ liệu Golden và index nguồn được giữ nguyên.
