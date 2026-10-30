@@ -1,6 +1,8 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from tests.test_evaluation_v2 import base_api_result, golden, prediction, write_jsonl
@@ -72,6 +74,64 @@ class ExtendedEvaluationTests(unittest.TestCase):
         self.assertEqual(raw["eval_count"], 2)
         self.assertGreaterEqual(duration, raw["ttft_seconds"])
         response.close.assert_called_once()
+
+    def test_rescore_rebuilds_derived_artifacts_without_changing_predictions(self):
+        from vigovbot.artifacts import file_hash
+        from vigovbot.evaluation.workflow import _dispatch
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dataset = root / "dataset"
+            output_root = root / "output"
+            run = output_root / "run"
+            run.mkdir(parents=True)
+            case = golden()
+            golden_path = dataset / "test/golden_test.jsonl"
+            write_jsonl(golden_path, [case])
+            pred = prediction(case)
+            pred["run_id"] = "run"
+            pred["provenance"]["dataset_sha256"] = file_hash(golden_path)
+            predictions = run / "predictions.jsonl"
+            write_jsonl(predictions, [pred])
+            prediction_hash = file_hash(predictions)
+            manifest = {
+                "dataset": str(golden_path.resolve()), "sha256": file_hash(golden_path), "split": "test",
+                "expected": 1, "selected_ids_sha256": "fixture", "profile": "rag", "scope": "full",
+                "run_id": "run", "dataset_dir": str(dataset.resolve()), "endpoint": "fixture", "limit": None,
+                "complete_trace": True, "top_k": 10, "config": "fixture", "config_sha256": "fixture",
+                "model_metadata": None, "model_metadata_sha256": None, "model_id": "qwen-rag",
+            }
+            (run / "run-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (run / "scores.json").write_text('{"stale":true}', encoding="utf-8")
+            (run / "report.json").write_text('{"stale":true}', encoding="utf-8")
+            args = SimpleNamespace(
+                command="score", profile=None, other_run_id=None, output_root=output_root,
+                rescore=True, allow_partial=False, judge_model=None, judge_endpoint="fixture",
+                resume=False, bertscore=True, extended_metrics=True, bert_model="fixture",
+                bert_device="cpu", bert_batch_size=1,
+            )
+            def supplemental(**kwargs):
+                value = {
+                    "schema_version": "3.2.0-supplement-1",
+                    "metrics": {"metric_details": {"chrf": {"status": "computed"}}},
+                    "per_case": [{"test_id": case["test_id"], "chrf": 80.0}],
+                    "provenance": {
+                        "golden_sha256": file_hash(golden_path),
+                        "predictions_sha256": file_hash(predictions),
+                        "scorer_version": "fixture-supplement-v1",
+                    },
+                }
+                kwargs["output"].write_text(json.dumps(value), encoding="utf-8")
+                return value
+            with patch("vigovbot.evaluation.scoring.score_supplemental", side_effect=supplemental):
+                summary = _dispatch(args, run)
+            refreshed_report = json.loads((run / "report.json").read_text(encoding="utf-8"))
+            prediction_hash_after = file_hash(predictions)
+            supplemental_exists = (run / "supplemental.json").is_file()
+        self.assertEqual(summary["execution_status"], {"success": 1})
+        self.assertEqual(summary["metric_aggregates"]["generation"]["chrf"], {"mean": 80.0, "n": 1})
+        self.assertEqual(refreshed_report["scores"], summary)
+        self.assertEqual(prediction_hash_after, prediction_hash)
+        self.assertTrue(supplemental_exists)
 
 
 if __name__ == "__main__":

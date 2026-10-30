@@ -12,7 +12,7 @@ from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 from .records import canonical_architecture, load_golden, load_predictions
 
 
-SCORER_VERSION = "1"
+SCORER_VERSION = "2"
 
 
 def _mean(values: list[float]) -> float | None:
@@ -58,13 +58,15 @@ def _average_precision_at_5(retrieved: list[str], relevant: list[str]) -> float:
     return precision_sum / min(5, len(relevant_set))
 
 
-def _corpus_lexical(predictions: list[str], references: list[str]) -> dict:
+def _lexical_case(prediction: str, reference: str) -> dict:
     import sacrebleu
 
     return {
-        "chrf": sacrebleu.corpus_chrf(predictions, [references]).score,
-        "chrf_pp": sacrebleu.corpus_chrf(predictions, [references], word_order=2).score,
-        "sacrebleu": sacrebleu.corpus_bleu(predictions, [references], tokenize="none").score,
+        "chrf": sacrebleu.sentence_chrf(prediction, [reference]).score,
+        "chrf_pp": sacrebleu.sentence_chrf(prediction, [reference], word_order=2).score,
+        "sacrebleu": sacrebleu.sentence_bleu(prediction, [reference], tokenize="none").score,
+        "character_error_rate": _error_rate(prediction, reference, words=False),
+        "word_error_rate": _error_rate(prediction, reference, words=True),
     }
 
 
@@ -129,17 +131,14 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
             raise ValueError(f"Prediction {golden['test_id']} has no answer")
         ordered_predictions.append(answer)
         references.append(golden["ground_truth"]["expected_answer"])
-        per_case.append({
-            "test_id": golden["test_id"],
-            "character_error_rate": _error_rate(answer, golden["ground_truth"]["expected_answer"], words=False),
-            "word_error_rate": _error_rate(answer, golden["ground_truth"]["expected_answer"], words=True),
-        })
+        per_case.append({"test_id": golden["test_id"], **_lexical_case(
+            answer, golden["ground_truth"]["expected_answer"]
+        )})
 
-    lexical = _corpus_lexical(ordered_predictions, references)
-    lexical["character_error_rate"] = _mean([row["character_error_rate"] for row in per_case])
-    lexical["word_error_rate"] = _mean([row["word_error_rate"] for row in per_case])
+    lexical_keys = ("chrf", "chrf_pp", "sacrebleu", "character_error_rate", "word_error_rate")
+    lexical = {key: _mean([row[key] for row in per_case]) for key in lexical_keys}
     details = {
-        key: {"status": "computed", "scorer_version": f"offline-v2-supplement-{SCORER_VERSION}"}
+        key: {"status": "computed", "scorer_version": f"offline-v3-supplement-{SCORER_VERSION}"}
         for key in lexical
     }
     retrieval = {"map_at_5": None}
@@ -157,7 +156,7 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
         retrieval["map_at_5"] = _mean(map_rows)
         details["map_at_5"] = {
             "status": "computed", "n": len(map_rows), "denominator": "min(5, known_relevant)",
-            "scorer_version": f"offline-v2-supplement-{SCORER_VERSION}",
+            "scorer_version": f"offline-v3-supplement-{SCORER_VERSION}",
         }
     else:
         details["map_at_5"] = {"status": "not_applicable", "reason": "Base architecture has no retrieval"}
@@ -208,8 +207,9 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
         "partial": bool(missing_ids),
         "metric_contract": {
             "normalization_version": NORMALIZATION_VERSION,
-            "sacrebleu": "corpus BLEU, tokenize=none, scale 0-100",
-            "chrf": "corpus chrF, sacrebleu default configuration, scale 0-100",
+            "sacrebleu": "macro mean of sentence BLEU, tokenize=none, scale 0-100",
+            "chrf": "macro mean of sentence chrF, sacrebleu default configuration, scale 0-100",
+            "chrf_pp": "macro mean of sentence chrF++, word_order=2, scale 0-100",
             "character_error_rate": "mean normalized Levenshtein over NFC/casefold characters",
             "word_error_rate": "mean normalized Levenshtein over NFC/casefold whitespace tokens",
             "map_at_5": "binary relevance, retrieved top-5, AP denominator min(5, known relevant)",
@@ -219,6 +219,7 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
         "provenance": {
             "golden_dataset": str(golden_path), "golden_sha256": file_hash(golden_path),
             "predictions": str(prediction_path), "predictions_sha256": file_hash(prediction_path),
+            "scorer_version": f"offline-v3-supplement-{SCORER_VERSION}",
             "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "inference_performed": False,
         },

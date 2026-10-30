@@ -215,6 +215,50 @@ class EvaluationV3Tests(unittest.TestCase):
             report = score_supplemental(dataset=root, split="test", predictions=predictions,
                                         architecture="rag", output=root / "supplemental.json")
         self.assertEqual(report["schema_version"], "3.2.0-supplement-1")
+        self.assertEqual(report["scored_records"], 1)
+        for metric in ("chrf", "chrf_pp", "sacrebleu", "character_error_rate", "word_error_rate"):
+            self.assertIn(metric, report["per_case"][0])
+
+    def test_supplemental_metrics_merge_into_case_scores_and_summary(self):
+        case = golden()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            golden_path = root / "test/golden_test.jsonl"
+            predictions = root / "predictions.jsonl"
+            write_jsonl(golden_path, [case])
+            pred = prediction(case)
+            from vigovbot.artifacts import file_hash
+            pred["provenance"]["dataset_sha256"] = file_hash(golden_path)
+            write_jsonl(predictions, [pred])
+            supplemental_path = root / "supplemental.json"
+            supplemental = {
+                "schema_version": "3.2.0-supplement-1",
+                "metrics": {"metric_details": {
+                    "chrf": {"status": "computed", "contract": "sentence chrF"},
+                    "bertscore_f1": {"status": "computed", "model": "fixture"},
+                }},
+                "per_case": [{"test_id": case["test_id"], "chrf": 75.0, "bertscore_f1": 0.9}],
+                "provenance": {
+                    "golden_sha256": file_hash(golden_path),
+                    "predictions_sha256": file_hash(predictions),
+                    "scorer_version": "fixture-supplement-v1",
+                },
+            }
+            supplemental_path.write_text(json.dumps(supplemental), encoding="utf-8")
+            output = root / "case-scores.jsonl"
+            summary = export_scores(
+                dataset=root, split="test", predictions=predictions, architecture="rag",
+                model_name="fixture", run_id="fixture", output=output,
+                supplemental=supplemental, supplemental_path=supplemental_path,
+            )
+            record = next(read_jsonl(output))
+        self.assertEqual(record["evaluation_results"]["metrics"]["generation"]["chrf"]["value"], 75.0)
+        self.assertEqual(record["evaluation_results"]["metrics"]["generation"]["bertscore_f1"]["value"], 0.9)
+        self.assertEqual(summary["metric_aggregates"]["generation"]["chrf"], {"mean": 75.0, "n": 1})
+        self.assertEqual(summary["provenance"]["scorer_versions"]["supplemental"],
+                         "fixture-supplement-v1")
+        validator("evaluation_case").validate(record)
+        validator("evaluation_summary").validate(summary)
 
     def test_duplicate_ids_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

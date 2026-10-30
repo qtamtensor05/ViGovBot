@@ -112,6 +112,8 @@
         "golden_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "predictions": {"type": ["string", "null"]},
         "predictions_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "supplemental": {"type": ["string", "null"]},
+        "supplemental_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
         "judgments": {"type": ["string", "null"]},
         "judgments_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
         "model_config": {"type": ["string", "null"]},

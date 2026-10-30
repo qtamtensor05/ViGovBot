@@ -37,7 +37,15 @@ Corpus và Ollama cần sẵn sàng theo cấu hình RAG hiện tại.
 
 ```powershell
 python -m vigovbot eva run --run-id golden-rag-smoke --profile rag --config configs/rag/inference.yaml --split test --limit 10
-python -m vigovbot eva score --run-id golden-rag-smoke --extended-metrics
+python -m vigovbot eva score --run-id golden-rag-smoke --extended-metrics --bertscore
+```
+
+Nếu run đã có `scores.json`, tái chấm prediction bất biến bằng `--rescore`. Lệnh dựng
+artifact trong thư mục tạm rồi thay đồng bộ `supplemental.json`, `case-scores.jsonl`,
+`scores.json` và `report.json`; không gọi lại inference:
+
+```powershell
+python -m vigovbot eva score --run-id golden-rag-smoke --extended-metrics --bertscore --rescore
 ```
 
 Ví dụ benchmark nhanh trên máy hiện tại:

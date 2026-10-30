@@ -1,6 +1,8 @@
 """Run-directory orchestration for the canonical Golden contract."""
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 from vigovbot.artifacts import file_hash, output_lock
 from .records import load_golden, capture_predictions, export_scores, DEFAULT_WEB_MODELS
@@ -97,35 +99,62 @@ def _dispatch(args, directory):
     score_path = directory / "scores.json"
     if args.command in {"score", "evaluate"}:
         if score_path.exists():
-            if args.command == "score" or not args.resume:
+            if args.rescore:
+                pass
+            elif args.command == "score" or not args.resume:
                 raise FileExistsError("Scores already exist")
-        elif manifest["scope"] == "retrieval":
-            summary = export_scores(
-                dataset=dataset, split=manifest["split"], predictions=predictions,
-                architecture="rag", model_name=manifest["model_id"], run_id=manifest["run_id"],
-                output=directory / "case-scores.jsonl", allow_partial=args.allow_partial)
-            _write(score_path, summary)
-        else:
-            judgments = directory / "judgments.jsonl"
-            if args.judge_model:
-                from .ollama_judge import judge
-                judge(dataset=dataset, split=manifest["split"], predictions=predictions, output=judgments,
-                      model=args.judge_model, endpoint=args.judge_endpoint,
-                      resume=args.resume, allow_partial=args.allow_partial)
-            if args.bertscore or args.extended_metrics:
-                from .scoring import score_supplemental
-                score_supplemental(
-                    dataset=dataset, split=manifest["split"], predictions=predictions,
-                    architecture=PROFILES[manifest["profile"]], output=directory / "supplemental.json",
-                    bertscore=args.bertscore, bert_model=args.bert_model, bert_device=args.bert_device,
-                    bert_batch_size=args.bert_batch_size, extended=args.extended_metrics,
-                    allow_partial=args.allow_partial)
-            summary = export_scores(dataset=dataset, split=manifest["split"], predictions=predictions,
-                                architecture=PROFILES[manifest["profile"]], model_name=manifest["model_id"],
-                                run_id=manifest["run_id"], output=directory / "case-scores.jsonl",
-                                judgments=judgments if judgments.exists() else None,
-                                allow_partial=args.allow_partial)
-            _write(score_path, summary)
+        if not score_path.exists() or args.rescore:
+            with tempfile.TemporaryDirectory(prefix=".score-", dir=directory) as temporary:
+                temporary = Path(temporary)
+                case_scores = temporary / "case-scores.jsonl"
+                supplemental = None
+                supplemental_path = None
+                if manifest["scope"] == "retrieval":
+                    summary = export_scores(
+                        dataset=dataset, split=manifest["split"], predictions=predictions,
+                        architecture="rag", model_name=manifest["model_id"], run_id=manifest["run_id"],
+                        output=case_scores, output_reference=directory / "case-scores.jsonl",
+                        allow_partial=args.allow_partial)
+                else:
+                    judgments = directory / "judgments.jsonl"
+                    if args.judge_model:
+                        from .ollama_judge import judge
+                        judge(dataset=dataset, split=manifest["split"], predictions=predictions, output=judgments,
+                              model=args.judge_model, endpoint=args.judge_endpoint,
+                              resume=args.resume, allow_partial=args.allow_partial)
+                    if args.bertscore or args.extended_metrics:
+                        from .scoring import score_supplemental
+                        supplemental_path = temporary / "supplemental.json"
+                        supplemental = score_supplemental(
+                            dataset=dataset, split=manifest["split"], predictions=predictions,
+                            architecture=PROFILES[manifest["profile"]], output=supplemental_path,
+                            bertscore=args.bertscore, bert_model=args.bert_model, bert_device=args.bert_device,
+                            bert_batch_size=args.bert_batch_size, extended=args.extended_metrics,
+                            allow_partial=args.allow_partial)
+                    summary = export_scores(
+                        dataset=dataset, split=manifest["split"], predictions=predictions,
+                        architecture=PROFILES[manifest["profile"]], model_name=manifest["model_id"],
+                        run_id=manifest["run_id"], output=case_scores,
+                        judgments=judgments if judgments.exists() else None,
+                        supplemental=supplemental, supplemental_path=supplemental_path,
+                        supplemental_reference=directory / "supplemental.json",
+                        output_reference=directory / "case-scores.jsonl",
+                        allow_partial=args.allow_partial)
+                temporary_score = temporary / "scores.json"
+                _write(temporary_score, summary)
+                os.replace(case_scores, directory / "case-scores.jsonl")
+                os.replace(Path(str(case_scores) + ".summary.json"),
+                           directory / "case-scores.jsonl.summary.json")
+                if supplemental_path:
+                    os.replace(supplemental_path, directory / "supplemental.json")
+                elif args.rescore and (directory / "supplemental.json").exists():
+                    (directory / "supplemental.json").unlink()
+                os.replace(temporary_score, score_path)
+                if args.rescore and (directory / "report.json").exists():
+                    refreshed_report = {"run": manifest, "scores": summary, "inference_performed": False}
+                    temporary_report = temporary / "report.json"
+                    _write(temporary_report, refreshed_report)
+                    os.replace(temporary_report, directory / "report.json")
         if args.command == "score":
             return _read(score_path)
     if not score_path.exists():
