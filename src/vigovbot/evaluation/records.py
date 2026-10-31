@@ -34,9 +34,9 @@ REFERENCE_KEYS = [
 ROUTING_KEYS = ["route_accuracy"]
 QUERY_KEYS = ["query_rewrite_similarity", "sub_query_recall", "sub_query_precision"]
 RETRIEVAL_KEYS = [
-    *(f"hit_at_{k}" for k in (1, 3, 5, 10)), *(f"recall_at_{k}" for k in (1, 3, 5, 10)),
-    *(f"precision_at_{k}" for k in (1, 3, 5, 10)), "mrr_at_5", "mrr_at_10", "map_at_10",
-    "ndcg_at_5", "ndcg_at_10", "context_recall", "context_precision",
+    *(f"hit_at_{k}" for k in (1, 3, 5, 10, 15)), *(f"recall_at_{k}" for k in (1, 3, 5, 10, 15)),
+    *(f"precision_at_{k}" for k in (1, 3, 5, 10, 15)), "mrr_at_5", "mrr_at_10", "mrr_at_15", "map_at_10",
+    "ndcg_at_5", "ndcg_at_10", "ndcg_at_15", "context_recall", "context_precision",
     "multi_intent_retrieval_coverage", "context_noise_ratio",
 ]
 GENERATION_KEYS = [
@@ -131,9 +131,18 @@ def canonical_route(value: str | None) -> str | None:
 def golden_split_path(dataset: Path, split: str) -> Path:
     """Resolve the v3 split layout first while retaining legacy dataset support."""
     dataset = Path(dataset)
+    if dataset.is_file():
+        return dataset
     candidates = (
         dataset / split / f"golden_{split}.jsonl",
         dataset / f"{split}_golden.jsonl",
+        dataset / f"{split}_rag" / f"{split}_rag.jsonl",
+        dataset / f"{split}_rag" / f"golden_{split}_rag.jsonl",
+        dataset / f"{split}_rag.jsonl",
+        dataset / split / f"{split}.jsonl",
+        dataset / f"{split}.jsonl",
+        dataset / "fintuning" / f"{split}.jsonl",
+        dataset / "finetuning" / f"{split}.jsonl",
     )
     path = next((candidate for candidate in candidates if candidate.is_file()), None)
     if path is None:
@@ -548,13 +557,13 @@ def _reference_scores(answer: str, reference: str) -> dict:
 def _ranking_metrics(retrieved: list[str], relevant: list[str]) -> dict:
     result = _empty(RETRIEVAL_KEYS)
     relevant_set = set(relevant)
-    for k in (1, 3, 5, 10):
+    for k in (1, 3, 5, 10, 15):
         top = retrieved[:k]
         hits = sum(value in relevant_set for value in top)
         result[f"hit_at_{k}"] = float(hits > 0)
         result[f"recall_at_{k}"] = hits / len(relevant_set)
         result[f"precision_at_{k}"] = hits / len(top) if top else 0.0
-    for k in (5, 10):
+    for k in (5, 10, 15):
         ranks = [index for index, value in enumerate(retrieved[:k], 1) if value in relevant_set]
         result[f"mrr_at_{k}"] = 1 / ranks[0] if ranks else 0.0
         dcg = sum(1 / math.log2(index + 1) for index, value in enumerate(retrieved[:k], 1) if value in relevant_set)

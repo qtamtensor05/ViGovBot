@@ -103,6 +103,12 @@ class EvaluationV3Tests(unittest.TestCase):
             (root / "test/golden_test.jsonl").unlink()
             write_jsonl(root / "test_golden.jsonl", [golden()])
             self.assertEqual(load_golden(root, "test")[0], root / "test_golden.jsonl")
+            (root / "test_golden.jsonl").unlink()
+            write_jsonl(root / "test_rag/test_rag.jsonl", [golden()])
+            self.assertEqual(load_golden(root, "test")[0], root / "test_rag/test_rag.jsonl")
+            write_jsonl(root / "fintuning/train.jsonl", [golden()])
+            self.assertEqual(load_golden(root, "train")[0], root / "fintuning/train.jsonl")
+            self.assertEqual(load_golden(root / "test_rag/test_rag.jsonl", "test")[0], root / "test_rag/test_rag.jsonl")
 
     def test_capture_writes_schema_v32_without_gold_leakage(self):
         captured = []

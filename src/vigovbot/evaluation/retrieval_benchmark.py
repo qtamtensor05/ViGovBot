@@ -50,10 +50,8 @@ def _selection(dataset, view, split, limit):
     if view:
         raise ValueError("Golden uses split selection; views are no longer supported")
     dataset = Path(dataset)
-    if dataset.is_file():
-        if dataset.name != f"{split}_golden.jsonl":
-            raise ValueError("Golden file must match the selected split")
-        dataset = dataset.parent
+    if dataset.is_file() and dataset.name != f"{split}_golden.jsonl" and split not in dataset.name:
+        raise ValueError("Golden file must match the selected split")
     path, rows = load_golden(dataset, split)
     rows = rows[:limit] if limit else rows
     queries = [{"id": row["test_id"], "question": row["input"]["question"], "split": split} for row in rows]

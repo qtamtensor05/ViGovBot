@@ -10,7 +10,7 @@ llm:
   model: qwen2.5:7b
   ollama_url: &ollama_url http://ollama:11434
 retrieval:
-  top_k: 5
+  top_k: 15
   max_chunk_tokens: 1200
   max_metadata_tokens: 256
 conversation:
