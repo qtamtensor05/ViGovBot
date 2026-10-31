@@ -43,6 +43,8 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 ## Báo cáo kết quả
 
+- [Báo cáo chi tiết các module xử lý chính ViGovBot](reports/bao-cao-cac-module-xu-ly-chinh-vigovbot.md)
+- [Báo cáo hệ thống nhãn phân loại và actions](reports/bao-cao-phan-loai-nhan-va-actions.md)
 - [Kiểm chứng đóng gói bằng chứng và prompt RAG](reports/rag-evidence-hardening-20261024.md)
 - [Benchmark độ trễ reranker (10 câu)](reports/reranker-latency-20261029.md)
 
