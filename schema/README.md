@@ -4,13 +4,15 @@ Bốn schema độc lập: `golden_dataset.schema.json` mô tả nhãn chuẩn,
 `prediction.schema.json` mô tả dữ liệu thực tế phải thu, và
 `evaluation_case.schema.json` bổ sung kết quả chấm vào prediction;
 `evaluation_summary.schema.json` mô tả tổng hợp của cả lần chạy.
-Mọi $ref đều nội bộ. Hai file *.example.json là dữ liệu giả lập để xem cấu trúc.
+Mọi $ref đều nội bộ.
 
 Collector và scorer canonical tại `src/vigovbot/evaluation/` ghi schema v3.2.
-Dataset mặc định là `Data/dataset_v3`, với split tại
-`train/golden_train.jsonl` và `test/golden_test.jsonl`; resolver vẫn đọc được
-layout legacy `{split}_golden.jsonl`. Không được tự suy ra nhãn hoặc measurement
-còn thiếu để làm cho dữ liệu pass.
+Dataset mặc định là `Data/dataset_v3`, với các tập kiểm thử:
+- `test_rag/test_rag_pa1.jsonl` (Golden Ratio Balanced)
+- `test_rag/test_rag_pa2.jsonl` (Max Procedure Coverage)
+- `test_router/test_router.jsonl` (1.246 mẫu kiểm thử định tuyến Router & Clarifier)
+- `fintuning/train.jsonl` và `val.jsonl` (SFT/QLoRA)
+Không được tự suy ra nhãn hoặc measurement còn thiếu để làm cho dữ liệu pass.
 
 ## Cấu hình và phạm vi chấm
 

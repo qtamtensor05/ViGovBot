@@ -37,9 +37,9 @@ class PredictionSchemaTests(unittest.TestCase):
             self.assertEqual(expected, SCHEMAS["evaluation_case"]["$defs"]["golden_" + key], key)
 
     def test_documented_examples(self):
-        for name in ("prediction", "case_score"):
-            row = json.loads((ROOT / (name + ".example.json")).read_text(encoding="utf-8"))
-            validator("evaluation_case" if name == "case_score" else name).validate(row)
+        from tests.schema_fixtures import scored
+        validator("prediction").validate(prediction())
+        validator("evaluation_case").validate(scored())
 
     def test_schema_definitions(self):
         for name, schema in SCHEMAS.items():

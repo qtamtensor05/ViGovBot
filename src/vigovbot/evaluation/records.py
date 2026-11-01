@@ -135,14 +135,17 @@ def golden_split_path(dataset: Path, split: str) -> Path:
         return dataset
     candidates = (
         dataset / split / f"golden_{split}.jsonl",
-        dataset / f"{split}_golden.jsonl",
+        dataset / f"{split}_rag" / f"{split}_rag_pa1.jsonl",
+        dataset / f"{split}_rag" / f"{split}_rag_pa2.jsonl",
         dataset / f"{split}_rag" / f"{split}_rag.jsonl",
         dataset / f"{split}_rag" / f"golden_{split}_rag.jsonl",
         dataset / f"{split}_rag.jsonl",
-        dataset / split / f"{split}.jsonl",
-        dataset / f"{split}.jsonl",
+        dataset / f"{split}_router" / f"{split}_router.jsonl",
         dataset / "fintuning" / f"{split}.jsonl",
         dataset / "finetuning" / f"{split}.jsonl",
+        dataset / split / f"{split}.jsonl",
+        dataset / f"{split}.jsonl",
+        dataset / f"{split}_golden.jsonl",
     )
     path = next((candidate for candidate in candidates if candidate.is_file()), None)
     if path is None:

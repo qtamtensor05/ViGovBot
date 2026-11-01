@@ -3,9 +3,9 @@
 Test độc lập không tham gia training, Early Stopping hoặc chọn checkpoint.
 
 ```powershell
-vigovbot eva test --run-id <run-id>
-vigovbot report plots --run-id <run-id>
-vigovbot report build --run-id <run-id>
+python -m vigovbot.training.evaluate --run_dir outputs/qlora/<run-id> --split test
+vigov report plots --run-id <run-id>
+vigov report build --run-id <run-id>
 ```
 
 Evaluation lưu prediction từng mẫu trong `predictions/` và metric tổng hợp trong
@@ -15,4 +15,4 @@ Early Stopping khi artifact thực tế có các trường tương ứng.
 
 Các metric được giữ gồm loss/perplexity theo target token, EM/normalized EM,
 precision/recall/F1, ROUGE, BLEU, chrF, so sánh baseline/fine-tuned và prediction
-từng mẫu. BERTScore/QA-v4 có quy trình riêng trong [QA/RAG evaluation](qa-rag-evaluation.md).
+từng mẫu. Đánh giá RAG và các mô hình trên Golden v3 được thực hiện qua quy trình [QA/RAG evaluation](qa-rag-evaluation.md).

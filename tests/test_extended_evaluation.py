@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from tests.test_evaluation_v2 import base_api_result, golden, prediction, write_jsonl
+from tests.test_evaluation_v3 import base_api_result, golden, prediction, write_jsonl
 from vigovbot.evaluation.extended import extend_record
 from vigovbot.evaluation.records import build_record, capture_predictions
 

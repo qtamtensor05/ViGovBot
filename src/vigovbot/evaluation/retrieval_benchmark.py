@@ -15,7 +15,6 @@ from vigovbot.retrieval.retriever import Retriever
 from vigovbot.vectordb.vector_store import prepare_corpus
 
 from .io import read_jsonl
-from .retrieval_metrics import summarize_retrieval
 from .provenance import fingerprint
 
 
@@ -171,61 +170,6 @@ def run_retrieval(*, dataset, view, split, config_path, output, top_k, limit=Non
     }
     run_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return manifest
-
-
-def score_retrieval(*, dataset, view, split, predictions, unit_map, output, ks, limit=None):
-    """Score cached rankings only; never load the encoder, retriever or LLM."""
-    dataset, predictions, output = map(Path, (dataset, predictions, output))
-    unit_map = Path(unit_map) if unit_map is not None else None
-    normalized_ks = sorted(set(ks))
-    if not normalized_ks or any(k < 1 for k in normalized_ks):
-        raise ValueError("ks must contain positive integers")
-    if output.exists():
-        raise FileExistsError(f"Retrieval score output already exists: {output}")
-    _, case_path, selected_queries, cases, relevance_contract, _ = _selection(dataset, view, split, limit)
-    selected_ids = {row["id"] for row in selected_queries}
-    prediction_rows = list(read_jsonl(predictions))
-    if {row["id"] for row in prediction_rows} != selected_ids or len(prediction_rows) != len(selected_ids):
-        raise ValueError("Retrieval predictions must cover selected IDs exactly once")
-    if relevance_contract == "golden_context_ids":
-        if unit_map is not None:
-            raise ValueError("Golden ground_truth_context_ids do not require --unit-map")
-        mapped = []
-        for prediction in prediction_rows:
-            chunk_ids = prediction.get("retrieved_chunk_ids", [])
-            mapped.append({
-                **prediction,
-                "retrieved_unit_groups": [
-                    {"chunk_id": chunk_id, "unit_ids": [chunk_id]} for chunk_id in chunk_ids
-                ],
-                "unit_mapping_status": "direct_golden_chunk_ids",
-            })
-    per_k = {}
-    per_case = {}
-    for k in normalized_ks:
-        rows, summary = summarize_retrieval(cases, mapped, k)
-        per_k[str(k)] = summary
-        for case_id, metrics in rows.items():
-            per_case.setdefault(case_id, {})[str(k)] = metrics
-    report = {
-        "schema_version": 1,
-        "benchmark": "retrieval_only",
-        "inference_performed": False,
-        "selected_cases": len(cases),
-        "ks": normalized_ks,
-        "relevance_contract": relevance_contract,
-        "retrieval_evaluation": per_k,
-        "per_case": per_case,
-        "provenance": {
-            "cases_sha256": file_hash(case_path),
-            "predictions_sha256": file_hash(predictions),
-            "unit_map_sha256": file_hash(unit_map) if unit_map is not None else None,
-            "selected_ids_sha256": fingerprint(sorted(selected_ids)),
-        },
-    }
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    return report
 
 
 def _load_reranker(model_name, device, batch_size, max_length, revision=None):

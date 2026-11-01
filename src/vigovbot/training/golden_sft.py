@@ -51,11 +51,19 @@ def encode_jsonl(records: list[dict]) -> bytes:
                    for row in records).encode("utf-8")
 
 
+def _split_file(dir_path: Path, name: str) -> Path:
+    for candidate in (dir_path / f"{name}_golden.jsonl", dir_path / f"golden_{name}.jsonl",
+                      dir_path / f"{name}.jsonl", dir_path / "fintuning" / f"{name}.jsonl"):
+        if candidate.is_file():
+            return candidate
+    return dir_path / f"{name}_golden.jsonl"
+
+
 def convert_golden(source_dir: Path, output_dir: Path) -> dict[str, int]:
     """Validate both splits before writing; never read test as training data."""
-    sources = [source_dir / name for name in ("train_golden.jsonl", "val_golden.jsonl")]
+    sources = [_split_file(source_dir, name) for name in ("train", "val")]
     targets = [output_dir / name for name in ("train_sft.jsonl", "validation_sft.jsonl")]
-    protected = {path.resolve() for path in [*sources, source_dir / "test_golden.jsonl"]}
+    protected = {path.resolve() for path in [*sources, _split_file(source_dir, "test")]}
     if any(path.resolve() in protected for path in targets):
         raise ValueError("Output must not overwrite Golden sources")
     train, validation = [load_golden(path) for path in sources]

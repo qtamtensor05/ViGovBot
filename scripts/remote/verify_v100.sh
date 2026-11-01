@@ -25,7 +25,7 @@ if not value["cuda_available"] or value["compute_capability"] != [7, 0]:
 PY
 
 python -m unittest \
-  tests.test_evaluation_v2 tests.test_ollama_judge tests.test_extended_evaluation \
+  tests.test_evaluation_v3 tests.test_ollama_judge tests.test_extended_evaluation \
   tests.test_complete_capture tests.test_training_schema tests.test_golden_sft
 python -m ruff check src/vigovbot/evaluation src/vigovbot/training tests/test_complete_capture.py
 python -m compileall -q src/vigovbot

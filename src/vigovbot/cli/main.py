@@ -96,7 +96,7 @@ def data_check(config: Path = typer.Option(Path("configs/training/base.yaml"), "
 
 @data_app.command("golden-to-sft")
 def golden_to_sft(
-    source_dir: Path = typer.Option(Path("Data/golden_dataset"), "--source-dir"),
+    source_dir: Path = typer.Option(Path("Data/dataset_v3"), "--source-dir"),
     output_dir: Path = typer.Option(Path("Data/golden_dataset_sft"), "--output-dir"),
 ) -> None:
     """Convert Golden train/val to lossless SFT JSONL without reading test."""
@@ -322,7 +322,7 @@ def dashboard(run_id: Optional[str] = typer.Option(None, "--run-id"),
 
 @app.command("eva", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def evaluation(ctx: typer.Context) -> None:
-    """Run evaluation commands: ask, chat, run, score or QLoRA test."""
+    """Run canonical evaluation commands: validate, run, score, report, evaluate or compare."""
     _run_legacy(["eva", *ctx.args])
 
 

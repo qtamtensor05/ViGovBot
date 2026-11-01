@@ -38,7 +38,7 @@ python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements/qlora-gpu.txt -e ".[test,dev]"
 python -m pip check
 
-mkdir -p outputs/remote-preflight outputs/qlora outputs/evaluation_v2
+mkdir -p outputs/remote-preflight outputs/qlora outputs/evaluation
 python -m vigovbot.training.validate_data \
   --config configs/training/environments/v100_32gb_golden_sft.yaml \
   --output outputs/remote-preflight/dataset_report.json

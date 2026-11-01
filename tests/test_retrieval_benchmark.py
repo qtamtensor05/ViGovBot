@@ -5,13 +5,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from vigovbot.evaluation.io import read_jsonl
-from vigovbot.evaluation.retrieval_benchmark import rerank_retrieval, run_retrieval, score_retrieval
+from vigovbot.evaluation.retrieval_benchmark import rerank_retrieval, run_retrieval
 from tests.schema_fixtures import validator
 
 
 class RetrievalBenchmarkTests(unittest.TestCase):
     def _dataset(self, root):
-        from tests.test_evaluation_v2 import golden
+        from tests.test_evaluation_v3 import golden
         dataset = root / "dataset"
         dataset.mkdir()
         row = golden("q1")
@@ -51,50 +51,6 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         self.assertEqual(contexts[0]["text"], "Hồ sơ A")
         self.assertFalse(report["inference_performed"])
         self.assertEqual(report["llm_calls"], 0)
-
-    def test_score_uses_cached_rankings_and_multiple_k(self):
-        with tempfile.TemporaryDirectory() as work:
-            root = Path(work)
-            dataset = self._dataset(root)
-            predictions = root / "retrieval.jsonl"
-            predictions.write_text(json.dumps({
-                "id": "q1", "retrieved_chunk_ids": ["c1"],
-                "context_used": [{"chunk_id": "c1", "included_text": "Hồ sơ A"}],
-            }, ensure_ascii=False) + "\n", encoding="utf-8")
-            output = root / "scores.json"
-            report = score_retrieval(
-                dataset=dataset, view=None, split="test", predictions=predictions,
-                unit_map=None, output=output, ks=[1, 3, 5],
-            )
-        self.assertEqual(report["retrieval_evaluation"]["1"]["end_to_end_all_eligible"]
-                         ["judged_hit_rate_at_k"]["mean"], 1)
-        self.assertEqual(report["ks"], [1, 3, 5])
-
-    def test_golden_file_scores_context_ids_without_mapping(self):
-        with tempfile.TemporaryDirectory() as work:
-            root = Path(work)
-            golden = root / "test_golden.jsonl"
-            golden.write_text(json.dumps({
-                "test_id": "TC_1", "version": "test", "taxonomy": {},
-                "input": {"question": "Câu hỏi gốc"},
-                "ground_truth": {"expected_answer": "answer", "ground_truth_standalone_query": "Không được dùng",
-                                 "ground_truth_context_ids": ["c2"]},
-            }, ensure_ascii=False) + "\n", encoding="utf-8")
-            predictions = root / "retrieval.jsonl"
-            predictions.write_text(json.dumps({
-                "id": "TC_1", "question": "Câu hỏi gốc", "retrieved_chunk_ids": ["c1", "c2"],
-                "context_used": [],
-            }, ensure_ascii=False) + "\n", encoding="utf-8")
-            output = root / "scores.json"
-            report = score_retrieval(
-                dataset=golden, view=None, split="test", predictions=predictions,
-                unit_map=None, output=output, ks=[1, 2],
-            )
-        self.assertEqual(report["relevance_contract"], "golden_context_ids")
-        self.assertEqual(report["retrieval_evaluation"]["1"]["end_to_end_all_eligible"]
-                         ["judged_hit_rate_at_k"]["mean"], 0)
-        self.assertEqual(report["retrieval_evaluation"]["2"]["end_to_end_all_eligible"]
-                         ["judged_hit_rate_at_k"]["mean"], 1)
 
     def test_rerank_reorders_cached_candidates_and_adds_total_time(self):
         with tempfile.TemporaryDirectory() as work:
