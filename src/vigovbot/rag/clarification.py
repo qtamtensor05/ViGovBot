@@ -112,11 +112,14 @@ class Clarifier:
             # A mention still resolves an entity after scope is established, but
             # cannot bypass a highly confident OUT_OF_SCOPE prediction.
             return {"codes": list(dict.fromkeys(mentioned_alias_codes)), "source": "alias_mention"}
-        names = {}
-        for code, item in self.catalog.items():
-            name = _fold(item["name"].strip(" .?!;:"))
-            name = re.sub(r"^thu tuc\s+", "", name).strip(" .?!;:")
-            names[code] = name
+        names = getattr(self, "_normalized_names", None)
+        if names is None:
+            names = {}
+            for code, item in self.catalog.items():
+                name = _fold(item["name"].strip(" .?!;:"))
+                name = re.sub(r"^thu tuc\s+", "", name).strip(" .?!;:")
+                names[code] = name
+            self._normalized_names = names
         matched = [code for code, name in names.items() if _contains_phrase(folded, name)]
         matched = [code for code in matched if not any(
             names[code] != names[other] and _contains_phrase(names[other], names[code])

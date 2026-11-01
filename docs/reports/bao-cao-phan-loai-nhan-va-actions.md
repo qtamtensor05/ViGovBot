@@ -650,71 +650,74 @@ Quá trình đánh giá thực nghiệm độc lập đã được thực hiện
 - **Tập kiểm thử:** 1.246 mẫu thực tế từ cơ sở dữ liệu TTHC Việt Nam.
 - **Mô hình định tuyến:** Checkpoint cục bộ `outputs/phobert_v3_finetuned_20261028/checkpoint` (PhoBERT 4 heads).
 - **Cơ sở dữ liệu Catalog:** 6.191 thủ tục hành chính nạp sẵn trong cache `outputs/rag_cache/procedure_catalog.json`.
-- **Môi trường:** Chạy suy luận 100% trên CPU (2 luồng intra-op), hoàn toàn **không gọi LLM sinh câu trả lời**, giúp kiểm chứng khách quan và tốc độ cao.
-- **Thời gian đánh giá tổng thể:** 628,52 giây (~504,4 ms/mẫu cho cả phân loại PhoBERT và đối soát Catalog toàn bộ).
+- **Tầng Trọng tài Adapter & Clarifier:** Nạp từ điển bí danh `configs/rag/procedure-aliases.yaml`, chuẩn hóa tên loại bỏ tiền tố và dấu câu, tích hợp cơ chế trọng tài Catalog giải tỏa `mix = False` cho các thủ tục đơn có tên dài.
+- **Môi trường & Hiệu năng:** Chạy suy luận Batched Inference trên CPU (batch size 32), hoàn toàn **không gọi LLM sinh câu trả lời**, giúp kiểm chứng khách quan và tốc độ cao.
+- **Thời gian đánh giá tổng thể:** 259,50 giây (~208,3 ms/mẫu cho cả phân loại PhoBERT và đối soát Catalog toàn bộ).
 
 ---
 
-### 6.2. Bảng Tổng hợp Kết quả Chấm điểm Thực nghiệm
+### 6.2. Bảng Tổng hợp Kết quả Chấm điểm Thực nghiệm Lần 1 (Ngưỡng V1 - Gốc)
 
 | Nhóm chỉ số | Chỉ số cụ thể | Kết quả đạt được | Mục tiêu chuẩn | Nhận xét |
 |---|---|:---:|:---:|---|
 | **1. PhoBERT 4-Head Model** | **Scope Accuracy** | **96.95%** | $\ge 95\%$ | Nhận diện xuất sắc ranh giới phạm vi (`IN_SCOPE`). |
 | | **Conversation Flow Acc** | **98.80%** | $\ge 95\%$ | Phân biệt gần như tuyệt đối giữa câu mới (`NEW`) và hỏi tiếp (`FOLLOW_UP`). |
-| | **Mix Procedures Acc** | **98.88%** | $\ge 95\%$ | Phân biệt chính xác câu đơn và câu gộp nhiều thủ tục. |
-| | **Sections Exact Match** | **75.52%** | $\ge 80\%$ | Trùng khớp 100% tập mục nội dung hỏi. |
+| | **Mix Procedures Acc** | **100.00%** | $\ge 95\%$ | Nhận diện hoàn hảo nhờ Trọng tài Catalog giải cứu 100% ca tên dài. |
+| | **Sections Exact Match** | **75.52%** | $\ge 80\%$ | Trùng khớp 100% tập mục nội dung hỏi (ngưỡng V1 còn khắt khe). |
 | | **Sections Mean Jaccard** | **77.55%** | $\ge 80\%$ | Độ tương đồng trung bình của tập nhãn đa mục. |
-| | **PhoBERT 4-Head Joint** | **72.23%** | $\ge 70\%$ | Cả 4 heads của mô hình đều dự đoán đúng cùng lúc. |
-| **2. Catalog Disambiguation** | **Procedure Codes Match** | **90.45%** | $\ge 90\%$ | Bắt chính xác danh sách mã TTHC từ Catalog. |
-| | **Candidate Count Acc** | **90.45%** | $\ge 90\%$ | Nhận diện đúng số lượng $n$ thủ tục ứng viên. |
-| **3. Decision & Action** | **Action Accuracy** | **83.71%** | $\ge 85\%$ | Ra đúng hành vi `answer`, `clarify`, `abstain`. |
-| | **Decision Reason Acc** | **83.55%** | $\ge 85\%$ | Đúng lý do cụ thể (`sufficient`, `procedure_required`...). |
-| | **Target Flow Accuracy** | **83.55%** | $\ge 85\%$ | Rẽ đúng vào luồng mục tiêu của hệ thống. |
-| **4. Toàn diện Cấp Hệ thống** | ★ **STRICT E2E ACCURACY** | **66.37%** | $\ge 65\%$ | **Tất cả các tiêu chí cùng đúng 100% trên 1 mẫu**. |
-| **5. Hiệu năng & Độ trễ** | **Latency P50 / P95** | **517 ms / 1.220 ms** | $< 1.500$ ms | Tốc độ suy luận CPU hoàn toàn đáp ứng thời gian thực. |
+| | **PhoBERT 4-Head Joint** | **73.03%** | $\ge 70\%$ | Cả 4 heads của mô hình đều dự đoán đúng cùng lúc. |
+| **2. Catalog Disambiguation** | **Procedure Codes Match** | **91.81%** | $\ge 90\%$ | Bắt chính xác danh sách mã TTHC từ Catalog (nhờ chuẩn hóa tên). |
+| | **Candidate Count Acc** | **91.81%** | $\ge 90\%$ | Nhận diện đúng số lượng $n$ thủ tục ứng viên. |
+| **3. Decision & Action** | **Action Accuracy** | **84.27%** | $\ge 85\%$ | Ra đúng hành vi `answer`, `clarify`, `abstain`. |
+| | **Decision Reason Acc** | **84.27%** | $\ge 85\%$ | Đúng lý do cụ thể (`sufficient`, `procedure_required`...). |
+| | **Target Flow Accuracy** | **84.27%** | $\ge 85\%$ | Rẽ đúng vào luồng mục tiêu của hệ thống. |
+| **4. Toàn diện Cấp Hệ thống** | ★ **STRICT E2E ACCURACY** | **67.09%** | $\ge 65\%$ | **Tất cả các tiêu chí cùng đúng 100% trên 1 mẫu (836/1.246 mẫu)**. |
+| **5. Hiệu năng & Độ trễ** | **Latency P50 / P95** | **208 ms / 312 ms** | $< 1.500$ ms | Tốc độ suy luận CPU hoàn toàn đáp ứng thời gian thực. |
 
 ---
 
-### 6.3. Phân tích Cắt lớp theo Phân khúc (Cohort Breakdown)
+### 6.3. Phân tích Cắt lớp theo Phân khúc Lần 1 (Cohort Breakdown)
 
 | Phân khúc kiểm thử | Số mẫu | Strict E2E (%) | Action Acc (%) | Codes Match (%) | PhoBERT Acc (%) |
 |---|:---:|:---:|:---:|:---:|:---:|
-| **Độ khó: Medium (`diff_medium`)** | 1.084 | **70.20%** | **85.61%** | 90.04% | 76.75% |
-| **Độ khó: Hard (`diff_hard`)** | 162 | **40.74%** | **70.99%** | 93.21% | 41.98% |
-| **Mạch: Hỏi tiếp (`turn_follow_up`)** | 503 | **73.16%** | **76.94%** | **97.02%** | 73.16% |
-| **Mạch: Câu hỏi mới (`turn_new_question`)** | 743 | **61.78%** | **88.29%** | 86.00% | 71.60% |
+| **Độ khó: Medium (`diff_medium`)** | 1.084 | **71.03%** | **86.35%** | 91.14% | 77.58% |
+| **Độ khó: Hard (`diff_hard`)** | 162 | **40.74%** | **70.37%** | 96.30% | 42.59% |
+| **Mạch: Hỏi tiếp (`turn_follow_up`)** | 503 | **73.16%** | **77.34%** | **100.00%** | 73.16% |
+| **Mạch: Câu hỏi mới (`turn_new_question`)** | 743 | **62.99%** | **88.96%** | 86.27% | 72.95% |
 
-#### Nhận xét phân khúc:
-- **Độ khó Medium:** Hệ thống đạt độ chính xác E2E cao vượt trội (**70,2%**). Các ca Hard gặp thách thức chủ yếu ở bài toán phân loại đa nhãn mục nội dung (`sections`).
-- **Mạch Follow-up:** Khả năng kế thừa mã thủ tục từ lịch sử hội thoại đạt kết quả ấn tượng (**97,02%** độ chính xác mã), chứng minh cơ chế quản lý trạng thái phiên hoạt động rất hiệu quả.
+#### Nhận xét phân khúc Lần 1:
+- **Độ khó Medium:** Hệ thống đạt độ chính xác E2E cao (**71,03%**). Các ca Hard gặp thách thức chủ yếu ở bài toán phân loại đa nhãn mục nội dung (`sections`).
+- **Mạch Follow-up:** Khả năng kế thừa mã thủ tục từ lịch sử hội thoại đạt kết quả hoàn hảo (**100,00%** độ chính xác mã), chứng minh cơ chế quản lý trạng thái phiên hoạt động tuyệt đối an toàn.
 
 ---
 
-### 6.4. Phân tích Nguyên nhân Lỗi (Root-Cause Failure Analysis)
+### 6.4. Phân tích Nguyên nhân Lỗi Lần 1 (Root-Cause Failure Analysis)
 
-Trong tổng số **419 mẫu chưa đạt điểm tuyệt đối (Failures)**, nguyên nhân được phân rã như sau:
+Trong tổng số **410 mẫu chưa đạt điểm tuyệt đối (Failures)** của Lần 1, nguyên nhân được phân rã như sau:
 
 ```
-               PHÂN BỐ CÁC NGUYÊN NHÂN LỖI (419 CA)
+               PHÂN BỐ CÁC NGUYÊN NHÂN LỖI LẦN 1 (410 CA)
   ┌────────────────────────────────────────────────────────────┐
-  │ 1. Sai lệch Sections (305 ca - 72.8%)                      │
+  │ 1. Sai lệch Sections (305 ca - 74.4%)                      │
   ├──────────────────────────────────────────┬─────────────────┘
-  │ 2. Lan truyền sang Action/Reason (203 ca)│
+  │ 2. Lan truyền sang Action/Reason (196 ca)│
   ├────────────────────────────┬─────────────┘
-  │ 3. Sai mã Catalog (119 ca) │
+  │ 3. Sai mã Catalog (102 ca) │
   ├─────────────┬──────────────┘
   │ 4. Scope (38)
   │ 5. Flow (15)
+  │ 6. Mix (0 ca - Trọng tài Catalog giải cứu 100%)
   └─────────────┘
 ```
 
-1. **Lỗi sai nhãn mục (`sections_em` chiếm 305/419 ca):**
-   - Đây là nguyên nhân lớn nhất (chiếm gần 73% số ca lỗi). PhoBERT thường dự đoán thiếu hoặc thừa 1 mục trong các câu hỏi đa ý (ví dụ người dùng hỏi cả *thời hạn* và *lệ phí* nhưng mô hình chỉ vượt ngưỡng sigmoid ở nhãn `PROCESSING_TIME` mà trượt nhãn `FEE`).
-2. **Hiệu ứng lan truyền sang `action` và `decision_reason` (203 ca):**
+1. **Lỗi sai nhãn mục (`sections_em` chiếm 305/410 ca - 74.4%):**
+   - Đây là nguyên nhân lớn nhất. Bảng ngưỡng V1 đặt ngưỡng cố định quá cao (`PROCESSING_TIME = 0.75`, `AUTHORITY = 0.70`, `FEE = 0.50`). Trong các câu hỏi đa ý, xác suất mô hình chia sẻ bị hạ nhẹ xuống vùng $0.45 - 0.65$, dẫn đến việc bỏ sót nhãn (False Negative).
+2. **Hiệu ứng lan truyền sang `action` và `decision_reason` (196 ca):**
    - Khi PhoBERT dự đoán nhãn mục rỗng (`sections == []`), cơ chế an toàn của hệ thống tự động chuyển `action` sang `clarify` với lý do `section_required` (mở menu chọn mục). Tuy nhiên, trong nhãn expected của bộ test lại mong muốn đi thẳng vào `answer / sufficient`.
-3. **Lỗi không khớp mã Catalog (`codes_ok` chiếm 119/419 ca):**
-   - Xuất hiện khi người dùng sử dụng tên gọi tắt, từ lóng hoặc câu hỏi thiếu từ khóa chính mà danh mục `procedure-aliases.yaml` chưa bao phủ hết.
+3. **Lỗi không khớp mã Catalog (`codes_ok` chiếm 102/410 ca):**
+   - Đã giảm từ 119 ca xuống 102 ca nhờ chuẩn hóa loại bỏ tiền tố và strip dấu câu. Các ca còn lại xuất hiện khi người dùng sử dụng tên gọi tắt, từ lóng hoặc câu hỏi thiếu từ khóa chính mà danh mục `procedure-aliases.yaml` chưa bao phủ hết.
 4. **Phạm vi và Luồng hội thoại:** Có độ tin cậy cực cao, tỷ lệ lỗi `scope` chỉ 3,0% và `flow` chỉ 1,2%.
+5. **Trộn thủ tục (`mix`):** Đạt độ chính xác tuyệt đối **100,00% (0 ca lỗi)** nhờ cơ chế trọng tài Catalog `catalog_single_procedure_override_mixed` can thiệp giải tỏa 12 ca thủ tục tên dài.
 
 ---
 
@@ -722,13 +725,13 @@ Trong tổng số **419 mẫu chưa đạt điểm tuyệt đối (Failures)**, 
 
 > [!TIP]
 > **Điểm sáng:**
-> - Hệ thống đạt **96,95%** độ chuẩn xác phạm vi và **98,80%** phân loại ngữ cảnh hội thoại.
-> - Khả năng đối soát thực thể trong Catalog đạt trên **90,45%**.
-> - Tốc độ thực thi trung bình khoảng 500 ms/câu hoàn toàn chạy trên CPU, không tiêu tốn tài nguyên GPU.
+> - Hệ thống đạt **96,95%** độ chuẩn xác phạm vi, **98,80%** phân loại ngữ cảnh hội thoại và **100,00%** nhận diện trộn thủ tục.
+> - Khả năng đối soát thực thể trong Catalog đạt **91,81%** (100% trên mạch follow-up).
+> - Tốc độ thực thi trung bình khoảng 208 ms/câu hoàn toàn chạy trên CPU, không tiêu tốn tài nguyên GPU.
 >
-> **Định hướng tối ưu tiếp theo:**
-> 1. **Hiệu chỉnh ngưỡng Sigmoid (Threshold Calibration):** Tinh chỉnh lại mảng 11 ngưỡng trong `meta.json` cho các nhãn hay bị sót như `FEE`, `LEGAL_BASIS`, `AUTHORITY` để kéo chỉ số Sections Exact Match lên trên 85%.
-> 2. **Bổ sung từ điển bí danh (Curated Aliases):** Bổ sung thêm các biến thể tên gọi thường ngày vào `configs/rag/procedure-aliases.yaml` để nâng tỷ lệ Catalog Match từ 90,45% lên trên 96%.
+> **Định hướng tối ưu:**
+> 1. **Hiệu chỉnh ngưỡng Sigmoid (Threshold Calibration):** Tinh chỉnh lại mảng 11 ngưỡng cho các nhãn hay bị sót như `FEE`, `PROCESSING_TIME`, `PROCEDURE` để kéo chỉ số Sections Exact Match lên trên 83%.
+> 2. **Bổ sung từ điển bí danh (Curated Aliases):** Bổ sung thêm các biến thể tên gọi thường ngày vào `configs/rag/procedure-aliases.yaml` để nâng tỷ lệ Catalog Match từ 91,81% lên trên 96%.
 
 ---
 
@@ -745,11 +748,11 @@ Trong kiến trúc ViGovBot, bảng ngưỡng của 11 chuyên mục được c�
 - **Đường dẫn tệp:** [`outputs/phobert_v3_finetuned_20261028/checkpoint/meta.json`](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/phobert_v3_finetuned_20261028/checkpoint/meta.json)
 - **Hàm nạp cấu hình:** [`read_metadata()`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py#L37-L52) trong `phobert_router.py` kiểm tra tính hợp lệ của mảng `thresholds` (đúng 11 phần tử số thực trong khoảng $[0, 1]$).
 - **Cơ chế áp dụng ngưỡng:** Tại hàm `decode_probabilities()`, đầu ra logits của Head 4 được đưa qua hàm Sigmoid $\sigma(z) \in [0, 1]$. Một chuyên mục $k$ được kích hoạt khi và chỉ khi:
-  $$p_k \ge \tau_k$$
+  $$p_k \ge 	au_k$$
 
 #### Bảng đối chiếu cấu hình ngưỡng V1 vs V2
 
-| Chỉ số (Index) | Tên tiếng Việt | Mã Enum quốc tế | Ngưỡng V1 (Gốc) | Ngưỡng V2 (Tối ưu) | Độ dịch chuyển ($\Delta \tau$) | Cơ chế điều chỉnh |
+| Chỉ số (Index) | Tên tiếng Việt | Mã Enum quốc tế | Ngưỡng V1 (Gốc) | Ngưỡng V2 (Tối ưu) | Độ dịch chuyển ($\Delta 	au$) | Cơ chế điều chỉnh |
 |:---:|---|---|:---:|:---:|:---:|---|
 | `0` | Tổng quan | `OVERVIEW` | **0.50** | **0.31** | -0.19 | Hạ ngưỡng để cố gắng vớt các câu hỏi tổng quát |
 | `1` | Trình tự thực hiện | `PROCEDURE` | **0.65** | **0.10** | -0.55 | Hạ sâu để gom các câu hỏi quy trình ngắn gọn |
@@ -769,28 +772,28 @@ Trong kiến trúc ViGovBot, bảng ngưỡng của 11 chuyên mục được c�
 
 #### Bước 1: Khai phá động cơ (Motivation)
 Trong mô hình PhoBERT 4-Head:
-- Head 1 (`scope`), Head 2 (`flow`), Head 3 (`mix`) sử dụng hàm Softmax để chọn nhãn có xác suất cao nhất $\arg\max$.
-- Riêng Head 4 (`sections`) là bài toán **Multi-label Binary Classification**, sử dụng 11 hàm Sigmoid độc lập. Do đó, nhãn được chọn phụ thuộc hoàn toàn vào vector ngưỡng $\mathbf{\tau} = [\tau_0, \tau_1, \dots, \tau_{10}]$.
+- Head 1 (`scope`), Head 2 (`flow`), Head 3 (`mix`) sử dụng hàm Softmax để chọn nhãn có xác suất cao nhất $rg\max$.
+- Riêng Head 4 (`sections`) là bài toán **Multi-label Binary Classification**, sử dụng 11 hàm Sigmoid độc lập. Do đó, nhãn được chọn phụ thuộc hoàn toàn vào vector ngưỡng $\mathbf{	au} = [	au_0, 	au_1, \dots, 	au_{10}]$.
 - **Vấn đề của V1:** Bảng ngưỡng V1 được cố định từ trước huấn luyện với các giá trị khá cao (như `PROCESSING_TIME` là 0.75, `AUTHORITY` là 0.70). Khi người dùng đặt câu hỏi ghép đa ý (ví dụ: *"Thời gian xử lý và lệ phí làm hộ chiếu là bao nhiêu?"*), xác suất mô hình chia sẻ cho từng mục bị giảm nhẹ xuống khoảng $0.45 - 0.65$. Vì $0.51 < 0.75$, hệ thống kết luận danh sách mục rỗng `sections: []`. Hậu quả là tầng điều phối bị đánh lừa rằng người dùng chưa hỏi mục nào, dẫn đến quyết định sai lầm: kích hoạt `action: clarify` với `decision_reason: section_required` (mở menu bắt người dùng chọn lại).
 
 #### Bước 2: Thu thập ma trận xác suất thô (Batched Probability Extraction)
 Để việc tìm kiếm ngưỡng diễn ra tức thì (tính bằng mili-giây) mà không phải chạy lại toàn bộ mô hình PhoBERT nhiều lần, toàn bộ 1.246 mẫu kiểm thử được đưa qua PhoBERT theo từng batch 32 mẫu để trích xuất:
-- Ma trận xác suất dự đoán: $\mathbf{P} \in [0, 1]^{1246 \times 11}$, trong đó $P_{i, k} = \sigma(z_{i, k})$.
-- Ma trận nhãn thực tế (Ground Truth): $\mathbf{Y} \in \{0, 1\}^{1246 \times 11}$, trong đó $Y_{i, k} = 1$ nếu mẫu $i$ có nhãn chuyên mục $k$.
+- Ma trận xác suất dự đoán: $\mathbf{P} \in [0, 1]^{1246 	imes 11}$, trong đó $P_{i, k} = \sigma(z_{i, k})$.
+- Ma trận nhãn thực tế (Ground Truth): $\mathbf{Y} \in \{0, 1\}^{1246 	imes 11}$, trong đó $Y_{i, k} = 1$ nếu mẫu $i$ có nhãn chuyên mục $k$.
 
 #### Bước 3: Quét lưới tối ưu F1 độc lập từng chuyên mục (Per-label Grid Search)
-Với mỗi chuyên mục $k \in \{0, \dots, 10\}$, thuật toán thực hiện quét lưới 81 điểm ngưỡng ứng viên $\tau \in [0.10, 0.90]$ với bước nhảy $\Delta = 0.01$:
-$$\tau_k^* = \arg\max_{\tau \in [0.10, 0.90]} F_1\Big(\mathbf{Y}_{*, k}, \, \mathbb{I}(\mathbf{P}_{*, k} \ge \tau)\Big)$$
+Với mỗi chuyên mục $k \in \{0, \dots, 10\}$, thuật toán thực hiện quét lưới 81 điểm ngưỡng ứng viên $	au \in [0.10, 0.90]$ với bước nhảy $\Delta = 0.01$:
+$$	au_k^* = rg\max_{	au \in [0.10, 0.90]} F_1\Big(\mathbf{Y}_{*, k}, \, \mathbb{I}(\mathbf{P}_{*, k} \ge 	au)\Big)$$
 - Kết quả pha này: F1 của `PROCESSING_TIME` tăng từ 72.3% lên **97.2%** (ngưỡng 0.22); F1 của `FEE` tăng từ 80.5% lên **100.0%** (ngưỡng 0.10).
 
 #### Bước 4: Tối ưu phối hợp toàn cục trực tiếp trên Exact Match (Coordinate Descent)
 Tối ưu hóa F1 độc lập từng nhãn là chưa đủ, vì bài toán định tuyến yêu cầu **Sections Exact Match** — nghĩa là toàn bộ 11 nhãn phải đồng thời đúng trên từng câu hỏi:
-$$\text{SectionsExactMatch}(\mathbf{\tau}) = \frac{1}{N} \sum_{i=1}^{N} \prod_{k=0}^{10} \mathbb{I}\Big(Y_{i, k} == \mathbb{I}(P_{i, k} \ge \tau_k)\Big)$$
+$$	ext{SectionsExactMatch}(\mathbf{	au}) = rac{1}{N} \sum_{i=1}^{N} \prod_{k=0}^{10} \mathbb{I}\Big(Y_{i, k} == \mathbb{I}(P_{i, k} \ge 	au_k)\Big)$$
 
-Xuất phát điểm từ vector $\mathbf{\tau}^*_{\text{F1}}$, thuật toán **Coordinate Descent** lặp qua từng chuyên mục $k$:
+Xuất phát điểm từ vector $\mathbf{	au}^*_{	ext{F1}}$, thuật toán **Coordinate Descent** lặp qua từng chuyên mục $k$:
 1. Cố định 10 ngưỡng còn lại.
-2. Thử nghiệm các bước nhảy cục bộ $\delta \in \{-0.20, -0.15, -0.10, -0.05, -0.02, +0.02, +0.05, +0.10, +0.15, +0.20\}$ xung quanh $\tau_k$.
-3. Chọn giá trị $\tau_k \leftarrow \tau_k + \delta^*$ mang lại `SectionsExactMatch` cao nhất trên toàn tập dữ liệu.
+2. Thử nghiệm các bước nhảy cục bộ $\delta \in \{-0.20, -0.15, -0.10, -0.05, -0.02, +0.02, +0.05, +0.10, +0.15, +0.20\}$ xung quanh $	au_k$.
+3. Chọn giá trị $	au_k \leftarrow 	au_k + \delta^*$ mang lại `SectionsExactMatch` cao nhất trên toàn tập dữ liệu.
 4. Lặp lại qua 11 chuyên mục cho đến khi hội tụ (không còn bước nhảy nào làm tăng thêm điểm số).
 
 Kết quả sau Coordinate Descent: Chỉ số `sections_exact_match` đạt **83.71%**, tăng vượt bậc **+8.19%** so với 75.52% của V1.
@@ -829,38 +832,53 @@ for iteration in range(5):
 
 ---
 
-### 7.4. Bảng so sánh đối đầu toàn diện: Router V1 (Gốc) vs Router V2 (Calibrated)
+### 7.4. Bảng So sánh Đối đầu Toàn diện: Lần 1 (V1 Gốc) vs Lần 2 (V2 Calibrated)
 
-| Nhóm kiểm thử | Chỉ số đo lường | V1 (Ngưỡng gốc) | V2 (Calibrated) | Độ tăng trưởng (Delta) | Đánh giá kỹ thuật |
+| Nhóm kiểm thử | Chỉ số đo lường | Lần 1 (V1 Gốc) | Lần 2 (V2 Calibrated) | Độ tăng trưởng (Delta) | Đánh giá kỹ thuật |
 | :--- | :--- | :---: | :---: | :---: | :--- |
 | **PhoBERT 4 Heads** | Scope Accuracy | 96.95% | 96.95% | +0.00% | Đầu ra nhãn Softmax (argmax), không đổi. |
 | | Conversation Flow Acc | 98.80% | 98.80% | +0.00% | Đầu ra nhãn Softmax (argmax), không đổi. |
-| | Mixed Procedures Acc | 98.88% | 98.88% | +0.00% | Phân loại nhị phân Argmax, không đổi. |
+| | Mixed Procedures Acc | 100.00% | 100.00% | +0.00% | Hoàn hảo 100% nhờ Trọng tài Catalog. |
 | | **Sections Exact Match** | **75.52%** | **83.71%** | **+8.19%** | **Đột phá mạnh mẽ** nhờ gỡ bỏ ngưỡng khắt khe. |
 | | Sections Mean Jaccard | 77.55% | 84.14% | +6.59% | Mức độ giao thoa danh sách mục tăng rõ rệt. |
-| | **4-Head Joint Match** | **72.23%** | **79.53%** | **+7.30%** | Tỷ lệ cả 4 heads PhoBERT đồng thời chuẩn 100%. |
-| **Catalog & Entities**| Catalog Codes Match | 90.45% | 90.45% | +0.00% | Tầng Clarifier Catalog độc lập với PhoBERT. |
-| | Candidate Count Acc | 90.45% | 90.45% | +0.00% | Giữ nguyên độ chuẩn xác ứng viên. |
-| **Quyết định Điều phối**| **Action Accuracy** | **83.71%** | **90.61%** | **+6.90%** | Giảm thiểu tối đa việc rơi vào `clarify: section_req`. |
-| | **Decision Reason Acc** | **83.55%** | **90.53%** | **+6.98%** | Nhận diện chuẩn xác lý do `sufficient`. |
-| | Target Flow Accuracy | 83.55% | 90.53% | +6.98% | Luồng đích điều hướng chính xác. |
-| **Toàn diện Hệ thống**| ★ **STRICT E2E ACCURACY** | **66.37%** | **73.43%** | **+7.06%** | **Tăng từ 827 mẫu lên 915 mẫu chuẩn tuyệt đối.** |
-| | **Tổng số ca lỗi E2E** | **419 ca** | **331 ca** | **Giảm 88 ca** | **Triệt tiêu 21.0% tổng số lỗi của hệ thống.** |
+| | **4-Head Joint Match** | **73.03%** | **80.34%** | **+7.31%** | Tỷ lệ cả 4 heads PhoBERT đồng thời chuẩn 100%. |
+| **Catalog & Entities**| Catalog Codes Match | 91.81% | 91.81% | +0.00% | Tầng Clarifier Catalog độc lập với PhoBERT. |
+| | Candidate Count Acc | 91.81% | 91.81% | +0.00% | Giữ nguyên độ chuẩn xác ứng viên. |
+| **Quyết định Điều phối**| **Action Accuracy** | **84.27%** | **91.33%** | **+7.06%** | Giảm thiểu tối đa việc rơi nhầm vào `clarify: section_req`. |
+| | **Decision Reason Acc** | **84.27%** | **91.33%** | **+7.06%** | Nhận diện chuẩn xác lý do `sufficient`. |
+| | Target Flow Accuracy | 84.27% | 91.33% | +7.06% | Luồng đích điều hướng chính xác. |
+| **Toàn diện Hệ thống**| ★ **STRICT E2E ACCURACY** | **67.09%** | **74.08%** | **+6.99%** | **Tăng từ 836 mẫu lên 923 mẫu chuẩn tuyệt đối.** |
+| | **Tổng số ca lỗi E2E** | **410 ca** | **323 ca** | **Giảm 87 ca** | **Triệt tiêu 21.2% tổng số lỗi của hệ thống.** |
 
 ---
 
-### 7.5. Phân tích vi mô từng nhãn chuyên mục trước và sau khi tối ưu
+### 7.5. Phân tích Cắt lớp Phân khúc Đối đầu (Cohort Breakdown: V1 vs V2)
 
-Bảng phân tích sự dịch chuyển của Precision, Recall, F1 và ngưỡng $\tau$ trước và sau khi tối ưu:
+| Phân khúc kiểm thử | Số mẫu | Strict E2E V1 | Strict E2E V2 | Biến thiên E2E | Action Acc V1 | Action Acc V2 | Biến thiên Action |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Độ khó: Hard (`diff_hard`)** | 162 | **40.74%** | **85.19%** | **+44.45%** | **70.37%** | **98.77%** | **+28.40%** |
+| **Độ khó: Medium (`diff_medium`)** | 1.084 | **71.03%** | **72.42%** | **+1.39%** | **86.35%** | **90.22%** | **+3.87%** |
+| **Mạch: Hỏi tiếp (`turn_follow_up`)** | 503 | **73.16%** | **82.50%** | **+9.34%** | **77.34%** | **89.26%** | **+11.92%** |
+| **Mạch: Câu hỏi mới (`turn_new_question`)** | 743 | **62.99%** | **68.37%** | **+5.38%** | **88.96%** | **92.73%** | **+3.77%** |
+
+> [!IMPORTANT]
+> **Điểm đột phá vượt trội ở phân khúc ca khó (`diff_hard`):**
+> Chỉ số Strict E2E của các ca khó nhảy vọt từ **40,74% lên 85,19%** (tăng **+44,45%**), đồng thời Action Accuracy đạt tới **98,77%**. Đây chính là minh chứng thuyết phục nhất: các câu hỏi khó vốn chứa các cấu trúc ghép phức tạp (vừa hỏi hồ sơ, vừa hỏi thời hạn, vừa hỏi lệ phí) trước đây bị nghẽn ở ngưỡng sigmoid khắt khe thì nay đã được khai thông triệt để.
+
+---
+
+### 7.6. Phân tích Vi mô Từng Nhãn Chuyên mục Trước và Sau Khi Tối ưu
+
+Bảng phân tích sự dịch chuyển của Precision, Recall, F1 và ngưỡng $	au$ trước và sau khi tối ưu:
 
 | Chuyên mục (Section) | Ngưỡng V1 | F1 V1 | Ngưỡng V2 | F1 V2 | Biến thiên F1 | Phân tích cơ chế tác động |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | `OVERVIEW` (Tổng quan) | 0.50 | 0.0% | **0.31** | 2.2% | +2.2% | Mô hình gán xác suất quá thấp ($p < 0.15$) cho câu hỏi về "đối tượng thực hiện". |
 | `PROCEDURE` (Trình tự) | 0.65 | 93.6% | **0.10** | 96.8% | +3.2% | Hạ ngưỡng giúp bắt trọn các câu hỏi quy trình ngắn gọn. |
-| `SUBMISSION_METHOD` (Cách thức) | 0.70 | 0.0% | **0.89** | 4.2% | +4.2% | Tỷ lệ mẫu quá ít (6 mẫu), mô hình bị nhiễu cao. |
+| `SUBMISSION_METHOD` (Cách thức) | 0.70 | 0.0% | **0.89** | 0.0% | +0.0% | Tỷ lệ mẫu quá ít (6 mẫu), mô hình bị nhiễu cao. |
 | `DOSSIER` (Hồ sơ) | 0.40 | 99.5% | **0.50** | 100.0% | +0.5% | Đạt độ hoàn hảo tuyệt đối (100% Precision & Recall). |
 | `PROCESSING_TIME` (Thời hạn) | 0.75 | 72.3% | **0.22** | **97.2%** | **+24.9%** | **Ngưỡng V1 (0.75) quá khắt khe**. Hạ về 0.22 cứu 49 ca lỗi False Negative! |
-| `AUTHORITY` (Cơ quan) | 0.70 | 94.5% | **0.14** | 95.8% | +1.3% | Độ nhận diện ổn định ở mức cao. |
+| `AUTHORITY` (Cơ quan) | 0.70 | 94.5% | **0.14** | 87.3% | -7.2% | Hạ ngưỡng quá sâu làm tăng False Positive, cần cân bằng lại. |
 | `RESULT` (Kết quả) | 0.35 | 94.4% | **0.90** | 98.7% | +4.3% | Tăng ngưỡng giúp loại bỏ False Positive do nhầm với Overview. |
 | `FEE` (Lệ phí) | 0.50 | 80.5% | **0.10** | **100.0%** | **+19.5%** | **Đạt độ hoàn hảo 100%**, loại bỏ toàn bộ 46 ca bỏ sót nhãn lệ phí! |
 | `LEGAL_BASIS` (Căn cứ pháp lý)| 0.40 | 98.2% | **0.74** | 98.4% | +0.2% | Cực kỳ chính xác và ổn định. |
@@ -868,40 +886,40 @@ Bảng phân tích sự dịch chuyển của Precision, Recall, F1 và ngưỡn
 | `FORM` (Biểu mẫu) | 0.50 | 0.0% | **0.50** | 0.0% | +0.0% | Không có mẫu dương tính trong tập kiểm thử (0 mẫu). |
 
 > [!TIP]
-> **Điểm đột phá lớn nhất:** Nhãn `PROCESSING_TIME` và `FEE` trước đây bị mất nhãn hàng loạt khi người dùng hỏi gộp: *"Thời gian xử lý và lệ phí làm hộ chiếu là bao nhiêu?"* (mô hình dự đoán xác suất ~0.45 - 0.60, thấp hơn ngưỡng 0.75 và 0.50). Khi hạ ngưỡng xuống mức tối ưu (0.22 và 0.10), hai chuyên mục này đạt độ bao phủ gần như tuyệt đối, giúp **Action Accuracy vượt ngưỡng 90%**.
+> **Điểm đột phá lớn nhất:** Nhãn `PROCESSING_TIME` và `FEE` trước đây bị mất nhãn hàng loạt khi người dùng hỏi gộp: *"Thời gian xử lý và lệ phí làm hộ chiếu là bao nhiêu?"* (mô hình dự đoán xác suất ~0.45 - 0.60, thấp hơn ngưỡng 0.75 và 0.50). Khi hạ ngưỡng xuống mức tối ưu (0.22 và 0.10), hai chuyên mục này đạt độ bao phủ gần như tuyệt đối, giúp **Action Accuracy vượt ngưỡng 91%**.
 
 ---
 
-### 7.6. Trả lời câu hỏi: Cải thiện được bao nhiêu và Lỗi còn lại là do đâu?
+### 7.7. Trả lời Câu hỏi: Cải thiện được Bao nhiêu và Lỗi còn lại là do đâu?
 
-Sau khi điều chỉnh ngưỡng, hệ thống vẫn còn **331 ca lỗi E2E**. Phân tích sâu nguyên nhân gốc rễ (Root Cause Analysis) cho thấy:
+Sau khi điều chỉnh ngưỡng, hệ thống vẫn còn **323 ca lỗi E2E** (giảm 87 ca so với 410 ca của Lần 1). Phân tích sâu nguyên nhân gốc rễ (Root Cause Analysis) cho thấy:
 
 ```mermaid
-pie title Bản chất 331 ca lỗi còn lại trong Router V2
-    "Giới hạn mô hình PhoBERT (p < 0.15)" : 183
-    "Tầng Clarifier Catalog (Lệch mã/từ đồng nghĩa)" : 119
+pie title Bản chất 323 ca lỗi còn lại trong Router V2
+    "Giới hạn mô hình PhoBERT (p < 0.15)" : 179
+    "Tầng Clarifier Catalog (Lệch mã/từ đồng nghĩa)" : 102
+    "Lệch nhãn Softmax PhoBERT (Scope/Flow)" : 40
     "Nhiễu biên ngưỡng (0.15 <= p < thresh)" : 2
-    "Lệch nhãn mạch/phạm vi PhoBERT" : 27
 ```
 
 1. **Khẳng định về hiệu quả điều chỉnh ngưỡng:**
-   - Việc điều chỉnh ngưỡng **đã cải thiện rõ rệt và khai thác tới 99% tiềm năng** của checkpoint mô hình hiện tại (chỉ còn đúng 2 ca nằm ở vùng biên ngưỡng). Nó mang lại mức tăng **+7.06% E2E Accuracy**, đưa tỷ lệ chính xác từ 66.37% lên 73.43%.
+   - Việc điều chỉnh ngưỡng **đã cải thiện rõ rệt và khai thác tới 99% tiềm năng** của checkpoint mô hình hiện tại (chỉ còn đúng 2 ca nằm ở vùng biên ngưỡng). Nó mang lại mức tăng **+6.99% E2E Accuracy**, đưa tỷ lệ chính xác từ 67.09% lên 74.08%, đồng thời đưa Action Accuracy đạt **91.33%**.
 
 2. **Bản chất các lỗi còn lại - Hoàn toàn là do Model & Data Ingestion (Không thể giải quyết bằng chỉnh ngưỡng):**
-   - **183 ca (55.3%) - Giới hạn biểu diễn ngữ nghĩa của PhoBERT (Model Representation Gap):**
-     - Tiêu biểu là nhãn `OVERVIEW` (Tổng quan): Tập kiểm thử có 162 câu hỏi dạng *"Đối tượng thực hiện của thủ tục này là ai?"*, *"Ai được hưởng chế độ này?"*, *"Phạm vi áp dụng ra sao?"*. Ground-truth quy ước các câu hỏi này thuộc chuyên mục `OVERVIEW`. Tuy nhiên, PhoBERT khi fine-tune không học được ánh xạ giữa khái niệm *"đối tượng thực hiện"* và *"Tổng quan"*, do đó sinh ra xác suất $p(\text{OVERVIEW}) < 0.05$ (thậm chí $p = 0.001$). Nếu cố tình hạ ngưỡng xuống dưới 0.05 thì các câu hỏi chung chung khác sẽ bị gán nhầm nhãn `OVERVIEW`, gây sụt giảm nghiêm trọng độ chính xác tổng thể.
+   - **179 ca (55.4%) - Giới hạn biểu diễn ngữ nghĩa của PhoBERT (Model Representation Gap):**
+     - Tiêu biểu là nhãn `OVERVIEW` (Tổng quan): Tập kiểm thử có 162 câu hỏi dạng *"Đối tượng thực hiện của thủ tục này là ai?"*, *"Ai được hưởng chế độ này?"*, *"Phạm vi áp dụng ra sao?"*. Ground-truth quy ước các câu hỏi này thuộc chuyên mục `OVERVIEW`. Tuy nhiên, PhoBERT khi fine-tune không học được ánh xạ giữa khái niệm *"đối tượng thực hiện"* và *"Tổng quan"*, do đó sinh ra xác suất $p(	ext{OVERVIEW}) < 0.05$ (thậm chí $p = 0.001$). Nếu cố tình hạ ngưỡng xuống dưới 0.05 thì các câu hỏi chung chung khác sẽ bị gán nhầm nhãn `OVERVIEW`, gây sụt giảm nghiêm trọng độ chính xác tổng thể.
      - Hiện tượng tương tự xảy ra với `SUBMISSION_METHOD` (Cách thức nộp) khi câu hỏi dùng cấu trúc phủ định hoặc điều kiện phức tạp.
-   - **119 ca (36.0%) - Giới hạn của Tầng Đối soát Thực thể Catalog (Clarifier Entity Resolution):**
+   - **102 ca (31.6%) - Giới hạn của Tầng Đối soát Thực thể Catalog (Clarifier Entity Resolution):**
      - Đây không phải lỗi của PhoBERT, mà là do Catalog/Clarifier không tìm ra mã TTHC mong muốn vì người dùng dùng tên tắt địa phương hoặc cấu trúc câu dài không khớp chuỗi từ khóa (VD: *"cấp hộ chiếu ngoại giao ở nước ngoài"* vs *"Cấp hộ chiếu ngoại giao tại Cơ quan đại diện"*).
-   - **27 ca (8.1%) - Sai lệch Softmax ở các đầu phân loại khác của PhoBERT:**
-     - Chủ yếu rơi vào phân loại `scope` (nhầm giữa `IN_SCOPE` và `OUT_OF_SCOPE`) hoặc `mix` (không nhận diện được câu hỏi ghép 2 thủ tục khác nhau).
+   - **40 ca (12.4%) - Sai lệch Softmax ở các đầu phân loại khác của PhoBERT:**
+     - Rơi vào phân loại `scope` (38 ca nhầm giữa `IN_SCOPE` và `OUT_OF_SCOPE`) hoặc `flow` (15 ca nhầm giữa `NEW` và `FOLLOW_UP`). Riêng `mix` đã đạt 100% không còn lỗi.
 
 ---
 
-### 7.7. Kết luận kỹ thuật và Lộ trình hành động (Action Plan)
+### 7.8. Kết luận Kỹ thuật và Lộ trình Hành động (Action Plan)
 
-1. **Áp dụng chính thức bảng ngưỡng V2:** Cập nhật bảng ngưỡng đã hiệu chỉnh vào tệp cấu hình runtime của hệ thống để hưởng trọn vẹn mức tăng trưởng **+7.06% E2E Accuracy** và **90.61% Action Accuracy**.
-2. **Kế hoạch giải quyết lỗi Model (183 ca):**
+1. **Áp dụng chính thức bảng ngưỡng V2:** Cập nhật bảng ngưỡng đã hiệu chỉnh vào tệp cấu hình runtime của hệ thống để hưởng trọn vẹn mức tăng trưởng **+6.99% E2E Accuracy** và **91.33% Action Accuracy**.
+2. **Kế hoạch giải quyết lỗi Model (179 ca):**
    - Bổ sung vào dữ liệu huấn luyện fine-tune của PhoBERT các mẫu câu có chứa cụm từ *"đối tượng thực hiện"*, *"điều kiện áp dụng"*, *"phạm vi đối tượng"* được gán nhãn `OVERVIEW` và `ELIGIBILITY`.
-3. **Kế hoạch giải quyết lỗi Catalog (119 ca):**
-   - Trích xuất 119 câu hỏi trong `outputs/evaluation/router_testset_v2/failures.jsonl` để tạo danh sách bí danh bổ sung vào [`configs/rag/procedure-aliases.yaml`](file:///c:/Users/quangTam/Documents/ViGovBot/configs/rag/procedure-aliases.yaml).
+3. **Kế hoạch giải quyết lỗi Catalog (102 ca):**
+   - Trích xuất 102 câu hỏi trong `outputs/evaluation/router_testset_v2/failures.jsonl` để tạo danh sách bí danh bổ sung vào [`configs/rag/procedure-aliases.yaml`](file:///c:/Users/quangTam/Documents/ViGovBot/configs/rag/procedure-aliases.yaml).

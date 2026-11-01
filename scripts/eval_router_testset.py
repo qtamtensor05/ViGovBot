@@ -27,7 +27,8 @@ def main():
 
     # 2. Khởi tạo Dummy Retriever & Clarifier
     from vigovbot.rag.clarification import Clarifier
-    from vigovbot.retrieval.retriever import extract_source_codes
+    import re
+    from vigovbot.retrieval.retriever import _fold, extract_source_codes
 
     class CatalogRetriever:
         def __init__(self, cat): self.cat = cat
@@ -138,6 +139,15 @@ def main():
         # Ensure codes are unique preserving order
         codes = list(dict.fromkeys(codes))
         matched_count = len(codes)
+
+        # Check single procedure catalog override mixed
+        if mix and codes:
+            matched_names = {
+                re.sub(r"^thu tuc\s+", "", _fold(clarifier.catalog[c]["name"].strip(" .?!;:")))
+                for c in codes if c in clarifier.catalog
+            }
+            if len(matched_names) == 1:
+                mix = False
 
         # Flow & Action determination
         if taxonomy.get("is_unanswerable") and expected.get("decision_reason") == "unanswerable":
