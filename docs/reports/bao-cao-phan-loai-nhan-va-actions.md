@@ -202,7 +202,7 @@ Khi kết quả phân loại của PhoBERT được chuyển tới [`conversatio
 #### Nhóm 1: Nhánh CLARIFY (Làm rõ)
 
 1. **`procedure_required` (Cần làm rõ thủ tục):**
-   - **Kích hoạt khi:** Tên thủ tục trong câu hỏi khớp với $\ge 2$ mã TTHC trong Catalog (`len(codes) > 1`) (ví dụ: cùng một tên nhưng có bản cho *cá nhân* và bản cho *tổ chức*).
+   - **Kích hoạt khi:** Tên thủ tục trong câu hỏi khớp với $\ge 2$ mã TTHC trong Catalog (`len(codes) > 1`) (ví dụ: cùng một tên nhưng có bản cho *cá nhân* và bản cho *tổ chức*), hoặc khi kích hoạt Menu xác nhận thủ tục (`confirmation=True`).
    - **Hành vi:** Mở `procedure` menu liệt kê tối đa 5 ứng viên đánh số kèm mã định danh.
 2. **`section_required` (Cần chọn mục nội dung):**
    - **Kích hoạt khi:** Đã xác định chính xác duy nhất 1 mã TTHC nhưng người dùng chỉ nêu tên thủ tục trần mà không hỏi rõ mục nào (`sections == []`).
@@ -215,17 +215,27 @@ Khi kết quả phân loại của PhoBERT được chuyển tới [`conversatio
    - **Hành vi:** In lại menu và yêu cầu người dùng chọn đúng số thứ tự.
 5. **`expired_selection` (Menu hết hạn):**
    - **Kích hoạt khi:** Người dùng gửi lựa chọn nhưng chữ ký HMAC của state không khớp hoặc cache phiên đã bị xóa.
+6. **`procedure_rejected` (Bác bỏ menu thủ tục):**
+   - **Kích hoạt khi:** Đang mở Menu thủ tục nhưng người dùng phản hồi phủ định (*"không phải mấy cái này"*, *"không đúng"*).
+   - **Hành vi:** Loại bỏ các mã đã hiển thị và quét Catalog tìm danh sách các ứng viên thay thế khác.
+7. **`selection_required` (Yêu cầu chọn cụ thể):**
+   - **Kích hoạt khi:** Đang mở Menu nhưng người dùng chỉ trả lời đồng ý chung chung (*"đúng rồi"*, *"ok"*, *"phải"*).
+   - **Hành vi:** Nhắc nhở người dùng chọn trực tiếp bằng số thứ tự hoặc tên mục cụ thể.
 
 #### Nhóm 2: Nhánh ANSWER (Trả lời)
 
 1. **`sufficient` (Đủ bằng chứng):** Chunks tài liệu thu về từ mã TTHC cung cấp đầy đủ thông tin để LLM sinh câu trả lời kèm trích dẫn (`citations`).
-2. **`partial` (Thông tin một phần):** Tài liệu chỉ trả lời được một phần yêu cầu; câu trả lời sẽ nêu rõ phần còn thiếu.
+2. **`partial` (Thông tin một phần):** Tài liệu chỉ trả lời được một phần yêu cầu hoặc câu hỏi thuộc dạng `MIXED_SCOPE`; câu trả lời sẽ nêu rõ phần còn thiếu kèm thông báo phạm vi.
 
 #### Nhóm 3: Nhánh ABSTAIN (Từ chối)
 
 1. **`out_of_scope`:** PhoBERT dự đoán câu hỏi ngoài phạm vi với xác suất cao ($P \ge 85\%$) và Catalog không tìm thấy thực thể để cứu vớt/xác nhận (chi tiết cơ chế trọng tài tại Mục 4.4).
 2. **`social_greeting`:** Câu hỏi chào hỏi xã giao thuần túy (xin chào, cảm ơn,...).
 3. **`confirmation_rejected`:** Người dùng từ chối gợi ý xác nhận thủ tục khi hệ thống hỏi lại.
+4. **`identifier_not_in_evidence` (Mã hồ sơ/biên nhận không có trong dữ liệu):**
+   - **Kích hoạt khi:** Câu hỏi chứa mã định danh hồ sơ cá nhân / mã biên nhận (ví dụ: `000.00.12.H29-...`), nhưng tài liệu pháp lý truy xuất được không chứa mã này.
+   - **Hành vi:** Từ chối trả lời ngay lập tức, hướng dẫn người dân tra cứu tại cổng dịch vụ công hoặc liên hệ cơ quan tiếp nhận hồ sơ, tuyệt đối không để LLM đoán mò tình trạng hồ sơ cá nhân.
+5. **`no_context`:** Đã qua bước phân loại hợp lệ nhưng kho dữ liệu hoàn toàn không tìm thấy chunk văn bản nào phù hợp.
 
 ---
 
@@ -379,6 +389,98 @@ Thực nghiệm đo lường trên cơ sở dữ liệu `metadata.sqlite` chứa
 
 ---
 
+### 4.6. Cơ chế Bảo vệ Định danh Cá nhân & Chống Đoán Mò (`identifier_not_in_evidence`)
+
+Trong dịch vụ công, một trong những sai phạm nguy hiểm nhất của Chatbot AI là tự ý phỏng đoán hoặc bịa đặt kết quả giải quyết hồ sơ cá nhân khi người dân nhập mã biên nhận / mã giao dịch.
+
+#### 4.6.1. Nhận diện Mã Định danh Cá nhân (`_OPAQUE_IDENTIFIER`)
+Mã nguồn [`src/vigovbot/rag/conversation.py#L29`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L29) định nghĩa bộ nhận dạng các mã định danh dạng vết hồ sơ cá nhân:
+```python
+_OPAQUE_IDENTIFIER = re.compile(r"\b[A-ZĐ]{2,}(?:-[A-Z0-9Đ]+){2,}\b", re.I)
+```
+*Ví dụ:* `000.00.12.H29-241031-0001`, `HS-TTHC-2026-X99`, `MC-HN-00124`.
+
+#### 4.6.2. Kiểm tra Đối chiếu Bằng chứng & Từ chối Tuyệt đối
+Tại dòng 447–457 của [`conversation.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L447-L457):
+1. Sau khi Retrieval hoàn tất, hàm `identifiers_missing_from_hits(question, hits)` kiểm tra xem mã định danh cá nhân mà người dùng nhập có xuất hiện trong các chunk văn bản quy định chung được truy xuất hay không.
+2. Nếu câu hỏi có chứa mã định danh nhưng tài liệu quy định pháp lý không có mã này (bản chất cơ sở dữ liệu TTHC chỉ chứa quy chế chung, không chứa cơ sở dữ liệu hồ sơ cá nhân của từng công dân):
+   ```python
+   result.update(action="abstain", evidence_status="missing")
+   return finish(
+       f"Tài liệu truy xuất không chứa dữ liệu gắn với định danh {identifiers}, nên không đủ "
+       "bằng chứng để xác nhận thông tin được hỏi. Bạn cần tra cứu trên hệ thống tiếp nhận "
+       "hồ sơ hoặc liên hệ cơ quan đang xử lý.",
+       "identifier_not_in_evidence",
+   )
+   ```
+3. **Ý nghĩa an toàn:** Ngắt luồng ngay, không đưa vào prompt LLM. Điều này loại bỏ 100% rủi ro LLM "tưởng tượng" ra ngày hẹn trả kết quả hay tình trạng hồ sơ cá nhân của người dân.
+
+---
+
+### 4.7. Cơ chế Xử lý Câu hỏi Hỗn hợp 2 Tầng (`mixed_scope_llm_rewrite` & Extractive Verification)
+
+Khi người dùng đặt câu hỏi vừa có phần hỏi thủ tục, vừa có phần hỏi ngoài lề (ví dụ: *"Lệ phí làm hộ chiếu bao nhiêu, tiện thể chỉ tôi quán phở ngon gần đây"*), PhoBERT phân loại nhãn `MIXED_SCOPE`.
+
+Để xử lý an toàn và không để phần ngoài lề làm ô nhiễm ngữ cảnh RAG, hệ thống triển khai cơ chế 2 tầng:
+
+1. **Tầng 1 - Tách mệnh đề độc lập bằng Regex (`re.split`):**
+   * Phân tách câu theo dấu chấm phẩy, xuống dòng hoặc từ nối: `r"[;\n?!]+|\s+và\s+"` (tối đa 8 mệnh đề con).
+   * Đưa từng mệnh đề vào PhoBERT phân loại lại. Nếu tìm thấy duy nhất 1 mệnh đề là `IN_SCOPE` thuần túy (không bị `mix`) $\rightarrow$ Dùng mệnh đề này làm query chính thức.
+2. **Tầng 2 - LLM Extractive Rewrite kết hợp Xác minh Chặt chẽ:**
+   * Nếu Regex không phân tách được (cấu trúc ngữ pháp phức tạp), hệ thống kích hoạt hàm `rewrite_mixed_scope()` ([`classification.py#L62`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/classification.py#L62)) gọi LLM trích xuất một đoạn nguyên văn liên tiếp.
+   * **Ràng buộc kiểm tra nghiêm ngặt (Guardrails):**
+     - Đoạn trích xuất bắt buộc phải là chuỗi con (`substring`) của câu hỏi gốc (extractive, không tự diễn giải).
+     - Không được làm thay đổi hoặc rơi rớt mã TTHC gốc (`original_codes == candidate_codes`).
+     - Không được làm rơi rớt các từ định tính phủ định (`NEGATIVE_QUALIFIERS` như "không", "chưa", "hết hạn").
+   * **Tái phân loại (Re-classification):** Đưa câu đã làm sạch vào PhoBERT kiểm tra lại (`classify_phobert`). Chỉ khi PhoBERT xác nhận câu này đạt `IN_SCOPE` và đơn thủ tục thì mới chấp nhận (`outcome: accepted_after_phobert`).
+3. **Cảnh báo minh bạch (`MIXED_NOTICE`):**
+   * Trong câu trả lời cuối cùng, hệ thống tự động chèn ghi chú:
+     > *"Phần yêu cầu ngoài thủ tục hành chính nằm ngoài phạm vi hỗ trợ."*
+   * Đồng thời hạ nhãn `action = "partial"`, `evidence_status = "partial"`.
+
+---
+
+### 4.8. Cơ chế Ghi đè Mục Nội dung Tường minh & Khôi phục Ngữ cảnh Lịch sử
+
+#### 4.8.1. Ghi đè Mục Nội dung Tường minh (`explicit_section_override`)
+* **Vấn đề:** Do PhoBERT sử dụng các ngưỡng Sigmoid cố định, trong một số câu hỏi người dùng nêu rõ từ khóa mục (ví dụ: *"cho tôi hỏi lệ phí và thời hạn"*), nhưng mô hình chỉ kích hoạt được một mục do xác suất của mục kia nằm sát dưới ngưỡng kích hoạt.
+* **Giải pháp:** Hàm `explicit_section_intents()` ([`sections.py#L37`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/sections.py#L37)) quét các cụm từ ngữ tường minh đối chiếu với 11 nhóm chuyên mục.
+* Khi phát hiện có yêu cầu tường minh, Adapter tự động **ghi đè (override)** tập nhãn `sections` của PhoBERT bằng tập nhãn tường minh từ người dùng, ghi nhận trace `explicit_section_override` với trạng thái `accepted`.
+
+#### 4.8.2. Khôi phục Ngữ cảnh Thủ tục từ Lịch sử (`history_identity_recovery`)
+* **Vấn đề:** Đối với các phiên hội thoại không duy trì state có chữ ký (stateless clients) hoặc khi client mất kết nối, người dùng hỏi tiếp (`turn_follow_up`, vd: *"thế còn hồ sơ?"*) mà không nhắc lại tên thủ tục.
+* **Giải pháp:** Hàm `procedure_from_user_history()` ([`conversation.py#L83`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L83)) quét ngược dòng lịch sử hội thoại:
+  - **Nguyên tắc an ninh:** Chỉ quét các tin nhắn có `role == "user"`, tuyệt đối không tin tưởng hoặc suy diễn từ văn bản trả lời của `role == "assistant"` (tránh trôi dạt ngữ cảnh ảo giác).
+  - Trích xuất mã hoặc tên thủ tục duy nhất đã được xác thực ở các lượt trước để tiếp tục phục vụ lượt hiện tại.
+
+---
+
+### 4.9. Các Cơ chế Tương tác Phản hồi Menu Nâng cao (Advanced Menu Interactions)
+
+Hệ thống điều phối hội thoại xử lý thông minh các hành vi phản hồi tự nhiên của người dùng khi đang mở Menu:
+
+1. **Người dùng bác bỏ Menu (`procedure_rejected`):**
+   - Khi bot đang mở Menu 5 thủ tục, nếu người dùng gõ: *"không phải các thủ tục trên"*, *"không đúng"* (`_MENU_REJECTION`), hệ thống không báo lỗi mà tự động loại trừ 5 mã đã hiển thị và gọi `clarifier.discover()` quét các phương án thay thế tiếp theo trong Catalog.
+2. **Người dùng phản hồi đồng ý chung chung (`selection_required`):**
+   - Khi đang mở Menu, nếu người dùng chỉ gõ: *"đúng rồi"*, *"ok"*, *"phải"* (`_BARE_CONFIRMATION`), bot không thể đoán người dùng chọn mục nào $\rightarrow$ Nhắc lịch sự: *"Bạn vui lòng chọn trực tiếp một mục bằng số hoặc tên trong danh sách"*.
+3. **Người dùng yêu cầu xem trường hợp khác (`_OTHER_VARIANT`):**
+   - Khi đang xem 1 thủ tục, nếu người dùng hỏi: *"còn trường hợp khác không?"*, *"loại khác?"* $\rightarrow$ Hệ thống tự động kích hoạt `clarifier.inspect("Các thủ tục " + selected_name)` để gợi ý danh sách các thủ tục biến thể liên quan cùng nhóm nghiệp vụ.
+4. **Bảo mật Trạng thái bằng Chữ ký số HMAC (`Signed State`):**
+   - Mọi menu và ngữ cảnh phiên đều được mã hóa chữ ký số HMAC SHA-256 kèm `corpus_hash` và `history_fingerprint`. Bất kỳ hành vi sửa đổi mã thủ tục hoặc giả mạo state từ phía client đều bị phát hiện và từ chối ngay (`expired_selection`).
+
+---
+
+### 4.10. Cơ chế Ngắt Luồng Sớm khi Dùng LLM Router (Streaming Early Exit với `RoutePrefixReader`)
+Khi hệ thống chạy với bộ định tuyến tạo sinh LLM (`routing_backend: "llm"` thay vì PhoBERT), việc chờ LLM sinh toàn bộ chuỗi JSON định tuyến có thể tốn từ 2 – 4 giây.
+
+Để tối ưu hóa tốc độ, module [`routing.py#L14-L40`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/routing.py#L14-L40) triển khai class **`RoutePrefixReader`**:
+1. Đọc luồng stream token của LLM theo thời gian thực.
+2. Prompt định tuyến được thiết kế để bắt buộc LLM xuất trường `scope` và `relation` đầu tiên trong JSON.
+3. Hễ LLM vừa xuất xong `"scope": "out_of_scope"` hoặc `"relation": "ambiguous"`, `RoutePrefixReader` lập tức ném biệt lệ **`RouteEarlyExit`**, ngắt ngay kết nối với LLM tại chỗ mà không cần chờ sinh các trường `query` hay `clarification`.
+4. Cơ chế này giảm thời gian phản hồi của các câu hỏi ngoài phạm vi từ hàng giây xuống **vài trăm miligiây**.
+
+---
+
 ## 5. Bảng Đối soát Toàn diện (Taxonomy & State Mapping)
 
 | Tình huống thực tế | Nhãn PhoBERT Router | Nhãn Hệ thống (`actual_route` / `action`) | `decision_reason` | Trạng thái tiếp theo |
@@ -389,10 +491,16 @@ Thực nghiệm đo lường trên cơ sở dữ liệu `metadata.sqlite` chứa
 | Không khớp mã trong Catalog (`len == 0`) | `IN_SCOPE`, `NEW`, `mix: False`, `sections: [...]` | `rag_search` / `answer` | `sufficient` (semantic) | Sinh câu trả lời qua Semantic Fallback |
 | PhoBERT đoán OUT (50-85%) nhưng có mã trong Catalog | `OUT_OF_SCOPE` $\rightarrow$ **Override IN_SCOPE** | `rag_search` / `answer` | `sufficient` (arbitration) | Bẻ còi sang tra cứu RAG bình thường |
 | PhoBERT đoán OUT (>85%) nhưng khớp từ vựng $\ge 70\%$ | `OUT_OF_SCOPE` | `clarify` / `clarify` | `procedure_required` | Mở Menu gợi ý xác nhận thủ tục |
+| Hỏi tình trạng mã biên nhận cá nhân (`HS-xxx`) | `IN_SCOPE` hoặc `OUT_OF_SCOPE` | `out_of_scope` / `abstain` | `identifier_not_in_evidence` | Từ chối đoán mò, hướng dẫn tra cứu cổng DVC |
+| Người dùng từ chối Menu (*"không phải mấy cái này"*) | (Đang ở trạng thái Menu) | `clarify` / `clarify` | `procedure_rejected` | Quét Catalog đưa danh sách ứng viên mới |
+| Người dùng trả lời đồng ý chung chung (*"ok/đúng"*) | (Đang ở trạng thái Menu) | `clarify` / `clarify` | `selection_required` | Yêu cầu chọn đúng số thứ tự |
+| Câu hỏi hỗn hợp (thủ tục + ngoài lề) | `MIXED_SCOPE` | `rag_search` / `partial` | `partial` | Trích xuất câu hỏi con, thêm cảnh báo phạm vi |
+| Hỏi câu nối tiếp nhưng mất state | `IN_SCOPE`, `FOLLOW_UP` | `rag_search` / `answer` | `sufficient` (recovered) | Khôi phục mã từ lịch sử tin nhắn user |
 | Câu hỏi ngoài lề (thời tiết, code) | `OUT_OF_SCOPE`, `NEW`, `mix: False`, `sections: []` | `out_of_scope` / `abstain` | `out_of_scope` | Trả lời từ chối lịch sự |
 | Hỏi tiếp nhưng không có lịch sử | `IN_SCOPE`, `FOLLOW_UP`, `mix: False`, `sections: [...]` | `clarify` / `clarify` | `ambiguous_question` | Yêu cầu nêu tên thủ tục |
 | Chào hỏi xã giao | `OUT_OF_SCOPE`, `NEW`, `mix: False`, `sections: []` | `out_of_scope` / `abstain` | `social_greeting` | Phản hồi lời chào |
 | Nhập sai số menu | (Bỏ qua Router, xử lý trực tiếp qua `direct_choice`) | `clarify` / `clarify` | `invalid_selection` | Hiển thị lại Menu hiện tại |
+| Menu quá hạn hoặc sai chữ ký HMAC | (Bỏ qua Router, kiểm tra chữ ký state) | `clarify` / `clarify` | `expired_selection` | Yêu cầu nêu lại tên thủ tục |
 
 ---
 
