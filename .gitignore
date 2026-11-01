@@ -25,6 +25,7 @@ dist/
 build/
 coverage/
 *.log
+/tmp/
 
 # Local datasets, generated content and model weights
 # Preserve directory structure without tracking local data or generated files.

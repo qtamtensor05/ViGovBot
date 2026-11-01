@@ -24,6 +24,15 @@ Không tạo cây song song ngoài cấu trúc canonical. README gốc chỉ gi�
 và quick start tối thiểu; hướng dẫn môi trường, câu lệnh đầy đủ, vận hành,
 training/evaluation và troubleshooting phải nằm trong `docs/`.
 
+## Mã nguồn tạm và script phụ trợ
+
+Mọi mã nguồn, script hoặc công cụ dùng tạm một lần phục vụ quá trình đánh giá,
+chẩn đoán, trích xuất dữ liệu hoặc sửa chữa phải được đưa vào một thư mục riêng
+`tmp/` (hoặc `outputs/tmp/`). Tuyệt đối không tạo file tạm rải rác trong mã nguồn
+chính (`src/`), thư mục công cụ chuẩn (`scripts/`), kiểm thử (`tests/`) hay thư
+mục gốc để tránh làm ô nhiễm cấu trúc dự án. Sau khi hoàn thành nhiệm vụ và kiểm
+tra xong, phải tiến hành dọn dẹp các file tạm này.
+
 ## Thay đổi quan trọng và bộ nhớ dự án
 
 Chỉ đọc và áp dụng
