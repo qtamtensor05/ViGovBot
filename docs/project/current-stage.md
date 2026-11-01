@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## Xây dựng 2 bộ benchmark đánh giá RAG theo tỉ lệ - 2026-11-01
+
+- **Mục tiêu:** Cung cấp hai bộ test RAG chuẩn mực có tỉ lệ phân phối tự nhiên, tránh hiện tượng lệch lĩnh vực và lệch nhãn section từ dữ liệu thô.
+- **Thực hiện:** Xây dựng script `scripts/build_test_rag_benchmark.py` sinh hai bộ benchmark: `test_rag_pa1_ratio_balanced.jsonl` (cân bằng 6 tỉ lệ tự nhiên) và `test_rag_pa2_max_procedure_coverage.jsonl` (phủ cực đại thủ tục).
+- **Kết quả:** Hai file đã tạo tại `Data/dataset_v3/test_rag/`: PA1 có 638 mẫu (406 thủ tục, Đất đai 23%, Section 16-24%, Single/Multi 50/50); PA2 có 917 mẫu (phủ 100% 808 thủ tục, 66 ca bẫy, Đất đai 24,3%). Cả hai file đều pass 100% Draft 2020-12 schema, 0 leakage và 0 duplicate ID.
+
 ## Golden smoke phân biệt thủ tục trùng tên - 2026-10-30
 
 - **Mục tiêu:** Không chấm hành vi hỏi làm rõ an toàn thành routing sai khi Golden ngầm chọn một mã trong nhiều thủ tục trùng tên.

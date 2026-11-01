@@ -11,8 +11,8 @@ flowchart TD
     
     CheckScope -- "OUT_OF_SCOPE" --> CheckProb{"Xác suất P(Ngoài phạm vi)?"}
     CheckProb -- "50% <= P < 85%\n(Vùng lưng chừng)" --> ArbScope{"[Trọng tài Catalog]\nCó mã/tên trong Catalog?"}
-    ArbScope -- "Có (len >= 1)" --> OverrideScope["Override: Ghi đè thành IN_SCOPE!\n(Chuyển sang Tầng 2)"]
-    OverrideScope --> T2
+    ArbScope -- "Có (len >= 1)" --> OverrideScope["Override: Ghi đè thành IN_SCOPE!\n(catalog_scope_arbitration)"]
+    OverrideScope --> CheckMix
     ArbScope -- "Không" --> CheckConf{"[Xác nhận thủ tục]\nKhớp tương đồng >= 70%?"}
     
     CheckProb -- "P >= 85%\n(Thiên về Ngoài phạm vi)" --> CheckConf
@@ -20,13 +20,19 @@ flowchart TD
     CheckConf -- "Không khớp thủ tục nào" --> ActionAbstain["action: abstain\ndecision_reason: out_of_scope\n(Từ chối ngay, không gọi FAISS/LLM)"]
 
     CheckScope -- "MIXED_SCOPE" --> RegexLLMRewrite["Regex Split & LLM Rewrite\n(Trích xuất mệnh đề hợp lệ)"]
-    RegexLLMRewrite --> T2
+    RegexLLMRewrite --> CheckMix
 
-    CheckScope -- "IN_SCOPE" --> T2["Tầng 2: Conversation Adapter & Catalog\n(Đối soát thực thể & Quản lý hội thoại)"]
+    CheckScope -- "IN_SCOPE" --> CheckMix{"Trộn thủ tục\n(mix head)?"}
+    CheckMix -- "True (Nhiều thủ tục)" --> ArbMix{"[Trọng tài Catalog]\nCùng 1 tên thủ tục chuẩn hóa?"}
+    ArbMix -- "Đúng (len == 1)" --> OverrideMix["Override: mixed = False\n(catalog_single_procedure_override_mixed)"]
+    OverrideMix --> T2["Tầng 2: Conversation Adapter & Catalog\n(Đối soát thực thể & Quản lý hội thoại)"]
+    ArbMix -- "Sai (len != 1)" --> BlockMulti["action: clarify\ndecision_reason: ambiguous_question\n(Chặn: Yêu cầu hỏi riêng từng thủ tục)"]
+
+    CheckMix -- "False (Đơn thủ tục)" --> T2
     
     T2 --> CatalogCheck{"Khớp mã trong Catalog TTHC?"}
+    CatalogCheck -- "Khớp > 1 mã (len > 1)\n(Trùng tên/nhiều cấp)" --> ClarifyProc["action: clarify\ndecision_reason: procedure_required\n(Mở Menu chọn thủ tục trùng tên)"]
     CatalogCheck -- "Khớp đúng 1 mã (len == 1)" --> CheckSection{"Đã có mục nội dung (sections)?"}
-    CatalogCheck -- "Khớp > 1 mã (len > 1)" --> ClarifyProc["action: clarify\ndecision_reason: procedure_required\n(Mở Menu chọn thủ tục)"]
     CatalogCheck -- "Không khớp mã nào (len == 0)" --> FallbackSemantic["Retriever Semantic Search\n(Tìm kiếm ngữ nghĩa toàn bộ corpus)"]
     
     CheckSection -- "Có mục nội dung" --> ActionRAG["actual_route: rag_search\naction: answer\n(RAG Search & LLM Generation)"]
@@ -57,6 +63,10 @@ Xác định mức độ phụ thuộc vào ngữ cảnh lịch sử chat (Softm
 Dự đoán câu hỏi có chứa đồng thời nhiều thủ tục khác nhau hay không (Softmax):
 - **`False` (`Không`)**: Chỉ hỏi về 1 thủ tục hành chính duy nhất (hoặc nêu tên chung chung).
 - **`True` (`Có`)**: Cố tình hỏi đồng thời từ 2 thủ tục hành chính khác nhau trong một câu (hệ thống sẽ yêu cầu tách riêng từng thủ tục để tránh ghép nhầm dữ liệu).
+
+> [!NOTE]
+> **Cơ chế Trọng tài Adapter Catalog (`catalog_single_procedure_override_mixed`):**
+> Đối với các thủ tục hành chính có tên chính thức rất dài và chứa các mệnh đề liệt kê (ví dụ: *"Giao đất, cho thuê đất, chuyển mục đích sử dụng đất đối với trường hợp giao đất, cho thuê đất... giao đất và giao rừng; cho thuê đất và cho thuê rừng"*), mô hình nơ-ron PhoBERT có thể bị đánh lừa ngữ cảnh và dự đoán nhầm `mix = True` ($p > 99\%$). Tầng Adapter sẽ kiểm tra đối soát với Catalog: nếu toàn bộ mã nhận diện được cùng quy về **một tên thủ tục chính thức duy nhất**, cờ `mix` sẽ được hạ xuống `False` để mở Menu làm rõ các mã thủ tục trùng tên thay vì trả lời chặn gây gián đoạn hội thoại.
 
 ### 2.4. Head 4: Mục nội dung (`sections` / `mục_nội_dung`)
 Phân loại đa nhãn (multi-label) với cơ chế kích hoạt hàm Sigmoid và bảng ngưỡng riêng (`thresholds`):
@@ -148,17 +158,18 @@ Khi gọi hàm [`predict()`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vi
 ---
 
 ### 2.6. Đối tượng định tuyến chuẩn hóa (`route` & `trace`)
-Hàm [`classify_phobert()`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py#L187-L239) bọc kết quả từ model thành định dạng hợp đồng chuẩn cho luồng hội thoại:
+Hàm [`classify_phobert()`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py#L187-L239) bọc kết quả từ model và tầng Adapter thành bộ đôi tuple `(route, trace)` định dạng hợp đồng chuẩn cho luồng hội thoại:
 
+#### 1. Cấu trúc `route` (Lệnh điều phối cho Conversation Engine)
 ```python
 route = {
-    "scope": "IN_SCOPE",
-    "conversation": "NEW",
-    "mixed_procedures": False,
-    "sections": ["DOSSIER", "FEE"],
+    "scope": "IN_SCOPE",               # "IN_SCOPE" | "OUT_OF_SCOPE" | "MIXED_SCOPE"
+    "conversation": "NEW",             # "NEW" | "FOLLOW_UP"
+    "mixed_procedures": False,         # cờ nhị phân (đã qua trọng tài override nếu có)
+    "sections": ["DOSSIER", "FEE"],     # danh sách chuyên mục cần tra cứu
     "query": "Hồ sơ và lệ phí làm hộ chiếu?",
-    "needs_clarification": False,
-    "clarification": "",
+    "needs_clarification": False,      # True nếu cần ngắt để hỏi người dùng
+    "clarification": "",               # câu thoại làm rõ (nếu needs_clarification=True)
     "requests": [
         {
             "procedure": "làm hộ chiếu",
@@ -166,6 +177,39 @@ route = {
             "sections": ["DOSSIER", "FEE"]
         }
     ]
+}
+```
+
+#### 2. Cấu trúc `trace` (Dữ liệu Telemetry & Kiểm toán Quyết định)
+```python
+trace = {
+    "backend": "phobert",              # Engine định tuyến sử dụng
+    "attempts": 1,                     # Số lượt phân loại (1 lượt chuẩn, >1 nếu phân rã mệnh đề)
+    "seconds": 0.0452,                 # Thời gian thực thi PhoBERT + Adapter (giây)
+    "tokens": 38,                      # Tổng số token đã mã hóa qua BPE
+    "errors": [],                      # Danh sách lỗi bắt được (nếu có)
+    "predictions": [                   # Kết quả chi tiết từ từng lần gọi PhoBERT.predict()
+        {
+            "scope": "IN_SCOPE",
+            "flow": "NEW",
+            "mix": False,
+            "sections": ["DOSSIER", "FEE"],
+            "probabilities": { ... },
+            "encoded_length": 38,
+            "thresholds": { ... },
+            "preprocessing": { "max_len": 128, "segmenter": "pyvi", "input_mode": "full" }
+        }
+    ],
+    "adapter_decisions": [             # Vết các quyết định can thiệp/trọng tài của Adapter
+        {
+            "type": "catalog_single_procedure_override_mixed",
+            "outcome": "cleared_mixed_procedures",
+            "source_codes": ["1.011682", "1.011683", "1.011684"]
+        }
+    ],
+    "procedure_confirmation": None,     # Chứa danh sách ứng viên nếu kích hoạt xác nhận thủ tục
+    "mixed_scope_fallback_allowed": False,
+    "checkpoint": "outputs/phobert_v3_finetuned_20261028/checkpoint"
 }
 ```
 
@@ -236,6 +280,21 @@ Khi kết quả phân loại của PhoBERT được chuyển tới [`conversatio
    - **Kích hoạt khi:** Câu hỏi chứa mã định danh hồ sơ cá nhân / mã biên nhận (ví dụ: `000.00.12.H29-...`), nhưng tài liệu pháp lý truy xuất được không chứa mã này.
    - **Hành vi:** Từ chối trả lời ngay lập tức, hướng dẫn người dân tra cứu tại cổng dịch vụ công hoặc liên hệ cơ quan tiếp nhận hồ sơ, tuyệt đối không để LLM đoán mò tình trạng hồ sơ cá nhân.
 5. **`no_context`:** Đã qua bước phân loại hợp lệ nhưng kho dữ liệu hoàn toàn không tìm thấy chunk văn bản nào phù hợp.
+
+---
+
+### 3.3. Hệ thống Sự kiện Trọng tài Adapter (`adapter_decisions` Telemetry)
+
+Nhằm đảm bảo tính minh bạch, có thể giải thích (Explainable AI) và phục vụ việc kiểm toán chất lượng vận hành (Audit Trail), tầng Adapter và Conversation Engine ghi nhận chi tiết mọi quyết định can thiệp vào danh sách `trace["adapter_decisions"]`. Có 3 loại sự kiện trọng tài cốt lõi:
+
+| Sự kiện (`type`) | Điều kiện kích hoạt | Đầu ra (`outcome`) | Tác động điều phối |
+|---|---|---|---|
+| **`catalog_scope_arbitration`** | PhoBERT đoán `OUT_OF_SCOPE` nhưng rơi vào vùng xác suất lưng chừng $50\% \le P < 85\%$, đồng thời câu hỏi khớp mã/tên trong Catalog. | `catalog_identity_overrode_out_of_scope` (hoặc `curated_alias_overrode_out_of_scope`) | Ghi đè `scope = IN_SCOPE`, cứu câu hỏi không bị từ chối oan và chuyển tiếp vào luồng RAG. |
+| **`catalog_single_procedure_override_mixed`** | PhoBERT đoán `mix = True`, nhưng tất cả các mã TTHC tìm được trong Catalog đều trỏ về **cùng một tên thủ tục chuẩn hóa duy nhất** (`len(matched_names) == 1`). | `cleared_mixed_procedures` | Hạ `mixed = False`, giải tỏa chặn hội thoại và chuyển sang mở Menu lựa chọn các mã TTHC trùng tên. |
+| **`explicit_section_override`** | Người dùng nêu từ khóa chuyên mục tường minh (như *"thời hạn"*, *"lệ phí"*), nhưng PhoBERT dự đoán thiếu mục do ngưỡng Sigmoid. | `accepted` | Ghi đè tập `sections` theo ý định tường minh của người dùng, đảm bảo truy xuất đúng chunk tài liệu. |
+
+> [!TIP]
+> Nhờ hệ thống sự kiện này, đội ngũ kỹ thuật có thể lọc và truy vấn nhanh toàn bộ các phiên hội thoại có sự can thiệp của Adapter trong Elasticsearch / OpenTelemetry, từ đó liên tục thu thập ca biên để tái huấn luyện PhoBERT và hoàn thiện Catalog.
 
 ---
 
@@ -481,12 +540,91 @@ Khi hệ thống chạy với bộ định tuyến tạo sinh LLM (`routing_back
 
 ---
 
+### 4.11. Cơ chế Chuẩn hóa Tên Thủ tục trong Clarifier & Trọng tài Giải cứu Trộn Thủ tục (Single-Procedure Catalog Override)
+
+Trong thực tế triển khai và rà soát tập dữ liệu kiểm thử (như `test_rag_follow_up_v2.jsonl`), hệ thống ghi nhận hai tình huống dị biệt phổ biến làm sai lệch luồng điều phối:
+
+#### 1. Thách thức kỹ thuật từ dữ liệu thực tế
+* **Dị biệt định dạng tên trong Catalog:** Cùng một thủ tục hành chính nhưng một số bản ghi bị dính dấu chấm câu ở cuối (`.`), hoặc một bản ghi có tiền tố `"Thủ tục "` trong khi các bản ghi khác cùng tên lại không có (ví dụ mã `1.115617` mang tên *"Thủ tục đăng ký, cấp Giấy chứng nhận..."* trong khi 14 mã khác mang tên *"Đăng ký, cấp Giấy chứng nhận..."*).
+* **Hiện tượng triệt tiêu chuỗi con:** Thuật toán lọc `resolve_identity` cũ ưu tiên chuỗi dài nhất bao hàm chuỗi ngắn hơn (`names[code] != names[other] and _contains_phrase(...)`), vô tình loại bỏ sạch các mã ngắn hơn và chỉ giữ lại duy nhất 1 mã. Khi chỉ còn 1 mã, hệ thống ngỡ rằng đã xác định duy nhất được thủ tục nên bỏ qua việc mở Menu làm rõ.
+* **Tên thủ tục dài gây kích hoạt nhầm cờ `mix = True`:** Các thủ tục hành chính đất đai/nông nghiệp có tên rất dài, ghép nối nhiều trường hợp bằng dấu phẩy `,`, dấu chấm phẩy `;` và chữ `"và"` khiến PhoBERT Router dự đoán nhầm đây là câu hỏi gộp nhiều thủ tục khác nhau (`p_mix > 99%`), dẫn đến phản hồi chặn: *"Bạn đang hỏi nhiều thủ tục. Vui lòng hỏi riêng từng thủ tục..."*.
+
+#### 2. Giải pháp thuật toán tại [`clarification.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/clarification.py#L115-L125)
+Hàm `resolve_identity` được tinh chỉnh chuẩn hóa toàn diện tên trước khi so khớp:
+1. Xóa bỏ dấu chấm câu cuối và khoảng trắng thừa: `.strip(" .?!;:")`.
+2. Chuẩn hóa loại bỏ tiền tố `"Thủ tục "` / `"thu tuc "`: `re.sub(r"^thu tuc\s+", "", name)`.
+3. Nhờ tên chuẩn hóa của tất cả các mã trùng tên trở nên đồng nhất tuyệt đối (`names[code] == names[other]`), điều kiện loại trừ chuỗi con trả về `False`, giúp **giữ trọn vẹn 100% các mã TTHC trùng tên** (như giữ đủ cả 15 mã đất đai hay 2 mã kiểm nghiệm thực phẩm).
+
+#### 3. Giải pháp Trọng tài Adapter tại [`phobert_router.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py#L228-L245)
+Trước khi kích hoạt nhánh chặn `if mixed: return clarify(...)`, Adapter thực hiện kiểm tra chéo với Catalog:
+```python
+if mixed and codes:
+    matched_names = {
+        re.sub(r"^thu tuc\s+", "", _fold(clarifier.catalog[c]["name"].strip(" .?!;:")))
+        for c in codes if c in clarifier.catalog
+    }
+    if len(matched_names) == 1:
+        adapter_decisions.append({
+            "type": "catalog_single_procedure_override_mixed",
+            "outcome": "cleared_mixed_procedures",
+            "source_codes": codes,
+        })
+        mixed = False
+        route["mixed_procedures"] = False
+```
+* Nếu toàn bộ các mã nhận diện được trong câu hỏi (`codes`) cùng trỏ về **một tên thủ tục chuẩn hóa duy nhất** (`len(matched_names) == 1`), Adapter sẽ giải tỏa cờ `mixed = False`.
+* Ghi vết Telemetry sự kiện `catalog_single_procedure_override_mixed` để phục vụ audit.
+* Chuyển luồng sang `conversation.py` để mở **Menu lựa chọn thủ tục (`procedure_disambiguation_menu`)**, hiển thị danh sách các mã TTHC kèm cấp thực hiện tương ứng cho người dùng lựa chọn.
+
+#### 4. Minh chứng Thực nghiệm Kiểm chứng trên 5 Ca Dị biệt (`test_rag_follow_up_v2.jsonl`)
+
+Quá trình kiểm tra thực tế trên tập kiểm thử `Data/dataset_v3/test_rag/test_rag_follow_up_v2.jsonl` đã phát hiện và xử lý dứt điểm 5 trường hợp điển hình:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ MINH CHỨNG THỰC NGHIỆM ĐIỀU PHỐI MENU VÀ TRỌNG TÀI ADAPTER (5 CA TESTSET V3)                │
+├─────────────────┬───────────────────────────────────┬───────────────────┬───────────────────┤
+│ Mã câu hỏi      │ Thủ tục thực tế                   │ Trước khi tinh chỉnh │ Sau khi tinh chỉnh│
+├─────────────────┼───────────────────────────────────┼───────────────────┼───────────────────┤
+│ GOLDEN_V3_003250│ Kiểm nghiệm thực phẩm phục vụ     │ Mã 1.013857 dính  │ Chuẩn hóa dấu chấm│
+│ GOLDEN_V3_003253│ quản lý nhà nước về ATTP          │ dấu chấm cuối '.',│ câu, bảo toàn đủ  │
+│                 │ (2 mã trùng tên)                  │ triệt tiêu mã kia │ 2 mã -> Mở Menu   │
+├─────────────────┼───────────────────────────────────┼───────────────────┼───────────────────┤
+│ GOLDEN_V3_005805│ Đăng ký, cấp Giấy chứng nhận QSDĐ │ Mã 1.115617 dính  │ Loại bỏ tiền tố,  │
+│                 │ lần đầu cấp tỉnh                  │ tiền tố 'Thủ tục',│ bảo toàn đủ 15 mã │
+│                 │ (15 mã trùng tên)                 │ triệt tiêu 14 mã  │ -> Mở Menu 15 ứng │
+│                 │                                   │ khác              │ viên thành công   │
+├─────────────────┼───────────────────────────────────┼───────────────────┼───────────────────┤
+│ GOLDEN_V3_006649│ Giao đất, cho thuê đất, chuyển mục│ Tên dài 54 từ,    │ Adapter nhận diện │
+│ GOLDEN_V3_006651│ đích sử dụng đất cấp xã           │ PhoBERT đoán nhầm │ cùng 1 thủ tục, hạ│
+│                 │ (15 mã trùng tên)                 │ mix=True (p=99.8%)│ mix=False -> Mở   │
+│                 │                                   │ -> Bot chặn hỏi   │ Menu 15 ứng viên  │
+└─────────────────┴───────────────────────────────────┴───────────────────┴───────────────────┘
+```
+
+1. **Hiệu chỉnh Dữ liệu & Mô phỏng Hội thoại Follow-up:**
+   - 5 câu hỏi đơn lẻ (`new_question`) trước đây đã được cấu trúc lại hoàn chỉnh thành dạng **Hội thoại 2 lượt (2-turn follow-up conversation)**:
+     - **Lượt 1:** Người dùng nêu câu hỏi kèm mục tra cứu $\rightarrow$ Chatbot phản hồi mở Menu làm rõ danh sách các mã TTHC trùng tên kèm cấp thực hiện tương ứng.
+     - **Lượt 2:** Người dùng chọn mã thủ tục đích qua số thứ tự $\rightarrow$ Chatbot truy xuất chính xác tài liệu của mã đó và sinh câu trả lời hoàn chỉnh (`expected_answer`).
+   - Cả 5 câu hỏi sau khi fix đã được gộp lại vào `Data/dataset_v3/test_rag/test_rag_follow_up_v2.jsonl`, nâng tổng số mẫu lên đúng **159 bản ghi thuần túy follow-up**, đạt độ tương thích schema 100% theo `schema/golden_dataset.schema.json`.
+
+2. **Kiểm chứng Hồi quy & Vận hành Runtime:**
+   - **Unit Tests:** Toàn bộ 89 bài kiểm thử đơn vị (`test_clarification.py`, `test_phobert_router.py`, `test_four_head_routing.py`) đạt **89/89 PASS (100%)**.
+   - **Kiểm thử Runtime Chatbot:** Chạy trực tiếp qua hàm `answer_conversation()`, cả 5 câu hỏi đều kích hoạt chính xác:
+     - `actual_route = "clarify"`
+     - `decision_reason = "procedure_required"`
+     - Hiển thị đầy đủ Menu giao diện với các tùy chọn đánh số và bảo mật HMAC SHA-256.
+
+---
+
 ## 5. Bảng Đối soát Toàn diện (Taxonomy & State Mapping)
 
 | Tình huống thực tế | Nhãn PhoBERT Router | Nhãn Hệ thống (`actual_route` / `action`) | `decision_reason` | Trạng thái tiếp theo |
 |---|---|---|---|---|
 | Hỏi rõ 1 thủ tục + mục hỏi | `IN_SCOPE`, `NEW`, `mix: False`, `sections: [FEE]` | `rag_search` / `answer` | `sufficient` | Kết thúc lượt, trả câu trả lời |
 | Tên thủ tục khớp nhiều đối tượng (`len > 1`) | `IN_SCOPE`, `NEW`, `mix: False`, `sections: [...]` | `clarify` / `clarify` | `procedure_required` | Lưu Signed Menu thủ tục |
+| Thủ tục tên dài có liệt kê nhưng là 1 thủ tục chính thức | `IN_SCOPE`, `NEW`, `mix: True` $\rightarrow$ **Override False** | `clarify` / `clarify` | `procedure_required` | Mở Menu chọn mã TTHC trùng tên (`catalog_single_procedure_override_mixed`) |
+| Cố tình hỏi gộp 2 thủ tục hành chính khác nhau | `IN_SCOPE`, `NEW`, `mix: True` (Không override) | `clarify` / `clarify` | `ambiguous_question` | Chặn trả lời, yêu cầu hỏi riêng từng thủ tục để tránh ghép nhầm dữ liệu |
 | Chỉ nêu tên 1 thủ tục duy nhất (`len == 1`) | `IN_SCOPE`, `NEW`, `mix: False`, `sections: []` | `clarify` / `clarify` | `section_required` | Lưu Signed Menu mục nội dung |
 | Không khớp mã trong Catalog (`len == 0`) | `IN_SCOPE`, `NEW`, `mix: False`, `sections: [...]` | `rag_search` / `answer` | `sufficient` (semantic) | Sinh câu trả lời qua Semantic Fallback |
 | PhoBERT đoán OUT (50-85%) nhưng có mã trong Catalog | `OUT_OF_SCOPE` $\rightarrow$ **Override IN_SCOPE** | `rag_search` / `answer` | `sufficient` (arbitration) | Bẻ còi sang tra cứu RAG bình thường |

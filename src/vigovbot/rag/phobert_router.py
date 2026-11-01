@@ -15,7 +15,7 @@ from functools import lru_cache
 from pathlib import Path
 from threading import Lock
 
-from vigovbot.retrieval.retriever import extract_source_codes
+from vigovbot.retrieval.retriever import _fold, extract_source_codes
 
 LABEL_MAP = {
     "phạm_vi": {"Trong phạm vi": "IN_SCOPE", "Ngoài phạm vi": "OUT_OF_SCOPE",
@@ -224,6 +224,22 @@ def classify_phobert(question, history, state, settings, clarifier):
         flow = supported_prediction["flow"]
         mixed = False
         route.update(query=question, sections=sections, conversation=flow, mixed_procedures=False)
+
+    # If the question matches an official procedure in the catalog (even with multiple duplicate codes),
+    # do not treat it as a multi-procedure query.
+    if mixed and codes:
+        matched_names = {
+            re.sub(r"^thu tuc\s+", "", _fold(clarifier.catalog[c]["name"].strip(" .?!;:")))
+            for c in codes if c in clarifier.catalog
+        }
+        if len(matched_names) == 1:
+            adapter_decisions.append({
+                "type": "catalog_single_procedure_override_mixed",
+                "outcome": "cleared_mixed_procedures",
+                "source_codes": codes,
+            })
+            mixed = False
+            route["mixed_procedures"] = False
 
     # Global heads have no spans or per-procedure field links. Do not manufacture
     # these links from a union of section labels or reuse one selected procedure.

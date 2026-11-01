@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Xây dựng 2 bộ benchmark đánh giá RAG theo tỉ lệ - 2026-11-01
+
+- **Mục tiêu:** Tạo hai bộ dữ liệu kiểm thử RAG chuẩn hóa từ ba file nguồn trong `Data/dataset_v3/test_rag`, ưu tiên hệ thống tỉ lệ tự nhiên và bảo đảm chất lượng hơn số lượng.
+- **Thực hiện:** Khử trùng lặp ID `GOLDEN_V3_005568` trong `follow_v2` (giữ 158 mẫu mỏ neo); thêm `scripts/build_test_rag_benchmark.py` xuất 2 tập benchmark độc lập: Phương án 1 (638 mẫu cân bằng 6 tỉ lệ vàng, Đất đai ~23%, Section đều 16-24%, Single/Multi 50/50, 406 thủ tục) và Phương án 2 (917 mẫu bao phủ 100% toàn bộ 808 thủ tục với 1 câu hỏi tốt nhất/thủ tục, 66 ca bẫy unanswerable, Đất đai ~24,3%).
+- **Kết quả:** Hoàn tất xuất `test_rag_pa1_ratio_balanced.jsonl` (638 dòng, 4,1 MB) và `test_rag_pa2_max_procedure_coverage.jsonl` (917 dòng, 5,4 MB). Toàn bộ 1.555 bản ghi đạt 100% `golden_dataset.schema.json`, 0 ID trùng lặp, 0 leakage với tập train/val fine-tuning và test router. Script kiểm tra Ruff sạch.
+
 ## Gom case Golden theo tên thủ tục trùng - 2026-10-30
 
 - **Mục tiêu:** Đưa các case Golden đề cập tên thủ tục trùng vào đúng thư mục nhóm để rà soát định danh theo mã, cấp và địa phương.
