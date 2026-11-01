@@ -600,7 +600,7 @@ def _performance(prediction: dict, execution_status: str) -> dict:
     result["total_latency_ms"] = raw.get("total_latency_ms", telemetry.get(
         "total_latency_ms", _milliseconds(prediction.get("latency_seconds"))))
     measurements = telemetry.get("measurements") or {}
-    for key in ("generation_tokens_per_second", "prompt_tokens", "completion_tokens", "total_tokens",
+    for key in ("ttft_ms", "generation_tokens_per_second", "prompt_tokens", "completion_tokens", "total_tokens",
                 "peak_allocated_vram_gb", "peak_reserved_vram_gb", "gpu_utilization_percent", "cost_usd"):
         measured = measurements.get(key) if isinstance(measurements.get(key), dict) else {}
         result[key] = raw.get(key, telemetry.get(key, measured.get("value")))

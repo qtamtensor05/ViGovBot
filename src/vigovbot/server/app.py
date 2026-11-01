@@ -324,7 +324,7 @@ class ChatApplication:
                     emit_token = (lambda text, mid=model_id: event_callback(
                         {"type": "token", "model_id": mid, "text": text})) if event_callback else None
                     if complete_requested:
-                        settings.update(measure_ttft=True, top_k=10, citations_enabled=True, decompose_queries=True)
+                        settings.update(measure_ttft=True, citations_enabled=True, decompose_queries=True)
                     calls = []
                     provider_answer = answer_fn
                     def measured_answer(messages, call_settings):
