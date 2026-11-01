@@ -1,5 +1,16 @@
 # Trạng thái hệ thống hiện tại
 
+## Khởi tạo bộ dữ liệu SFT ChatML từ dataset_v3/fintuning phục vụ huấn luyện QLoRA - 2026-11-02
+
+- **Mục tiêu:** Chuyển đổi không mất mát (lossless) bộ dữ liệu đã được làm sạch và chia split chuẩn `dataset_v3/fintuning` sang cấu trúc SFT `messages` chuẩn để sẵn sàng nạp cho pipeline huấn luyện QLoRA Qwen2.5-7B-Instruct.
+- **Thực hiện:**
+  - Chạy `vigov data golden-to-sft --source-dir Data/dataset_v3 --output-dir Data/golden_dataset_sft`.
+  - Kiểm tra và xác thực dữ liệu qua `vigov data check --config configs/training/experiments/golden_sft.yaml`.
+- **Kết quả:**
+  - Tạo thành công hai tệp `train_sft.jsonl` (1.931 bản ghi, 1.28 MB, SHA256: `7c2d3c72...`) và `validation_sft.jsonl` (827 bản ghi, 556 KB, SHA256: `526f58f1...`) tại `Data/golden_dataset_sft/`.
+  - Phân phối tin nhắn: Train gồm 1.176 mẫu 2-turn và 755 mẫu 4-turn; Validation gồm 503 mẫu 2-turn và 324 mẫu 4-turn.
+  - Kiểm tra rò rỉ (leakage check): 0 nhóm trùng lặp hội thoại, 0 câu hỏi trùng lặp giữa Train và Validation, bảo toàn 100% ID và Unicode tiếng Việt NFC. Lệnh `vigov data check` xác nhận `status: valid`.
+
 ## Ngăn kế thừa nhãn mục khi đổi thủ tục hành chính mới - 2026-11-01
 
 - **Mục tiêu:** Khắc phục lỗi khi chuyển sang thủ tục mới hoặc cụm từ tìm kiếm chủ đề mới (như *"Kiểm định viên"*), hệ thống vẫn kế thừa thủ tục cũ (như *"Đăng ký kết hôn"*) và nhãn mục cũ (như `DOSSIER`, `LEGAL_BASIS`) từ lượt trước; đồng thời sửa lỗi khi người dùng chọn thủ tục từ menu danh sách (bằng số thứ tự như "1") nhưng hệ thống tự ý nhảy vào sinh câu trả lời (thường là Trình tự thực hiện) thay vì xuất menu các mục nội dung (sections) cho người dùng lựa chọn tiếp.

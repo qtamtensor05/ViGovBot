@@ -1,5 +1,16 @@
 # Lịch sử thay đổi hệ thống
 
+## Khởi tạo bộ dữ liệu SFT ChatML từ dataset_v3/fintuning phục vụ huấn luyện QLoRA - 2026-11-02
+
+- **Mục tiêu:** Chuyển đổi không mất mát (lossless) bộ dữ liệu đã được làm sạch và chia split chuẩn `dataset_v3/fintuning` sang cấu trúc SFT `messages` chuẩn để sẵn sàng nạp cho pipeline huấn luyện QLoRA Qwen2.5-7B-Instruct.
+- **Thực hiện:**
+  - Chạy `vigov data golden-to-sft --source-dir Data/dataset_v3 --output-dir Data/golden_dataset_sft`.
+  - Kiểm tra và xác thực dữ liệu qua `vigov data check --config configs/training/experiments/golden_sft.yaml`.
+- **Kết quả:**
+  - Tạo thành công hai tệp `train_sft.jsonl` (1.931 bản ghi, 1.28 MB, SHA256: `7c2d3c72...`) và `validation_sft.jsonl` (827 bản ghi, 556 KB, SHA256: `526f58f1...`) tại `Data/golden_dataset_sft/`.
+  - Phân phối tin nhắn: Train gồm 1.176 mẫu 2-turn và 755 mẫu 4-turn; Validation gồm 503 mẫu 2-turn và 324 mẫu 4-turn.
+  - Kiểm tra rò rỉ (leakage check): 0 nhóm trùng lặp hội thoại, 0 câu hỏi trùng lặp giữa Train và Validation, bảo toàn 100% ID và Unicode tiếng Việt NFC. Lệnh `vigov data check` xác nhận `status: valid`.
+
 ## Xây dựng 2 bộ benchmark đánh giá RAG theo tỉ lệ - 2026-11-01
 
 - **Mục tiêu:** Tạo hai bộ dữ liệu kiểm thử RAG chuẩn hóa từ ba file nguồn trong `Data/dataset_v3/test_rag`, ưu tiên hệ thống tỉ lệ tự nhiên và bảo đảm chất lượng hơn số lượng.
