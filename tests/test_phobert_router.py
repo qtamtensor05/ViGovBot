@@ -366,6 +366,23 @@ class PhoBERTConversationTests(unittest.TestCase):
         result = self.ask("Hồ sơ cấp hộ chiếu", [prediction(["DOSSIER"])])
         self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000001"})
 
+    def test_different_procedure_does_not_inherit_previous_dossier_section(self):
+        self.ask("Thủ tục đăng ký kết hôn cần những giấy tờ nào", [prediction(["DOSSIER"])])
+        self.assertEqual(self.state["selected"], ["1.000894"])
+
+        result = self.ask("Cấp, cấp đổi, cấp lại thẻ căn cước", [
+            prediction(["DOSSIER"], flow="FOLLOW_UP")
+        ])
+        self.assertEqual(result["classification"]["conversation"], "NEW")
+        self.assertEqual(result["classification"]["sections"], [])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["menu"]["kind"], "section")
+        self.assertIn("Cấp, cấp đổi, cấp lại thẻ căn cước", result["prediction"])
+        self.assertIn("1.116405", result["prediction"])
+        self.assertEqual(result["retrieved"], [])
+        self.assertEqual(result["conversation_state"]["selected"], ["1.116405"])
+        self.assertEqual(self.model.predict.call_args.args[1:], ("", "Cấp, cấp đổi, cấp lại thẻ căn cước"))
+
     def test_unverified_follow_up_and_multiple_procedures_ask_for_clarification(self):
         result = self.ask("Còn lệ phí?", [prediction(["FEE"], flow="FOLLOW_UP")])
         self.assertEqual(result["action"], "clarify")

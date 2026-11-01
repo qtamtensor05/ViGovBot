@@ -113,6 +113,31 @@ class FourHeadTests(unittest.TestCase):
         self.assertEqual(result["menu"]["kind"], "section")
         self.answer.assert_not_called()
 
+    def test_different_procedure_does_not_inherit_previous_dossier_section(self):
+        add_procedure(self.retriever, "1.000894", "Thủ tục đăng ký kết hôn",
+                      sections=("submission_deadline_fee", "required_documents"))
+        add_procedure(self.retriever, "2.000066", "Cấp lại chứng chỉ kiểm định viên",
+                      sections=("required_documents", "submission_deadline_fee"))
+
+        # Turn 1: user asks about dossier of marriage registration
+        first = self.ask("Thủ tục đăng ký kết hôn cần những giấy tờ nào",
+                         route("Đăng ký kết hôn", ["DOSSIER"]))
+        self.assertEqual(first["conversation_state"]["selected"], ["1.000894"])
+
+        # Turn 2: user names a different procedure without explicit section.
+        # Even if router emitted FOLLOW_UP and inherited DOSSIER:
+        turn2 = self.ask("Cấp lại chứng chỉ kiểm định viên",
+                         route("Cấp lại chứng chỉ kiểm định viên", ["DOSSIER"], conversation="FOLLOW_UP"))
+        self.assertEqual(turn2["classification"]["conversation"], "NEW")
+        self.assertEqual(turn2["classification"]["sections"], [])
+        self.assertEqual(turn2["action"], "clarify")
+        self.assertEqual(turn2["menu"]["kind"], "section")
+        self.assertIn("Cấp lại chứng chỉ kiểm định viên", turn2["prediction"])
+        self.assertIn("2.000066", turn2["prediction"])
+        self.assertEqual(turn2["retrieved"], [])
+        self.assertEqual(turn2["conversation_state"]["selected"], ["2.000066"])
+        self.assertEqual(self.answer.call_count, 1)
+
     def test_section_selection_replaces_bare_procedure_query(self):
         first = self.ask("Cấp hộ chiếu", route())
         index = next(i for i, option in enumerate(first["menu"]["options"], 1) if option["id"] == "DOSSIER")

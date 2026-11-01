@@ -134,7 +134,11 @@ class Clarifier:
         name = re.sub(r"^thu tuc\s+", "", _fold(self.catalog[code]["name"]))
         values = {code.casefold(), f"ma {code.casefold()}", name, f"thu tuc {name}"}
         values.update(self.aliases.get(code, ()))
-        return folded in values
+        if folded in values:
+            return True
+        cleaned = re.sub(r"^(?:(?:the\s+)?con\s+|(?:cho\s+)?(?:toi\s+)?(?:muon\s+)?(?:hoi\s+)?(?:ve\s+)?)+", "", folded)
+        cleaned = re.sub(r"\s+(?:thi\s+sao|nhu\s+the\s+nao|the\s+nao)$", "", cleaned).strip(" .?!")
+        return cleaned in values
 
     def confirmation_candidates(self, query, settings):
         discover = getattr(self.retriever, "discover_procedures", None)

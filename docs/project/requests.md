@@ -1,5 +1,21 @@
 # Thay đổi hệ thống
 
+## Ngăn kế thừa nhãn mục khi đổi thủ tục hành chính mới - 2026-11-01
+
+- **Mục tiêu:** Khắc phục lỗi khi chuyển sang thủ tục mới không kèm mục cụ thể, hệ thống vẫn kế thừa nhãn mục (ví dụ `DOSSIER`) từ lượt trước để tự động trả lời thay vì hỏi lại người dùng muốn tra cứu nội dung gì.
+- **Thực hiện:**
+  - `src/vigovbot/rag/phobert_router.py`: Nhận diện đổi thủ tục (`switched_procedure`) trước khi suy luận router; không truyền văn bản câu trả lời của thủ tục cũ làm ngữ cảnh; cưỡng chế luồng `NEW` và xóa nhãn mục khi câu hỏi là định danh thủ tục trần hoặc không có mục tường minh.
+  - `src/vigovbot/rag/conversation.py`: Đặt lại luồng hội thoại thành `NEW`, xóa `sections` kế thừa khi đổi thủ tục không kèm mục cụ thể để kích hoạt menu lựa chọn mục (`menu_result("section", ...)`).
+  - `src/vigovbot/rag/clarification.py`: Mở rộng `is_bare_identity` hỗ trợ lược bỏ các cụm từ hội thoại tự nhiên quanh tên thủ tục ("còn...", "thế còn...", "cho tôi hỏi về...", "...thì sao").
+  - Thêm kiểm thử hồi quy trong `tests/test_phobert_router.py` và `tests/test_four_head_routing.py`.
+- **Kết quả:** Khi hỏi sang thủ tục khác chỉ với tên/mã thủ tục, chatbot chuyển đúng sang `NEW`, không mang theo `DOSSIER` cũ, và xuất menu hỏi người dùng muốn xem mục nào của thủ tục mới. Toàn bộ 122 bài kiểm thử định tuyến và hội thoại đạt 100%.
+
+## Chuẩn hóa Unicode và câu trả lời hoàn chỉnh bộ dữ liệu dataset_v3/fintuning - 2026-11-01
+
+- **Mục tiêu:** Loại bỏ triệt để hiện tượng phân mảnh token do dấu thanh tách rời và mở rộng các câu trả lời siêu ngắn thành câu hoàn chỉnh phục vụ huấn luyện mô hình SFT Qwen2.5-7B-Instruct.
+- **Thực hiện:** Lưu dự phòng `train.jsonl.bak` và `val.jsonl.bak`; chuẩn hóa toàn bộ văn bản về Unicode NFC; hàn gắn 12 ca lỗi dấu thanh tách rời và dấu thanh trôi nổi trong PDF context; mở rộng 24 câu trả lời cộc lốc (< 10 ký tự) thành câu trả lời ngữ cảnh đầy đủ, đồng bộ đồng thời `reference_answers`, `key_facts_required` và `fact_evidence`.
+- **Kết quả:** Cả hai file tại `Data/dataset_v3/fintuning/` (Train 1.931 dòng, Val 827 dòng) đều đạt 100% Draft 2020-12 schema, 0 lỗi chuyển đổi SFT conversation, 0 lỗi dấu thanh tách rời, 0 câu trả lời cộc lốc, và bảo toàn Zero Leakage giữa Train và Val. 19 test evaluation/SFT unittest đều đạt.
+
 ## Xây dựng 2 bộ benchmark đánh giá RAG theo tỉ lệ - 2026-11-01
 
 - **Mục tiêu:** Tạo hai bộ dữ liệu kiểm thử RAG chuẩn hóa từ ba file nguồn trong `Data/dataset_v3/test_rag`, ưu tiên hệ thống tỉ lệ tự nhiên (phân bố lĩnh vực, nhãn section, dạng hội thoại, độ phủ thủ tục) và bảo đảm chất lượng hơn số lượng.

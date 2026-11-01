@@ -16,6 +16,7 @@ from pathlib import Path
 from threading import Lock
 
 from vigovbot.retrieval.retriever import _fold, extract_source_codes
+from vigovbot.rag.sections import explicit_section_intents
 
 LABEL_MAP = {
     "phạm_vi": {"Trong phạm vi": "IN_SCOPE", "Ngoài phạm vi": "OUT_OF_SCOPE",
@@ -153,15 +154,52 @@ def get_router(settings):
 def classify_phobert(question, history, state, settings, clarifier):
     started = time.perf_counter()
     router = get_router(settings)
-    previous = history[-1]["content"] if history else ""
+    identity = clarifier.resolve_identity(question, allow_short_name=True)
+    codes = extract_source_codes(question) or identity["codes"]
     selected = state.get("selected", []) if state else []
-    procedure = clarifier.catalog[selected[0]]["name"] if len(selected) == 1 else ""
+    switched_procedure = bool(codes and selected and set(codes).isdisjoint(selected))
+    if switched_procedure:
+        previous = ""
+        procedure = clarifier.catalog[codes[0]]["name"] if len(codes) == 1 else ""
+    else:
+        previous = history[-1]["content"] if history else ""
+        procedure = clarifier.catalog[selected[0]]["name"] if len(selected) == 1 else ""
     prediction = router.predict(question, previous, procedure)
     predictions = [prediction]
     adapter_decisions = []
     scope, flow, sections, mixed = (prediction[k] for k in ("scope", "flow", "sections", "mix"))
-    identity = clarifier.resolve_identity(question, allow_short_name=True)
-    codes = extract_source_codes(question) or identity["codes"]
+    if switched_procedure:
+        if flow != "NEW":
+            adapter_decisions.append({
+                "type": "switched_procedure_flow_reset",
+                "outcome": "forced_new",
+                "predicted_flow": flow,
+                "source_codes": codes,
+                "previous_selected": selected,
+            })
+            flow = "NEW"
+        explicit_sections = explicit_section_intents(question)
+        if not explicit_sections and (
+            (len(codes) == 1 and clarifier.is_bare_identity(question, codes[0]))
+            or not clarifier.goal(question, codes)
+        ):
+            if sections:
+                adapter_decisions.append({
+                    "type": "switched_procedure_sections_reset",
+                    "outcome": "cleared_sections",
+                    "predicted_sections": sections,
+                    "source_codes": codes,
+                })
+                sections = []
+    elif len(codes) == 1 and clarifier.is_bare_identity(question, codes[0]) and not explicit_section_intents(question):
+        if sections:
+            adapter_decisions.append({
+                "type": "bare_identity_sections_reset",
+                "outcome": "cleared_sections",
+                "predicted_sections": sections,
+                "source_code": codes[0],
+            })
+            sections = []
     confirmation = None
     mixed_scope_fallback_allowed = False
     if scope == "OUT_OF_SCOPE" and codes:

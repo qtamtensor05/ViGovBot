@@ -326,6 +326,28 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                     "predicted_sections": predicted_sections,
                     "explicit_sections": explicit_sections,
                 })
+        selected = state.get("selected", []) if state else []
+        named = clarifier.matches(question, allow_short_name=phobert)
+        switched_procedure = bool(selected and named and set(named).isdisjoint(selected))
+        if switched_procedure and len(requests) == 1 and not route.get("mixed_procedures", False):
+            if route["conversation"] == "FOLLOW_UP":
+                route = {**route, "conversation": "NEW"}
+            requests[0]["code"] = named[0]
+            requests[0]["procedure"] = clarifier.catalog[named[0]]["name"]
+            if not explicit_sections:
+                requests[0]["sections"] = []
+                route = {**route, "sections": []}
+            trace.setdefault("adapter_decisions", []).append({
+                "type": "procedure_switch_reset",
+                "outcome": "accepted",
+                "previous_selected": selected,
+                "new_named": named,
+            })
+        elif len(requests) == 1 and not explicit_sections:
+            target_code = requests[0].get("code") or (named[0] if named and len(named) == 1 else None)
+            if target_code and clarifier.is_bare_identity(question, target_code):
+                requests[0]["sections"] = []
+                route = {**route, "sections": []}
         # A corpus-backed discovery/bare-name request has no section goal.
         # Do not let an LLM invent requested fields from the available label list.
         if not phobert and route["conversation"] == "NEW" and len(requests) == 1:
