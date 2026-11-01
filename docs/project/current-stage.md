@@ -2,13 +2,14 @@
 
 ## Ngăn kế thừa nhãn mục khi đổi thủ tục hành chính mới - 2026-11-01
 
-- **Mục tiêu:** Khắc phục lỗi khi chuyển sang thủ tục mới không kèm mục cụ thể, hệ thống vẫn kế thừa nhãn mục (ví dụ `DOSSIER`) từ lượt trước để tự động trả lời thay vì hỏi lại người dùng muốn tra cứu nội dung gì.
+- **Mục tiêu:** Khắc phục lỗi khi chuyển sang thủ tục mới hoặc cụm từ tìm kiếm chủ đề mới (như *"Kiểm định viên"*), hệ thống vẫn kế thừa thủ tục cũ (như *"Đăng ký kết hôn"*) và nhãn mục cũ (như `DOSSIER`, `LEGAL_BASIS`) từ lượt trước; đồng thời sửa lỗi khi người dùng chọn thủ tục từ menu danh sách (bằng số thứ tự như "1") nhưng hệ thống tự ý nhảy vào sinh câu trả lời (thường là Trình tự thực hiện) thay vì xuất menu các mục nội dung (sections) cho người dùng lựa chọn tiếp.
 - **Thực hiện:**
-  - `src/vigovbot/rag/phobert_router.py`: Nhận diện đổi thủ tục (`switched_procedure`) trước khi suy luận router; không truyền văn bản câu trả lời của thủ tục cũ làm ngữ cảnh; cưỡng chế luồng `NEW` và xóa nhãn mục khi câu hỏi là định danh thủ tục trần hoặc không có mục tường minh.
-  - `src/vigovbot/rag/conversation.py`: Đặt lại luồng hội thoại thành `NEW`, xóa `sections` kế thừa khi đổi thủ tục không kèm mục cụ thể để kích hoạt menu lựa chọn mục (`menu_result("section", ...)`).
+  - `src/vigovbot/rag/phobert_router.py`: Nhận diện đổi thủ tục (`switched_procedure`) dựa trên cả định danh trực tiếp và kết quả phát hiện thủ tục từ cụm từ khóa (`clarifier.discover`); không truyền văn bản câu trả lời của thủ tục cũ làm ngữ cảnh; cưỡng chế luồng `NEW` và xóa nhãn mục khi câu hỏi là định danh thủ tục trần hoặc không có mục tường minh.
+  - `src/vigovbot/rag/conversation.py`: Đặt lại luồng hội thoại thành `NEW`, xóa `sections` kế thừa khi đổi thủ tục; kích hoạt catalog discovery cho cả backend PhoBERT khi gặp cụm từ tìm kiếm trong danh mục để mở menu chọn thủ tục (`menu_result("procedure", ...)`); sửa điều kiện kiểm tra lựa chọn thủ tục (`procedure_selection = bool(option and menu and (menu.get("kind") == "procedure" or menu.get("confirmation")))`) tại vòng lặp kiểm tra mục nội dung để luôn xuất menu sections khi người dùng vừa chọn thủ tục từ menu mà câu hỏi ban đầu chưa có mục cụ thể.
   - `src/vigovbot/rag/clarification.py`: Mở rộng `is_bare_identity` hỗ trợ lược bỏ các cụm từ hội thoại tự nhiên quanh tên thủ tục ("còn...", "thế còn...", "cho tôi hỏi về...", "...thì sao").
+  - Tái khởi động dịch vụ web trong Docker (`docker compose restart web`) và kiểm thử trực tiếp trên endpoint live `http://127.0.0.1:8001/api/chat`.
   - Thêm kiểm thử hồi quy trong `tests/test_phobert_router.py` và `tests/test_four_head_routing.py`.
-- **Kết quả:** Khi hỏi sang thủ tục khác chỉ với tên/mã thủ tục, chatbot chuyển đúng sang `NEW`, không mang theo `DOSSIER` cũ, và xuất menu hỏi người dùng muốn xem mục nào của thủ tục mới. Toàn bộ 122 bài kiểm thử định tuyến và hội thoại đạt 100%.
+- **Kết quả:** Khi hỏi sang thủ tục khác bằng tên/mã hoặc từ khóa tìm kiếm (như *"Kiểm định viên"*), chatbot chuyển đúng sang `NEW` và xuất menu thủ tục; khi người dùng chọn 1 thủ tục trong menu, chatbot hiển thị tiếp menu 13 mục nội dung của thủ tục đó thay vì tự ý chọn mục để trả lời. Toàn bộ 124 bài kiểm thử định tuyến và kiểm thử trực tiếp 3 bước trên live API đều đạt 100%.
 
 ## Chuẩn hóa Unicode và câu trả lời hoàn chỉnh bộ dữ liệu dataset_v3/fintuning - 2026-11-01
 

@@ -138,6 +138,33 @@ class FourHeadTests(unittest.TestCase):
         self.assertEqual(turn2["conversation_state"]["selected"], ["2.000066"])
         self.assertEqual(self.answer.call_count, 1)
 
+    def test_search_phrase_different_procedure_presents_procedure_candidates_menu(self):
+        add_procedure(self.retriever, "1.000894", "Thủ tục đăng ký kết hôn",
+                      sections=("legal_basis",))
+        add_procedure(self.retriever, "2.000066", "Cấp lại chứng chỉ kiểm định viên",
+                      sections=("required_documents", "legal_basis"))
+        add_procedure(self.retriever, "1.000187", "Cấp lại chứng chỉ kiểm định viên trong trường hợp hết hạn",
+                      sections=("required_documents", "legal_basis"))
+        if hasattr(self.retriever, "_clarification_catalog"):
+            del self.retriever._clarification_catalog
+
+        # Turn 1: user asks about legal basis of marriage registration
+        first = self.ask("Thủ tục đăng kí kết hôn cơ sở pháp lí là gì",
+                         route("Đăng ký kết hôn", ["LEGAL_BASIS"]))
+        self.assertEqual(first["conversation_state"]["selected"], ["1.000894"])
+
+        # Turn 2: user enters "Kiểm định viên" which discovers procedures about kiểm định viên
+        turn2 = self.ask("Kiểm định viên",
+                         route("Kiểm định viên", ["LEGAL_BASIS"], conversation="FOLLOW_UP"))
+        self.assertEqual(turn2["classification"]["conversation"], "NEW")
+        self.assertEqual(turn2["classification"]["sections"], [])
+        self.assertEqual(turn2["action"], "clarify")
+        self.assertEqual(turn2["menu"]["kind"], "procedure")
+        self.assertEqual({o["id"] for o in turn2["menu"]["options"]}, {"2.000066", "1.000187"})
+        self.assertEqual(turn2["retrieved"], [])
+        self.assertNotIn("1.000894", turn2["prediction"])
+        self.answer.assert_not_called()
+
     def test_section_selection_replaces_bare_procedure_query(self):
         first = self.ask("Cấp hộ chiếu", route())
         index = next(i for i, option in enumerate(first["menu"]["options"], 1) if option["id"] == "DOSSIER")

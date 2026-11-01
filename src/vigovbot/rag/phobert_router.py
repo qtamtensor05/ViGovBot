@@ -157,10 +157,12 @@ def classify_phobert(question, history, state, settings, clarifier):
     identity = clarifier.resolve_identity(question, allow_short_name=True)
     codes = extract_source_codes(question) or identity["codes"]
     selected = state.get("selected", []) if state else []
-    switched_procedure = bool(codes and selected and set(codes).isdisjoint(selected))
+    discovered = [] if codes else clarifier.discover(question)
+    target_codes = codes or discovered
+    switched_procedure = bool(target_codes and selected and set(target_codes).isdisjoint(selected))
     if switched_procedure:
         previous = ""
-        procedure = clarifier.catalog[codes[0]]["name"] if len(codes) == 1 else ""
+        procedure = clarifier.catalog[target_codes[0]]["name"] if len(target_codes) == 1 else ""
     else:
         previous = history[-1]["content"] if history else ""
         procedure = clarifier.catalog[selected[0]]["name"] if len(selected) == 1 else ""
@@ -174,21 +176,21 @@ def classify_phobert(question, history, state, settings, clarifier):
                 "type": "switched_procedure_flow_reset",
                 "outcome": "forced_new",
                 "predicted_flow": flow,
-                "source_codes": codes,
+                "source_codes": target_codes,
                 "previous_selected": selected,
             })
             flow = "NEW"
         explicit_sections = explicit_section_intents(question)
         if not explicit_sections and (
-            (len(codes) == 1 and clarifier.is_bare_identity(question, codes[0]))
-            or not clarifier.goal(question, codes)
+            (len(target_codes) == 1 and clarifier.is_bare_identity(question, target_codes[0]))
+            or not clarifier.goal(question, target_codes)
         ):
             if sections:
                 adapter_decisions.append({
                     "type": "switched_procedure_sections_reset",
                     "outcome": "cleared_sections",
                     "predicted_sections": sections,
-                    "source_codes": codes,
+                    "source_codes": target_codes,
                 })
                 sections = []
     elif len(codes) == 1 and clarifier.is_bare_identity(question, codes[0]) and not explicit_section_intents(question):

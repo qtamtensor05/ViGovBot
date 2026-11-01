@@ -383,6 +383,34 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.assertEqual(result["conversation_state"]["selected"], ["1.116405"])
         self.assertEqual(self.model.predict.call_args.args[1:], ("", "Cấp, cấp đổi, cấp lại thẻ căn cước"))
 
+    def test_search_phrase_different_procedure_presents_procedure_candidates_menu(self):
+        add_procedure(self.retriever, "2.000066", "Cấp lại chứng chỉ kiểm định viên",
+                      sections=("required_documents", "legal_basis"))
+        add_procedure(self.retriever, "1.000187", "Cấp lại chứng chỉ kiểm định viên trong trường hợp hết hạn",
+                      sections=("required_documents", "legal_basis"))
+
+        self.ask("Thủ tục đăng kí kết hôn cơ sở pháp lí là gì", [prediction(["LEGAL_BASIS"])])
+        self.assertEqual(self.state["selected"], ["1.000894"])
+
+        result = self.ask("Kiểm định viên", [prediction(["LEGAL_BASIS"], flow="FOLLOW_UP")])
+        self.assertEqual(result["classification"]["conversation"], "NEW")
+        self.assertEqual(result["classification"]["sections"], [])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["menu"]["kind"], "procedure")
+        self.assertEqual({o["id"] for o in result["menu"]["options"]}, {"2.000066", "1.000187"})
+        self.assertEqual(result["retrieved"], [])
+        self.assertNotIn("1.000894", result["prediction"])
+        self.assertIn("Bạn muốn hỏi thủ tục nào", result["prediction"])
+        self.assertEqual(self.answer.call_count, 1)
+
+        # Selecting option 1 from procedure menu must present section menu, not prematurely answer
+        result = self.ask("1", [])
+        self.assertEqual(result["action"], "clarify")
+        self.assertEqual(result["menu"]["kind"], "section")
+        self.assertIn("Bạn muốn xem mục nào của thủ tục", result["prediction"])
+        self.assertEqual(result["conversation_state"]["selected"], ["2.000066"])
+        self.assertEqual(self.answer.call_count, 1)
+
     def test_unverified_follow_up_and_multiple_procedures_ask_for_clarification(self):
         result = self.ask("Còn lệ phí?", [prediction(["FEE"], flow="FOLLOW_UP")])
         self.assertEqual(result["action"], "clarify")

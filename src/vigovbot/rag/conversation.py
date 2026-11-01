@@ -286,8 +286,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 })
         else:
             route, trace = classify(question, history, router_state, tokenizer, settings, router_fn)
-        catalog_candidates = [] if phobert else clarifier.discover(question)
-        if not phobert and route["scope"] == "OUT_OF_SCOPE" and catalog_candidates:
+        catalog_candidates = clarifier.discover(question)
+        if route["scope"] == "OUT_OF_SCOPE" and catalog_candidates:
             explicit_sections = explicit_section_intents(question)
             requests = [dict(procedure=question, query=question, sections=explicit_sections)]
             route = {"scope": "IN_SCOPE", "conversation": "NEW", "mixed_procedures": False,
@@ -328,12 +328,18 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 })
         selected = state.get("selected", []) if state else []
         named = clarifier.matches(question, allow_short_name=phobert)
-        switched_procedure = bool(selected and named and set(named).isdisjoint(selected))
+        discovered = [] if named else clarifier.discover(question)
+        target_candidates = named or discovered
+        switched_procedure = bool(selected and target_candidates and set(target_candidates).isdisjoint(selected))
         if switched_procedure and len(requests) == 1 and not route.get("mixed_procedures", False):
             if route["conversation"] == "FOLLOW_UP":
                 route = {**route, "conversation": "NEW"}
-            requests[0]["code"] = named[0]
-            requests[0]["procedure"] = clarifier.catalog[named[0]]["name"]
+            if len(target_candidates) == 1:
+                requests[0]["code"] = target_candidates[0]
+                requests[0]["procedure"] = clarifier.catalog[target_candidates[0]]["name"]
+            else:
+                requests[0]["code"] = None
+                requests[0]["procedure"] = question
             if not explicit_sections:
                 requests[0]["sections"] = []
                 route = {**route, "sections": []}
@@ -341,7 +347,7 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 "type": "procedure_switch_reset",
                 "outcome": "accepted",
                 "previous_selected": selected,
-                "new_named": named,
+                "new_named": target_candidates,
             })
         elif len(requests) == 1 and not explicit_sections:
             target_code = requests[0].get("code") or (named[0] if named and len(named) == 1 else None)
@@ -372,6 +378,13 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             if (not selected and not named) or (len(selected) > 1 and not named):
                 return finish("Bạn đang hỏi tiếp thủ tục nào? Vui lòng nêu tên hoặc mã thủ tục.", "ambiguous_question")
             if len(selected) == 1 and len(requests) == 1 and not named:
+                from vigovbot.rag.clarification import _DISCOVERY_STOP
+                selected_name_words = set(re.findall(r"\w+", _fold(clarifier.catalog[selected[0]]["name"]))) - _DISCOVERY_STOP
+                query_words = set(re.findall(r"\w+", _fold(question))) - _DISCOVERY_STOP
+                has_shared_topic = bool(query_words & selected_name_words)
+                is_elliptical = bool(explicit_sections or clarifier.goal(question, selected) or has_shared_topic)
+                if not is_elliptical and query_words:
+                    return finish("Bạn đang hỏi tiếp thủ tục nào? Vui lòng nêu tên hoặc mã thủ tục.", "ambiguous_question")
                 requests[0]["code"] = selected[0]
 
     retrieval_started = time.perf_counter()
@@ -413,8 +426,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             request["code"] = codes[0]
     for index, request in enumerate(requests):
         if request.get("code") and not request["sections"]:
-            confirmation_selection = bool(option and menu and menu.get("confirmation"))
-            if (phobert and not confirmation_selection
+            procedure_selection = bool(option and menu and (menu.get("kind") == "procedure" or menu.get("confirmation")))
+            if (phobert and not procedure_selection
                     and not clarifier.is_bare_identity(request["query"], request["code"])):
                 # The checkpoint can legitimately emit no section when every
                 # probability is below its saved threshold. A specific query
