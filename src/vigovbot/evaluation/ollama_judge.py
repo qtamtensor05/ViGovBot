@@ -24,9 +24,45 @@ RUBRIC += " Extract atomic factual claims as exact answer substrings in claims. 
 RUBRIC += " Exception: false_refusal and unsupported_answer are error indicators: 1 means the error occurred, 0 means it did not. abstention_correct is evaluated only on unanswerable cases. noise_robustness_pass must be null unless an actual injected-noise experiment is recorded; a distractor annotation alone is not evidence of exposure. Supported claims require at least one source ID."
 
 
+def _extract_prediction_fields(prediction):
+    exec_block = prediction.get("execution") or {}
+    generation = exec_block.get("generation") or {}
+    retrieval = exec_block.get("retrieval") or {}
+    eval_ctx = prediction.get("evaluation_context") or {}
+
+    answer = (
+        prediction.get("answer")
+        or generation.get("actual_output")
+        or prediction.get("actual_output")
+    )
+    action = (
+        prediction.get("action")
+        or exec_block.get("action")
+    )
+    context_used = (
+        prediction.get("context_used")
+        or retrieval.get("contexts")
+        or generation.get("prompt_contexts")
+    )
+    citations = (
+        prediction.get("citations")
+        or generation.get("citations")
+    )
+    noise_experiment = (
+        prediction.get("noise_experiment")
+        or eval_ctx.get("robustness_pair")
+    )
+    return {
+        "answer": answer,
+        "action": action,
+        "context_used": context_used,
+        "citations": citations,
+        "noise_experiment": noise_experiment,
+    }
+
+
 def judgment_payload(case, prediction):
-    return {"case": case, "prediction": {k: prediction.get(k) for k in
-            ("answer", "action", "context_used", "citations", "noise_experiment")}}
+    return {"case": case, "prediction": _extract_prediction_fields(prediction)}
 
 
 def validate(value):
@@ -88,12 +124,30 @@ def judge(*, dataset, split, predictions, output, model, endpoint="http://localh
             if case["test_id"] in completed:
                 continue
             prediction = cached[case["test_id"]]
-            if not isinstance(prediction.get("answer"), str) or not prediction["answer"].strip():
-                raise ValueError("Cannot judge missing answer: " + case["test_id"])
+            extracted = _extract_prediction_fields(prediction)
+            answer = extracted["answer"]
             payload = judgment_payload(case, prediction)
+            if not isinstance(answer, str) or not answer.strip():
+                row = {
+                    "id": case["test_id"],
+                    "input_sha256": fingerprint(payload),
+                    "rubric_sha256": fingerprint(RUBRIC),
+                    "reviewer_kind": "ai",
+                    "reviewer": model,
+                    "model_digest": identity.get("digest"),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "reason": "Missing prediction answer due to execution error or empty response.",
+                    "claims": [],
+                    "scores": {k: 0 if k in ("semantic_correctness", "answer_relevancy", "intent_coverage_score") else (1 if k == "unsupported_answer" else (0 if k == "false_refusal" else None)) for k in METRICS},
+                }
+                validate(row)
+                handle.write(json.dumps(row, ensure_ascii=False, allow_nan=False) + "\n")
+                handle.flush()
+                count += 1
+                continue
             serialized = json.dumps(payload, ensure_ascii=False)
-            # Conservative UTF-8 byte upper bound: reject instead of silently dropping evidence.
-            if len((RUBRIC + serialized).encode("utf-8")) + 4096 + 512 > 32768:
+            # Conservative UTF-8 byte upper bound (4 bytes per token for 32k context): reject instead of silently dropping evidence.
+            if len((RUBRIC + serialized).encode("utf-8")) > 32768 * 4:
                 raise ValueError("Judge context budget exceeded; cached predictions remain reusable")
             response = requests.post(endpoint.rstrip("/") + "/api/chat", json={
                 "model": model, "stream": False, "format": schema,
@@ -106,10 +160,15 @@ def judge(*, dataset, split, predictions, output, model, endpoint="http://localh
                 raise ValueError("Judge response was truncated")
             result = validate(json.loads(raw["message"]["content"]))
             allowed_sources = set(case["ground_truth"].get("ground_truth_context_ids", []))
-            allowed_sources.update(item.get("chunk_id") for item in prediction.get("context_used", [])
-                                   if isinstance(item, dict) and isinstance(item.get("chunk_id"), str))
-            normalize_missing_claim_evidence(result, prediction["answer"], allowed_sources)
-            validate_claims(result.get("claims"), prediction["answer"])
+            contexts = extracted.get("context_used") or []
+            if isinstance(contexts, list):
+                allowed_sources.update(
+                    (item.get("context_id") or item.get("chunk_id"))
+                    for item in contexts
+                    if isinstance(item, dict) and (item.get("context_id") or item.get("chunk_id"))
+                )
+            normalize_missing_claim_evidence(result, answer, allowed_sources)
+            validate_claims(result.get("claims"), answer)
             row = {"id": case["test_id"], "input_sha256": fingerprint(payload),
                    "rubric_sha256": fingerprint(RUBRIC), "reviewer_kind": "ai",
                    "reviewer": model, "model_digest": identity.get("digest"),

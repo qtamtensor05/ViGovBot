@@ -20,7 +20,8 @@ def load_reviews(path, cases, predictions):
         validate(review)
         if "claims" in review:
             generation = predictions[cid].get("execution", {}).get("generation") or {}
-            validate_claims(review["claims"], generation.get("actual_output"))
+            answer = generation.get("actual_output") or predictions[cid].get("answer")
+            validate_claims(review["claims"], answer)
             allowed = set(cases[cid]["ground_truth"].get("ground_truth_context_ids", []))
             retrieval = predictions[cid].get("execution", {}).get("retrieval") or {}
             allowed.update(c.get("context_id") for c in retrieval.get("contexts", []) if isinstance(c, dict))
