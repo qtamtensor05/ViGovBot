@@ -270,14 +270,16 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 - Source chính đặt tại `src/vigovbot/`; CLI công khai là `vigov`.
 - Docker mặc định chạy web Base/RAG bằng Torch CPU và Ollama; QLoRA cục bộ
   nằm trong service/profile `web-gpu` tùy chọn. Cả hai dùng cache model/RAG bền vững.
-- RAG hỗ trợ exact-match mã/tên thủ tục, ưu tiên loại mục và gửi trực tiếp FAISS
-  top 5 vào LLM; reranker BGE đã được gỡ khỏi runtime.
+- RAG hỗ trợ exact-match mã/tên thủ tục, ưu tiên loại mục và gửi trực tiếp kết
+  quả FAISS vào LLM; host và Docker mặc định hiện dùng top 15, profile Docker GPU
+  dùng top 5. Reranker BGE đã được gỡ khỏi runtime online.
 - Evidence quá ngân sách được rút gọn theo hàng/field/phần tử hoàn chỉnh; không
   còn bỏ toàn bộ bảng hoặc JSON có thể chiếu an toàn vào prompt.
 - Routing dùng context `4096` và giới hạn sinh `768` token riêng; generation vẫn
   dùng ngân sách `8192`/`512`.
 - QLoRA dùng adapter đã huấn luyện; RAG vẫn là nguồn căn cứ cho nội dung hiện hành.
-- Evaluation v2 tách prediction, scoring, judge và export; Golden SFT tách train/validation.
+- Workflow evaluation hiện hành tách prediction, scoring, judge và report; đọc
+  Golden v3, trong khi API complete-trace vẫn công bố capability version 2.
 - Dataset v3 có artifact fine-tuning cục bộ tại `Data/dataset_v3/finetuning/`: train 3.385 case và validation 873 case, chia xác định theo nhóm domain/truy vấn để tránh leakage.
 - Web dùng `/api/chat/stream` để hiển thị token dần theo quá trình sinh; endpoint
   `/api/chat` cũ vẫn giữ nguyên cho evaluation và client hiện có.
@@ -287,7 +289,7 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 - `Data/dataset_v3/duplicate_procedure_names/` chứa 46 folder tên trùng, 168 mã, 5.768 chunk metadata và 168 PDF nguồn từ corpus hiện hành. Mỗi folder có manifest nhóm, JSON metadata và PDF kèm checksum cho từng mã; Golden, split train/test và vector index không thay đổi.
 - Mỗi folder tên trùng có thêm `golden_cases.jsonl` và `golden_cases_summary.json`; `golden_cases_manifest.json` ghi 794 case, gồm 539 case khớp mã trong nhóm, 255 case dùng mã ngoài nhóm cần rà soát và 3 case thiếu định danh nguồn. Golden gốc và split không thay đổi.
 
-- Schema độc lập cho Golden Dataset và Evaluation v2 nằm tại `schema/`; toàn bộ
+- Schema độc lập cho Golden Dataset v3 và evaluation record v3.2 nằm tại `schema/`; toàn bộ
   3.850 dòng Golden và evaluation record sinh từ `build_record` đã validate theo
   JSON Schema Draft 2020-12.
 

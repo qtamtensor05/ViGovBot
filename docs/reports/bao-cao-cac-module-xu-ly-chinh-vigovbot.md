@@ -77,7 +77,7 @@ flowchart TD
 | **7** | **LLM Serving Integration** | [`src/vigovbot/llm/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/llm/) | [`llm_client.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/llm/llm_client.py) | Tích hợp Ollama API client, đo đạc TTFT, quản lý tham số suy luận và stream tokens. |
 | **8** | **Server & Hardware Telemetry** | [`src/vigovbot/server/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/) | [`app.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/app.py), [`gpu_metrics.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/gpu_metrics.py), [`providers.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/providers.py) | Máy chủ FastAPI, Server-Sent Events (SSE), bộ trích xuất token thời gian thực `_AnswerTokenExtractor`, telemetry GPU. |
 | **9** | **QLoRA Fine-Tuning** | [`src/vigovbot/training/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/) | [`train.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/train.py), [`masking.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/masking.py), [`checkpoints.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/checkpoints.py), [`early_stopping.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/early_stopping.py) | Huấn luyện SFT 4-bit QLoRA cho Qwen 2.5 7B, che nhãn prompt loss masking (`IGNORE_INDEX = -100`), kiểm soát vòng đời huấn luyện. |
-| **10** | **Evaluation & Benchmarking** | [`src/vigovbot/evaluation/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/) | [`scoring.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/scoring.py), [`ollama_judge.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/ollama_judge.py), [`pairwise.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/pairwise.py), [`retrieval_benchmark.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/retrieval_benchmark.py) | Đo lường đa diện: ROUGE, BLEU, chrF++, CER/WER, MAP@5, LLM-as-a-Judge đánh giá độ trung thực và ảo giác. |
+| **10** | **Evaluation & Benchmarking** | `src/vigovbot/evaluation/` | `records.py`, `scoring.py`, `lexical.py`, `extended.py`, `workflow.py`, `ollama_judge.py`, `retrieval_benchmark.py` | Đọc Golden v3; đo lexical, retrieval tại nhiều k, routing, format và các đánh giá judge tùy chọn. |
 | **11** | **Contracts, Artifacts & CLI** | Gốc `src/vigovbot/` | [`schemas.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/schemas.py), [`artifacts.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/artifacts.py), [`configuration.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/configuration.py), [`cli/main.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/cli/main.py) | Hợp đồng schema dữ liệu, kiểm tra mã băm SHA-256, khóa tệp giao dịch `output_lock`, cây lệnh CLI `vigov`. |
 
 ---
@@ -311,7 +311,7 @@ Hàm điều phối trung tâm [`answer_conversation`](file:///c:/Users/quangTam
 - **Bảo mật State bằng HMAC SHA-256 ([`validate_state`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L34-L44)):**
   Mỗi trạng thái hội thoại trả về cho client đều kèm chữ ký `signature = hmac.new(SECRET, state_bytes, sha256)`. Ở lượt chat tiếp theo, nếu chữ ký không khớp hoặc `history_fingerprint` bị sửa đổi, hệ thống hủy bỏ state cũ và thiết lập phiên mới, loại bỏ nguy cơ làm sai lệch trạng thái logic từ phía giao diện web.
 - **Nhận diện chào hỏi xã giao ([`social_greeting`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L71-L74)):**
-  Phát hiện các câu chào độc lập (*"xin chào"*, *"hello"*, *"chào bạn"*), phản hồi ngay lập tức với `action: abstain` mà không cần gọi mô hình LLM, tiết kiệm 100% token tính toán.
+  Phát hiện các câu chào độc lập (*"xin chào"*, *"hello"*, *"chào bạn"*) và phản hồi mà không gọi generation LLM cho lượt đó. Điều này loại bỏ token generation của nhánh chào hỏi; báo cáo không quy đổi thành phần trăm chi phí toàn hệ thống nếu chưa có telemetry tương ứng.
 - **Thực đơn Lựa chọn Tương tác ([`menu_result`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L149-L170)):**
   Khi phát hiện có nhiều thủ tục tương đồng (`kind="procedure"`) hoặc người dùng chưa nêu rõ mục cần tra cứu (`kind="sections"`), hệ thống chuyển sang trạng thái `action: clarify` và sinh menu đánh số kèm chữ ký HMAC.
 
@@ -377,9 +377,13 @@ class _AnswerTokenExtractor:
 - Khi gặp dấu ngoặc kép đóng `"`, bộ trích xuất dừng phát token, chặn không cho người dùng nhìn thấy phần cấu trúc kỹ thuật `"citations"` phía sau.
 
 #### Các Điểm cuối Dịch vụ (API Endpoints)
-- `POST /chat`: Điểm cuối chính xử lý hội thoại, hỗ trợ cả phản hồi gói JSON đầy đủ lẫn luồng sự kiện Server-Sent Events (`StreamingResponse(..., media_type="text/event-stream")`).
-- `GET /health`: Kiểm tra tính khả dụng của backend, dung lượng corpus và kết nối LLM.
-- `GET /gpu`: Thu thập mẫu tải VRAM và tỷ lệ tính toán GPU thời gian thực từ [`gpu_metrics.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/gpu_metrics.py) thông qua thư viện `pynvml`.
+- `POST /api/chat`: xử lý hội thoại và trả JSON hoàn chỉnh.
+- `POST /api/chat/stream`: trả chuỗi sự kiện Server-Sent Events cho routing, token và kết quả từng model.
+- `GET /api/health`: công bố trạng thái HTTP và capability evaluation complete-trace.
+- `GET /api/models`: công bố danh sách model được cấu hình.
+- `GET /api/evaluation-identity`: công bố danh tính corpus, router, model và cấu hình phục vụ tái lập.
+- `GET /api/evaluation-gpu`: thu thập telemetry GPU qua `gpu_metrics.py`.
+- `POST /api/evaluation-release`: giải phóng model evaluation đang được nạp khi provider hỗ trợ.
 
 ---
 
@@ -496,12 +500,12 @@ Toàn bộ hệ thống được điều khiển qua console command duy nhất 
    - Mọi trạng thái hội thoại và lựa chọn thực đơn đều được ký số HMAC SHA-256, vô hiệu hóa hoàn toàn các hành vi giả mạo tham số phiên từ phía client.
 
 2. **Nguyên tắc Toàn vẹn Dữ liệu Bất biến (Immutable Artifact Provenance):**
-   - Mọi tạo tác (corpus FAISS, cache SQLite, checkpoint LoRA, báo cáo benchmark) đều được ràng buộc bằng mã băm SHA-256 và lưu vết trong các file manifest.
-   - Nếu bất kỳ tệp dữ liệu nào bị sửa đổi dù chỉ 1 byte, hệ thống lập tức từ chối tải chỉ mục.
+   - Corpus FAISS, cache SQLite và các artifact evaluation có contract provenance riêng dùng checksum/manifest để phát hiện sai khác; checkpoint hoặc báo cáo chỉ được coi là có provenance khi artifact tương ứng thực sự ghi nhận nó.
+   - Corpus và cache có manifest/checksum sẽ bị từ chối khi file được bảo vệ không còn khớp. Không khái quát cơ chế này cho mọi artifact nếu artifact đó không khai báo contract toàn vẹn tương ứng.
 
 3. **Nguyên tắc Tiết kiệm Tài nguyên Tính toán (Compute-Efficiency & Early Exits):**
    - Các câu hỏi ngoài phạm vi hoặc câu chào hỏi xã giao được nhận diện và xử lý ngay tại tầng 1 (PhoBERT CPU / Regex) với chi phí 0 token LLM.
-   - Truy xuất kết hợp 2 giai đoạn (Exact Code Filter trước khi Search Vector) giảm thiểu thời gian tra cứu từ hàng trăm mili-giây xuống dưới 5 mili-giây đối với các câu hỏi có mã thủ tục rõ ràng.
+   - Exact-code/procedure-direct có thể tránh semantic search ở các lượt đủ provenance. Mức cải thiện latency phải được báo cáo từ benchmark/runtime trace cụ thể; source inspection không chứng minh một ngưỡng dưới 5 mili-giây cho mọi máy.
 
 ---
 

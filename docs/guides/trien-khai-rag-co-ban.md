@@ -156,12 +156,15 @@ Lệnh `rag prepare` xác minh corpus, sao chép index vào cache và chuyển m
 
 ## 3. Tham số RAG đang dùng
 
-`configs/rag/inference.yaml` và `inference-docker.yaml` dùng cho hỏi đáp; các tham số không khai báo lấy mặc định từ `src/vigovbot/rag/config.py`.
+`configs/rag/inference.yaml`, `inference-docker-ollama.yaml` và
+`inference-docker.yaml` lần lượt phục vụ host, Docker Base/RAG mặc định và Docker
+GPU tùy chọn. Các tham số không khai báo lấy mặc định từ
+`src/vigovbot/rag/config.py`.
 
 | Tham số | Giá trị mặc định / cấu hình hiện tại | Ý nghĩa |
 |---|---|---|
 | `embedding.model` | `BAAI/bge-m3` | Encoder cho câu hỏi |
-| `embedding.device` | `cpu` | Dành VRAM cho Qwen; có thể đổi sang `cuda` khi đủ tài nguyên |
+| `embedding.device` | Host: `cuda`; Docker: `cpu` | Host hiện dành cho máy GPU lớn; container dành VRAM cho Qwen |
 | `llm.model` | `qwen2.5:7b` | Tên model sinh trong Ollama hoặc adapter QLoRA |
 | `llm.ollama_url` | `http://localhost:11434` | Địa chỉ Ollama (trên container dùng `http://ollama:11434`) |
 | `llm.temperature` | `0.0` | Giảm tính ngẫu nhiên khi sinh văn bản |
@@ -169,7 +172,7 @@ Lệnh `rag prepare` xác minh corpus, sao chép index vào cache và chuyển m
 | `llm.num_ctx` | `8192` | Cửa sổ ngữ cảnh cho câu trả lời |
 | `llm.num_predict` | `512` | Số token sinh tối đa |
 | `llm.timeout` | `300` giây | Timeout HTTP khi sinh câu trả lời |
-| `retrieval.top_k` | `5` | Số kết quả FAISS tối đa đưa vào LLM |
+| `retrieval.top_k` | Host/Docker mặc định: `15`; Docker GPU: `5`; schema mặc định: `5` | Số kết quả FAISS tối đa trước bước đóng gói prompt |
 | `retrieval.max_chunk_tokens` | `1200` | Giới hạn token của mỗi chunk đưa vào prompt |
 | `conversation.routing_contract` | `v2` | Hợp đồng định tuyến v2 (mặc định hiện hành) |
 | `conversation.routing_backend` | `phobert` | Backend phân loại cục bộ dùng PhoBERT fine-tuned 4-head |
@@ -276,8 +279,8 @@ Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không
 Với corpus đã có trên host và được mount vào container:
 
 ```powershell
-docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker.yaml
-docker compose exec -T web vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?" --config configs/rag/inference-docker.yaml
+docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker-ollama.yaml
+docker compose exec -T web vigov ask "Cần những giấy tờ gì để cấp bản sao hộ tịch?" --config configs/rag/inference-docker-ollama.yaml
 ```
 
 `prepare` chỉ chuẩn bị corpus/cache, chưa gọi LLM; `ask` cũng tự kiểm tra cache
@@ -289,7 +292,7 @@ trước khi truy vấn. Cấu hình Docker gọi Ollama bằng tên service
 
 ```powershell
 docker compose cp history.json web:/tmp/history.json
-docker compose exec -T web vigov ask "Còn lệ phí thì sao?" --history /tmp/history.json --config configs/rag/inference-docker.yaml
+docker compose exec -T web vigov ask "Còn lệ phí thì sao?" --history /tmp/history.json --config configs/rag/inference-docker-ollama.yaml
 ```
 
 CLI không tự lưu lịch sử giữa hai lần chạy; ứng dụng gọi phải giữ và gửi lại đúng
@@ -327,12 +330,17 @@ giữ cache HMAC state tối đa 256 phiên. Các request chat được khóa v�
 thứ tự để dùng chung tài nguyên an toàn. Retriever mở SQLite ở chế độ read-only
 cho thread HTTP và có khóa nội bộ quanh encoder, FAISS, SQLite và thao tác đóng.
 
-`configs/rag/inference-docker.yaml` khai báo sẵn các lựa chọn cùng dùng `qwen2.5:7b`:
+`configs/rag/inference-docker-ollama.yaml` khai báo hai lựa chọn dùng
+`qwen2.5:7b` cho web mặc định:
 
 - `mode: base`: gửi câu hỏi và lịch sử thẳng tới Qwen, không gọi embedding,
   FAISS/SQLite hoặc prompt RAG; kết quả không có nguồn.
 - `mode: rag`: chạy toàn bộ router PhoBERT 4-head, truy hồi và xét bằng chứng; kết quả có các
   nguồn được truy hồi.
+
+Profile `web-gpu` dùng `configs/rag/inference-docker.yaml` và bổ sung lựa chọn
+QLoRA local qua `local_transformers`; không dùng cấu hình GPU này để mô tả
+container `web` mặc định.
 
 API trả thêm `routing_diagnostics` và trace cho nhánh RAG. Để xem JSON gốc, đặt `web.debug_routing: true` trong cấu hình và khởi động lại server.
 
@@ -343,20 +351,30 @@ API trả thêm `routing_diagnostics` và trace cho nhánh RAG. Để xem JSON g
 > biệt theo [Môi trường và tái lập](../setup/environments.md) trước khi chạy các
 > lệnh trong phần này; không chạy chúng bằng container `web` hiện tại.
 
-Các profile `configs/rag/evaluation*.yaml` không gắn cứng dataset. `vigov eva`
-chọn dataset v2 bằng `--dataset`. Lệnh legacy `vigov rag evaluate` dùng schema
-`question`/`ground_truth`; hãy tạo config riêng với `dataset_path` hoặc
-`dataset_zip` đúng schema đó. Không trỏ loader legacy vào
-`Data/tthc_test_case_v1/data/test.jsonl` vì đây là schema evaluation v2.
+Workflow canonical là `vigov eva`, mặc định đọc `Data/dataset_v3`, split `test`
+và endpoint `http://localhost:8001/api/chat`. Các lệnh `validate`, `run`, `score`,
+`report`, `evaluate` và `compare` dùng cùng run directory dưới
+`outputs/evaluation`. Ground truth không được đưa vào prompt inference.
 
 ```powershell
-vigov rag smoke
-vigov rag run
+vigov eva validate --dataset Data/dataset_v3 --split test
+vigov eva run --dataset Data/dataset_v3 --split test --profile rag --run-id rag-v3
+vigov eva score --run-id rag-v3 --extended-metrics
+vigov eva report --run-id rag-v3
 ```
 
-`smoke` thử tối đa 5 câu theo cấu hình hiện tại. `run` thực hiện chuẩn bị, smoke test, đánh giá rồi tạo báo cáo. Có thể dùng riêng `evaluate` để sinh kết quả và `report` để tính metric/tạo báo cáo. `max_cases: null` nghĩa là dùng toàn bộ bộ dữ liệu đã nạp; có thể đặt số nhỏ khi thử nghiệm.
+`run` yêu cầu `--profile` thuộc `base`, `rag`, `qlora` hoặc `qlora_rag` và không
+chấm điểm trong lúc thu prediction. `score` chạy offline trên artifact đã thu;
+`--rescore` dựng lại artifact điểm mà không gọi model. Dùng `--limit` cho smoke
+có kiểm soát và `--complete-trace` khi endpoint hỗ trợ trace đầy đủ. API công bố
+`evaluation_complete_version: 2`; đây là phiên bản capability trace, không phải
+phiên bản Golden dataset hay workflow evaluation.
 
-Đầu ra mặc định ở `outputs/qwen2_5_7b_rag_results`, có manifest lần chạy, kết quả dự đoán, lỗi nếu có, `case_metrics.jsonl`, `case_metrics.csv`, `summary.json` và báo cáo theo nhóm. Metric gồm exact match, accuracy chuẩn hóa, BLEU-4, ROUGE, BERTScore, source recall@k và thời gian xử lý. BERTScore mặc định dùng `xlm-roberta-large` trên CPU, batch size 1.
+Mỗi run nằm tại `outputs/evaluation/<run-id>/`, gồm `run-manifest.json`,
+`predictions.jsonl`, `case-scores.jsonl`, `scores.json` và `report.json` tùy các
+lệnh đã chạy. Metric lõi gồm exact/normalized match, token precision/recall/F1,
+ROUGE, retrieval tại nhiều k, routing và format; metric mở rộng, BERTScore và
+LLM-as-a-judge chỉ xuất hiện khi được yêu cầu và có dependency/kết quả hợp lệ.
 
 ## 6. Đối chiếu với mã nguồn
 

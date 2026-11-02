@@ -87,7 +87,7 @@ flowchart TD
 | `llm` | Giao tiếp Ollama (`ollama_answer`) và kiểm tra tính khả dụng của model nền |
 | `server` | Web UI/API FastAPI, quản lý luồng streaming, GPU switching và đo lường telemetry |
 | `training` | SFT QLoRA 4-bit, chat template, loss masking, checkpoint/resume và inference adapter |
-| `evaluation` | Bộ test Golden v2, đo lexical/semantic/retrieval metrics; độc lập với inference |
+| `evaluation` | Workflow đánh giá Golden v3, đo lexical/semantic/retrieval/routing metrics; độc lập với inference |
 | `schemas.py` | Hợp đồng dữ liệu, model/kích thước vector, version artifact/cache |
 | `artifacts.py` | Checksum SHA-256, revision, khóa ghi và công bố artifact |
 
@@ -138,6 +138,13 @@ inference đồng bộ được chuyển sang worker thread để không chặn 
 có khóa riêng. PhoBERT router chạy trên CPU với 2 intra-op threads và khóa đồng bộ hóa.
 Ollama/QLoRA tuần tự hóa theo model call để bảo vệ GPU và switching;
 API ngoài không dùng khóa GPU. SQLite mở read-only để truy hồi từ thread request.
+
+Số lượng chunk truy xuất không phải một hằng số chung cho mọi runtime. Profile
+host `configs/rag/inference.yaml` và Docker mặc định
+`configs/rag/inference-docker-ollama.yaml` hiện dùng `top_k: 15`; profile GPU
+`configs/rag/inference-docker.yaml` dùng `top_k: 5`. Cả ba đều truy xuất trực tiếp
+từ FAISS, không chạy reranker online. Giá trị Pydantic mặc định vẫn là 5 khi một
+cấu hình khác không khai báo `retrieval.top_k`.
 
 Về quản lý phiên, hệ thống sử dụng cache trạng thái hội thoại trong RAM (`_STATES`
 dưới dạng `OrderedDict` tối đa 256 phiên) được ký bằng HMAC-SHA256 để chống can

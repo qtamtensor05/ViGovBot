@@ -6,9 +6,9 @@ hình local `configs/rag/inference.yaml` không thay đổi; container dùng
 `configs/rag/inference-docker-ollama.yaml` với endpoint `http://ollama:11434`.
 
 Đây là runtime mặc định nhẹ cho web Base/RAG, dùng Torch CPU và không
-mang CUDA. QLoRA cục bộ nằm trong target/service GPU tùy chọn. Evaluation v2
-có thể chạy bằng môi trường Python dự án trên Windows để đọc
-Golden/ghi output trực tiếp; Ollama và inference web vẫn chạy trong Docker.
+mang CUDA. QLoRA cục bộ nằm trong target/service GPU tùy chọn. Workflow evaluation
+hiện hành có thể chạy bằng môi trường Python dự án trên Windows để đọc Golden v3
+và ghi output trực tiếp; Ollama và inference web vẫn chạy trong Docker.
 
 ## Yêu cầu
 
@@ -84,10 +84,16 @@ Không cần giữ `env`, `%USERPROFILE%\.ollama` hoặc `outputs/rag_cache` tr�
 Model Ollama, cache RAG và cache Hugging Face hoạt động nằm trong Docker named
 volume. Không chạy `docker compose down --volumes` nếu muốn giữ chúng.
 
-Compose chỉ phục vụ inference/web và model. Evaluation v2 đọc Golden, ghi output
-và gọi API `http://localhost:8001` từ môi trường Python trên host; Golden/output
+Compose chỉ phục vụ inference/web và model. Workflow evaluation v3.2 đọc Golden
+v3, ghi output và gọi API `http://localhost:8001` từ môi trường Python trên host; Golden/output
 không được đưa hoặc mount vào container web. Ingestion PDF, training và metric
 evaluation cần dependency tùy chọn như BERTScore vẫn cần môi trường chuyên biệt.
+
+Profile Docker mặc định dùng `configs/rag/inference-docker-ollama.yaml` với
+`retrieval.top_k: 15`. Profile `web-gpu` dùng
+`configs/rag/inference-docker.yaml` với `retrieval.top_k: 5`. Đây là lựa chọn
+cấu hình theo profile, không phải hai giai đoạn candidate/rerank; runtime online
+không bật reranker.
 
 Dockerfile cài dependency nặng trước khi copy source. Vì vậy thay đổi source
 không làm mất cache PyTorch ở lần build kế tiếp; chỉ thay đổi `pyproject.toml`
