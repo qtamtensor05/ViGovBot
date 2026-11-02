@@ -1,5 +1,5 @@
 name: nature-writing
-version: 1.5.0
+version: 1.5.1
 description: >
   Declarative manifest for the static/dynamic split. SKILL.md uses this to
   decide which fragments to load for a drafting, restructuring, or
@@ -65,12 +65,15 @@ axes:
 
   language:
     detect: |
-      Detect the source language of the user's notes. Use zh-to-en when the
-      input is Chinese, mixed Chinese-English, or organized as Chinese lab
-      notes. Otherwise use en.
+      Honor an explicit output-language request first. Use vi when the user
+      requests Vietnamese output, or when the source notes are primarily
+      Vietnamese and no different output language is requested. Use zh-to-en
+      when the input is Chinese or mixed Chinese-English and the requested
+      output is English. Otherwise use en.
     values:
       en:             static/fragments/language/en.md
       zh-to-en:       static/fragments/language/zh-to-en.md
+      vi:             static/fragments/language/vi.md
     default: en
     multi: false
 

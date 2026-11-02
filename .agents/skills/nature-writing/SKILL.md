@@ -22,7 +22,8 @@ For each axis in the manifest, decide the value using the manifest's `detect:` h
 - `task` — manuscript / submission-package. Use `submission-package` for first-submission materials, never for revision correspondence.
 - `paper_type` — research / methods / hypothesis / algorithmic / review. Default: research.
 - `section` — abstract / intro / related-work / method / experiments / discussion / conclusion / title. May be multiple. Ask the user if it is ambiguous and matters for the draft.
-- `language` — en or zh-to-en. Detect from the user's notes themselves.
+- `language` — en, zh-to-en, or vi. Honor the requested output language first;
+  otherwise detect it from the user's notes.
 - `journal` — nature / nature-family / nat-comms / nat-mach-intell / generic.
   Default: generic. Use `nature` only for the flagship journal Nature,
   `nat-comms` for Nature Communications, `nat-mach-intell` for Nature Machine
