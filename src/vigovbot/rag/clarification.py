@@ -131,8 +131,12 @@ class Clarifier:
 
     def is_bare_identity(self, query, code):
         folded = _fold(query).strip(" .?!")
-        name = re.sub(r"^thu tuc\s+", "", _fold(self.catalog[code]["name"]))
-        values = {code.casefold(), f"ma {code.casefold()}", name, f"thu tuc {name}"}
+        meta = self.catalog.get(code)
+        if not meta:
+            values = {code.casefold(), f"ma {code.casefold()}"}
+        else:
+            name = re.sub(r"^thu tuc\s+", "", _fold(meta.get("name", "")))
+            values = {code.casefold(), f"ma {code.casefold()}", name, f"thu tuc {name}"}
         values.update(self.aliases.get(code, ()))
         if folded in values:
             return True
@@ -195,8 +199,10 @@ class Clarifier:
     def goal(self, query, codes):
         remainder = _fold(query)
         for code in codes:
-            name = _fold(self.catalog[code]["name"])
-            remainder = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", " ", remainder)
+            meta = self.catalog.get(code)
+            if meta:
+                name = _fold(meta.get("name", ""))
+                remainder = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", " ", remainder)
         return query if has_goal(remainder) else ""
 
     def menu(self, kind, codes, goal="", mixed=False):

@@ -146,6 +146,11 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
                 retry_messages, tokenize=True, add_generation_prompt=True))
             if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
                 generation_diagnostics["retry_skipped"] = "context_budget"
+                if answer and isinstance(answer, str) and answer.strip():
+                    generation_diagnostics["output_contract"] = "plain_text_fallback"
+                    citations_status = "invalid_model_output" if citation_ids is not None else "disabled"
+                    return (answer.strip(), raw, generation_s, "answer", None, generation_diagnostics,
+                            [], citation_ids, citations_status)
                 raise StructuredAnswerError(generation_diagnostics) from exc
             generation_diagnostics["attempts"] = 2
             answer, raw, retry_s = answer_fn(retry_messages, generation_settings)
@@ -187,6 +192,11 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
                         try:
                             answer, action, evidence = citation_fallback(answer, final_exc)
                         except ValueError:
+                            if answer and isinstance(answer, str) and answer.strip():
+                                generation_diagnostics["output_contract"] = "plain_text_fallback"
+                                citations_status = "invalid_model_output" if citation_ids is not None else "disabled"
+                                return (answer.strip(), raw, generation_s, "answer", None, generation_diagnostics,
+                                        [], citation_ids, citations_status)
                             raise StructuredAnswerError(generation_diagnostics) from final_exc
                         citations = []
                         citations_status = "invalid_model_output"

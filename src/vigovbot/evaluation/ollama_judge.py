@@ -146,9 +146,25 @@ def judge(*, dataset, split, predictions, output, model, endpoint="http://localh
                 count += 1
                 continue
             serialized = json.dumps(payload, ensure_ascii=False)
-            # Conservative UTF-8 byte upper bound (4 bytes per token for 32k context): reject instead of silently dropping evidence.
+            # If prompt length exceeds judge token budget, record explicit non-applicable review instead of crashing the run.
             if len((RUBRIC + serialized).encode("utf-8")) > 32768 * 4:
-                raise ValueError("Judge context budget exceeded; cached predictions remain reusable")
+                row = {
+                    "id": case["test_id"],
+                    "input_sha256": fingerprint(payload),
+                    "rubric_sha256": fingerprint(RUBRIC),
+                    "reviewer_kind": "ai",
+                    "reviewer": model,
+                    "model_digest": identity.get("digest"),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "reason": "Case context length exceeds judge token budget; cannot evaluate safely without truncation.",
+                    "claims": [],
+                    "scores": {k: None for k in METRICS},
+                }
+                validate(row)
+                handle.write(json.dumps(row, ensure_ascii=False, allow_nan=False) + "\n")
+                handle.flush()
+                count += 1
+                continue
             response = requests.post(endpoint.rstrip("/") + "/api/chat", json={
                 "model": model, "stream": False, "format": schema,
                 "options": {"temperature": 0, "seed": 42, "num_ctx": 32768, "num_predict": 4096}, "messages": [

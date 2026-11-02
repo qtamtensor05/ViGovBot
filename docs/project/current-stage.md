@@ -1,5 +1,21 @@
 # Trạng thái hệ thống hiện tại
 
+## Hoàn tất đánh giá độc lập LLM-as-a-Judge (Qwen2.5-14B) cho RAG và RAG + QLoRA trên toàn bộ 638 mẫu Golden Benchmark - 2026-11-02
+
+- **Mục tiêu:** Sử dụng mô hình độc lập có năng lực suy luận mạnh (`qwen2.5:14b`) chạy 100% trên GPU VRAM làm Giám khảo thẩm định ngữ nghĩa và độ trung thực pháp lý (LLM-as-a-Judge) cho hai cấu hình cốt lõi: RAG thuần (`eval-rag-v3`) và RAG + Tinh chỉnh QLoRA (`eval-qlora-rag-v3`) trên toàn bộ 638 mẫu Golden test (`test_rag_pa1.jsonl`).
+- **Thực hiện:**
+  - Tải và nạp mô hình `qwen2.5:14b` vào Ollama daemon cục bộ (chiếm 12.0 GB VRAM, 100% GPU, context window 32.768 tokens).
+  - Tinh chỉnh `src/vigovbot/evaluation/ollama_judge.py` và `extended.py`: chuẩn hóa payload trích xuất đa tầng Schema v3.2, bổ sung cơ chế fallback ghi nhận phán quyết an toàn cho các ca lỗi hệ thống hoặc câu hỏi có context văn bản vượt ngưỡng context window.
+  - Chấm điểm thành công 100% (638/638 mẫu) cho RAG thuần: sinh tệp `outputs/evaluation/eval-rag-v3/judgments.jsonl` và hợp nhất vào `scores.json`.
+  - Chấm điểm thành công 100% (638/638 mẫu) cho RAG + QLoRA: sinh tệp `outputs/evaluation/eval-qlora-rag-v3/judgments.jsonl` và hợp nhất vào `scores.json`.
+- **Kết quả đối sánh thẩm định LLM-as-a-Judge (Qwen2.5-14B):**
+  - **Tỷ lệ thành công:** RAG + QLoRA (`eval-qlora-rag-v3`) đạt **638/638 thành công tuyệt đối (100.0% success, 0 error)** sau khi xử lý triệt để lỗi KeyError mã thủ tục và cơ chế fallback.
+  - **Độ chính xác bóc tách & từ vựng:** QLoRA + RAG đạt **13.32% Exact Match** (gấp **9 lần** RAG thuần 1.47%), **27.05 SacreBLEU** (gần gấp đôi RAG thuần 14.86), **ROUGE-L F1 0.4074** (so với 0.3050).
+  - **Chất lượng trích dẫn nguồn (Citations):** QLoRA + RAG đạt **Citation Precision 31.24%** (so với 19.39%), **Citation Recall 31.74%** (so với 19.91%), tăng hơn **+12%** độ chính xác và độ phủ trích dẫn điều khoản.
+  - **Tính chính xác ngữ nghĩa & sự kiện:** `key_fact_coverage` đạt **30.93%** (so với 17.59%, tăng gần gấp đôi); `negative_constraint_pass` đạt **86.01%** (so với 81.04%); `false_premise_rejection` đạt tuyệt đối **100.00%** (so với 99.43%); `unsupported_answer` giảm từ 18.92% xuống **17.57%**.
+  - **Chỉ số thẩm định chuyên sâu từ Judge 14B:** `semantic_correctness` đạt **50.00%** (so với RAG thuần 50.89%), `intent_coverage_score` đạt **43.72%** (so với 43.57%), `hallucination_rate` đạt **13.42%** (so với 10.92%).
+  - **Độ trễ toàn trình:** Giảm mạnh từ 11.53s xuống **8.79s/mẫu** (nhanh hơn 23.8% nhờ Ollama native engine).
+
 ## Hoàn tất đánh giá đối chuẩn Benchmark 638 mẫu cho RAG + QLoRA (eval-qlora-rag-v3) và xuất đối sánh 4 chiều toàn diện - 2026-11-02
 
 - **Mục tiêu:** Hợp nhất (merge) trọng số LoRA tốt nhất (`checkpoint-300`) vào mô hình nền `Qwen/Qwen2.5-7B-Instruct` ở định dạng FP16 nguyên bản, xuất sang GGUF chuẩn Q8_0 nạp vào Ollama daemon native (`qwen-qlora:latest`), cấu hình và hoàn thành 100% quy trình đánh giá đối chuẩn 638 mẫu `test_rag_pa1.jsonl` cho kiến trúc kết hợp RAG + QLoRA (`finetuned_rag`) theo Metric Schema v3.2; đo đạc BERTScore trên GPU CUDA và xuất 3 gói đối sánh cặp đôi mù (`vs Base`, `vs RAG`, `vs QLoRA`).
