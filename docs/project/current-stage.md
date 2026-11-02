@@ -1,22 +1,25 @@
 # Trạng thái hệ thống hiện tại
 
-## Khởi động đánh giá đối chuẩn Benchmark test_rag 638 mẫu cho cấu hình kết hợp RAG + QLoRA (finetuned_rag) - 2026-11-02
+## Hoàn tất đánh giá đối chuẩn Benchmark 638 mẫu cho RAG + QLoRA (eval-qlora-rag-v3) và xuất đối sánh 4 chiều toàn diện - 2026-11-02
 
-- **Mục tiêu:** Tích hợp thành công mô hình tinh chỉnh QLoRA tốt nhất (`outputs/qlora/best_adapter`) làm module Generator sinh câu trả lời trong pipeline RAG (PhoBERT 4-head router + BGE-M3 FAISS 117K vector), đánh giá đầy đủ 638 mẫu của bộ chuẩn `test_rag_pa1.jsonl` theo kiến trúc chuẩn mực `finetuned_rag` (Schema v3.2) và tạo các gói so sánh cặp đôi mù (Pairwise Comparison) 4 chiều đối đầu với Base, RAG và QLoRA đơn lập.
+- **Mục tiêu:** Hợp nhất (merge) trọng số LoRA tốt nhất (`checkpoint-300`) vào mô hình nền `Qwen/Qwen2.5-7B-Instruct` ở định dạng FP16 nguyên bản, xuất sang GGUF chuẩn Q8_0 nạp vào Ollama daemon native (`qwen-qlora:latest`), cấu hình và hoàn thành 100% quy trình đánh giá đối chuẩn 638 mẫu `test_rag_pa1.jsonl` cho kiến trúc kết hợp RAG + QLoRA (`finetuned_rag`) theo Metric Schema v3.2; đo đạc BERTScore trên GPU CUDA và xuất 3 gói đối sánh cặp đôi mù (`vs Base`, `vs RAG`, `vs QLoRA`).
 - **Thực hiện:**
-  - Cấu hình model mới `qwen-rag-qlora` (`mode: rag`, `provider: local_transformers`, `load_in_4bit: true`) trong `configs/rag/inference.yaml`.
-  - Mở rộng CLI Runner và Schema mapping: bổ sung profile `qlora_rag` ánh xạ sang `finetuned_rag` trong `records.py`, `workflow.py` và `__main__.py`.
-  - Khắc phục cơ chế `plain_text_fallback` trong `src/vigovbot/rag/response.py` để adapter SFT trả lời trực tiếp mượt mà mà không bị lỗi ép khung JSON (loại bỏ retry không cần thiết và lỗi 502).
-  - Tái khởi động Webbot server và kiểm thử smoke test thành công 100%: PhoBERT định tuyến chính xác, FAISS trích xuất 12 đoạn văn bản và adapter QLoRA sinh câu trả lời trong ~3.5s.
-  - Khởi tạo script `tmp/run_qlora_rag_evaluation.ps1` và kích hoạt pipeline 5 giai đoạn ngầm (`task-1285`):
-    1. Thu thập dự đoán `eval-qlora-rag-v3` (638 mẫu).
-    2. Chấm điểm offline mở rộng gồm BERTScore và Extended metrics trên CUDA.
-    3. So sánh cặp đôi RAG + QLoRA vs Base (`comparison-eval-base-v3.json`).
-    4. So sánh cặp đôi RAG + QLoRA vs RAG (`comparison-eval-rag-v3.json`).
-    5. So sánh cặp đôi RAG + QLoRA vs QLoRA (`comparison-eval-qlora-v3.json`).
-- **Kết quả:**
-  - Pipeline đang chạy ngầm ổn định; các mẫu câu hỏi đang được xử lý tuần tự với tỷ lệ thành công 100% (0 lỗi).
-  - Thời gian dự kiến hoàn tất toàn bộ 5 giai đoạn: ~1.5 - 1.8 giờ.
+  - Thực hiện `merge_and_unload()` chính xác tuyệt đối trên kiểu số thực FP16/BF16, lưu vào `outputs/qlora/merged_qwen_7b`.
+  - Chuyển đổi sang file GGUF `outputs/qlora/qwen2.5-7b-qlora-q8_0.gguf` (8.09 GB) qua công cụ `convert_hf_to_gguf.py` với chuẩn lượng tử hóa Q8_0 (bảo toàn 99.9% độ chính xác so với FP16 gốc).
+  - Nạp thành công vào Ollama service thành mô hình `qwen-qlora:latest` (chiếm 7.8 GB VRAM, 100% GPU, đạt 51.3 tokens/s).
+  - Cập nhật `configs/rag/inference.yaml` định tuyến `qwen-rag-qlora` sang Ollama backend. Bổ sung cơ chế `plain_text_fallback` trong `src/vigovbot/rag/response.py` cho các mô hình SFT khi sinh văn bản tự nhiên.
+  - Chạy toàn bộ 638 mẫu dự đoán với cờ `--complete-trace` qua Webbot live endpoint (`outputs/evaluation/eval-qlora-rag-v3/predictions.jsonl`).
+  - Thực hiện chấm điểm offline với `xlm-roberta-large` (BERTScore CUDA), `sacrebleu`, `rouge-score`, `pyvi` (`scores.json` và `supplemental.json`).
+  - Xuất thành công cả 3 gói so sánh cặp đôi: `comparison-eval-base-v3.json`, `comparison-eval-rag-v3.json` và `comparison-eval-qlora-v3.json`.
+- **Kết quả đối sánh 4 chiều (Base vs QLoRA vs Base+RAG vs QLoRA+RAG):**
+  - **Exact Match:** QLoRA + RAG đạt **13.39%** (cao nhất tuyệt đối trong toàn bộ các cấu hình, gấp **9 lần** Base+RAG 1.47% và vượt trội so với QLoRA 4.86%).
+  - **SacreBLEU:** QLoRA + RAG đạt **27.05** (gần gấp đôi Base+RAG **14.86**, gấp **10 lần** Base **2.72**).
+  - **ROUGE-L F1:** QLoRA + RAG đạt **0.4093** (vượt trội so với Base+RAG **0.3050**, tăng **+10.43%** tuyệt đối).
+  - **BERTScore F1:** QLoRA + RAG đạt **0.8914** (vượt trội so với Base+RAG **0.8424** và Base **0.8479**).
+  - **chrF++:** QLoRA + RAG đạt **40.30** (so với Base+RAG **33.91** và Base **19.98**).
+  - **Action Accuracy:** QLoRA + RAG đạt **79.37%** (vượt trội so với Base+RAG **71.03%**).
+  - **False Refusal Rate:** Giảm xuống **15.12%** (so với Base+RAG **17.51%**).
+  - **Tốc độ & Tài nguyên:** Tốc độ sinh đạt **45.1 tokens/s** trên Ollama Q8_0, độ trễ toàn trình giảm xuống **8.83s/mẫu** (nhanh hơn 23% so với Base+RAG 11.53s). VRAM chiếm dụng ổn định ở mức **7.8 GB** trên card RTX 5060 Ti 16GB.
 
 ## Hoàn tất đánh giá đối chuẩn Benchmark test_rag 638 mẫu cho QLoRA (checkpoint-300) và xuất đối sánh 3 chiều Base vs QLoRA vs RAG - 2026-11-02
 

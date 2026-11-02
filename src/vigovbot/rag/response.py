@@ -109,7 +109,12 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
         except ValueError as exc:
             generation_diagnostics["validation_errors"].append(str(exc))
             generation_diagnostics["initial_text"] = answer[:2000]
-            if settings.get("provider") == "local_transformers" and answer.strip():
+            is_sft_model = (
+                settings.get("provider") == "local_transformers"
+                or "qlora" in str(settings.get("model", "")).lower()
+                or "qlora" in str(settings.get("id", "")).lower()
+            )
+            if is_sft_model and answer.strip():
                 clean_answer = answer.strip()
                 try:
                     if clean_answer.lstrip().startswith(("{", "```")):
