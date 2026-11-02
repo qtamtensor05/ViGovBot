@@ -328,14 +328,19 @@ class ChatApplication:
                     calls = []
                     provider_answer = answer_fn
                     def measured_answer(messages, call_settings):
-                        from .gpu_metrics import GPUSampler
-                        with GPUSampler() as gpu:
+                        if model.provider == "local_transformers":
                             answer, raw, elapsed = provider_answer(messages, call_settings)
+                            gpu_report = {"status": "measured", "peak_device_memory_used_gib": (raw or {}).get("peak_allocated_vram_gb")}
+                        else:
+                            from .gpu_metrics import GPUSampler
+                            with GPUSampler() as gpu:
+                                answer, raw, elapsed = provider_answer(messages, call_settings)
+                            gpu_report = gpu.report()
                         raw = raw or {}
                         calls.append({"latency_seconds": elapsed, "model": call_settings.get("model"),
                                       "prompt_tokens": raw.get("prompt_eval_count"), "completion_tokens": raw.get("eval_count"),
                                       "ttft_seconds": raw.get("ttft_seconds"), "eval_duration_ns": raw.get("eval_duration"),
-                                      "finish_reason": raw.get("done_reason"), "gpu": gpu.report(),
+                                      "finish_reason": raw.get("done_reason"), "gpu": gpu_report,
                                       "peak_allocated_vram_gb": raw.get("peak_allocated_vram_gb"),
                                       "peak_reserved_vram_gb": raw.get("peak_reserved_vram_gb"),
                                       "messages": messages, "response_format": call_settings.get("response_format")})
