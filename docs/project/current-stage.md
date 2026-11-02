@@ -1,5 +1,17 @@
 # Trạng thái hệ thống hiện tại
 
+## Hoàn tất fallback tóm tắt khi câu trả lời RAG vượt giới hạn - 2026-11-02
+
+- **Mục tiêu:** Giữ câu trả lời Web hoàn chỉnh khi generation chạm giới hạn token.
+- **Thực hiện:** Sinh lại bản tóm tắt tối đa 800 ký tự từ cùng context RAG và chặn JSON dang dở.
+- **Kết quả:** Đã kiểm thử nhánh vượt ngưỡng và nhánh vượt ngưỡng lần hai; Web live trả câu trả lời đăng ký kết hôn hoàn chỉnh, không phải JSON thô.
+
+## Hoàn tất tích hợp QLoRA merge và QLoRA + RAG vào Web - 2026-11-02
+
+- **Mục tiêu:** Phục vụ đồng thời Base, RAG, QLoRA merge và QLoRA merge + RAG trên Web Docker mặc định.
+- **Thực hiện:** Dùng artifact `outputs/qlora/qwen2.5-7b-qlora-q8_0.gguf`; Compose nhập model thành `qwen-qlora:latest`, sau đó Web dùng chung Ollama model cho hai mode QLoRA.
+- **Kết quả:** Model `qwen-qlora:latest` đã được nhập vào volume Ollama; Web healthy tại cổng 8001 và công bố đủ `qwen-base`, `qwen-rag`, `qwen-qlora`, `qwen-rag-qlora`. Kiểm tra live xác nhận QLoRA trực tiếp không gọi retrieval, còn QLoRA + RAG đi qua router và luồng làm rõ thủ tục.
+
 ## Hoàn tất đánh giá đối chuẩn Benchmark 638 mẫu cho RAG + QLoRA (eval-qlora-rag-v3) và xuất đối sánh 4 chiều toàn diện - 2026-11-02
 
 - **Mục tiêu:** Hợp nhất (merge) trọng số LoRA tốt nhất (`checkpoint-300`) vào mô hình nền `Qwen/Qwen2.5-7B-Instruct` ở định dạng FP16 nguyên bản, xuất sang GGUF chuẩn Q8_0 nạp vào Ollama daemon native (`qwen-qlora:latest`), cấu hình và hoàn thành 100% quy trình đánh giá đối chuẩn 638 mẫu `test_rag_pa1.jsonl` cho kiến trúc kết hợp RAG + QLoRA (`finetuned_rag`) theo Metric Schema v3.2; đo đạc BERTScore trên GPU CUDA và xuất 3 gói đối sánh cặp đôi mù (`vs Base`, `vs RAG`, `vs QLoRA`).

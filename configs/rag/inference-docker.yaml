@@ -33,13 +33,14 @@ web:
       base_url: *ollama_url
       mode: rag
     - id: qwen-qlora
-      label: Qwen 2.5 7B + QLoRA
-      provider: local_transformers
-      model: Qwen/Qwen2.5-7B-Instruct
-      base_url: local
+      label: Qwen 2.5 7B + QLoRA merge (không RAG)
+      provider: ollama
+      model: qwen-qlora:latest
+      base_url: *ollama_url
       mode: qlora
-      adapter_path: /app/models/qlora
-      load_in_4bit: true
-      allow_multiple_models: false
-      cpu_offload: false
-      force_single_gpu: true
+    - id: qwen-rag-qlora
+      label: Qwen 2.5 7B + QLoRA merge + RAG
+      provider: ollama
+      model: qwen-qlora:latest
+      base_url: *ollama_url
+      mode: rag

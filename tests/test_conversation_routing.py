@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 try:
     from vigovbot.rag.pipeline import answer_question
     from vigovbot.rag.config import RAGConfig, load_config
+    from vigovbot.rag.response import generate_answer
     from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
@@ -23,6 +24,40 @@ def route(relation="new_question", scope="in_scope", query="Phí cấp hộ chi�
 
 
 class RoutingTests(unittest.TestCase):
+    def test_length_finish_retries_with_bounded_summary(self):
+        calls = []
+        responses = iter([
+            ('{"answer":"Cau tra loi bi cat', {"done_reason": "length"}, .1),
+            (json.dumps(dict(answer="Ba buoc chinh.", action="answer",
+                             evidence_status="sufficient")), {"done_reason": "stop"}, .2),
+        ])
+        def provider(messages, settings):
+            calls.append((messages, settings))
+            return next(responses)
+        result = generate_answer(
+            [{"role": "system", "content": "system"}, {"role": "user", "content": "Quy trinh?"}],
+            [], Tokenizer(), self.settings, provider, True, True)
+        self.assertEqual(result[0], "Ba buoc chinh.")
+        self.assertAlmostEqual(result[2], .3)
+        self.assertEqual(result[5]["attempts"], 2)
+        self.assertEqual(result[5]["output_contract"], "summarized_after_length")
+        self.assertIn("tối đa 800 ký tự", calls[1][0][0]["content"])
+        self.assertTrue(calls[1][1]["suppress_token_callback"])
+        for branch in calls[1][1]["response_format"]["anyOf"]:
+            self.assertEqual(branch["properties"]["answer"]["maxLength"], 800)
+
+    def test_second_length_finish_is_not_returned_as_partial_json(self):
+        responses = iter([
+            ('{"answer":"Lan mot', {"done_reason": "length"}, .1),
+            ('{"answer":"Lan hai', {"done_reason": "length"}, .2),
+        ])
+        with self.assertRaises(StructuredAnswerError) as caught:
+            generate_answer(
+                [{"role": "system", "content": "system"}, {"role": "user", "content": "Quy trinh?"}],
+                [], Tokenizer(), self.settings, lambda *_: next(responses), True, True)
+        self.assertEqual(caught.exception.diagnostics["attempts"], 2)
+        self.assertEqual(caught.exception.diagnostics["summary_finish_reason"], "length")
+
     def test_routing_budget_config_defaults_profiles_and_validation(self):
         data = {"unified_source": "unified.zip"}
         defaults = RAGConfig.model_validate({"data": data}).inference_settings()

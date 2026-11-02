@@ -330,16 +330,21 @@ giữ cache HMAC state tối đa 256 phiên. Các request chat được khóa v�
 thứ tự để dùng chung tài nguyên an toàn. Retriever mở SQLite ở chế độ read-only
 cho thread HTTP và có khóa nội bộ quanh encoder, FAISS, SQLite và thao tác đóng.
 
-`configs/rag/inference-docker-ollama.yaml` khai báo hai lựa chọn dùng
-`qwen2.5:7b` cho web mặc định:
+`configs/rag/inference-docker-ollama.yaml` khai báo bốn lựa chọn cho web mặc
+định:
 
 - `mode: base`: gửi câu hỏi và lịch sử thẳng tới Qwen, không gọi embedding,
   FAISS/SQLite hoặc prompt RAG; kết quả không có nguồn.
 - `mode: rag`: chạy toàn bộ router PhoBERT 4-head, truy hồi và xét bằng chứng; kết quả có các
   nguồn được truy hồi.
+- `qwen-qlora`, `mode: qlora`: gọi trực tiếp bản merge
+  `qwen-qlora:latest`, không truy hồi và không có nguồn.
+- `qwen-rag-qlora`, `mode: rag`: dùng cùng bản merge sau router, truy hồi và
+  đóng gói bằng chứng RAG.
 
-Profile `web-gpu` dùng `configs/rag/inference-docker.yaml` và bổ sung lựa chọn
-QLoRA local qua `local_transformers`; không dùng cấu hình GPU này để mô tả
+Compose nhập GGUF từ `outputs/qlora` vào volume Ollama ở lần đầu và bỏ qua bước
+nhập khi `qwen-qlora:latest` đã tồn tại. Profile `web-gpu` dùng
+`configs/rag/inference-docker.yaml`; không dùng cấu hình GPU này để mô tả
 container `web` mặc định.
 
 API trả thêm `routing_diagnostics` và trace cho nhánh RAG. Để xem JSON gốc, đặt `web.debug_routing: true` trong cấu hình và khởi động lại server.

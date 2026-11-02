@@ -57,6 +57,14 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [Huấn luyện & Đánh giá mô hình Tinh chỉnh QLoRA (Evaluation v2)](reports/bao-cao-danh-gia-chi-tiet-model-qlora-finetuning.md)
 - [So sánh & Đối sánh tổng hợp 3 mô hình Base vs Base+RAG vs QLoRA (Evaluation v2)](reports/bao-cao-so-sanh-tong-hop-3-model-base-rag-qlora.md)
 
+- [Đánh giá mô hình Base trên tập test v3](reports/bao-cao-danh-gia-chi-tiet-model-base-v3.md)
+- [Đánh giá mô hình RAG trên tập test v3](reports/bao-cao-danh-gia-chi-tiet-model-rag-v3.md)
+- [Đánh giá mô hình QLoRA trên tập test v3](reports/bao-cao-danh-gia-chi-tiet-model-qlora-v3.md)
+- [Đánh giá mô hình QLoRA + RAG trên tập test v3](reports/bao-cao-danh-gia-chi-tiet-model-qlora-rag-v3.md)
+- [Kết quả fine-tuning QLoRA hiện hành](reports/bao-cao-qua-trinh-train-qlora.md)
+- [So sánh tổng hợp bốn mô hình trên tập test v3](reports/bao-cao-so-sanh-tong-hop-4-model-v3.md)
+- [LLM-as-a-Judge cho mô hình RAG v3](reports/bao-cao-llm-judge-rag-v3.md)
+
 ## Quản trị dự án
 
 - [Roadmap và trạng thái thành phần](project/roadmap.md)

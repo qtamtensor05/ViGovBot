@@ -76,7 +76,8 @@ thực sự muốn xóa model Ollama, cache RAG và cache Hugging Face đã tả
 Các dữ liệu vẫn cần trên host vì đang được bind mount vào container:
 
 - `Data/vector/unified`: corpus vector cho RAG.
-- Adapter được khai báo trong `compose.yaml`: cần khi chọn QLoRA.
+- Bản merge GGUF `outputs/qlora/qwen2.5-7b-qlora-q8_0.gguf`: Compose chỉ
+  nhập thành `qwen-qlora:latest` khi model chưa có trong volume Ollama.
 - `src` và `configs`: mount read-only cho development; sửa code/cấu hình chỉ
   cần recreate/restart container, không build lại dependency.
 
@@ -99,18 +100,21 @@ Dockerfile cài dependency nặng trước khi copy source. Vì vậy thay đổ
 không làm mất cache PyTorch ở lần build kế tiếp; chỉ thay đổi `pyproject.toml`
 mới buộc cài lại dependency.
 
-## Profile QLoRA GPU
+## QLoRA merge trên Web
 
-Target `web-gpu` giữ CUDA, PEFT và bitsandbytes tách khỏi image web mặc định.
-Khởi động service tùy chọn tại cổng 8002:
+Web mặc định tại cổng 8001 có bốn lựa chọn Base, Base + RAG, QLoRA merge và
+QLoRA merge + RAG. Hai lựa chọn QLoRA dùng chung `qwen-qlora:latest` qua Ollama,
+không nạp adapter PEFT trong tiến trình Web.
+
+Target `web-gpu` vẫn giữ CUDA, PEFT và bitsandbytes tách khỏi image web mặc
+định. Có thể khởi động service tùy chọn tại cổng 8002:
 
 ```powershell
 docker compose --profile gpu build web-gpu
 docker compose --profile gpu up -d web-gpu
 ```
 
-Web mặc định tại cổng 8001 chỉ có Base/RAG; web GPU tại cổng 8002 có
-Base/RAG/QLoRA. Chỉ build target GPU khi thực sự cần QLoRA cục bộ.
+Chỉ build target GPU khi thực sự cần dependency CUDA cục bộ khác.
 
 ## GPU 6 GB và chuyển model
 

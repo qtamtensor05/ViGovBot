@@ -103,6 +103,32 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
         if "Citation" not in str(exc) and "citation" not in str(exc):
             raise exc
         return parsed
+    if structured and raw.get("done_reason") == "length":
+        generation_diagnostics["initial_finish_reason"] = "length"
+        summary_messages = [dict(message) for message in messages]
+        summary_messages[0]["content"] += (
+            "\nCâu trả lời trước đã vượt giới hạn sinh. Hãy sinh lại bản tóm tắt, "
+            "chỉ giữ các bước, chủ thể, cơ quan xử lý, điều kiện quan trọng và bước nhận kết quả. "
+            "Answer tối đa 800 ký tự, không cắt giữa câu; chỉ trả JSON hoàn chỉnh theo schema."
+        )
+        summary_tokens = len(tokenizer.apply_chat_template(
+            summary_messages, tokenize=True, add_generation_prompt=True))
+        if summary_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
+            generation_diagnostics["summary_retry_skipped"] = "context_budget"
+            raise StructuredAnswerError(generation_diagnostics)
+        summary_settings = copy.deepcopy(generation_settings)
+        summary_settings["suppress_token_callback"] = True
+        schema = summary_settings.get("response_format") or {}
+        for branch in schema.get("anyOf", []):
+            properties = branch.get("properties", {})
+            properties.get("answer", {})["maxLength"] = 800
+        answer, raw, summary_s = answer_fn(summary_messages, summary_settings)
+        generation_s += summary_s
+        generation_diagnostics["attempts"] += 1
+        generation_diagnostics["output_contract"] = "summarized_after_length"
+        if raw.get("done_reason") == "length":
+            generation_diagnostics["summary_finish_reason"] = "length"
+            raise StructuredAnswerError(generation_diagnostics)
     if structured:
         try:
             (answer, action, evidence), citations = parse_generation(answer)
@@ -147,7 +173,7 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
             if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
                 generation_diagnostics["retry_skipped"] = "context_budget"
                 raise StructuredAnswerError(generation_diagnostics) from exc
-            generation_diagnostics["attempts"] = 2
+            generation_diagnostics["attempts"] += 1
             answer, raw, retry_s = answer_fn(retry_messages, generation_settings)
             generation_s += retry_s
             try:
@@ -166,7 +192,7 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
                     if final_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
                         generation_diagnostics["final_retry_skipped"] = "context_budget"
                         raise StructuredAnswerError(generation_diagnostics) from retry_exc
-                    generation_diagnostics["attempts"] = 3
+                    generation_diagnostics["attempts"] += 1
                     final_settings = copy.deepcopy(generation_settings)
                     schema = final_settings.get("response_format") or {}
                     for branch in schema.get("anyOf", []):

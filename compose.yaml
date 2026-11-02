@@ -41,6 +41,26 @@ services:
         condition: service_healthy
     command: ["pull", "qwen2.5:7b"]
 
+  ollama-qlora-model-init:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    restart: "no"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    volumes:
+      - ollama-models:/root/.ollama
+      - type: bind
+        source: ./outputs/qlora
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      ollama-model-init:
+        condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - ollama show qwen-qlora:latest >/dev/null 2>&1 || ollama create qwen-qlora:latest -f /models/Modelfile.qwen-qlora
+
   web:
     build:
       context: .
@@ -51,6 +71,8 @@ services:
       ollama:
         condition: service_healthy
       ollama-model-init:
+        condition: service_completed_successfully
+      ollama-qlora-model-init:
         condition: service_completed_successfully
     ports:
       - "127.0.0.1:${VIGOVBOT_WEB_PORT:-8001}:8000"
@@ -81,11 +103,12 @@ services:
         condition: service_healthy
       ollama-model-init:
         condition: service_completed_successfully
+      ollama-qlora-model-init:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${VIGOVBOT_GPU_WEB_PORT:-8002}:8000"
     environment:
       PYTHONPATH: /app/src
-      QLORA_ADAPTER_PATH: /app/models/qlora
     volumes:
       - ./src:/app/src:ro
       - ./configs:/app/configs:ro
@@ -94,12 +117,6 @@ services:
       - type: bind
         source: ./outputs/phobert_v3_finetuned_20261028/checkpoint
         target: /app/outputs/phobert_v3_finetuned_20261028/checkpoint
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${QLORA_ADAPTER_PATH:-./outputs/qlora/best_adapter}
-        target: /app/models/qlora
         read_only: true
         bind:
           create_host_path: false

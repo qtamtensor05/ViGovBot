@@ -1,5 +1,23 @@
 # Thay đổi hệ thống
 
+## Tóm tắt lại câu trả lời RAG khi vượt giới hạn sinh - 2026-11-02
+
+- **Mục tiêu:** Không để JSON hoặc câu trả lời dang dở xuất hiện trên Web khi model RAG dùng hết ngân sách token.
+- **Thực hiện:** Phát hiện `done_reason: length` và sinh lại từ cùng bằng chứng với hợp đồng tóm tắt tối đa 800 ký tự; nếu lần hai vẫn hết token thì trả lỗi có kiểm soát.
+- **Kết quả:** Hoàn tất. Hai ca hồi quy xác nhận lần tóm tắt thành công được trả dưới dạng câu trả lời sạch và lần tóm tắt tiếp tục hết token bị chặn; kiểm tra live câu hỏi đăng ký kết hôn trả 992 ký tự hoàn chỉnh, không lộ JSON.
+
+## Tích hợp QLoRA merge và QLoRA + RAG vào Web - 2026-11-02
+
+- **Mục tiêu:** Bổ sung hai lựa chọn QLoRA không RAG và QLoRA + RAG trên Web, dùng chung model merge `qwen-qlora:latest` đã xuất GGUF, đồng thời giữ nguyên Base/RAG và lịch sử riêng từng model.
+- **Thực hiện:** Cập nhật cấu hình Web host/Docker, hợp đồng mode QLoRA trên Ollama và bước khởi tạo model merge trong Compose; bổ sung kiểm thử API/config liên quan.
+- **Kết quả:** Hoàn tất. Ollama đã nhận `qwen-qlora:latest` từ GGUF 8,09 GB; Web healthy tại `http://127.0.0.1:8001`, `/api/models` trả đủ bốn lựa chọn. API live xác nhận `qwen-qlora` trả `mode: qlora`, không nguồn và `qwen-rag-qlora` đi qua `mode: rag` với luồng làm rõ thủ tục.
+
+## Lọc PA1-clean và chấm lại bốn mô hình từ prediction hiện có - 2026-11-02
+
+- **Mục tiêu:** Loại bốn case có nguy cơ chồng lấn nội dung SFT khỏi benchmark PA1 và tái tính kết quả Base, RAG, QLoRA, QLoRA+RAG mà không train hoặc chạy inference lại.
+- **Thực hiện:** Tạo cohort dẫn xuất 634 case, giữ nguyên ID và prediction lịch sử; tổng hợp lại từng metric theo đúng denominator khả dụng từ `case-scores.jsonl`.
+- **Kết quả:** Hoàn tất cohort `test_rag_pa1_clean.jsonl` gồm 634 case và gói `outputs/evaluation/pa1-clean-634`; cả bốn run đủ 634 ID, không chạy inference. Các thay đổi metric nhỏ, thứ hạng kết luận không đổi.
+
 ## Ngăn kế thừa nhãn mục khi đổi thủ tục hành chính mới - 2026-11-01
 
 - **Mục tiêu:** Khắc phục lỗi khi chuyển sang thủ tục mới hoặc cụm từ tìm kiếm chủ đề mới (như *"Kiểm định viên"*), hệ thống vẫn kế thừa thủ tục cũ (như *"Đăng ký kết hôn"*) và nhãn mục cũ (như `DOSSIER`, `LEGAL_BASIS`) từ lượt trước; đồng thời sửa lỗi khi người dùng chọn thủ tục từ menu danh sách (bằng số thứ tự như "1") nhưng hệ thống tự ý nhảy vào sinh câu trả lời (thường là Trình tự thực hiện) thay vì xuất menu các mục nội dung (sections) cho người dùng lựa chọn tiếp.

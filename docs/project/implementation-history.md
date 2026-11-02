@@ -1,5 +1,23 @@
 # Lịch sử thay đổi hệ thống
 
+## Tóm tắt lại câu trả lời RAG khi vượt giới hạn sinh - 2026-11-02
+
+- **Mục tiêu:** Ngăn câu trả lời hoặc JSON dang dở xuất hiện khi model RAG dùng hết ngân sách token.
+- **Thực hiện:** Phát hiện `done_reason: length`, sinh lại từ cùng context bằng hợp đồng tóm tắt tối đa 800 ký tự, ngừng stream lần sửa và chặn kết quả nếu lần hai vẫn hết token.
+- **Kết quả:** 69 kiểm thử routing/server/UI/config đạt; hai ca hồi quy mới phủ cả thành công và thất bại có kiểm soát. Web live healthy và câu hỏi quy trình đăng ký kết hôn trả văn bản hoàn chỉnh 992 ký tự, `finish_reason: stop`, không lộ JSON.
+
+## Tích hợp QLoRA merge và QLoRA + RAG vào Web - 2026-11-02
+
+- **Mục tiêu:** Cho phép hỏi đồng thời bốn cấu hình Base, Base + RAG, QLoRA merge và QLoRA merge + RAG trên Web mặc định.
+- **Thực hiện:** Chuyển QLoRA sang backend Ollama dùng `qwen-qlora:latest`; bổ sung hai model vào cấu hình host/Docker, init idempotent từ GGUF trong Compose, hợp đồng cấu hình và kiểm thử API cho `mode: qlora` không retrieval.
+- **Kết quả:** Web cổng 8001 healthy và `/api/models` trả đủ bốn model. Live API xác nhận `qwen-qlora` trả lời trực tiếp với `sources: []`, còn `qwen-rag-qlora` chạy nhánh RAG; model merge 8,09 GB được giữ trong volume Ollama cho các lần khởi động sau.
+
+## Lọc PA1-clean và chấm lại bốn mô hình từ prediction hiện có - 2026-11-02
+
+- **Mục tiêu:** Kiểm tra độ bền kết luận đánh giá sau khi loại bốn case có nguy cơ chồng lấn nội dung SFT khỏi PA1.
+- **Thực hiện:** Xuất `Data/dataset_v3/test_rag/test_rag_pa1_clean.jsonl` gồm 634 case; lọc theo ID và tổng hợp lại metric `computed` từ `case-scores.jsonl` của Base, RAG, QLoRA và QLoRA+RAG, không train và không inference lại. Lưu manifest, case-score đã lọc, summary từng run và bảng so sánh tại `outputs/evaluation/pa1-clean-634`.
+- **Kết quả:** Cả bốn run đủ 634 ID. QLoRA tiếp tục dẫn đầu các metric tương đồng sinh câu; QLoRA+RAG tiếp tục dẫn đầu key-fact coverage; RAG thuần nhỉnh hơn retrieval. Biến động metric sau lọc nhỏ và không làm đổi kết luận tổng thể.
+
 ## Khởi tạo bộ dữ liệu SFT ChatML từ dataset_v3/fintuning phục vụ huấn luyện QLoRA - 2026-11-02
 
 - **Mục tiêu:** Chuyển đổi không mất mát (lossless) bộ dữ liệu đã được làm sạch và chia split chuẩn `dataset_v3/fintuning` sang cấu trúc SFT `messages` chuẩn để sẵn sàng nạp cho pipeline huấn luyện QLoRA Qwen2.5-7B-Instruct.

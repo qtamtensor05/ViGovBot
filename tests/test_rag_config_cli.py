@@ -3,7 +3,6 @@ from tests.dependencies import skip_missing_dependency
 
 
 
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -49,18 +48,24 @@ class ConfigTests(unittest.TestCase):
                 if model["provider"] == "ollama":
                     self.assertEqual(model["base_url"], config["llm"]["ollama_url"])
 
-    def test_inference_profiles_send_top_five_directly_to_llm(self):
-        for name in ("inference.yaml", "inference-docker.yaml", "inference-docker-ollama.yaml"):
+    def test_inference_profiles_send_configured_top_k_directly_to_llm(self):
+        expected = {"inference.yaml": 15, "inference-docker.yaml": 5,
+                    "inference-docker-ollama.yaml": 15}
+        for name, top_k in expected.items():
             config = load_config(Path("configs/rag") / name)
             settings = config.inference_settings()
-            self.assertEqual(settings["top_k"], 5)
+            self.assertEqual(settings["top_k"], top_k)
             self.assertNotIn("candidate_top_k", settings)
             self.assertNotIn("reranker", settings)
 
     def test_ollama_docker_profile_excludes_local_transformers(self):
         config = load_config(Path("configs/rag/inference-docker-ollama.yaml"))
-        self.assertEqual([model.id for model in config.web.models], ["qwen-base", "qwen-rag"])
+        self.assertEqual([model.id for model in config.web.models],
+                         ["qwen-base", "qwen-rag", "qwen-qlora", "qwen-rag-qlora"])
         self.assertTrue(all(model.provider == "ollama" for model in config.web.models))
+        merged = [model for model in config.web.models if "qlora" in model.id]
+        self.assertEqual({model.model for model in merged}, {"qwen-qlora:latest"})
+        self.assertEqual({model.mode for model in merged}, {"qlora", "rag"})
         lock = Path("locks/ollama-web-linux-py312.txt").read_text(encoding="utf-8")
         self.assertIn("torch==2.9.1+cpu", lock)
         self.assertNotIn("nvidia-", lock)
@@ -79,17 +84,17 @@ class ConfigTests(unittest.TestCase):
             self.assertTrue(config.inference_settings()["routing_enabled"])
             self.assertEqual(config.inference_settings()["routing_backend"], "phobert")
 
-    def test_qlora_adapter_environment_override_and_yaml_fallback(self):
-        root = Path(__file__).resolve().parents[1]
-        with patch.dict(os.environ, {}, clear=True):
-            config = load_config(root / "configs/rag/inference.yaml")
-            adapters = [m for m in config.web.models if m.adapter_path is not None]
-            self.assertEqual(len(adapters), 2)
-            self.assertTrue(all(m.adapter_path == root / "outputs/qlora/best_adapter" for m in adapters))
-        with patch.dict(os.environ, {"QLORA_ADAPTER_PATH": "custom-adapter"}):
-            config = load_config(root / "configs/rag/inference.yaml")
-            adapters = [m for m in config.web.models if m.adapter_path is not None]
-            self.assertTrue(all(m.adapter_path == Path("custom-adapter").resolve() for m in adapters))
+    def test_merged_qlora_can_use_ollama_without_adapter(self):
+        config = load_config(Path("configs/rag/inference.yaml"))
+        qlora = next(model for model in config.web.models if model.id == "qwen-qlora")
+        self.assertEqual((qlora.provider, qlora.model, qlora.mode),
+                         ("ollama", "qwen-qlora:latest", "qlora"))
+        self.assertIsNone(qlora.adapter_path)
+        with self.assertRaises(ValueError):
+            RAGConfig.model_validate({"data": {"unified_source": "unified.zip"}, "web": {"models": [{
+                "id": "bad", "label": "Bad", "provider": "ollama", "model": "merged",
+                "base_url": "http://localhost", "mode": "qlora", "adapter_path": "adapter",
+            }]}})
 
     def test_config_rejects_typos_and_invalid_budget(self):
         data = {"unified_source": "unified.zip", "dataset_path": "qa.jsonl"}

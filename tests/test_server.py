@@ -295,6 +295,23 @@ class WebChatTests(unittest.TestCase):
         self.assertEqual(answer_fn.call_args.args[1]["adapter_path"], model.adapter_path)
         self.assertTrue(answer_fn.call_args.args[1]["force_single_gpu"])
 
+    def test_qlora_mode_calls_merged_ollama_without_retrieval(self):
+        model = self.app.models["local"]
+        model.mode = "qlora"
+        model.model = "qwen-qlora:latest"
+        answer_fn = unittest.mock.Mock(return_value=("Trả lời từ model merge", {}, 0.3))
+        with (
+            patch("vigovbot.server.app.answerer_for", return_value=answer_fn),
+            patch("vigovbot.server.app.answer_question") as rag_answer,
+        ):
+            response = self.app.chat({"question": "Hồ sơ gồm gì?", "models": ["local"]})
+        result = response["results"][0]
+        self.assertEqual(result["answer"], "Trả lời từ model merge")
+        self.assertEqual(result["mode"], "qlora")
+        self.assertEqual(result["sources"], [])
+        rag_answer.assert_not_called()
+        self.assertEqual(answer_fn.call_args.args[1]["model"], "qwen-qlora:latest")
+
     def test_switching_ollama_and_local_transformers_releases_previous_backend(self):
         local = self.app.models["local"]
         qlora = SimpleNamespace(

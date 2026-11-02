@@ -389,7 +389,8 @@ class ChatApplication:
                         if emit_token:
                             extractor = _AnswerTokenExtractor(emit_token)
                             def rag_answer_fn(messages, call_settings):
-                                if call_settings.get("response_schema_name") == "answer":
+                                suppress = call_settings.pop("suppress_token_callback", False)
+                                if call_settings.get("response_schema_name") == "answer" and not suppress:
                                     call_settings = {**call_settings, "token_callback": extractor.feed}
                                 return answer_fn(messages, call_settings)
                         result = answer_question(

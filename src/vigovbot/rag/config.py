@@ -99,10 +99,10 @@ class WebModelConfig(StrictModel):
     def check_credentials(self):
         if self.api_key_env is not None and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.api_key_env):
             raise ValueError("api_key_env phải là tên biến môi trường hợp lệ")
-        if self.mode == "qlora" and self.provider != "local_transformers":
-            raise ValueError("mode qlora yêu cầu provider local_transformers")
-        if self.mode == "qlora" and self.adapter_path is None:
-            raise ValueError("mode qlora yêu cầu adapter_path")
+        if self.adapter_path is not None and self.provider != "local_transformers":
+            raise ValueError("adapter_path chỉ dành cho provider local_transformers")
+        if self.mode == "qlora" and self.provider == "local_transformers" and self.adapter_path is None:
+            raise ValueError("mode qlora local_transformers yêu cầu adapter_path")
         return self
 
 
