@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Loại bỏ giới hạn cắt cứng câu trả lời RAG - 2026-11-03
+
+- **Mục tiêu:** Ngăn nhánh sửa JSON ép câu trả lời dừng đúng 600/800 ký tự và bảo toàn các nội dung quan trọng liên quan trực tiếp đến câu hỏi.
+- **Thực hiện:** Bỏ `maxLength` khỏi schema sửa lỗi; viết lại cô đọng từ cùng evidence, tăng ngân sách sửa tối đa 1.024 token khi context cho phép và từ chối kết quả nếu vẫn hết token.
+- **Kết quả:** Hoàn tất. 70 kiểm thử routing/server/UI/config đạt; Web live trả câu trả lời 1.032 ký tự, `finish_reason: stop`, kết thúc đủ câu và không lộ JSON. Nhánh sửa không còn `maxLength` và không phát hành output khi hết token hoặc thiếu context để sửa an toàn.
+
 ## Tóm tắt lại câu trả lời RAG khi vượt giới hạn sinh - 2026-11-02
 
 - **Mục tiêu:** Không để JSON hoặc câu trả lời dang dở xuất hiện trên Web khi model RAG dùng hết ngân sách token.
@@ -420,3 +426,8 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Tạo từng thư mục cho mỗi nhóm tên thủ tục trùng trong Dataset v3 và đặt metadata đầy đủ của các mã cùng tên cạnh nhau để kiểm duyệt định danh.
 - **Thực hiện:** Sinh dữ liệu dẫn xuất từ `golden_all.jsonl` và SQLite metadata runtime; giữ nguyên Golden, split train/test và corpus nguồn.
 - **Kết quả:** Hoàn tất 46 nhóm, 168 mã, 5.768 chunk metadata và 168 PDF; manifest tổng và từng nhóm đã được đối chiếu không thiếu file, nhóm hoặc sai mã; checksum nguồn và hướng dẫn sử dụng đã được bổ sung.
+# Lọc bộ case cần predict lại - 2026-11-03
+
+- **Mục tiêu:** Tách riêng các case cần predict lại theo đúng Model A và Model B, không gắn với quy trình judge.
+- **Thực hiện:** Lọc theo ba dấu hiệu đã xác nhận: HTTP 502, `finish_reason=length` và output đúng 600 ký tự nhưng không kết thúc hoàn chỉnh; trích nguyên vẹn case từ `test_rag_pa1.jsonl` thành bốn file JSON theo model.
+- **Kết quả:** Hoàn tất bốn file tại `Data/dataset_v3/prediction_retry/`: `qwen-rag-qlora` 36 case, `qwen-rag` 50 case, `qwen-base` 74 case và `qwen-qlora` 0 case.

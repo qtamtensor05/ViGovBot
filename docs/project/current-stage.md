@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## Hoàn tất loại bỏ giới hạn cắt cứng câu trả lời RAG - 2026-11-03
+
+- **Mục tiêu:** Không cắt câu trả lời tại mốc ký tự cố định và không lược bỏ facts quan trọng của mục được hỏi.
+- **Thực hiện:** Thay schema `maxLength` bằng viết lại đầy đủ có chọn lọc và ngân sách sửa động.
+- **Kết quả:** Nhánh sửa dùng tối đa 1.024 token khi context cho phép, không còn `maxLength`; 70 kiểm thử đạt và Web live trả văn bản hoàn chỉnh 1.032 ký tự.
+
 ## Hoàn tất fallback tóm tắt khi câu trả lời RAG vượt giới hạn - 2026-11-02
 
 - **Mục tiêu:** Giữ câu trả lời Web hoàn chỉnh khi generation chạm giới hạn token.
@@ -369,3 +375,8 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
   thể hiệu chỉnh nhãn section PhoBERT cho một request `IN_SCOPE`; scope và danh
   tính thủ tục vẫn giữ nguyên. API local đã xác nhận chuỗi follow-up mã 1.000894
   truy xuất đúng `required_documents`, `procedure_step` và `legal_basis`.
+# Bộ case cần predict lại theo model - 2026-11-03
+
+- **Mục tiêu:** Xác định chính xác case nào cần predict lại và phải chạy bằng model nào.
+- **Thực hiện:** Tạo bốn file JSON từ `test_rag_pa1.jsonl`, mỗi file thuộc một model và chỉ chứa case cần predict lại cho model đó.
+- **Kết quả:** `qwen-rag-qlora` có 36 case, `qwen-rag` 50, `qwen-base` 74 và `qwen-qlora` 0. Chưa chạy lại inference và không có dữ liệu judge trong các file.

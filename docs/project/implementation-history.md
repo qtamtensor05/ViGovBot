@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Loại bỏ giới hạn cắt cứng câu trả lời RAG - 2026-11-03
+
+- **Mục tiêu:** Không ép câu trả lời dừng tại 600/800 ký tự và không lược bỏ facts quan trọng trực tiếp trả lời câu hỏi.
+- **Thực hiện:** Bỏ `maxLength` khỏi schema sửa lỗi; viết lại từ cùng evidence với chỉ dẫn giữ đủ bước, chủ thể, điều kiện, ngoại lệ, hồ sơ, số lượng, thời hạn, phí và kết quả liên quan; tăng ngân sách sửa tối đa 1.024 token và chặn output nếu vẫn hết token hoặc không đủ context để sửa.
+- **Kết quả:** 70 kiểm thử đạt; Web/Ollama healthy và live QLoRA + RAG trả câu trả lời 1.032 ký tự hoàn chỉnh, `finish_reason: stop`, không phải JSON thô.
+
 ## Tóm tắt lại câu trả lời RAG khi vượt giới hạn sinh - 2026-11-02
 
 - **Mục tiêu:** Ngăn câu trả lời hoặc JSON dang dở xuất hiện khi model RAG dùng hết ngân sách token.
@@ -570,3 +576,8 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Đặt các phiên bản thủ tục cùng tên và metadata tương ứng cạnh nhau để kiểm duyệt định danh theo mã, cấp và địa phương.
 - **Thực hiện:** Thêm generator xác định tên trùng từ `golden_all.jsonl`, đọc payload theo mã từ SQLite corpus và sinh cây `Data/dataset_v3/duplicate_procedure_names/` với manifest tổng, manifest nhóm và file metadata từng mã.
 - **Kết quả:** Sinh 46 folder cho 168 mã, gồm 5.768 chunk metadata và 168 PDF nguồn. Toàn bộ PDF khớp SHA-256 nguồn, mở được 1.914 trang và không thiếu mã/context/nhóm. Manifest lưu checksum Golden, metadata cache và từng PDF; test liên quan, Ruff, compileall, validator Dataset v3 và diff check đều đạt. Dữ liệu Golden và index nguồn được giữ nguyên.
+# Lọc case cần predict lại theo model - 2026-11-03
+
+- **Mục tiêu:** Chuẩn bị danh sách prediction retry có model rõ ràng sau khi sửa lỗi cắt output.
+- **Thực hiện:** Đối chiếu 638 prediction mỗi model, lọc lỗi HTTP 502, hết token và cắt cứng 600 ký tự; trích nguyên vẹn case tương ứng từ `test_rag_pa1.jsonl` thành bốn JSON theo model, không đưa dữ liệu judge vào artifact.
+- **Kết quả:** Sinh bốn file tại `Data/dataset_v3/prediction_retry/`: `qwen-rag-qlora` 36 case, `qwen-rag` 50, `qwen-base` 74 và `qwen-qlora` 0. Loại `GOLDEN_V3_006656` khỏi danh sách bắt buộc vì kết thúc hoàn chỉnh.

@@ -40,11 +40,12 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(result[0], "Ba buoc chinh.")
         self.assertAlmostEqual(result[2], .3)
         self.assertEqual(result[5]["attempts"], 2)
-        self.assertEqual(result[5]["output_contract"], "summarized_after_length")
-        self.assertIn("tối đa 800 ký tự", calls[1][0][0]["content"])
+        self.assertEqual(result[5]["output_contract"], "complete_rewrite_after_length")
+        self.assertIn("không được bỏ", calls[1][0][0]["content"])
         self.assertTrue(calls[1][1]["suppress_token_callback"])
+        self.assertEqual(calls[1][1]["num_predict"], 1024)
         for branch in calls[1][1]["response_format"]["anyOf"]:
-            self.assertEqual(branch["properties"]["answer"]["maxLength"], 800)
+            self.assertNotIn("maxLength", branch["properties"]["answer"])
 
     def test_second_length_finish_is_not_returned_as_partial_json(self):
         responses = iter([
@@ -57,6 +58,29 @@ class RoutingTests(unittest.TestCase):
                 [], Tokenizer(), self.settings, lambda *_: next(responses), True, True)
         self.assertEqual(caught.exception.diagnostics["attempts"], 2)
         self.assertEqual(caught.exception.diagnostics["summary_finish_reason"], "length")
+
+    def test_final_json_repair_rejects_length_instead_of_returning_partial_answer(self):
+        truncated = '{"answer":"Nội dung bị cắt'
+        responses = iter([
+            truncated,
+            truncated,
+            truncated,
+        ])
+        raws = iter([
+            {"done_reason": "stop"},
+            {"done_reason": "stop"},
+            {"done_reason": "length"},
+        ])
+        def provider(*_):
+            return next(responses), next(raws), .1
+        with self.assertRaises(StructuredAnswerError) as caught:
+            generate_answer(
+                [{"role": "system", "content": "system"},
+                 {"role": "user", "content": "Quy trình?"}],
+                [], Tokenizer(), self.settings, provider, True, True)
+        self.assertEqual(caught.exception.diagnostics["attempts"], 3)
+        self.assertEqual(caught.exception.diagnostics["final_finish_reason"], "length")
+        self.assertEqual(caught.exception.diagnostics["repair_num_predict"], 1024)
 
     def test_routing_budget_config_defaults_profiles_and_validation(self):
         data = {"unified_source": "unified.zip"}
@@ -104,9 +128,10 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(result['prediction'], 'Phí 0 đồng')
         self.assertEqual(result['generation_diagnostics']['attempts'], 3)
         self.assertEqual(llm.call_count, 4)
-        self.assertIn('answer tối đa 600 ký tự', llm.call_args_list[-1].args[0][0]['content'])
+        self.assertIn('giữ đầy đủ mọi thông tin quan trọng', llm.call_args_list[-1].args[0][0]['content'])
+        self.assertEqual(llm.call_args_list[-1].args[1]['num_predict'], 1024)
         for branch in llm.call_args_list[-1].args[1]['response_format']['anyOf']:
-            self.assertEqual(branch['properties']['answer']['maxLength'], 600)
+            self.assertNotIn('maxLength', branch['properties']['answer'])
 
     def setUp(self):
         self.settings = dict(top_k=5, num_ctx=8192, num_predict=512,

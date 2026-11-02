@@ -103,29 +103,35 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
         if "Citation" not in str(exc) and "citation" not in str(exc):
             raise exc
         return parsed
+    def complete_rewrite(messages_to_repair, base_settings):
+        prompt_tokens = len(tokenizer.apply_chat_template(
+            messages_to_repair, tokenize=True, add_generation_prompt=True))
+        available = settings["num_ctx"] - prompt_tokens - 256
+        if available < settings["num_predict"]:
+            return None, prompt_tokens
+        repaired = copy.deepcopy(base_settings)
+        repaired["num_predict"] = min(max(settings["num_predict"], 1024), available)
+        repaired["suppress_token_callback"] = True
+        return repaired, prompt_tokens
     if structured and raw.get("done_reason") == "length":
         generation_diagnostics["initial_finish_reason"] = "length"
         summary_messages = [dict(message) for message in messages]
         summary_messages[0]["content"] += (
-            "\nCâu trả lời trước đã vượt giới hạn sinh. Hãy sinh lại bản tóm tắt, "
-            "chỉ giữ các bước, chủ thể, cơ quan xử lý, điều kiện quan trọng và bước nhận kết quả. "
-            "Answer tối đa 800 ký tự, không cắt giữa câu; chỉ trả JSON hoàn chỉnh theo schema."
+            "\nCâu trả lời trước đã vượt giới hạn sinh. Hãy viết lại cô đọng nhưng không được bỏ "
+            "bất kỳ thông tin quan trọng nào trực tiếp trả lời câu hỏi. Giữ đầy đủ các bước theo thứ tự, "
+            "chủ thể và cơ quan, điều kiện và ngoại lệ, thành phần và số lượng hồ sơ, thời hạn và phí, "
+            "kết quả hoặc căn cứ khi các nội dung đó thuộc mục đang được hỏi. Chỉ lược bỏ phần lặp lại "
+            "hoặc không liên quan. Mỗi ý phải là câu hoàn chỉnh; chỉ trả JSON hoàn chỉnh theo schema."
         )
-        summary_tokens = len(tokenizer.apply_chat_template(
-            summary_messages, tokenize=True, add_generation_prompt=True))
-        if summary_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
+        summary_settings, _ = complete_rewrite(summary_messages, generation_settings)
+        if summary_settings is None:
             generation_diagnostics["summary_retry_skipped"] = "context_budget"
             raise StructuredAnswerError(generation_diagnostics)
-        summary_settings = copy.deepcopy(generation_settings)
-        summary_settings["suppress_token_callback"] = True
-        schema = summary_settings.get("response_format") or {}
-        for branch in schema.get("anyOf", []):
-            properties = branch.get("properties", {})
-            properties.get("answer", {})["maxLength"] = 800
         answer, raw, summary_s = answer_fn(summary_messages, summary_settings)
         generation_s += summary_s
         generation_diagnostics["attempts"] += 1
-        generation_diagnostics["output_contract"] = "summarized_after_length"
+        generation_diagnostics["output_contract"] = "complete_rewrite_after_length"
+        generation_diagnostics["repair_num_predict"] = summary_settings["num_predict"]
         if raw.get("done_reason") == "length":
             generation_diagnostics["summary_finish_reason"] = "length"
             raise StructuredAnswerError(generation_diagnostics)
@@ -172,11 +178,6 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
                 retry_messages, tokenize=True, add_generation_prompt=True))
             if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
                 generation_diagnostics["retry_skipped"] = "context_budget"
-                if answer and isinstance(answer, str) and answer.strip():
-                    generation_diagnostics["output_contract"] = "plain_text_fallback"
-                    citations_status = "invalid_model_output" if citation_ids is not None else "disabled"
-                    return (answer.strip(), raw, generation_s, "answer", None, generation_diagnostics,
-                            [], citation_ids, citations_status)
                 raise StructuredAnswerError(generation_diagnostics) from exc
             generation_diagnostics["attempts"] += 1
             answer, raw, retry_s = answer_fn(retry_messages, generation_settings)
@@ -189,27 +190,22 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
                 if isinstance(retry_exc, json.JSONDecodeError) and answer.strip():
                     final_messages = [dict(m) for m in retry_messages]
                     final_messages[0]["content"] += (
-                        "\nLần sửa trước bị cắt giữa JSON. Chỉ trả JSON hoàn chỉnh; answer tối đa 600 ký tự, "
-                        "tối đa 3 citations và mỗi claim tối đa 160 ký tự. Không giải thích ngoài JSON."
+                        "\nLần sửa trước bị cắt giữa JSON. Viết lại cô đọng nhưng giữ đầy đủ mọi thông tin "
+                        "quan trọng trực tiếp trả lời câu hỏi; chỉ lược bỏ phần lặp hoặc không liên quan. "
+                        "Mỗi bước, điều kiện, ngoại lệ, số lượng, thời hạn, phí và kết quả liên quan phải còn đủ. "
+                        "Chỉ trả JSON hoàn chỉnh, không giải thích ngoài JSON."
                     )
-                    final_tokens = len(tokenizer.apply_chat_template(
-                        final_messages, tokenize=True, add_generation_prompt=True))
-                    if final_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
+                    final_settings, _ = complete_rewrite(final_messages, generation_settings)
+                    if final_settings is None:
                         generation_diagnostics["final_retry_skipped"] = "context_budget"
                         raise StructuredAnswerError(generation_diagnostics) from retry_exc
                     generation_diagnostics["attempts"] += 1
-                    final_settings = copy.deepcopy(generation_settings)
-                    schema = final_settings.get("response_format") or {}
-                    for branch in schema.get("anyOf", []):
-                        properties = branch.get("properties", {})
-                        properties.get("answer", {})["maxLength"] = 600
-                        citation_schema = properties.get("citations")
-                        if citation_schema is not None:
-                            citation_schema["maxItems"] = min(citation_schema.get("maxItems", 3), 3)
-                            claim_schema = citation_schema.get("items", {}).get("properties", {}).get("claim", {})
-                            claim_schema["maxLength"] = 160
+                    generation_diagnostics["repair_num_predict"] = final_settings["num_predict"]
                     answer, raw, final_s = answer_fn(final_messages, final_settings)
                     generation_s += final_s
+                    if raw.get("done_reason") == "length":
+                        generation_diagnostics["final_finish_reason"] = "length"
+                        raise StructuredAnswerError(generation_diagnostics) from retry_exc
                     try:
                         (answer, action, evidence), citations = parse_generation(answer)
                     except ValueError as final_exc:

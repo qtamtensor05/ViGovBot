@@ -1,5 +1,21 @@
 # Sự cố hệ thống và vận hành
 
+## Schema maxLength tạo câu trả lời hợp lệ nhưng bị cắt nội dung - 2026-11-03
+
+### Mục tiêu
+
+Ngăn nhánh sửa JSON đóng chuỗi đúng mốc 600/800 ký tự rồi báo `stop` dù câu trả lời bị cắt giữa ý.
+
+### Thực hiện
+
+- Loại bỏ `maxLength` khỏi answer schema của các lần sửa.
+- Dùng cùng evidence để viết lại cô đọng nhưng giữ mọi fact liên quan; tăng ngân sách sửa khi context còn chỗ.
+- Từ chối kết quả nếu provider vẫn báo `length` hoặc không đủ context cho một lần sửa có kiểm soát.
+
+### Kết quả
+
+Không còn giới hạn ký tự cứng trong generation repair; các nhánh hết token được kiểm thử để không trả JSON hoặc câu trả lời dang dở.
+
 ## Rebuild image CUDA khi chỉ thay đổi source bind mount - 2026-10-27
 
 ### Mục tiêu
