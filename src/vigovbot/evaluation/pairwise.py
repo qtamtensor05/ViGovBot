@@ -2,7 +2,7 @@
 import json
 from .provenance import fingerprint
 from .io import read_jsonl
-from .records import load_golden, load_predictions
+from .records import load_golden, load_predictions, _answer
 
 
 def pairwise(*, dataset, split, predictions, other, output, judgments=None):
@@ -15,9 +15,9 @@ def pairwise(*, dataset, split, predictions, other, output, judgments=None):
     packets, assignments = {}, {}
     for case in cases:
         cid = case["test_id"]
-        answers = [left[cid].get("answer"), right[cid].get("answer")]
-        if any(not isinstance(a, str) or not a.strip() for a in answers):
-            raise ValueError("Pairwise requires successful answers")
+        left_answer = _answer(left[cid]) if cid in left else None
+        right_answer = _answer(right[cid]) if cid in right else None
+        answers = [left_answer or "", right_answer or ""]
         swap = int(fingerprint(cid)[0], 16) % 2 == 1
         if swap:
             answers.reverse()

@@ -21,9 +21,19 @@ def _write(path: Path, value: dict) -> None:
 
 def run(state_path: Path) -> int:
     deadline = time.monotonic() + 10
+    my_pid = os.getpid()
+    try:
+        my_parent = psutil.Process(my_pid).ppid()
+    except Exception:
+        my_parent = None
     while True:
         state = json.loads(state_path.read_text(encoding="utf-8-sig"))
-        if state.get("worker_pid") == os.getpid():
+        expected = state.get("worker_pid")
+        if expected is not None and (expected == my_pid or expected == my_parent):
+            if expected != my_pid:
+                state["worker_pid"] = my_pid
+                state["worker_create_time"] = psutil.Process(my_pid).create_time()
+                _write(state_path, state)
             break
         if time.monotonic() >= deadline:
             raise RuntimeError("Worker metadata was not published by the parent process")

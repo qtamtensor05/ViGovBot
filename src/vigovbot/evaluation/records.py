@@ -22,6 +22,7 @@ DEFAULT_WEB_MODELS = {
     "base": "qwen-base",
     "finetuned": "qwen-qlora",
     "rag": "qwen-rag",
+    "finetuned_rag": "qwen-rag-qlora",
 }
 OFFLINE_SCORER_VERSION = "3.2.0"
 REFERENCE_KEYS = [

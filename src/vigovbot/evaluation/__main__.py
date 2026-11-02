@@ -12,7 +12,7 @@ def main(argv=None):
     parser.add_argument("command", choices=["validate", "run", "score", "report", "evaluate", "compare"])
     parser.add_argument("--dataset", type=Path, default=Path("Data/dataset_v3"))
     parser.add_argument("--split", choices=["train", "val", "test"], default="test")
-    parser.add_argument("--profile", choices=["base", "rag", "qlora"])
+    parser.add_argument("--profile", choices=["base", "rag", "qlora", "qlora_rag"])
     parser.add_argument("--run-id")
     parser.add_argument("--output-root", type=Path, default=Path("outputs/evaluation"))
     parser.add_argument("--scope", choices=["full", "retrieval"], default="full")

@@ -8,7 +8,7 @@ from vigovbot.artifacts import file_hash, output_lock
 from .records import load_golden, capture_predictions, export_scores, DEFAULT_WEB_MODELS
 from .provenance import fingerprint
 
-PROFILES = {"base": "base", "rag": "rag", "qlora": "finetuned"}
+PROFILES = {"base": "base", "rag": "rag", "qlora": "finetuned", "qlora_rag": "finetuned_rag"}
 
 
 def run_directory(root, run_id):

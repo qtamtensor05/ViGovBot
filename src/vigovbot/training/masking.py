@@ -44,16 +44,22 @@ def encode_assistant_only(tokenizer, messages: list[dict], max_length: int) -> d
     return {"input_ids": full, "attention_mask": [1] * len(full), "labels": labels}
 
 
-def padding_collator(tokenizer):
-    def collate(features):
+class PaddingCollator:
+    def __init__(self, tokenizer):
+        self.pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
+
+    def __call__(self, features):
         import torch
         width = max(len(item["input_ids"]) for item in features)
-        pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
         result = {"input_ids": [], "attention_mask": [], "labels": []}
         for item in features:
             pad = width - len(item["input_ids"])
-            result["input_ids"].append(item["input_ids"] + [pad_id] * pad)
+            result["input_ids"].append(item["input_ids"] + [self.pad_id] * pad)
             result["attention_mask"].append(item["attention_mask"] + [0] * pad)
             result["labels"].append(item["labels"] + [IGNORE_INDEX] * pad)
         return {key: torch.tensor(value, dtype=torch.long) for key, value in result.items()}
-    return collate
+
+
+def padding_collator(tokenizer):
+    return PaddingCollator(tokenizer)
+

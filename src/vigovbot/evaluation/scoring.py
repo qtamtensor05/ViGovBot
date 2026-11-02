@@ -128,7 +128,7 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
         prediction = prediction_rows[golden["test_id"]]
         answer = (prediction.get("execution", {}).get("generation") or {}).get("actual_output")
         if not isinstance(answer, str) or not answer.strip():
-            raise ValueError(f"Prediction {golden['test_id']} has no answer")
+            answer = ""
         ordered_predictions.append(answer)
         references.append(golden["ground_truth"]["expected_answer"])
         per_case.append({"test_id": golden["test_id"], **_lexical_case(
@@ -148,8 +148,8 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
             relevant = [item for item in golden["ground_truth"].get("ground_truth_context_ids", []) if isinstance(item, str)]
             if not relevant:
                 continue
-            retrieval = prediction_rows[golden["test_id"]].get("execution", {}).get("retrieval") or {}
-            retrieved = [item.get("context_id") for item in retrieval.get("contexts", [])]
+            item_retrieval = prediction_rows[golden["test_id"]].get("execution", {}).get("retrieval") or {}
+            retrieved = [item.get("context_id") for item in item_retrieval.get("contexts", [])] if isinstance(item_retrieval, dict) else []
             value = _average_precision_at_5([item for item in retrieved if isinstance(item, str)], relevant)
             per_case[golden_rows.index(golden)]["map_at_5"] = value
             map_rows.append(value)

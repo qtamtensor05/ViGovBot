@@ -133,10 +133,21 @@ def start(config_path: str | Path, run_id: str | None = None,
     state["state"] = "starting"
     _atomic_json(state_path, state)
     _atomic_json(active_path, {"run_id": run_id, "state_path": str(state_path), "run_dir": str(run_dir)})
-    time.sleep(0.15)
-    if not _process_matches(process.pid, ("vigovbot.training.worker", str(state_path)),
-                            state["worker_create_time"]):
-        raise RuntimeError(f"Background worker failed to start; inspect {state['stderr_log']}")
+    time.sleep(0.5)
+    if state_path.is_file():
+        state = _read_json(state_path)
+    if not _process_matches(state.get("worker_pid"), ("vigovbot.training.worker", str(state_path)),
+                            state.get("worker_create_time")):
+        try:
+            children = psutil.Process(process.pid).children()
+            if children and _process_matches(children[0].pid, ("vigovbot.training.worker", str(state_path))):
+                state["worker_pid"] = children[0].pid
+                state["worker_create_time"] = children[0].create_time()
+                _atomic_json(state_path, state)
+            else:
+                raise RuntimeError(f"Background worker failed to start; inspect {state['stderr_log']}")
+        except (psutil.Error, OSError):
+            raise RuntimeError(f"Background worker failed to start; inspect {state['stderr_log']}")
     return state
 
 

@@ -1,5 +1,111 @@
 # Trạng thái hệ thống hiện tại
 
+## Khởi động đánh giá đối chuẩn Benchmark test_rag 638 mẫu cho cấu hình kết hợp RAG + QLoRA (finetuned_rag) - 2026-11-02
+
+- **Mục tiêu:** Tích hợp thành công mô hình tinh chỉnh QLoRA tốt nhất (`outputs/qlora/best_adapter`) làm module Generator sinh câu trả lời trong pipeline RAG (PhoBERT 4-head router + BGE-M3 FAISS 117K vector), đánh giá đầy đủ 638 mẫu của bộ chuẩn `test_rag_pa1.jsonl` theo kiến trúc chuẩn mực `finetuned_rag` (Schema v3.2) và tạo các gói so sánh cặp đôi mù (Pairwise Comparison) 4 chiều đối đầu với Base, RAG và QLoRA đơn lập.
+- **Thực hiện:**
+  - Cấu hình model mới `qwen-rag-qlora` (`mode: rag`, `provider: local_transformers`, `load_in_4bit: true`) trong `configs/rag/inference.yaml`.
+  - Mở rộng CLI Runner và Schema mapping: bổ sung profile `qlora_rag` ánh xạ sang `finetuned_rag` trong `records.py`, `workflow.py` và `__main__.py`.
+  - Khắc phục cơ chế `plain_text_fallback` trong `src/vigovbot/rag/response.py` để adapter SFT trả lời trực tiếp mượt mà mà không bị lỗi ép khung JSON (loại bỏ retry không cần thiết và lỗi 502).
+  - Tái khởi động Webbot server và kiểm thử smoke test thành công 100%: PhoBERT định tuyến chính xác, FAISS trích xuất 12 đoạn văn bản và adapter QLoRA sinh câu trả lời trong ~3.5s.
+  - Khởi tạo script `tmp/run_qlora_rag_evaluation.ps1` và kích hoạt pipeline 5 giai đoạn ngầm (`task-1285`):
+    1. Thu thập dự đoán `eval-qlora-rag-v3` (638 mẫu).
+    2. Chấm điểm offline mở rộng gồm BERTScore và Extended metrics trên CUDA.
+    3. So sánh cặp đôi RAG + QLoRA vs Base (`comparison-eval-base-v3.json`).
+    4. So sánh cặp đôi RAG + QLoRA vs RAG (`comparison-eval-rag-v3.json`).
+    5. So sánh cặp đôi RAG + QLoRA vs QLoRA (`comparison-eval-qlora-v3.json`).
+- **Kết quả:**
+  - Pipeline đang chạy ngầm ổn định; các mẫu câu hỏi đang được xử lý tuần tự với tỷ lệ thành công 100% (0 lỗi).
+  - Thời gian dự kiến hoàn tất toàn bộ 5 giai đoạn: ~1.5 - 1.8 giờ.
+
+## Hoàn tất đánh giá đối chuẩn Benchmark test_rag 638 mẫu cho QLoRA (checkpoint-300) và xuất đối sánh 3 chiều Base vs QLoRA vs RAG - 2026-11-02
+
+- **Mục tiêu:** Hoàn tất 100% quy trình đánh giá đối chuẩn chuẩn mực (Golden Benchmark v3.2) trên toàn bộ 638 mẫu của bộ `test_rag_pa1.jsonl` cho mô hình tinh chỉnh QLoRA tốt nhất (`checkpoint-300` / `outputs/qlora/best_adapter`); đo lường đầy đủ theo Schema v3.2 (BERTScore `xlm-roberta-large` trên CUDA, SacreBLEU, chrF++, METEOR, ROUGE-1/2/L, VRAM, TTFT) và tạo các gói so sánh cặp đôi mù (Pairwise Comparison) 3 chiều.
+- **Thực hiện:**
+  - Khởi tạo tệp siêu dữ liệu định danh mô hình chuẩn `outputs/qlora/best_adapter/model_metadata.json`.
+  - Chạy toàn bộ 638 mẫu dự đoán cho QLoRA profile `qlora` với cờ `--complete-trace` qua Webbot live endpoint (`outputs/evaluation/eval-qlora-v3/predictions.jsonl`).
+  - Thực hiện chấm điểm offline mở rộng trên GPU CUDA với mô hình `xlm-roberta-large` (BERTScore), `sacrebleu`, `rouge-score`, `pyvi` và trích xuất đầy đủ telemetry tài nguyên.
+  - Xuất thành công hai gói so sánh cặp đôi mù 638 mẫu: QLoRA vs Base (`outputs/evaluation/eval-qlora-v3/comparison-eval-base-v3.json`) và QLoRA vs RAG (`outputs/evaluation/eval-qlora-v3/comparison-eval-rag-v3.json`).
+- **Kết quả:**
+  - **Tỷ lệ thực thi:** 638/638 mẫu thành công 100% (0 lỗi OOM, 0 timeout).
+  - **Chất lượng ngữ nghĩa và từ vựng:**
+    - `BERTScore F1`: QLoRA đạt **0.9119** (vượt trội hoàn toàn so với Base **0.8479** và RAG **0.8424**).
+    - `SacreBLEU`: QLoRA đạt **27.24** (vượt gấp **10.0 lần** so với Base **2.72**, và vượt trội so với RAG **14.86**).
+    - `chrF++`: QLoRA đạt **45.32** (so với Base **19.98** và RAG **33.91**).
+    - `METEOR`: QLoRA đạt **0.4755** (gấp **1.91 lần** Base **0.2487**).
+    - `ROUGE-1 F1`: QLoRA đạt **0.4719** (gấp **2.78 lần** Base **0.1700**).
+    - `ROUGE-2 F1`: QLoRA đạt **0.3774** (gấp **4.84 lần** Base **0.0779**).
+    - `ROUGE-L F1`: QLoRA đạt **0.4482** (gấp **4.01 lần** Base **0.1117**).
+    - `Key Fact Coverage`: QLoRA đạt **13.02%** (gấp **8.5 lần** Base **1.53%**; RAG đạt cao nhất **17.59%** nhờ trích xuất context động).
+    - `Word Error Rate (WER)`: QLoRA kiểm soát lỗi cực thấp ở mức **1.21** (Base bị ảo giác nặng lên đến **11.04**, RAG đạt **3.69**).
+  - **Tài nguyên & Độ trễ:**
+    - Mức chiếm dụng GPU VRAM đỉnh: **7.74 GB** (chạy an toàn, mượt mà trên card RTX 5060 Ti 16GB).
+    - Thời gian đến token đầu tiên (TTFT): **318.97 ms** (cực nhanh, nhanh hơn gấp 7 lần Base và gấp 9 lần RAG).
+    - Độ trễ toàn trình trung bình: **5.72s/mẫu**, hoàn tất toàn bộ 638 mẫu chỉ trong khoảng 1 giờ.
+
+## Hoàn tất đánh giá đối chuẩn Benchmark test_rag đầy đủ 638 mẫu (Base vs RAG) với PhoBERT Router và BERTScore trên CUDA - 2026-11-02
+
+- **Mục tiêu:** Hoàn tất 100% quy trình đánh giá đối chuẩn chuẩn mực (Golden Benchmark v3.2) trên toàn bộ 638 mẫu của bộ `test_rag_pa1.jsonl` so sánh trực tiếp mô hình Base (Qwen 2.5 7B) và hệ thống ViGovBot RAG (PhoBERT Router + BGE-M3 FAISS 117K vector + Qwen 2.5 7B); thu thập đầy đủ bộ chỉ số đo lường ngữ nghĩa sâu (BERTScore trên CUDA), chỉ số từ vựng (ROUGE-1/2/L, SacreBLEU, chrF++, METEOR), chỉ số truy xuất ngữ cảnh và độ đo tài nguyên (TTFT, VRAM, tốc độ sinh token).
+- **Thực hiện:**
+  - Nạp và xác thực thành công checkpoint PhoBERT 4 đầu phân loại (`outputs/phobert_v3_finetuned_20261028/checkpoint`). Cắt giảm độ trễ mỗi lượt câu hỏi từ 27.3s xuống 11.5s (nhanh hơn 58%).
+  - Chạy toàn bộ 638 mẫu dự đoán cho Base (`eval-base-v3`) và 638 mẫu cho RAG (`eval-rag-v3`) với cờ `--complete-trace`.
+  - Thực hiện chấm điểm mở rộng độc lập trên GPU CUDA với mô hình `xlm-roberta-large` (BERTScore) và `sentence-transformers` (Cosine similarity, METEOR tiếng Việt).
+  - Xuất thành công gói so sánh cặp đôi mù (Pairwise Comparison) 638 gói tại `outputs/evaluation/eval-rag-v3/comparison-eval-base-v3.json`.
+- **Kết quả:**
+  - **Khả năng truy xuất của RAG:** Hit@1 đạt 57.71%, Hit@5 đạt 80.63%, Hit@10 đạt 88.96%, Hit@15 đạt 91.88%; Context Recall đạt 88.71%, NDCG@10 đạt 0.7302, MRR@10 đạt 0.6801, thời gian tìm kiếm FAISS trung bình chỉ 45.7 ms.
+  - **Chất lượng nội dung sinh (Generation Quality):**
+    - `Key Fact Coverage`: RAG đạt **0.1759** so với Base chỉ **0.0153** (RAG vượt trội gấp **11.5 lần** về khả năng bao phủ thông tin cốt lõi có trong văn bản hành chính).
+    - `SacreBLEU`: RAG đạt **14.86** so với Base **2.72** (gấp **5.46 lần**).
+    - `ROUGE-1 F1`: RAG đạt **0.3438** so với Base **0.1700** (gấp hơn 2 lần).
+    - `ROUGE-2 F1`: RAG đạt **0.2673** so với Base **0.0779** (gấp **3.43 lần**).
+    - `ROUGE-L F1`: RAG đạt **0.3050** so với Base **0.1117** (gấp **2.73 lần**).
+    - `chrF++`: RAG đạt **33.91** so với Base **19.98**; `METEOR`: RAG đạt **0.3883** so với Base **0.2487**.
+    - `Error Rates`: Tỷ lệ lỗi từ vựng (WER) và ký tự (CER) của Base lên đến hơn 11.0–11.4 do ảo giác (hallucination), trong khi RAG kiểm soát lỗi xuống chỉ còn ~3.7.
+  - **Độ chính xác định tuyến (Route Accuracy):** RAG đạt **83.63%** nhận diện chính xác luồng và mục dữ liệu nhờ PhoBERT router (Base đạt 0% do không có module định tuyến).
+  - **Tài nguyên & Độ trễ:** Tốc độ sinh token đạt ~70 – 72 tokens/giây trên RTX 5060 Ti; thời gian đến token đầu tiên (TTFT) đạt 2.21s (Base) và 2.96s (RAG). Toàn bộ 638 mẫu RAG hoàn thành chỉ trong **2 giờ 4 phút** nhờ tối ưu hóa định tuyến PhoBERT.
+
+## Tích hợp PhoBERT 4-Head Router và tái khởi động đánh giá RAG tốc độ cao - 2026-11-02
+
+- **Mục tiêu:** Nạp checkpoint phân loại 4 đầu PhoBERT (`outputs/phobert_v3_finetuned_20261028/checkpoint`) để thay thế routing qua LLM; cắt giảm độ trễ tiền xử lý định tuyến từ ~7.8s xuống mức mili-giây và tái chạy đánh giá RAG 638 mẫu trên tập `test_rag`.
+- **Thực hiện:**
+  - Kiểm tra tính đầy đủ của checkpoint: xác nhận có đủ 6 tệp chuẩn (`meta.json`, `heads.pt`, `vocab.txt`, `bpe.codes`, `encoder/config.json`, `encoder/model.safetensors` 540MB).
+  - Cập nhật cấu hình `configs/rag/inference.yaml` sang `conversation.routing_backend: phobert`.
+  - Tái khởi động Webbot server tại `http://127.0.0.1:8000/`. Xác thực router PhoBERT nạp thành công 4 heads (`scope`, `flow`, `mix`, `sections`).
+  - Kiểm thử smoke run (2 mẫu): độ trễ toàn trình giảm từ ~35s xuống còn ~14.5s/mẫu (giảm hơn 58% thời gian).
+  - Khởi tạo script `tmp/run_rag_and_compare.ps1` chạy đánh giá 638 mẫu RAG, tự động chấm điểm BERTScore trên CUDA và so sánh cặp đôi (Pairwise) với kết quả Base đã có.
+- **Kết quả:**
+  - Định tuyến PhoBERT hoạt động chính xác (`backend: phobert`, `actual_route: rag_search`), hoàn tất trong mili-giây.
+  - Tổng thời gian dự kiến cho 638 mẫu RAG giảm từ ~6.2 giờ xuống chỉ còn ~2.5 giờ.
+
+## Hoàn thành huấn luyện QLoRA Qwen2.5-7B và khởi động đánh giá tự động Benchmark test_rag (Base vs RAG) - 2026-11-02
+
+- **Mục tiêu:** Hoàn tất huấn luyện SFT QLoRA trên Qwen2.5-7B-Instruct với cơ chế Early Stopping và lưu checkpoint an toàn; kiểm thử khả năng suy luận QLoRA trên Webbot; xác thực bộ chỉ số mở rộng (BERTScore, SacreBLEU, METEOR, ROUGE, TTFT, VRAM telemetry) và kích hoạt pipeline đánh giá đối chuẩn đầy đủ 638 mẫu trên tập `test_rag`.
+- **Thực hiện:**
+  - Huấn luyện QLoRA hoàn tất 500 bước (tương đương 2.07 epoch, effective batch size 8) trên bộ dữ liệu `Data/golden_dataset_sft` (1.931 train, 827 validation).
+  - Early stopping kích hoạt tại bước 500 (`patience: 2`, `threshold: 0.001`). Checkpoint tốt nhất được chọn: `checkpoint-300` với `validation_loss: 0.545377`, `validation_perplexity: 1.725`.
+  - Triển khai adapter tốt nhất vào `outputs/qlora/best_adapter/`. Xác thực thành công suy luận NF4 4-bit qua API Webbot (`qwen-qlora`).
+  - Kiểm tra thư viện đánh giá trên GPU: nạp thành công mô hình `xlm-roberta-large` cho BERTScore trên CUDA; xác thực thu thập độ trễ đến token đầu tiên (TTFT) qua cờ `--complete-trace`.
+  - Khởi tạo script tự động hóa `tmp/run_full_evaluation.ps1` và kích hoạt luồng đánh giá toàn diện gồm 5 giai đoạn: thu thập dự đoán Base (638 mẫu) -> chấm điểm Base -> thu thập dự đoán RAG (638 mẫu) -> chấm điểm RAG -> so sánh cặp đôi (pairwise comparison).
+- **Kết quả:**
+  - Quá trình huấn luyện hội tụ mạnh: `eval_loss` giảm từ 2.33 (step 2) xuống 0.545 (step 300).
+  - VRAM GPU sau huấn luyện được giải phóng hoàn toàn về mức nhàn rỗi (~436 MiB), cho phép phục vụ suy luận Webbot với hiệu năng tối đa.
+  - Smoke test đánh giá (2 mẫu) cho kết quả vượt trội của RAG: `bertscore_f1` đạt 0.896 (so với Base 0.845), `rouge_1_f1` đạt 0.449 (so với Base 0.233), `sacrebleu` đạt 35.17 (so với Base 1.47), `route_accuracy` đạt 1.0 (so với Base 0.0).
+  - Tiến trình đánh giá 638 mẫu toàn bộ tập `test_rag` đang được thực thi ngầm tự động và liên tục ghi log dự đoán kèm cơ chế khôi phục (`--resume`).
+
+## Triển khai runtime bare-metal Windows phục vụ huấn luyện QLoRA và Webbot không dùng Docker - 2026-11-02
+
+- **Mục tiêu:** Thiết lập toàn bộ môi trường thực thi trực tiếp trên máy host Windows cấu hình cao (Core i7-12700K 18 luồng, RTX 5060 Ti 16GB SM 12.0 Blackwell) để huấn luyện QLoRA và chạy Webbot chấm/đánh giá mô hình mà không phụ thuộc Docker Desktop.
+- **Thực hiện:**
+  - Cài đặt Python 3.11.9 và Ollama 0.40.13 native trên Windows; khởi chạy Ollama daemon với Flash Attention và KV Cache `q8_0` tại cổng 11434; tải model `qwen2.5:7b`.
+  - Thiết lập `.venv`, cài đặt PyTorch 2.9.1+cu130 (CUDA 13.0, hỗ trợ `sm_120`), `bitsandbytes 0.49.0`, `transformers 4.57.3`, `peft 0.18.0`, `trl`, `accelerate` và các gói RAG/Evaluation.
+  - Cấu hình `configs/training/environments/rtx5060ti_16gb.yaml` kết nối `golden_sft.yaml`, đặt `bfloat16`, gradient checkpointing, batch size 1, accumulation 8, và 2 dataloader workers.
+  - Chuyển `configs/rag/inference.yaml` sang `routing_backend: llm` để chạy độc lập không phụ thuộc checkpoint PhoBERT local cũ; khởi tạo SQLite cache 117.871 vector trong `outputs/rag_cache/`.
+  - Khởi chạy Webbot server tại `http://127.0.0.1:8000/`.
+- **Kết quả:**
+  - `vigov doctor` và `vigov gpu check` đạt trạng thái PASS: nhận diện đầy đủ GPU RTX 5060 Ti 16GB, BF16 native, NF4 forward/backward pass và `paged_adamw_8bit`.
+  - Preflight và `vigov train start --dry-run` đạt trạng thái `validated` cho 1.210 bước huấn luyện trên 1.931 mẫu train / 827 mẫu validation.
+  - Webbot phục vụ tại `http://127.0.0.1:8000` với đầy đủ giao diện web và API `/api/chat`, hỗ trợ hỏi đáp và chấm/so sánh đồng thời nhiều model (`qwen-base`, `qwen-rag`, `qwen-qlora`).
+
 ## Khởi tạo bộ dữ liệu SFT ChatML từ dataset_v3/fintuning phục vụ huấn luyện QLoRA - 2026-11-02
 
 - **Mục tiêu:** Chuyển đổi không mất mát (lossless) bộ dữ liệu đã được làm sạch và chia split chuẩn `dataset_v3/fintuning` sang cấu trúc SFT `messages` chuẩn để sẵn sàng nạp cho pipeline huấn luyện QLoRA Qwen2.5-7B-Instruct.

@@ -109,14 +109,27 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
         except ValueError as exc:
             generation_diagnostics["validation_errors"].append(str(exc))
             generation_diagnostics["initial_text"] = answer[:2000]
-            if (settings.get("provider") == "local_transformers" and answer.strip()
-                    and not answer.lstrip().startswith(("{", "[", "```"))):
+            if settings.get("provider") == "local_transformers" and answer.strip():
+                clean_answer = answer.strip()
+                try:
+                    if clean_answer.lstrip().startswith(("{", "```")):
+                        stripped = clean_answer
+                        if stripped.startswith("```"):
+                            lines = stripped.split("\n")
+                            if len(lines) >= 3 and lines[-1].strip() == "```":
+                                stripped = "\n".join(lines[1:-1]).strip()
+                        if stripped.startswith("{") and stripped.endswith("}"):
+                            obj = json.loads(stripped)
+                            if isinstance(obj, dict) and "answer" in obj and isinstance(obj["answer"], str):
+                                clean_answer = obj["answer"].strip()
+                except Exception:
+                    pass
                 # The SFT adapter was trained for plain assistant answers, not the
                 # RAG JSON envelope. Preserve its actual answer without inventing
                 # action/evidence/citations or wasting deterministic retries.
                 generation_diagnostics["output_contract"] = "plain_text_fallback"
                 citations_status = "invalid_model_output" if citation_ids is not None else "disabled"
-                return (answer.strip(), raw, generation_s, None, None, generation_diagnostics,
+                return (clean_answer, raw, generation_s, None, None, generation_diagnostics,
                         [], citation_ids, citations_status)
             retry_messages = [dict(m) for m in messages]
             retry_messages[0]["content"] += (
