@@ -1,5 +1,17 @@
 # Trạng thái hệ thống hiện tại
 
+## Triển khai mô hình QLoRA v2 (qwen-qlora-rag-sft:latest) vào Docker và Web, gỡ bỏ bản v1 - 2026-11-04
+
+- **Mục tiêu:** Cập nhật hạ tầng Docker Compose, các cấu hình Web / inference chuẩn và tài liệu triển khai để phục vụ chính thức mô hình QLoRA v2 (`qwen-qlora-rag-sft:latest`, GGUF Q8_0 8.10 GB), đồng thời gỡ bỏ cấu hình model v1 cũ (`qwen-qlora:latest`).
+- **Thực hiện:**
+  - Cập nhật [compose.yaml](file:///c:/Users/quangTam/Documents/ViGovBot/compose.yaml): chuyển bind mount sang `./outputs/qlora_v2`, tự động gỡ bỏ `qwen-qlora:latest` và tạo `qwen-qlora-rag-sft:latest` qua `Modelfile.qwen-qlora-rag-sft`.
+  - Chuẩn hóa đường dẫn tương đối trong `outputs/qlora_v2/Modelfile.qwen-qlora-rag-sft` (`FROM ./qwen2.5-7b-qlora-rag-sft-q8_0.gguf`) để tương thích đa nền tảng (cả Docker container và host).
+  - Cập nhật cả 3 tệp cấu hình serving: `configs/rag/inference.yaml`, `configs/rag/inference-docker.yaml`, và `configs/rag/inference-docker-ollama.yaml`.
+  - Cập nhật test case trong `tests/test_rag_config_cli.py` và hướng dẫn trong `docs/setup/docker.md`.
+- **Kết quả:**
+  - 100% test cấu hình CLI và Web vượt qua kiểm thử tự động (`test_rag_config_cli.py`, `test_web_ui.py`, `test_server.py`).
+  - Giao diện Web UI và Docker Compose sẵn sàng phục vụ QLoRA v2 làm mô hình chuẩn mặc định.
+
 ## Hoàn tất đánh giá LLM-as-a-Judge 638 mẫu mô hình QLoRA RAG-SFT (qwen2.5:14b) và đối chuẩn 3 chiều - 2026-11-04
 
 - **Mục tiêu:** Chấm điểm toàn diện 638 mẫu `test_rag_pa1.jsonl` cho mô hình QLoRA RAG-SFT mới (`eval-qlora-rag-sft-v3`) bằng giám khảo LLM-as-a-Judge chuẩn `qwen2.5:14b` (khớp 100% reviewer digest `7cdf5a01...` với `eval-rag-v3` và `eval-qlora-rag-v3`); đo đạc các chỉ số ngữ nghĩa chuyên sâu (Semantic Correctness, Answer Relevancy, Intent Coverage, Source Groundedness, Context Faithfulness) và xuất đối sánh 3 chiều.

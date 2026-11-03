@@ -49,7 +49,7 @@ services:
     volumes:
       - ollama-models:/root/.ollama
       - type: bind
-        source: ./outputs/qlora
+        source: ./outputs/qlora_v2
         target: /models
         read_only: true
         bind:
@@ -59,7 +59,7 @@ services:
         condition: service_completed_successfully
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - ollama show qwen-qlora:latest >/dev/null 2>&1 || ollama create qwen-qlora:latest -f /models/Modelfile.qwen-qlora
+      - ollama rm qwen-qlora:latest >/dev/null 2>&1 || true; ollama show qwen-qlora-rag-sft:latest >/dev/null 2>&1 || ollama create qwen-qlora-rag-sft:latest -f /models/Modelfile.qwen-qlora-rag-sft
 
   web:
     build:

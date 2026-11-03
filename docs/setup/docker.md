@@ -76,8 +76,8 @@ thực sự muốn xóa model Ollama, cache RAG và cache Hugging Face đã tả
 Các dữ liệu vẫn cần trên host vì đang được bind mount vào container:
 
 - `Data/vector/unified`: corpus vector cho RAG.
-- Bản merge GGUF `outputs/qlora/qwen2.5-7b-qlora-q8_0.gguf`: Compose chỉ
-  nhập thành `qwen-qlora:latest` khi model chưa có trong volume Ollama.
+- Bản merge GGUF `outputs/qlora_v2/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`: Compose tự động
+  nhập thành `qwen-qlora-rag-sft:latest` vào volume Ollama (và tự động gỡ bỏ model v1 `qwen-qlora:latest`).
 - `src` và `configs`: mount read-only cho development; sửa code/cấu hình chỉ
   cần recreate/restart container, không build lại dependency.
 
@@ -102,9 +102,9 @@ mới buộc cài lại dependency.
 
 ## QLoRA merge trên Web
 
-Web mặc định tại cổng 8001 có bốn lựa chọn Base, Base + RAG, QLoRA merge và
-QLoRA merge + RAG. Hai lựa chọn QLoRA dùng chung `qwen-qlora:latest` qua Ollama,
-không nạp adapter PEFT trong tiến trình Web.
+Web mặc định tại cổng 8001 có bốn lựa chọn Base, Base + RAG, QLoRA v2 và
+QLoRA v2 + RAG. Hai lựa chọn QLoRA v2 dùng chung `qwen-qlora-rag-sft:latest` qua Ollama,
+không nạp adapter PEFT trong tiến trình Web. Model v1 cũ (`qwen-qlora:latest`) đã được gỡ bỏ khỏi cấu hình phục vụ.
 
 Target `web-gpu` vẫn giữ CUDA, PEFT và bitsandbytes tách khỏi image web mặc
 định. Có thể khởi động service tùy chọn tại cổng 8002:
