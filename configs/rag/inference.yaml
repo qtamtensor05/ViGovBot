@@ -35,15 +35,15 @@ web:
       base_url: *ollama_url
       mode: rag
     - id: qwen-qlora
-      label: Qwen 2.5 7B + QLoRA merge (không RAG)
+      label: Qwen 2.5 7B + QLoRA v2 (không RAG)
       provider: ollama
-      model: qwen-qlora:latest
+      model: qwen-qlora-rag-sft:latest
       base_url: *ollama_url
       mode: qlora
     - id: qwen-rag-qlora
-      label: Qwen 2.5 7B + RAG + QLoRA
+      label: Qwen 2.5 7B + RAG + QLoRA v2
       provider: ollama
-      model: qwen-qlora:latest
+      model: qwen-qlora-rag-sft:latest
       base_url: *ollama_url
       mode: rag
     # Ví dụ API chuẩn OpenAI-compatible:

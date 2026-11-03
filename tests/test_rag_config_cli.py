@@ -64,7 +64,7 @@ class ConfigTests(unittest.TestCase):
                          ["qwen-base", "qwen-rag", "qwen-qlora", "qwen-rag-qlora"])
         self.assertTrue(all(model.provider == "ollama" for model in config.web.models))
         merged = [model for model in config.web.models if "qlora" in model.id]
-        self.assertEqual({model.model for model in merged}, {"qwen-qlora:latest"})
+        self.assertEqual({model.model for model in merged}, {"qwen-qlora-rag-sft:latest"})
         self.assertEqual({model.mode for model in merged}, {"qlora", "rag"})
         lock = Path("locks/ollama-web-linux-py312.txt").read_text(encoding="utf-8")
         self.assertIn("torch==2.9.1+cpu", lock)
@@ -88,7 +88,7 @@ class ConfigTests(unittest.TestCase):
         config = load_config(Path("configs/rag/inference.yaml"))
         qlora = next(model for model in config.web.models if model.id == "qwen-qlora")
         self.assertEqual((qlora.provider, qlora.model, qlora.mode),
-                         ("ollama", "qwen-qlora:latest", "qlora"))
+                         ("ollama", "qwen-qlora-rag-sft:latest", "qlora"))
         self.assertIsNone(qlora.adapter_path)
         with self.assertRaises(ValueError):
             RAGConfig.model_validate({"data": {"unified_source": "unified.zip"}, "web": {"models": [{
