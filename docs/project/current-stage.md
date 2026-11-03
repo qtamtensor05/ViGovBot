@@ -1,5 +1,42 @@
 # Trạng thái hệ thống hiện tại
 
+## Hoàn tất đối chuẩn Benchmark 638 mẫu mô hình QLoRA RAG-SFT thuần không RAG (eval-qlora-sft-base-v3) và phân tích 5 chiều - 2026-11-03
+
+- **Mục tiêu:** Đánh giá độc lập năng lực sinh ngữ của mô hình QLoRA RAG-SFT mới (`qwen-qlora-rag-sft:latest`) ở chế độ thuần (profile `qlora`, không kích hoạt PhoBERT router và FAISS retrieval) trên toàn bộ 638 mẫu `test_rag_pa1.jsonl`; lưu trữ tách biệt hoàn toàn tại `outputs/qlora_v2/evaluation/`; chấm điểm mở rộng trên CUDA GPU (BERTScore, SacreBLEU, chrF++, ROUGE-L) và xuất các gói đối sánh đối đầu.
+- **Thực hiện:**
+  - Khởi chạy đánh giá `vigov eva run` với `--profile qlora`, `--complete-trace` trên Web API port 8002 trỏ vào `outputs/qlora_v2/evaluation/eval-qlora-sft-base-v3`.
+  - Tạo directory junction an toàn từ `outputs/evaluation/eval-qlora-sft-base-v3` trỏ về `outputs/qlora_v2/evaluation/eval-qlora-sft-base-v3` để bảo đảm tính tương thích với hạ tầng so sánh canonical.
+  - Hoàn tất trọn vẹn 638/638 mẫu (100% thành công, 0 lỗi, 0 timeout).
+  - Chấm điểm khách quan offline trên CUDA GPU: `vigov eva score --extended-metrics --bertscore --bert-device cuda --bert-batch-size 16`.
+  - Xuất 4 gói đối sánh đối đầu: `comparison-eval-base-v3.json`, `comparison-eval-rag-v3.json`, `comparison-eval-qlora-v3.json` và `comparison-eval-qlora-rag-sft-v3.json`.
+- **Kết quả:**
+  - **So với Base thuần (`eval-base-v3`):** QLoRA v2 thuần vượt trội trên mọi khía cạnh sinh ngữ: SacreBLEU đạt **6.82** (gấp 2.5 lần Base 2.69), chrF++ đạt **25.62** (so với Base 19.93), ROUGE-L đạt **0.1960** (gấp gần 2 lần Base 0.1110), BERTScore F1 đạt **0.8647** (so với Base 0.8485), Action Accuracy đạt tuyệt đối **93.57%**.
+  - **Bản chất cơ chế RAG-SFT:** Vì mô hình v2 được huấn luyện chuyên biệt theo cơ chế Context-grounded RAG Fine-tuning (`golden_rag_sft`), khi không có Context/Retrieved Chunks đi kèm, mô hình chủ động sinh câu trả lời theo đúng phong cách hành chính nhưng không tự ý "ảo giác" các chi tiết hồ sơ cụ thể (Exact Match 0.00%, Key Fact Coverage 1.93%).
+  - **Khi kết hợp cùng RAG (`eval-qlora-rag-sft-v3`):** Khả năng khai thác tài liệu bùng nổ vượt bậc: Exact Match vọt lên **20.38%** (so với 0% thuần), SacreBLEU vọt lên **36.39** (so với 6.82 thuần), chrF++ vọt lên **47.25** (so với 25.62 thuần), ROUGE-L vọt lên **0.4575**, và Key Fact Coverage vọt lên **38.59%** (so với 1.93% thuần).
+
+## Hoàn tất huấn luyện QLoRA RAG-SFT sạch 675 steps, hợp nhất mô hình và đối chuẩn Benchmark 638 mẫu (eval-qlora-rag-sft-v3) - 2026-11-03
+
+- **Mục tiêu:** Hoàn tất 100% quá trình huấn luyện 3 epochs (675 steps) không rò rỉ dữ liệu; hợp nhất (merge) checkpoint LoRA tối ưu nhất (`checkpoint-600`, eval loss kỷ lục `0.020166`) vào mô hình nền `Qwen/Qwen2.5-7B-Instruct` (BF16); xuất sang GGUF Q8_0 nạp vào Ollama daemon native (`qwen-qlora-rag-sft:latest`); cấu hình và hoàn thành 100% quy trình đánh giá đối chuẩn 638 mẫu `test_rag_pa1.jsonl` theo Metric Schema v3.2 trên GPU RTX 5060 Ti; đo đạc BERTScore CUDA và xuất 3 gói đối sánh cặp đôi mù (`vs Base`, `vs RAG`, `vs QLoRA cũ`).
+- **Thực hiện:**
+  - Hoàn tất trọn vẹn 675/675 steps huấn luyện (0 lỗi OOM, eval loss giảm liên tục từ 0.0396 xuống 0.020166 tại step 600).
+  - Trích xuất checkpoint tốt nhất `checkpoint-600` sang `outputs/qlora/qlora-rag-sft-2048-001/best_adapter/`.
+  - Thực hiện `merge_and_unload()` BF16 chuẩn xác vào `outputs/qlora/merged_qwen_rag_sft/`.
+  - Chuyển đổi và lượng tử hóa sang GGUF chuẩn Q8_0 (`outputs/qlora/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`, 8.10 GB) qua `convert_hf_to_gguf.py`.
+  - Nạp thành công vào Ollama daemon native (`qwen-qlora-rag-sft:latest`) với Flash Attention và Q8 KV Cache.
+  - Khởi động Web API độc lập tại cổng 8002 (`configs/rag/evaluation-qlora-rag-sft.yaml`).
+  - Chạy toàn bộ 638 mẫu dự đoán `eval-qlora-rag-sft-v3` với cờ `--complete-trace` (100% thành công, 0 lỗi, 0 timeout).
+  - Chấm điểm khách quan trên GPU CUDA (`vigov eva score --extended-metrics --bertscore --bert-device cuda`).
+  - Xuất thành công cả 3 gói đối sánh: `comparison-eval-base-v3.json`, `comparison-eval-rag-v3.json` và `comparison-eval-qlora-rag-v3.json`.
+- **Kết quả:**
+  - **Exact Match:** Đạt **20.38%** (Normalized: **21.47%**), tăng vọt gần gấp đôi so với bản QLoRA cũ (12.54%), gấp **16 lần** so với Base+RAG (1.25%) và Base thuần (0%).
+  - **SacreBLEU:** Tăng vọt lên **36.39** (vượt trội so với bản cũ 27.27, RAG 15.57 và Base 2.69).
+  - **chrF++:** Đạt **47.25** (vượt trội so với bản cũ 40.55, RAG 35.20 và Base 19.93).
+  - **BERTScore F1 (CUDA):** Đạt **0.9022** (vượt qua mốc 0.90, so với bản cũ 0.8965, RAG 0.8790, Base 0.8485).
+  - **ROUGE-L F1:** Đạt **0.4575** (tăng mạnh từ 0.4096 của bản cũ, vượt xa RAG 0.3001).
+  - **Key Fact Coverage:** Đạt **38.59%** (tăng gấp đôi so với bản cũ 17.59% và Base 1.53%).
+  - **Action Accuracy:** Đạt **80.88%** (tăng từ 79.00% của bản cũ và 71.79% của RAG).
+  - **Tài nguyên & Độ trễ:** Tốc độ sinh đạt **47.62 tokens/giây**, độ trễ trung bình giảm xuống **7.15s/mẫu** (nhanh hơn 26% so với bản cũ 9.67s).
+
 ## Tối ưu trần ngữ cảnh max_seq_length 2048, loại bỏ OOM và tái khởi động luồng huấn luyện QLoRA RAG-SFT - 2026-11-03
 
 - **Mục tiêu:** Khắc phục triệt để hiện tượng tràn bộ nhớ (`CUDA out of memory`) xảy ra ở bước 36 do các mẫu ngoại lai > 3.900 token; tối ưu trần ngữ cảnh `max_seq_length: 2048` phù hợp với 16GB VRAM của RTX 5060 Ti, giữ lại 96.6% dữ liệu RAG-SFT sạch; tái khởi động luồng huấn luyện QLoRA ổn định.
