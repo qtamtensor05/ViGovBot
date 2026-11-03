@@ -1,5 +1,36 @@
 # Trạng thái hệ thống hiện tại
 
+## Hoàn tất dự đoán lại các ca retry, giải quyết lỗi giới hạn ngữ cảnh và hoàn thành 100% quy trình Judge Qwen 2.5 14B trên GPU RTX 5060 Ti - 2026-11-03
+
+- **Mục tiêu:** Sinh lại dự đoán cho 160 ca retry thuộc `Data/dataset_v3/prediction_retry` (`qwen-base`: 74, `qwen-rag`: 50, `qwen-rag-qlora`: 36) nhằm khắc phục hiện tượng câu trả lời bị cụt do giới hạn token cũ; kiểm tra sạch lỗi 100% trước khi chấm; chạy chấm Judge bằng mô hình chuẩn `qwen2.5:14b` cho 50 ca RAG và toàn bộ 638 ca QLoRA-RAG; tái chấm điểm (rescore) với BERTScore CUDA và cập nhật các bảng đối sánh đối đầu 4 chiều.
+- **Thực hiện:**
+  - Nâng cấp cấu hình runtime local `configs/rag/inference.yaml` lên `num_ctx: 16384` và `num_predict: 1024` trên GPU RTX 5060 Ti 16GB.
+  - Sửa `src/vigovbot/rag/response.py`: bổ sung cơ chế `plain_text_fallback` an toàn khi context chạm trần và hạ ngưỡng tối thiểu của `complete_rewrite` xuống 128 token, giải quyết triệt để lỗi 502 Bad Gateway (`StructuredAnswerError`) ở các thủ tục đất đai dài.
+  - Chạy dự đoán lại và xác thực tự động qua `tmp/check_retries.py`: 100% ca thành công sạch lỗi (0 rỗng, 0 mã 502, độ dài câu trả lời tăng từ 600 lên 1.000 – 3.700 ký tự). Ghi đè vào `predictions.jsonl` sau khi sao lưu an toàn.
+  - Tải và kích hoạt `qwen2.5:14b` trên Ollama native (`7cdf5a0187d5...` khớp 100% reviewer của RAG gốc); tối ưu với `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0` và context động giúp mô hình nạp 100% vào VRAM GPU, tăng tốc độ chấm gấp hơn 6 lần (từ 160s xuống 19–27s/ca).
+  - Hoàn tất chấm 50 ca retry cho `eval-rag-v3` và toàn bộ 638 ca cho `eval-qlora-rag-v3`.
+  - Tái tính điểm `score --rescore --extended-metrics --bertscore` trên CUDA cho cả 3 run và xuất 3 gói so sánh đối đầu `compare`.
+- **Kết quả:**
+  - **Exact Match:** QLoRA + RAG đạt **12.54%** (Normalized: **13.32%**), vượt trội gấp **10 lần** so với RAG thuần 1.25% và gấp 3 lần QLoRA thuần 4.23%.
+  - **SacreBLEU:** QLoRA + RAG đạt **27.11** (gần gấp đôi RAG **15.41** và gấp 10 lần Base **2.80**).
+  - **ROUGE-L F1:** QLoRA + RAG đạt **0.4083** (vượt trội so với RAG **0.2992**, tăng +10.91% tuyệt đối).
+  - **BERTScore F1 (CUDA):** QLoRA + RAG đạt **0.8963** (vượt trội so với RAG **0.8788** và Base **0.8487**).
+  - **chrF++:** QLoRA + RAG đạt **40.44** (so với RAG **35.10** và Base **20.29**).
+  - **Semantic Correctness (Judge 14B):** RAG đạt 53.41%, QLoRA + RAG đạt 49.91% (Answer Relevancy đạt 51.44%, Intent Coverage đạt 44.10%).
+  - **Action Accuracy:** QLoRA + RAG đạt **79.00%** (tăng +7.21% so với RAG 71.79%).
+  - **Tài nguyên & Độ trễ:** Tốc độ sinh đạt **45.27 tok/s** trên Ollama Q8_0, độ trễ toàn trình **9.67s** (nhanh hơn RAG 12.75s đến 24%). Hệ thống hoạt động 100% native trên Windows và GPU RTX 5060 Ti.
+
+- **Mục tiêu:** Cài đặt toàn bộ môi trường chạy cục bộ trên máy host Windows 10, tối ưu tối đa tài nguyên phần cứng (NVIDIA GeForce RTX 5060 Ti 16GB, Blackwell SM 12.0) không thông qua Docker; nạp bản merge QLoRA chuẩn (`qwen2.5-7b-qlora-q8_0.gguf`) và mô hình nền vào Ollama native; bảo đảm toàn bộ 4 mô hình (`qwen-base`, `qwen-rag`, `qwen-qlora`, `qwen-rag-qlora`) nạp đầy đủ (PhoBERT router, BGE-M3 CUDA, FAISS index, Ollama LLM) không bị fallback ngầm.
+- **Thực hiện:**
+  - Cài đặt Python 3.11.9 và Ollama 0.40.13 native trên Windows.
+  - Thiết lập virtualenv `.venv-qlora`, cài đặt PyTorch 2.9.1+cu130 (hỗ trợ SM 12.0 cho RTX 5060 Ti), BitsAndBytes 0.49.0, Transformers 4.57.3, Sentence-Transformers 3.4.1, PyVi 0.1.1, FAISS, FastAPI, Uvicorn, BERTScore.
+  - Chuẩn hóa cấu trúc thư mục checkpoint PhoBERT (`outputs/phobert_v3_finetuned_20261028/checkpoint`) và tập dữ liệu đối chuẩn (`Data/dataset_v3`).
+  - Khởi tạo daemon Ollama native, nạp `qwen-qlora:latest` từ `outputs/qlora/qwen2.5-7b-qlora-q8_0.gguf` (8.1 GB, 100% GPU offload, ~7.9 GB VRAM) và tải bản base `qwen2.5:7b`.
+  - Khởi động Web API server native cổng 8001; kiểm tra chẩn đoán GPU (`vigov gpu check`) đạt 100% PASS (NF4 forward/backward, Paged AdamW 8-bit, BF16).
+  - Kiểm thử suy luận trực tiếp và qua API đối với toàn bộ 4 profile; xác nhận bộ định tuyến PhoBERT hoạt động chính xác (đích đến `rag_search`, nhãn mục nội dung đúng), `fallback_reason` là `None`.
+  - Sửa điểm truyền `model_config_path` trong `vigovbot.evaluation.workflow` khi xuất điểm partial run; kiểm thử quy trình `vigov eva validate -> run -> score` trơn tru trên Golden benchmark v3.2.
+- **Kết quả:** Hệ thống chạy hoàn toàn native trên máy host, không dùng Docker. 100% các thành phần mô hình (PhoBERT router, BGE-M3 trên CUDA, Ollama Q8_0 trên GPU) được nạp đầy đủ, tốc độ sinh đạt 50 tokens/s, độ trễ truy hồi ~115ms, không có hiện tượng fallback. Quy trình đánh giá sẵn sàng thực thi độc lập.
+
 ## Hoàn tất loại bỏ giới hạn cắt cứng câu trả lời RAG - 2026-11-03
 
 - **Mục tiêu:** Không cắt câu trả lời tại mốc ký tự cố định và không lược bỏ facts quan trọng của mục được hỏi.

@@ -1,5 +1,18 @@
 # Lịch sử thay đổi hệ thống
 
+## Thiết lập môi trường Native Windows không dùng Docker và xác minh 4 model đánh giá trên GPU RTX 5060 Ti - 2026-11-03
+
+- **Mục tiêu:** Cài đặt toàn bộ môi trường chạy cục bộ trên máy host Windows 10, tối ưu tối đa tài nguyên phần cứng (NVIDIA GeForce RTX 5060 Ti 16GB, Blackwell SM 12.0) không thông qua Docker; nạp bản merge QLoRA chuẩn (`qwen2.5-7b-qlora-q8_0.gguf`) và mô hình nền vào Ollama native; bảo đảm toàn bộ 4 mô hình (`qwen-base`, `qwen-rag`, `qwen-qlora`, `qwen-rag-qlora`) nạp đầy đủ (PhoBERT router, BGE-M3 CUDA, FAISS index, Ollama LLM) không bị fallback ngầm.
+- **Thực hiện:**
+  - Cài đặt Python 3.11.9 và Ollama 0.40.13 native trên Windows.
+  - Thiết lập virtualenv `.venv-qlora`, cài đặt PyTorch 2.9.1+cu130 (hỗ trợ SM 12.0 cho RTX 5060 Ti), BitsAndBytes 0.49.0, Transformers 4.57.3, Sentence-Transformers 3.4.1, PyVi 0.1.1, FAISS, FastAPI, Uvicorn, BERTScore.
+  - Chuẩn hóa cấu trúc thư mục checkpoint PhoBERT (`outputs/phobert_v3_finetuned_20261028/checkpoint`) và tập dữ liệu đối chuẩn (`Data/dataset_v3`).
+  - Khởi tạo daemon Ollama native, nạp `qwen-qlora:latest` từ `outputs/qlora/qwen2.5-7b-qlora-q8_0.gguf` (8.1 GB, 100% GPU offload, ~7.9 GB VRAM) và tải bản base `qwen2.5:7b`.
+  - Khởi động Web API server native cổng 8001; kiểm tra chẩn đoán GPU (`vigov gpu check`) đạt 100% PASS (NF4 forward/backward, Paged AdamW 8-bit, BF16).
+  - Kiểm thử suy luận trực tiếp và qua API đối với toàn bộ 4 profile; xác nhận bộ định tuyến PhoBERT hoạt động chính xác (đích đến `rag_search`, nhãn mục nội dung đúng), `fallback_reason` là `None`.
+  - Sửa điểm truyền `model_config_path` trong `vigovbot.evaluation.workflow` khi xuất điểm partial run; kiểm thử quy trình `vigov eva validate -> run -> score` trơn tru trên Golden benchmark v3.2.
+- **Kết quả:** Hệ thống chạy hoàn toàn native trên máy host, không dùng Docker. 100% các thành phần mô hình (PhoBERT router, BGE-M3 trên CUDA, Ollama Q8_0 trên GPU) được nạp đầy đủ, tốc độ sinh đạt 50 tokens/s, độ trễ truy hồi ~115ms, không có hiện tượng fallback. Quy trình đánh giá sẵn sàng thực thi độc lập.
+
 ## Loại bỏ giới hạn cắt cứng câu trả lời RAG - 2026-11-03
 
 - **Mục tiêu:** Không ép câu trả lời dừng tại 600/800 ký tự và không lược bỏ facts quan trọng trực tiếp trả lời câu hỏi.

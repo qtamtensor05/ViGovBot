@@ -135,6 +135,7 @@ def _dispatch(args, directory):
                         dataset=dataset, split=manifest["split"], predictions=predictions,
                         architecture=PROFILES[manifest["profile"]], model_name=manifest["model_id"],
                         run_id=manifest["run_id"], output=case_scores,
+                        model_config_path=Path(manifest["model_metadata"]) if manifest.get("model_metadata") else None,
                         judgments=judgments if judgments.exists() else None,
                         supplemental=supplemental, supplemental_path=supplemental_path,
                         supplemental_reference=directory / "supplemental.json",
