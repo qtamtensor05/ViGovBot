@@ -1,5 +1,23 @@
 # Trạng thái hệ thống hiện tại
 
+## Nâng trần sinh num_predict lên 2048, dự đoán lại toàn bộ 59 ca chạm trần và hoàn tất tái đánh giá 4 chiều - 2026-11-03
+
+- **Mục tiêu:** Nâng trần sinh `num_predict` từ 1024 lên 2048 trong `configs/rag/inference.yaml` để loại bỏ dứt điểm hiện tượng câu trả lời dài bị chạm trần (`finish_reason: "length"`) ở các thủ tục có danh mục hồ sơ lớn; sinh lại dự đoán cho toàn bộ 59 ca bị ảnh hưởng trên cả 3 mô hình (`qwen-base`: 38, `qwen-rag`: 12, `qwen-rag-qlora`: 9); chấm lại Judge 14B (`qwen2.5:14b`) cho 21 ca liên quan và tái tính toán toàn bộ metric (BERTScore CUDA, SacreBLEU, ROUGE-L, Exact Match) kèm 3 gói đối sánh đối đầu.
+- **Thực hiện:**
+  - Cập nhật `configs/rag/inference.yaml`: cấu hình `num_predict: 2048` (kết hợp `num_ctx: 16384` bảo đảm ngân sách ngữ cảnh đầu vào 14.080 token).
+  - Khởi động lại Web API server (port 8001) nạp cấu hình mới và Ollama native với Flash Attention & Q8 KV cache.
+  - Chạy dự đoán lại thành công 100% cho toàn bộ 59 ca (38 Base, 12 RAG, 9 QLoRA-RAG) với `status: success` (0 lỗi). Tỷ lệ kết thúc tự nhiên hoàn chỉnh (`finish_reason: "stop"`) tăng vọt, trong đó QLoRA-RAG chuyển 7/9 ca sang `stop` (chỉ còn 2 ca hồ sơ siêu dài đạt ~7.500 ký tự); RAG chuyển 10/12 ca sang `stop` (chỉ còn 2 ca dài đạt ~7.000 ký tự); Base giảm từ 38 ca `length` xuống còn 14 ca.
+  - Chấm lại Judge `qwen2.5:14b` cho 21 ca RAG và QLoRA-RAG, chuẩn hóa danh sách claims và cập nhật an toàn vào `judgments.jsonl`.
+  - Tái tính điểm `vigov eva score --rescore --extended-metrics --bertscore --bert-device cuda` cho cả 3 run và xuất 3 gói so sánh đối đầu `compare`.
+- **Kết quả:**
+  - **Exact Match:** QLoRA + RAG giữ vững **12.54%** (Normalized: **13.32%**), vượt trội gấp **10 lần** RAG thuần (1.25%) và gấp 3 lần QLoRA thuần (4.23%).
+  - **SacreBLEU:** QLoRA + RAG tăng lên **27.27** (vượt RAG 15.57 và Base 2.69).
+  - **chrF++:** QLoRA + RAG tăng lên **40.55** (vượt RAG 35.20 và Base 19.93).
+  - **ROUGE-L F1:** QLoRA + RAG tăng lên **0.4096** (vượt RAG 0.3001 và Base 0.1110).
+  - **BERTScore F1 (CUDA):** QLoRA + RAG đạt **0.8965** (vượt RAG 0.8790 và Base 0.8485).
+  - **Action Accuracy:** QLoRA + RAG đạt **79.00%** (vượt RAG 71.79%).
+  - **finish_reason count:** Tỷ lệ `length` ở QLoRA-RAG giảm từ 9 ca xuống chỉ còn 2 ca (99.6% ca hoàn tất trọn vẹn `stop`).
+
 ## Hoàn tất dự đoán lại các ca retry, giải quyết lỗi giới hạn ngữ cảnh và hoàn thành 100% quy trình Judge Qwen 2.5 14B trên GPU RTX 5060 Ti - 2026-11-03
 
 - **Mục tiêu:** Sinh lại dự đoán cho 160 ca retry thuộc `Data/dataset_v3/prediction_retry` (`qwen-base`: 74, `qwen-rag`: 50, `qwen-rag-qlora`: 36) nhằm khắc phục hiện tượng câu trả lời bị cụt do giới hạn token cũ; kiểm tra sạch lỗi 100% trước khi chấm; chạy chấm Judge bằng mô hình chuẩn `qwen2.5:14b` cho 50 ca RAG và toàn bộ 638 ca QLoRA-RAG; tái chấm điểm (rescore) với BERTScore CUDA và cập nhật các bảng đối sánh đối đầu 4 chiều.
