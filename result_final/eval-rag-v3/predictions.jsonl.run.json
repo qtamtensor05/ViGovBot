@@ -1,0 +1,20 @@
+{
+  "architecture_type": "rag",
+  "web_model_id": "qwen-rag",
+  "split": "test",
+  "selected": 638,
+  "execution_status": {
+    "error": 27,
+    "success": 611
+  },
+  "output": "outputs\\evaluation\\eval-rag-v3\\predictions.jsonl",
+  "endpoint": "http://127.0.0.1:8000/api/chat",
+  "started_at": "2026-11-02T07:16:39+07:00",
+  "completed_at": "2026-11-02T09:20:55+07:00",
+  "gold_labels_sent_to_model": false,
+  "evaluation_trace_requested": true,
+  "evaluation_trace_status": {
+    "available": 611,
+    "unavailable": 27
+  }
+}

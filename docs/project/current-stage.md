@@ -1,5 +1,18 @@
 # Trạng thái hệ thống hiện tại
 
+## Hoàn tất đánh giá LLM-as-a-Judge 638 mẫu mô hình QLoRA RAG-SFT (qwen2.5:14b) và đối chuẩn 3 chiều - 2026-11-04
+
+- **Mục tiêu:** Chấm điểm toàn diện 638 mẫu `test_rag_pa1.jsonl` cho mô hình QLoRA RAG-SFT mới (`eval-qlora-rag-sft-v3`) bằng giám khảo LLM-as-a-Judge chuẩn `qwen2.5:14b` (khớp 100% reviewer digest `7cdf5a01...` với `eval-rag-v3` và `eval-qlora-rag-v3`); đo đạc các chỉ số ngữ nghĩa chuyên sâu (Semantic Correctness, Answer Relevancy, Intent Coverage, Source Groundedness, Context Faithfulness) và xuất đối sánh 3 chiều.
+- **Thực hiện:**
+  - Kích hoạt `qwen2.5:14b` trên Ollama daemon native (100% GPU offload trên RTX 5060 Ti 16GB, context `num_ctx: 32768`, Flash Attention, Q8 KV Cache).
+  - Hoàn tất 100% đánh giá 638/638 mẫu (tốc độ ~15.5s/ca, tổng thời gian 2h44m), lưu trữ tại `outputs/qlora_v2/evaluation/eval-qlora-rag-sft-v3/judgments.jsonl` và tổng hợp tại `judge_summary.json`.
+  - Phân tích chi tiết theo từng cohort câu hỏi mới (`new_question`) và hội thoại (`follow_up`).
+- **Kết quả:**
+  - **Source Groundedness & Context Faithfulness:** Đạt mức đỉnh cao **90.10%** và **91.09%**, khẳng định mô hình tuân thủ tuyệt đối tài liệu pháp lý trích xuất từ RAG và hầu như không có hiện tượng bịa đặt ngoài nguồn.
+  - **Intent Coverage Score:** Đạt **45.20%** (cao nhất trong cả 3 mô hình, vượt Base+RAG 44.98% và QLoRA v1 43.94%). Ở nhóm câu hỏi mới (`new_question`), Intent Coverage đạt **60.44%** (vượt Base+RAG 60.00% và QLoRA v1 59.49%).
+  - **Semantic Correctness:** Nhóm câu hỏi mới (`new_question`) đạt **66.33%** (tăng từ 64.69% của QLoRA v1). Tính chung 638 mẫu đạt **48.43%**.
+  - **Độ tin cậy & An toàn:** False Refusal giảm xuống chỉ còn **7.13%** (thấp nhất trong 3 bản, ít từ chối sai nhất); False Premise Rejection đạt **99.12%**; OOD Correctness đạt tuyệt đối **100.00%**; Negative Constraint Pass đạt **83.42%**.
+
 ## Hoàn tất đối chuẩn Benchmark 638 mẫu mô hình QLoRA RAG-SFT thuần không RAG (eval-qlora-sft-base-v3) và phân tích 5 chiều - 2026-11-03
 
 - **Mục tiêu:** Đánh giá độc lập năng lực sinh ngữ của mô hình QLoRA RAG-SFT mới (`qwen-qlora-rag-sft:latest`) ở chế độ thuần (profile `qlora`, không kích hoạt PhoBERT router và FAISS retrieval) trên toàn bộ 638 mẫu `test_rag_pa1.jsonl`; lưu trữ tách biệt hoàn toàn tại `outputs/qlora_v2/evaluation/`; chấm điểm mở rộng trên CUDA GPU (BERTScore, SacreBLEU, chrF++, ROUGE-L) và xuất các gói đối sánh đối đầu.
