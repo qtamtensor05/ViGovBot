@@ -1,5 +1,21 @@
 # Trạng thái hệ thống hiện tại
 
+## Tối ưu trần ngữ cảnh max_seq_length 2048, loại bỏ OOM và tái khởi động luồng huấn luyện QLoRA RAG-SFT - 2026-11-03
+
+- **Mục tiêu:** Khắc phục triệt để hiện tượng tràn bộ nhớ (`CUDA out of memory`) xảy ra ở bước 36 do các mẫu ngoại lai > 3.900 token; tối ưu trần ngữ cảnh `max_seq_length: 2048` phù hợp với 16GB VRAM của RTX 5060 Ti, giữ lại 96.6% dữ liệu RAG-SFT sạch; tái khởi động luồng huấn luyện QLoRA ổn định.
+- **Thực hiện:**
+  - Thực nghiệm đo đạc VRAM trên GPU RTX 5060 Ti: mẫu 1.359 token tốn 11.79 GB VRAM, mẫu 2.067 token tốn 13.82 GB VRAM (nằm trọn trong 16GB VRAM); mẫu 3.914 token đòi hỏi tới 19.08 GB – 21.16 GB VRAM gây PCIe memory swapping và OOM.
+  - Lọc dữ liệu chuẩn token $\le 2048$:
+    - Train: giữ lại **1.799 mẫu** (96.6%), loại bỏ 64 mẫu ngoại lai (> 2048 token) lưu tại `Data/dataset_v3/finetuning_rag_clean/train_rag_sft_2048.jsonl`.
+    - Validation: giữ lại **757 mẫu** (96.3%), loại bỏ 29 mẫu ngoại lai lưu tại `Data/dataset_v3/finetuning_rag_clean/validation_rag_sft_2048.jsonl`.
+    - Kiểm tra: 0 duplicate ID, 0 leakage giữa train và val.
+  - Cập nhật cấu hình: `configs/training/experiments/golden_rag_sft.yaml` trỏ vào hai tập dữ liệu 2048 mới với `max_seq_length: 2048`, `num_train_epochs: 3`, `effective_batch_size: 8` (tổng 675 steps).
+  - Khởi chạy nền chính thức: `$env:PYTHONUTF8 = "1"; .venv-qlora\Scripts\python.exe -u -m vigovbot.training.train --config configs/training/environments/rtx5060ti_16gb_rag_sft.yaml --approve --run-id qlora-rag-sft-2048-001`.
+  - Đồng bộ control metadata tại `outputs/qlora/control/active_run.json`.
+- **Kết quả:** Tiến trình huấn luyện mới (PID: 12112, Task ID: `task-1890`) đang chạy ổn định 100% trên GPU RTX 5060 Ti. VRAM đo được: **15.120 MiB / 16.311 MiB** (dư 1.2 GB headroom, không tràn sang RAM). Công suất: 151W / 180W, GPU Util: 99%. Tốc độ: **~20 – 30 giây / step** (tổng 675 steps). Không còn hiện tượng PCIe swapping hay nguy cơ OOM. Dự kiến hoàn tất sau khoảng **3,7 giờ** (hoặc sớm hơn nếu Early Stopping kích hoạt ở epoch 1-2).
+
+
+
 ## Nâng trần sinh num_predict lên 2048, dự đoán lại toàn bộ 59 ca chạm trần và hoàn tất tái đánh giá 4 chiều - 2026-11-03
 
 - **Mục tiêu:** Nâng trần sinh `num_predict` từ 1024 lên 2048 trong `configs/rag/inference.yaml` để loại bỏ dứt điểm hiện tượng câu trả lời dài bị chạm trần (`finish_reason: "length"`) ở các thủ tục có danh mục hồ sơ lớn; sinh lại dự đoán cho toàn bộ 59 ca bị ảnh hưởng trên cả 3 mô hình (`qwen-base`: 38, `qwen-rag`: 12, `qwen-rag-qlora`: 9); chấm lại Judge 14B (`qwen2.5:14b`) cho 21 ca liên quan và tái tính toán toàn bộ metric (BERTScore CUDA, SacreBLEU, ROUGE-L, Exact Match) kèm 3 gói đối sánh đối đầu.

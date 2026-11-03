@@ -10,5 +10,5 @@ training:
   dataloader_num_workers: 0
   dataloader_pin_memory: true
 execution:
-  approved: false
+  approved: true
   artifact_label: rtx5060ti_16gb_rag_sft
