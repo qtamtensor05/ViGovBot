@@ -353,12 +353,15 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.assertIsNone(result["menu"])
         self.assertEqual({hit["source_code"] for hit in result["retrieved"]}, {"1.115490"})
 
-    def test_result_searches_all_sections_of_selected_procedure(self):
+    def test_result_legacy_fallback_selects_only_result_heading(self):
+        row_id = self.retriever.db.execute("SELECT max(row_id) FROM chunks").fetchone()[0] + 1
+        payload = {"chunk_id": "marriage-result", "source_code": "1.000894",
+                   "procedure_name": "Thủ tục đăng ký kết hôn", "section_type": "metadata_identity",
+                   "text_content": "KẾT QUẢ XỬ LÝ\n\nGiấy chứng nhận kết hôn"}
+        self.retriever.db.execute("INSERT INTO chunks VALUES (?, ?, ?)",
+                                  (row_id, payload["chunk_id"], json.dumps(payload)))
         result = self.ask("Kết quả đăng ký kết hôn", [prediction(["RESULT"])])
-        self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})
-        self.assertEqual({h["section_type"] for h in result["retrieved"]},
-                         {"submission_deadline_fee", "legal_basis", "required_documents",
-                          "procedure_step"})
+        self.assertEqual([h["chunk_id"] for h in result["retrieved"]], ["marriage-result"])
         self.assertIn("Mục dữ liệu: result", result["retrieval_query"])
 
     def test_new_question_does_not_inherit_previous_selected_procedure(self):

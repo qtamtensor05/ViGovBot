@@ -1,5 +1,7 @@
 # Báo cáo thực nghiệm: Phân tích chuyên sâu kết quả đối chuẩn mô hình QLoRA-Qwen v2 qua ma trận thực nghiệm 6 cấu hình
 
+> **Đính chính theo `result_final` ngày 04/11/2026:** Các kết luận “tốt nhất toàn diện”, “production candidate” và các số 20,38% EM, 7,15 giây, 47,62 token/s trong bản phân tích ban đầu không khớp hoàn toàn artifact chính thức. Số đúng của `eval-qlora-rag-sft-v3` là Exact Match **20,06%**, Normalized EM **21,47%**, SacreBLEU **36,19**, chrF++ **47,15**, ROUGE-L F1 **45,55%**, BERTScore F1 **90,64%**, độ trễ **7,27 giây** và **48,77 token/s** trên 533 mẫu có telemetry. Judge cho thấy Semantic Correctness **48,43%**, Answer Relevancy **49,76%**, Intent Coverage **45,20%**; riêng follow-up lần lượt chỉ **29,64%**, **32,80%**, **29,10%**. Báo cáo triển khai đã hiệu chỉnh tại [`bao-cao-danh-gia-trien-khai-model-qlora-rag-v2.md`](bao-cao-danh-gia-trien-khai-model-qlora-rag-v2.md); các bảng 6 cấu hình dưới đây có số liệu lịch sử ngoài `result_final` và không được dùng để khẳng định thứ hạng toàn diện.
+
 > **Tiêu chuẩn văn phong:** Nature-Style Scientific Report (Mechanistic Analysis & 6-Way Benchmark)  
 > **Hệ thống:** ViGovBot — Module Tinh chỉnh tham số hiệu quả RAG-SFT và Đường ống Truy xuất Lai  
 > **Mô hình phục vụ:** `Qwen2.5-7B-Instruct` (Phiên bản v2 `qwen-qlora-rag-sft:latest`, GGUF `q8_0` 8,10 GB)  

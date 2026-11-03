@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## RAG legacy theo đúng mục kết quả và bảo toàn bảng cách nộp - 2026-11-04
+
+- **Mục tiêu:** Giữ retrieval đúng section khi runtime đọc corpus trước taxonomy mới và giữ đầy đủ dữ liệu hàng khi QLoRA đọc bảng cách nộp.
+- **Thực hiện:** Lọc `RESULT` legacy theo heading kết quả; prompt yêu cầu liệt kê đủ hình thức nộp và các giá trị cùng hàng.
+- **Kết quả:** Web Docker local đã nạp thay đổi; mã 1.000894 trả một context kết quả và đủ ba hình thức nộp trong kiểm tra live.
+
 ## Triển khai mô hình QLoRA v2 (qwen-qlora-rag-sft:latest) vào Docker và Web, gỡ bỏ bản v1 - 2026-11-04
 
 - **Mục tiêu:** Cập nhật hạ tầng Docker Compose, các cấu hình Web / inference chuẩn và tài liệu triển khai để phục vụ chính thức mô hình QLoRA v2 (`qwen-qlora-rag-sft:latest`, GGUF Q8_0 8.10 GB), đồng thời gỡ bỏ cấu hình model v1 cũ (`qwen-qlora:latest`).

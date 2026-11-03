@@ -3,8 +3,8 @@
 ## Giới hạn legacy retrieval cho kết quả và bảo toàn các hàng cách nộp - 2026-11-04
 
 - **Mục tiêu:** Không truy xuất toàn bộ thủ tục khi người dùng chọn `RESULT` trên corpus legacy, đồng thời không để model chỉ lặp lại tiêu đề "Hình thức nộp".
-- **Thực hiện:** Đang bổ sung bộ lọc theo tiêu đề kết quả legacy và chỉ dẫn sinh câu trả lời phải giữ đủ từng hàng hình thức nộp.
-- **Kết quả:** Chưa kiểm chứng.
+- **Thực hiện:** Bổ sung bộ lọc theo tiêu đề kết quả legacy và chỉ dẫn sinh câu trả lời phải giữ đủ từng hàng hình thức nộp; cập nhật hồi quy cho follow-up, conversation v2, PhoBERT và prompt.
+- **Kết quả:** Hoàn tất. 89 test liên quan, compileall và `git diff --check` đạt; kiểm tra live QLoRA v2 + RAG trả đủ ba cách nộp và chỉ một context kết quả cho mã 1.000894.
 
 ## Loại bỏ giới hạn cắt cứng câu trả lời RAG - 2026-11-03
 

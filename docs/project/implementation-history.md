@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Giới hạn legacy retrieval cho kết quả và bảo toàn các hàng cách nộp - 2026-11-04
+
+- **Mục tiêu:** Ngăn mục `RESULT` trên corpus legacy mở rộng thành toàn bộ thủ tục và ngăn QLoRA chỉ lặp tiêu đề bảng cách nộp.
+- **Thực hiện:** Nhận diện chunk kết quả legacy bằng heading, áp dụng cho cả follow-up và conversation v2; bổ sung chỉ dẫn liệt kê đủ từng hình thức cùng các ô không rỗng.
+- **Kết quả:** 89 test liên quan, compileall và diff check đạt. Live `qwen-rag-qlora` trả đủ Trực tuyến/Qua bưu điện/Trực tiếp với thời hạn, phí; mục kết quả chỉ dùng chunk `tthc_1_000894_sec_metadata_identity_11_p1`.
+
 ## Thiết lập môi trường Native Windows không dùng Docker và xác minh 4 model đánh giá trên GPU RTX 5060 Ti - 2026-11-03
 
 - **Mục tiêu:** Cài đặt toàn bộ môi trường chạy cục bộ trên máy host Windows 10, tối ưu tối đa tài nguyên phần cứng (NVIDIA GeForce RTX 5060 Ti 16GB, Blackwell SM 12.0) không thông qua Docker; nạp bản merge QLoRA chuẩn (`qwen2.5-7b-qlora-q8_0.gguf`) và mô hình nền vào Ollama native; bảo đảm toàn bộ 4 mô hình (`qwen-base`, `qwen-rag`, `qwen-qlora`, `qwen-rag-qlora`) nạp đầy đủ (PhoBERT router, BGE-M3 CUDA, FAISS index, Ollama LLM) không bị fallback ngầm.
