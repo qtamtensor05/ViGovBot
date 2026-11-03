@@ -87,6 +87,22 @@ class DirectFollowUpTests(unittest.TestCase):
         self.assertEqual(self.lookup("Hồ sơ và lệ phí?", top_k=1),
                          (None, "section_exceeds_top_k", "1.000001"))
 
+    def test_legacy_result_selects_only_result_heading(self):
+        rows = (
+            (3, "legacy-general", "THÔNG TIN CHUNG"),
+            (4, "legacy-result", "KẾT QUẢ XỬ LÝ\n\nGiấy chứng nhận"),
+        )
+        for row_id, chunk_id, text in rows:
+            payload = {"chunk_id": chunk_id, "source_code": "1.000001",
+                       "procedure_name": "Cấp hộ chiếu", "section_type": "metadata_identity",
+                       "text_content": text}
+            self.retriever.db.execute("INSERT INTO chunks VALUES (?, ?, ?)",
+                                      (row_id, chunk_id, json.dumps(payload)))
+        hits, reason, code = self.lookup("Kết quả thực hiện?", query="Kết quả cấp hộ chiếu?")
+        self.assertEqual([hit["chunk_id"] for hit in hits], ["legacy-result"])
+        self.assertIsNone(reason)
+        self.assertEqual(code, "1.000001")
+
     def test_multiple_sources_do_not_create_context(self):
         self.assertIsNone(self.retriever.retrieval_context([
             {"source_code": "1.000001", "chunk_id": "c0"}, {"source_code": "2.000002", "chunk_id": "c2"}]))

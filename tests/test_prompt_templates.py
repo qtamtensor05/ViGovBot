@@ -50,6 +50,13 @@ class PromptPresentationTests(unittest.TestCase):
         self.assertNotIn("mục danh sách riêng", prompt)
         self.assertNotIn("từng loại thông tin thành một mục riêng", prompt)
 
+    def test_submission_method_requires_every_non_empty_table_row(self):
+        prompt = self.system_prompt("Cách thức nộp hồ sơ là gì?")
+
+        self.assertIn("phải liệt kê đủ từng hình thức", prompt)
+        self.assertIn("các giá trị không rỗng trên cùng hàng", prompt)
+        self.assertIn("không chỉ lặp lại tiêu đề bảng", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

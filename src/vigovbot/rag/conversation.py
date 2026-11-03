@@ -10,7 +10,7 @@ from threading import Lock
 from vigovbot.rag.classification import classify, fallback, rewrite_mixed_scope
 from vigovbot.rag.clarification import Clarifier, _signature, selection_index
 from vigovbot.rag.sections import SECTION_INTENTS, available_sections, explicit_section_intents, section_query
-from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK
+from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK, legacy_section_matches
 from vigovbot.rag.response import generate_answer
 from vigovbot.prompts.prompt_templates import build_messages, validate_history
 from vigovbot.retrieval.retriever import _fold, extract_source_codes
@@ -462,7 +462,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                     section_hits = retriever.search(
                         query, settings["top_k"], section_types=[legacy] if legacy else [])
                     group = [h for h in section_hits if h.get("source_code") == code
-                             and (legacy is None or h.get("section_type") == legacy)]
+                             and (h.get("section_type") == legacy if legacy is not None
+                                  else legacy_section_matches(section_type, h))]
                 groups.append(group)
             ranked = list({h["chunk_id"]: h for group in zip_longest(*groups)
                            for h in group if h is not None}.values())[:settings["top_k"]]

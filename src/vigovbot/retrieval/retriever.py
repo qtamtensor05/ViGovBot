@@ -6,7 +6,7 @@ import threading
 import unicodedata
 from pathlib import Path
 
-from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK
+from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK, legacy_section_matches
 
 SOURCE_CODE_RE = re.compile(r"(?<![\w.])\d+\.\d{6}(?:[_-][A-Za-z0-9]+)?(?![\w.])", re.IGNORECASE)
 IDENTITY_LEVEL_RE = re.compile(r"\|\*\*Cấp thực hiện\*\*\|([^|\n]*)")
@@ -233,15 +233,19 @@ class Retriever:
         hits = [{**json.loads(payload), "row_id": row_id} for row_id, payload in rows]
         available = {hit.get("section_type") for hit in hits}
         resolved_sections = []
+        legacy_content_sections = []
         missing = []
         for section in sections:
             if section in available:
                 resolved_sections.append(section)
             elif LEGACY_SECTION_FALLBACK.get(section) in available:
                 resolved_sections.append(LEGACY_SECTION_FALLBACK[section])
+            elif any(legacy_section_matches(section, hit) for hit in hits):
+                legacy_content_sections.append(section)
             else:
                 missing.append(section)
-        hits = [hit for hit in hits if hit.get("section_type") in set(resolved_sections)]
+        hits = [hit for hit in hits if hit.get("section_type") in set(resolved_sections)
+                or any(legacy_section_matches(section, hit) for section in legacy_content_sections)]
         if missing:
             return None, "missing_section", code
         # Large sections need semantic ranking rather than arbitrary truncation.

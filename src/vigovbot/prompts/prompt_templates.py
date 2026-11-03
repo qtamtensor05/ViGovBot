@@ -51,6 +51,11 @@ def _presentation_instruction(question: str) -> str:
         instructions.append(
             "Nếu câu hỏi yêu cầu phí, lệ phí hoặc thời hạn, trình bày từng loại thông tin thành một mục riêng."
         )
+    if any(term in folded for term in ("cach thuc nop", "hinh thuc nop", "nop ho so")):
+        instructions.append(
+            "Nếu câu hỏi yêu cầu cách thức hoặc hình thức nộp hồ sơ, phải liệt kê đủ từng hình thức "
+            "có trong nguồn và các giá trị không rỗng trên cùng hàng; không chỉ lặp lại tiêu đề bảng."
+        )
     return "\n".join(instructions)
 
 

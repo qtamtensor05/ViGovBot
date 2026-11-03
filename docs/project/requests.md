@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Giới hạn legacy retrieval cho kết quả và bảo toàn các hàng cách nộp - 2026-11-04
+
+- **Mục tiêu:** Không truy xuất toàn bộ thủ tục khi người dùng chọn `RESULT` trên corpus legacy, đồng thời không để model chỉ lặp lại tiêu đề "Hình thức nộp".
+- **Thực hiện:** Đang bổ sung bộ lọc theo tiêu đề kết quả legacy và chỉ dẫn sinh câu trả lời phải giữ đủ từng hàng hình thức nộp.
+- **Kết quả:** Chưa kiểm chứng.
+
 ## Loại bỏ giới hạn cắt cứng câu trả lời RAG - 2026-11-03
 
 - **Mục tiêu:** Ngăn nhánh sửa JSON ép câu trả lời dừng đúng 600/800 ký tự và bảo toàn các nội dung quan trọng liên quan trực tiếp đến câu hỏi.

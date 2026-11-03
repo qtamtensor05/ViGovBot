@@ -76,6 +76,30 @@ class FourHeadTests(unittest.TestCase):
         self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000894"})
         self.assertNotIn("Cấp hộ chiếu", result["retrieval_query"])
 
+    def test_legacy_result_fallback_does_not_expand_to_all_procedure_chunks(self):
+        add_procedure(self.retriever, "1.000894", "Thủ tục đăng ký kết hôn",
+                      sections=("metadata_identity",))
+        payload = {"chunk_id": "legacy-result", "source_code": "1.000894",
+                   "procedure_name": "Thủ tục đăng ký kết hôn", "section_type": "metadata_identity",
+                   "text_content": "KẾT QUẢ XỬ LÝ\n\nGiấy chứng nhận kết hôn"}
+        self.retriever.db.execute("INSERT INTO chunks VALUES (?, ?, ?)",
+                                  (99, "legacy-result", json.dumps(payload)))
+
+        def legacy_search(query, top_k, **kwargs):
+            requested = kwargs.get("section_types")
+            rows = [json.loads(row[0]) for row in self.retriever.db.execute(
+                "SELECT payload FROM chunks WHERE json_extract(payload, '$.source_code')='1.000894'")]
+            return [row for row in rows if not requested or row["section_type"] in requested][:top_k]
+
+        original_search = self.search
+        self.search = legacy_search
+        try:
+            result = self.ask("Kết quả thực hiện", route("Thủ tục đăng ký kết hôn", ["RESULT"]))
+        finally:
+            self.search = original_search
+
+        self.assertEqual([hit["chunk_id"] for hit in result["retrieved"]], ["legacy-result"])
+
     def test_prefixed_duplicate_names_still_require_procedure_choice(self):
         for code in ("1.000894", "2.000894"):
             add_procedure(self.retriever, code, "Thủ tục đăng ký kết hôn",
