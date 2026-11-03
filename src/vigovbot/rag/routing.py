@@ -154,8 +154,9 @@ def answer_schema(require_evidence=False, citation_ids=None):
                 'type': 'object', 'additionalProperties': False,
                 'required': ['chunk_id', 'claim'], 'properties': {
                     'chunk_id': {'type': 'string', 'enum': citation_ids or ['__no_context__']},
-                    'claim': {'type': 'string', 'minLength': 1}}}}
-            if not citation_ids: properties['citations']['maxItems'] = 0
+                    'claim': {'type': 'string', 'minLength': 1}}},
+                'uniqueItems': True,
+                'maxItems': min(len(set(citation_ids)), 16)}
         branches.append({"type": "object", "additionalProperties": False,
                          "required": list(properties), "properties": properties})
     return {"anyOf": branches}
@@ -199,4 +200,10 @@ def parse_answer(text, *, require_evidence=False):
     evidence = payload.get("evidence_status")
     if require_evidence and (not isinstance(evidence, str) or EVIDENCE_ACTIONS.get(evidence) != action):
         raise ValueError("Evidence status and action do not match")
+    missing_only = re.fullmatch(
+        r"(?is)\s*(?:[^:\n]{1,80}:\s*)?(?:không có thông tin|chưa tìm thấy thông tin)[.!]?\s*",
+        answer,
+    )
+    if missing_only and action != "abstain":
+        raise ValueError("Missing-information answer must abstain")
     return answer.strip(), action, evidence

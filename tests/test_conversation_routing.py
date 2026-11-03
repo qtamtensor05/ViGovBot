@@ -105,6 +105,24 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(result['citations_status'], 'validated_references_not_semantic_support')
         schema = llm.call_args_list[-1].args[1]['response_format']
         self.assertIn('citations', schema['anyOf'][0]['required'])
+        citations = schema['anyOf'][0]['properties']['citations']
+        self.assertTrue(citations['uniqueItems'])
+        self.assertEqual(citations['maxItems'], 1)
+
+    def test_answer_action_cannot_claim_missing_information(self):
+        invalid = json.dumps(dict(
+            answer="C\u01a1 quan th\u1ef1c hi\u1ec7n: Kh\u00f4ng c\u00f3 th\u00f4ng tin.",
+            action="answer",
+            evidence_status="sufficient",
+        ))
+        with self.assertRaisesRegex(ValueError, "must abstain"):
+            parse_answer(invalid, require_evidence=True)
+        valid = json.dumps(dict(
+            answer="Ch\u01b0a t\u00ecm th\u1ea5y th\u00f4ng tin.",
+            action="abstain",
+            evidence_status="missing",
+        ))
+        self.assertEqual(parse_answer(valid, require_evidence=True)[1:], ("abstain", "missing"))
 
     def test_invalid_citations_after_retry_keep_answer_as_measured_failure(self):
         self.settings['citations_enabled'] = True

@@ -46,12 +46,16 @@ def explicit_section_intents(text):
         ("FEE", ("le phi", "chi phi", "muc phi")),
         ("SUBMISSION_METHOD", ("cach thuc nop", "hinh thuc nop", "nop o dau")),
         ("AUTHORITY", ("co quan thuc hien", "co quan giai quyet", "co quan tiep nhan")),
+        ("RESULT", ("ket qua thuc hien", "ket qua xu ly", "ket qua nhan duoc")),
         ("LEGAL_BASIS", ("can cu phap ly", "co so phap ly", "can cu phap li", "co so phap li")),
         ("ELIGIBILITY", ("dieu kien thuc hien", "yeu cau thuc hien")),
         ("OVERVIEW", ("tong quan", "toan bo thu tuc")),
     )
-    return [label for label, terms in groups
-            if any(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", folded) for term in terms)]
+    result = [label for label, terms in groups
+              if any(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", folded) for term in terms)]
+    if re.search(r"(?<!\w)buoc\s+(?:thu\s+)?\d+(?!\w)", folded) and "PROCEDURE" not in result:
+        result.append("PROCEDURE")
+    return result
 
 
 def available_sections(corpus_sections, *, eligibility=False, forms=False):

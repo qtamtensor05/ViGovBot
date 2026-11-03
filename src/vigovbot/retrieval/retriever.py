@@ -65,6 +65,8 @@ def preferred_section_types(question):
         for terms, section_type in groups
         if any(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", folded) for term in terms)
     )
+    if re.search(r"(?<!\w)buoc\s+(?:thu\s+)?\d+(?!\w)", folded):
+        preferred = (*preferred, "procedure_step")
     # Clarification choices can name a corpus section outside the built-in taxonomy.
     explicit = re.findall(r"(?m)^Mục dữ liệu: ([^\r\n]+)$", question)
     return tuple(dict.fromkeys([*explicit, *preferred]))

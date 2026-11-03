@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## Hàng rào hồi quy cho QLoRA + RAG - 2026-11-04
+
+- **Mục tiêu:** Loại các lỗi hành vi đã nhận diện từ prediction mà không quy kết sai cho riêng trọng số model.
+- **Thực hiện:** Runtime hiện nhận diện `bước N` là mục trình tự và phục hồi mục này sau bước chọn thủ tục; schema citation có giới hạn, output thiếu thông tin sai action bị từ chối, output hết token không còn được phát hành như câu trả lời hợp lệ.
+- **Kết quả:** Kiểm thử liên quan đã đạt; 107 case trong manifest chưa được inference lại bằng model thật, vì vậy chưa kết luận toàn bộ case đã sạch.
+
 ## RAG legacy theo đúng mục kết quả và bảo toàn bảng cách nộp - 2026-11-04
 
 - **Mục tiêu:** Giữ retrieval đúng section khi runtime đọc corpus trước taxonomy mới và giữ đầy đủ dữ liệu hàng khi QLoRA đọc bảng cách nộp.

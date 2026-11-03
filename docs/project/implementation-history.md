@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Sửa lỗi hồi quy QLoRA + RAG từ prediction - 2026-11-04
+
+- **Mục tiêu:** Khắc phục ba nhóm lỗi có thể xử lý ở runtime: mất section intent sau lựa chọn, output bị cắt do hết token và action/evidence không nhất quán.
+- **Thực hiện:** Bổ sung nhận diện `bước N` tại routing và retrieval, phục hồi truy vấn section sau menu, siết schema citation và parser structured answer, đồng thời fail closed khi các lần sửa output vẫn kết thúc vì giới hạn token hoặc không đủ context.
+- **Kết quả:** Thêm hồi quy trực tiếp cho luồng đăng ký kết hôn và hợp đồng missing-evidence; 115 test liên quan, Ruff và compileall đạt. Manifest 107 case đã sẵn sàng nhưng benchmark model thật chưa chạy.
+
 ## Giới hạn legacy retrieval cho kết quả và bảo toàn các hàng cách nộp - 2026-11-04
 
 - **Mục tiêu:** Ngăn mục `RESULT` trên corpus legacy mở rộng thành toàn bộ thủ tục và ngăn QLoRA chỉ lặp tiêu đề bảng cách nộp.

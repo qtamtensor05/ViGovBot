@@ -148,20 +148,6 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
         generation_diagnostics["repair_num_predict"] = summary_settings["num_predict"]
         if raw.get("done_reason") == "length":
             generation_diagnostics["summary_finish_reason"] = "length"
-            if answer and isinstance(answer, str) and answer.strip():
-                generation_diagnostics["output_contract"] = "plain_text_fallback"
-                try:
-                    (parsed_ans, action, evidence), citations = parse_generation(answer)
-                    return (parsed_ans, raw, generation_s, action, evidence, generation_diagnostics,
-                            citations, citation_ids, "valid" if citations else "disabled")
-                except Exception:
-                    clean = answer.strip()
-                    try:
-                        clean, action, evidence = citation_fallback(clean, ValueError("invalid_json"))
-                    except Exception:
-                        action, evidence = "answer", None
-                    return (clean, raw, generation_s, action, evidence, generation_diagnostics,
-                            [], citation_ids, "invalid_model_output")
             raise StructuredAnswerError(generation_diagnostics)
     if structured:
         try:
@@ -204,12 +190,8 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
             )
             retry_tokens = len(tokenizer.apply_chat_template(
                 retry_messages, tokenize=True, add_generation_prompt=True))
-            if retry_tokens > settings["num_ctx"] - 256:
+            if retry_tokens > settings["num_ctx"] - settings["num_predict"] - 256:
                 generation_diagnostics["retry_skipped"] = "context_budget"
-                if answer and isinstance(answer, str) and answer.strip():
-                    generation_diagnostics["output_contract"] = "plain_text_fallback"
-                    return (answer.strip(), raw, generation_s, "answer", None, generation_diagnostics,
-                            [], citation_ids, "invalid_model_output")
                 raise StructuredAnswerError(generation_diagnostics) from exc
             generation_diagnostics["attempts"] += 1
             answer, raw, retry_s = answer_fn(retry_messages, generation_settings)
@@ -241,10 +223,6 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
                     generation_s += final_s
                     if raw.get("done_reason") == "length":
                         generation_diagnostics["final_finish_reason"] = "length"
-                        if answer and isinstance(answer, str) and answer.strip():
-                            generation_diagnostics["output_contract"] = "plain_text_fallback"
-                            return (answer.strip(), raw, generation_s, "answer", None, generation_diagnostics,
-                                    [], citation_ids, "invalid_model_output")
                         raise StructuredAnswerError(generation_diagnostics) from retry_exc
                     try:
                         (answer, action, evidence), citations = parse_generation(answer)

@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Khóa các lỗi hồi quy QLoRA + RAG cần chạy lại - 2026-11-04
+
+- **Mục tiêu:** Sửa các nhánh runtime gây mất ý định mục sau khi chọn thủ tục, phát hành câu trả lời bị cắt và báo đủ bằng chứng khi thực tế không có thông tin.
+- **Thực hiện:** Giữ ý định `bước N` qua menu chọn thủ tục, giới hạn citation theo evidence duy nhất, buộc câu trả lời thiếu thông tin dùng `abstain` và không trả output khi lần sinh/sửa vẫn hết token hoặc thiếu ngân sách context.
+- **Kết quả:** 115 test routing/conversation/follow-up liên quan, Ruff và compileall đạt; đã lưu manifest 107 case hồi quy để chạy lại. Chưa chạy inference lại trên model QLoRA + RAG nên kết quả model thật còn `PENDING_VERIFICATION`.
+
 ## Giới hạn legacy retrieval cho kết quả và bảo toàn các hàng cách nộp - 2026-11-04
 
 - **Mục tiêu:** Không truy xuất toàn bộ thủ tục khi người dùng chọn `RESULT` trên corpus legacy, đồng thời không để model chỉ lặp lại tiêu đề "Hình thức nộp".

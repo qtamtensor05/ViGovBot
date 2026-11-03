@@ -108,6 +108,28 @@ class FourHeadTests(unittest.TestCase):
         self.assertEqual({o["id"] for o in result["menu"]["options"]}, {"1.000894", "2.000894"})
         self.answer.assert_not_called()
 
+    def test_procedure_selection_restores_original_section_intent(self):
+        for code in ("1.000894", "2.000894"):
+            add_procedure(self.retriever, code, "Th\u1ee7 t\u1ee5c \u0111\u0103ng k\u00fd k\u1ebft h\u00f4n",
+                          sections=("metadata_identity", "procedure_step"))
+        question = (
+            "Cho t\u00f4i h\u1ecfi b\u01b0\u1edbc 1 c\u1ee7a th\u1ee7 t\u1ee5c "
+            "\u0111\u0103ng k\u00fd k\u1ebft h\u00f4n ph\u1ea3i l\u00e0m g\u00ec?"
+        )
+        classification = route(
+            "\u0110\u0103ng k\u00fd k\u1ebft h\u00f4n", ["PROCEDURE"], query=question,
+            requests=[dict(procedure="\u0110\u0103ng k\u00fd k\u1ebft h\u00f4n", query=question,
+                           sections=["PROCEDURE"])],
+        )
+        menu = self.ask(question, classification)
+        self.assertEqual(menu["menu"]["kind"], "procedure")
+        selected = self.ask("1. " + menu["menu"]["options"][0]["label"])
+        self.assertEqual(selected["action"], "answer")
+        self.assertIn("b\u01b0\u1edbc 1", selected["retrieval_query"].lower())
+        self.assertIn("procedure_step", selected["retrieval_query"])
+        self.assertNotIn("C?p th?c hi?n", selected["retrieval_query"])
+        self.assertEqual({hit["source_code"] for hit in selected["retrieved"]}, {"1.000894"})
+
     def test_legal_li_follow_up_overrides_stale_fee_section(self):
         self.ask("Cấp hộ chiếu", route())
         result = self.ask("Căn cứ pháp lí", route(sections=["FEE"], conversation="FOLLOW_UP"))
