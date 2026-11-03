@@ -44,28 +44,18 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 ## Báo cáo kết quả
 
-- [Báo cáo lọc nguy cơ data leak cho RAG-SFT](reports/bao-cao-loc-data-leak-rag-sft.md)
-- [Báo cáo luồng hoạt động module routing](reports/bao-cao-luong-hoat-dong-module-routing.md)
 - [Báo cáo chi tiết các module xử lý chính ViGovBot](reports/bao-cao-cac-module-xu-ly-chinh-vigovbot.md)
 - [Báo cáo hệ thống nhãn phân loại và actions](reports/bao-cao-phan-loai-nhan-va-actions.md)
-- [Kiểm chứng đóng gói bằng chứng và prompt RAG](reports/rag-evidence-hardening-20261024.md)
 - [Benchmark độ trễ reranker (10 câu)](reports/reranker-latency-20261029.md)
 
-- [Đánh giá RAG vs Base trên TTHC v1](reports/bao-cao-danh-gia-rag-vs-base-tthc-v1.md)
-- [Phân tích QLoRA Qwen2.5-7B](reports/bao-cao-phan-tich-qlora-qwen2-5-7b.md)
-- [Đề xuất triển khai Evaluation Run v2 cho các model](reports/evaluation-v2-model-implementation-proposal.md)
-- [Đánh giá chi tiết mô hình Standalone Base (Evaluation v2)](reports/bao-cao-danh-gia-chi-tiet-model-base.md)
-- [Đánh giá chi tiết mô hình Base + RAG (Evaluation v2)](reports/bao-cao-danh-gia-chi-tiet-model-base-rag.md)
-- [Huấn luyện & Đánh giá mô hình Tinh chỉnh QLoRA (Evaluation v2)](reports/bao-cao-danh-gia-chi-tiet-model-qlora-finetuning.md)
-- [So sánh & Đối sánh tổng hợp 3 mô hình Base vs Base+RAG vs QLoRA (Evaluation v2)](reports/bao-cao-so-sanh-tong-hop-3-model-base-rag-qlora.md)
+### Đánh giá model trên dataset PA1
 
-- [Đánh giá mô hình Base trên tập test v3](reports/bao-cao-danh-gia-chi-tiet-model-base-v3.md)
-- [Đánh giá mô hình RAG trên tập test v3](reports/bao-cao-danh-gia-chi-tiet-model-rag-v3.md)
-- [Đánh giá mô hình QLoRA trên tập test v3](reports/bao-cao-danh-gia-chi-tiet-model-qlora-v3.md)
-- [Đánh giá mô hình QLoRA + RAG trên tập test v3](reports/bao-cao-danh-gia-chi-tiet-model-qlora-rag-v3.md)
-- [Kết quả fine-tuning QLoRA hiện hành](reports/bao-cao-qua-trinh-train-qlora.md)
-- [So sánh tổng hợp bốn mô hình trên tập test v3](reports/bao-cao-so-sanh-tong-hop-4-model-v3.md)
-- [LLM-as-a-Judge cho mô hình RAG v3](reports/bao-cao-llm-judge-rag-v3.md)
+- [Tổng hợp tất cả model](reports/model-evaluation/all-models.md)
+- [Base](reports/model-evaluation/base.md)
+- [RAG](reports/model-evaluation/rag.md)
+- [QLoRA v1](reports/model-evaluation/qlora-v1.md)
+- [QLoRA v1 + RAG](reports/model-evaluation/qlora-v1-rag.md)
+- [QLoRA v2 + RAG](reports/model-evaluation/qlora-v2-rag.md)
 
 ## Quản trị dự án
 
