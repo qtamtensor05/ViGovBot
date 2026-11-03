@@ -10,7 +10,7 @@ llm:
   model: qwen2.5:7b
   ollama_url: &ollama_url http://localhost:11434
   num_ctx: 16384
-  num_predict: 1024
+  num_predict: 2048
 retrieval:
   top_k: 15
   max_chunk_tokens: 1200
