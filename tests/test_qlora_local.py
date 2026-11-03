@@ -36,6 +36,21 @@ class DataTests(unittest.TestCase):
             path.write_text(json.dumps(item, ensure_ascii=False) + "\n", encoding="utf-8")
             self.assertEqual(read_jsonl(path)[0]["id"], "x")
 
+    def test_optional_system_message_and_complete_pairs(self):
+        messages = [{"role": "system", "content": "rules"}]
+        messages.extend(
+            {"role": "user" if index % 2 == 0 else "assistant", "content": str(index)}
+            for index in range(6)
+        )
+        validate_conversation({"id": "rag", "messages": messages})
+        for invalid in (
+            [{"role": "system", "content": "rules"}, {"role": "assistant", "content": "bad"}],
+            [{"role": "user", "content": "a"}, {"role": "system", "content": "bad"}],
+            [{"role": "system", "content": "rules"}, {"role": "user", "content": "missing target"}],
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                validate_conversation({"id": "bad", "messages": invalid})
+
     def test_split_isolation_and_overlap_categories(self):
         report = analyze_splits({"train": [record("a")], "validation": [record("b")], "test": [record("c", "Khác", "Khác")]})
         self.assertEqual(len(report["overlaps"]["train__validation"]["conversation_exact"]), 1)
@@ -66,6 +81,19 @@ class MaskingTests(unittest.TestCase):
         encoded = encode_assistant_only(MappingTokenizer(), record("x")["messages"], 100)
         self.assertGreater(len(encoded["input_ids"]), 2)
         self.assertTrue(any(value != IGNORE_INDEX for value in encoded["labels"]))
+
+    def test_system_and_user_tokens_remain_masked(self):
+        messages = [
+            {"role": "system", "content": "rules"},
+            {"role": "user", "content": "evidence question"},
+            {"role": "assistant", "content": '{"answer":"ok"}'},
+        ]
+        encoded = encode_assistant_only(FakeTokenizer(), messages, 100)
+        assistant_start = len(FakeTokenizer().apply_chat_template(
+            messages[:2], tokenize=True, add_generation_prompt=True
+        ))
+        self.assertTrue(all(label == IGNORE_INDEX for label in encoded["labels"][:assistant_start]))
+        self.assertTrue(any(label != IGNORE_INDEX for label in encoded["labels"][assistant_start:]))
 
 
 class LogicTests(unittest.TestCase):

@@ -431,3 +431,15 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Tách riêng các case cần predict lại theo đúng Model A và Model B, không gắn với quy trình judge.
 - **Thực hiện:** Lọc theo ba dấu hiệu đã xác nhận: HTTP 502, `finish_reason=length` và output đúng 600 ký tự nhưng không kết thúc hoàn chỉnh; trích nguyên vẹn case từ `test_rag_pa1.jsonl` thành bốn file JSON theo model.
 - **Kết quả:** Hoàn tất bốn file tại `Data/dataset_v3/prediction_retry/`: `qwen-rag-qlora` 36 case, `qwen-rag` 50 case, `qwen-base` 74 case và `qwen-qlora` 0 case.
+
+## Pipeline RAG-SFT tách biệt - 2026-11-03
+
+- **Mục tiêu:** Huấn luyện QLoRA theo đúng hợp đồng prompt và output của RAG, đồng thời có cấu hình chấm tách biệt với model QLoRA hiện hành.
+- **Thực hiện:** Mở rộng schema `system + user/assistant`, thêm converter Golden sang structured RAG-SFT, profile train 16k và profile serving/evaluation dùng model `qwen-qlora-rag-sft:latest`.
+- **Kết quả:** Source, artifact dẫn xuất và kiểm chứng được cập nhật trong cùng thay đổi; full train, merge model và benchmark GPU chưa được chạy.
+
+## Lọc data leak trước khi train/chấm RAG - 2026-11-03
+
+- **Mục tiêu:** Không để nội dung train/validation trùng thủ tục hoặc bằng chứng với PA1/PA2 làm sai lệch kết quả test.
+- **Thực hiện:** Thêm bộ lọc procedure/content-disjoint, giữ nguyên nguồn/test và xuất danh sách case bị loại kèm lý do.
+- **Kết quả:** Loại 68/1.931 train và 41/827 validation; bộ sạch còn 1.863/786 case, các hậu kiểm leak mạnh đều bằng 0.

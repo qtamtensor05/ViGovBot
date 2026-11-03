@@ -84,11 +84,17 @@ def doctor() -> None:
 @data_app.command("check")
 def data_check(config: Path = typer.Option(Path("configs/training/base.yaml"), "--config"),
                output: Optional[Path] = typer.Option(None, "--output"),
+               with_tokenizer: bool = typer.Option(False, "--with-tokenizer"),
+               local_files_only: bool = typer.Option(False, "--local-files-only"),
                set_value: list[str] = typer.Option([], "--set")) -> None:
     """Validate SFT records, split leakage and dataset hashes."""
     args = ["--config", str(_config(config))]
     if output:
         args += ["--output", str(output)]
+    if with_tokenizer:
+        args.append("--with-tokenizer")
+    if local_files_only:
+        args.append("--local-files-only")
     for value in set_value:
         args += ["--set", value]
     _module("vigovbot.training.validate_data", *args)
@@ -107,6 +113,53 @@ def golden_to_sft(
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo(json.dumps(report, ensure_ascii=False))
+
+
+@data_app.command("golden-to-rag-sft")
+def golden_to_rag_sft(
+    source_dir: Path = typer.Option(Path("Data/dataset_v3/fintuning_clean"), "--source-dir"),
+    output_dir: Path = typer.Option(Path("Data/dataset_v3/finetuning_rag_clean"), "--output-dir"),
+) -> None:
+    """Convert Golden train/val to the structured RAG prompt/answer contract."""
+    from vigovbot.training.golden_rag_sft import convert_golden
+
+    try:
+        report = convert_golden(_path(source_dir), _path(output_dir))
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+@data_app.command("filter-rag-leakage")
+def filter_rag_leakage(
+    source_dir: Path = typer.Option(Path("Data/dataset_v3/fintuning"), "--source-dir"),
+    test_file: list[Path] = typer.Option([
+        Path("Data/dataset_v3/test_rag/test_rag_pa1.jsonl"),
+        Path("Data/dataset_v3/test_rag/test_rag_pa2.jsonl"),
+    ], "--test"),
+    output_dir: Path = typer.Option(Path("Data/dataset_v3/fintuning_clean"), "--output-dir"),
+) -> None:
+    """Remove strong train/validation leakage against one or more RAG test files."""
+    from vigovbot.training.leakage_filter import filter_splits
+
+    try:
+        report = filter_splits(
+            _path(source_dir), [_path(path) for path in test_file], _path(output_dir)
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(json.dumps({
+        "schema_version": report["schema_version"],
+        "output_dir": str(_path(output_dir)),
+        "unique_test_records": report["unique_test_records"],
+        "excluded_records": report["excluded_records"],
+        "splits": {
+            name: {key: value for key, value in details.items()
+                   if key in {"input_records", "kept_records", "excluded_records", "reason_counts"}}
+            for name, details in report["splits"].items()
+        },
+        "postconditions": report["postconditions"],
+    }, ensure_ascii=False, indent=2))
 
 
 @data_app.command("stats")

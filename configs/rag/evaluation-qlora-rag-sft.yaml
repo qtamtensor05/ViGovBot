@@ -1,0 +1,50 @@
+# Isolated serving/evaluation profile for a model trained with golden_rag_sft.yaml.
+# The merged model must be published locally as qwen-qlora-rag-sft:latest first.
+data:
+  unified_source: ../../Data/vector/unified
+  cache_dir: ../../outputs/rag_cache
+  allow_legacy_corpus: false
+embedding:
+  model: BAAI/bge-m3
+  revision: null
+  device: cuda
+llm:
+  model: qwen2.5:7b
+  ollama_url: &ollama_url http://localhost:11434
+  num_ctx: 16384
+  num_predict: 1024
+retrieval:
+  top_k: 15
+  max_chunk_tokens: 1200
+  max_metadata_tokens: 256
+conversation:
+  routing_backend: phobert
+  routing_phobert_path: ../../outputs/phobert_v3_finetuned_20261028/checkpoint
+  routing_phobert_threads: 2
+web:
+  debug_routing: false
+  models:
+    - id: qwen-base
+      label: Qwen 2.5 7B - Base
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: *ollama_url
+      mode: base
+    - id: qwen-rag
+      label: Qwen 2.5 7B + RAG
+      provider: ollama
+      model: qwen2.5:7b
+      base_url: *ollama_url
+      mode: rag
+    - id: qwen-qlora
+      label: Qwen 2.5 7B + RAG-SFT merge
+      provider: ollama
+      model: qwen-qlora-rag-sft:latest
+      base_url: *ollama_url
+      mode: qlora
+    - id: qwen-rag-qlora
+      label: Qwen 2.5 7B + RAG-SFT merge + RAG
+      provider: ollama
+      model: qwen-qlora-rag-sft:latest
+      base_url: *ollama_url
+      mode: rag

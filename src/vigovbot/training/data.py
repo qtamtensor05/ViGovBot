@@ -18,7 +18,7 @@ from typing import Iterable
 
 from vigovbot.utils.jsonl import iter_jsonl
 
-ALLOWED_ROLES = ("user", "assistant")
+CONVERSATION_ROLES = ("user", "assistant")
 
 
 
@@ -38,10 +38,16 @@ def validate_conversation(record: dict, location: str = "record") -> None:
     if not isinstance(record, dict) or not isinstance(record.get("id"), str) or not record["id"].strip():
         raise ValueError(f"{location}: id must be a non-empty string")
     messages = record.get("messages")
-    if not isinstance(messages, list) or len(messages) not in (2, 4, 6):
-        raise ValueError(f"{location}: messages must contain 2, 4, or 6 turns")
+    if not isinstance(messages, list) or not messages:
+        raise ValueError(f"{location}: messages must be a non-empty list")
+    offset = 1 if isinstance(messages[0], dict) and messages[0].get("role") == "system" else 0
+    conversation = messages[offset:]
+    if len(conversation) not in (2, 4, 6):
+        raise ValueError(
+            f"{location}: messages must contain optional system then 2, 4, or 6 user/assistant turns"
+        )
     for index, message in enumerate(messages):
-        expected = ALLOWED_ROLES[index % 2]
+        expected = "system" if offset and index == 0 else CONVERSATION_ROLES[(index - offset) % 2]
         if not isinstance(message, dict) or message.get("role") != expected:
             raise ValueError(f"{location}: message {index} must have role={expected}")
         content = message.get("content")

@@ -594,3 +594,15 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Chuẩn bị danh sách prediction retry có model rõ ràng sau khi sửa lỗi cắt output.
 - **Thực hiện:** Đối chiếu 638 prediction mỗi model, lọc lỗi HTTP 502, hết token và cắt cứng 600 ký tự; trích nguyên vẹn case tương ứng từ `test_rag_pa1.jsonl` thành bốn JSON theo model, không đưa dữ liệu judge vào artifact.
 - **Kết quả:** Sinh bốn file tại `Data/dataset_v3/prediction_retry/`: `qwen-rag-qlora` 36 case, `qwen-rag` 50, `qwen-base` 74 và `qwen-qlora` 0. Loại `GOLDEN_V3_006656` khỏi danh sách bắt buộc vì kết thúc hoàn chỉnh.
+
+## Pipeline continued-SFT cho QLoRA + RAG - 2026-11-03
+
+- **Mục tiêu:** Loại bỏ độ lệch giữa plain-answer SFT và hợp đồng JSON/evidence của runtime RAG.
+- **Thực hiện:** Validator chấp nhận system message nhưng giữ luân phiên user/assistant; converter tạo target `answer/action/evidence_status/citations`; thêm profile train và serving/evaluation tách biệt.
+- **Kết quả:** Đã sinh 1.931 train và 827 validation, không có duplicate conversation/question/answer chính xác giữa split; schema check đạt. Tokenizer Qwen chưa có trong cache host nên token percentile 16k chưa xác minh; GPU train, merge và chấm test chưa chạy.
+
+## Bộ train/validation procedure-disjoint với PA1+PA2 - 2026-11-03
+
+- **Mục tiêu:** Loại rủi ro ghi nhớ trực tiếp nội dung test khỏi pipeline RAG-SFT.
+- **Thực hiện:** Lọc theo test ID, standalone query, context ID/text, đáp án dài và mã thủ tục; template ngắn/near-query khác thủ tục chỉ báo cáo.
+- **Kết quả:** Loại 109 case, giữ 2.649 case; hậu kiểm mạnh đều bằng 0 và 2.649 target JSON qua parser runtime. Dữ liệu nguồn và hai file test giữ nguyên hash.

@@ -96,6 +96,13 @@ class ConfigTests(unittest.TestCase):
                 "base_url": "http://localhost", "mode": "qlora", "adapter_path": "adapter",
             }]}})
 
+    def test_rag_sft_evaluation_profile_is_isolated(self):
+        config = load_config(Path("configs/rag/evaluation-qlora-rag-sft.yaml"))
+        merged = [model for model in config.web.models if "qlora" in model.id]
+        self.assertEqual({model.model for model in merged}, {"qwen-qlora-rag-sft:latest"})
+        self.assertEqual({model.id for model in merged}, {"qwen-qlora", "qwen-rag-qlora"})
+        self.assertEqual(config.inference_settings()["top_k"], 15)
+
     def test_config_rejects_typos_and_invalid_budget(self):
         data = {"unified_source": "unified.zip", "dataset_path": "qa.jsonl"}
         for overrides in (

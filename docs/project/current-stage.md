@@ -411,3 +411,9 @@ có nguồn gốc rõ ràng và truy hồi đúng thủ tục hành chính.
 - **Mục tiêu:** Xác định chính xác case nào cần predict lại và phải chạy bằng model nào.
 - **Thực hiện:** Tạo bốn file JSON từ `test_rag_pa1.jsonl`, mỗi file thuộc một model và chỉ chứa case cần predict lại cho model đó.
 - **Kết quả:** `qwen-rag-qlora` có 36 case, `qwen-rag` 50, `qwen-base` 74 và `qwen-qlora` 0. Chưa chạy lại inference và không có dữ liệu judge trong các file.
+
+## Pipeline RAG-SFT - 2026-11-03
+
+- **Mục tiêu:** Giữ pipeline continued-SFT và chấm QLoRA+RAG độc lập với plain SFT hiện hành.
+- **Thực hiện:** Converter dùng prompt packager runtime; profile train dùng context 16k; config đánh giá trỏ tới `qwen-qlora-rag-sft:latest`.
+- **Kết quả:** Pipeline train trỏ vào artifact sạch gồm 1.863 train và 786 validation; 109 case nguy cơ leak với hợp PA1+PA2 đã được loại có truy vết. Chưa chạy GPU training, merge model hoặc benchmark test; token percentile bằng tokenizer Qwen chưa xác minh vì tokenizer không có trong cache host.

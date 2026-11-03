@@ -1,0 +1,16 @@
+extends: ../base.yaml
+model:
+  # Match the RAG serving context. Oversized samples fail validation/training;
+  # the pipeline never truncates an assistant target or silently drops evidence.
+  max_seq_length: 16384
+data:
+  splits:
+    train: Data/dataset_v3/finetuning_rag_clean/train_rag_sft.jsonl
+    validation: Data/dataset_v3/finetuning_rag_clean/validation_rag_sft.jsonl
+    test: null
+training:
+  num_train_epochs: 3
+  learning_rate: 0.00005
+execution:
+  approved: false
+  artifact_label: golden_rag_sft
