@@ -18,19 +18,19 @@
   },
   "metrics": {
     "lexical": {
-      "chrf": 47.62282726251386,
-      "chrf_pp": 47.14949481563634,
-      "sacrebleu": 36.189148364865744,
-      "character_error_rate": 2.6177560357499474,
-      "word_error_rate": 2.5131630190300784,
-      "bertscore_precision": 0.9098197688877022,
-      "bertscore_recall": 0.9051332443859136,
-      "bertscore_f1": 0.9063952369002339,
-      "embedding_cosine_similarity": 0.6499989992328759,
-      "meteor": 0.48878963440952417
+      "chrf": 47.70942101827569,
+      "chrf_pp": 47.23236055972643,
+      "sacrebleu": 36.27561017523137,
+      "character_error_rate": 2.5443991410970614,
+      "word_error_rate": 2.479538195763074,
+      "bertscore_precision": 0.908776541301823,
+      "bertscore_recall": 0.9039531701410826,
+      "bertscore_f1": 0.9053021317178552,
+      "embedding_cosine_similarity": 0.6493605966198033,
+      "meteor": 0.4894308381181403
     },
     "retrieval": {
-      "map_at_5": 0.545609994416527
+      "map_at_5": 0.5439349525404801
     },
     "metric_details": {
       "chrf": {
@@ -117,8 +117,8 @@
       "word_error_rate": 0.9821428571428571,
       "map_at_5": 0.0,
       "bertscore_precision": 0.8791757225990295,
-      "bertscore_recall": 0.8140395879745483,
-      "bertscore_f1": 0.8453547358512878,
+      "bertscore_recall": 0.8140395283699036,
+      "bertscore_f1": 0.8453547954559326,
       "meteor": 0.00984251968503937,
       "embedding_cosine_similarity": 0.3476349115371704
     },
@@ -144,9 +144,9 @@
       "character_error_rate": 0.85,
       "word_error_rate": 1.0,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.8882766962051392,
-      "bertscore_recall": 0.8346821069717407,
-      "bertscore_f1": 0.8606458306312561,
+      "bertscore_precision": 0.8882767558097839,
+      "bertscore_recall": 0.8346819877624512,
+      "bertscore_f1": 0.8606457710266113,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.41921988129615784
     },
@@ -158,9 +158,9 @@
       "character_error_rate": 0.8059701492537313,
       "word_error_rate": 0.875,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.9240902066230774,
-      "bertscore_recall": 0.8670856952667236,
-      "bertscore_f1": 0.894680917263031,
+      "bertscore_precision": 0.9240901470184326,
+      "bertscore_recall": 0.8670856356620789,
+      "bertscore_f1": 0.8946807980537415,
       "meteor": 0.12668918918918917,
       "embedding_cosine_similarity": 0.40148720145225525
     },
@@ -218,7 +218,7 @@
       "bertscore_recall": 0.8123853206634521,
       "bertscore_f1": 0.8457654714584351,
       "meteor": 0.0,
-      "embedding_cosine_similarity": 0.2460760474205017
+      "embedding_cosine_similarity": 0.24607619643211365
     },
     {
       "test_id": "GOLDEN_V3_005399",
@@ -229,7 +229,7 @@
       "word_error_rate": 0.9090909090909091,
       "map_at_5": 1.0,
       "bertscore_precision": 0.9198063611984253,
-      "bertscore_recall": 0.8719820380210876,
+      "bertscore_recall": 0.8719820976257324,
       "bertscore_f1": 0.8952560424804688,
       "meteor": 0.04854368932038835,
       "embedding_cosine_similarity": 0.3916494846343994
@@ -242,9 +242,9 @@
       "character_error_rate": 0.8877551020408163,
       "word_error_rate": 0.9130434782608695,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.9319856762886047,
-      "bertscore_recall": 0.8244435787200928,
-      "bertscore_f1": 0.8749223947525024,
+      "bertscore_precision": 0.9319855570793152,
+      "bertscore_recall": 0.8244434595108032,
+      "bertscore_f1": 0.8749222159385681,
       "meteor": 0.11744047619047619,
       "embedding_cosine_similarity": 0.4964406490325928
     },
@@ -326,7 +326,7 @@
       "character_error_rate": 0.8,
       "word_error_rate": 0.8888888888888888,
       "map_at_5": 0.2,
-      "bertscore_precision": 0.9264199137687683,
+      "bertscore_precision": 0.9264199733734131,
       "bertscore_recall": 0.960561215877533,
       "bertscore_f1": 0.9431816935539246,
       "meteor": 0.5148936170212766,
@@ -495,8 +495,8 @@
       "word_error_rate": 0.21428571428571427,
       "map_at_5": 0.5,
       "bertscore_precision": 0.9900039434432983,
-      "bertscore_recall": 0.9844140410423279,
-      "bertscore_f1": 0.9872010946273804,
+      "bertscore_recall": 0.9844139814376831,
+      "bertscore_f1": 0.9872010350227356,
       "meteor": 0.7889886437957073,
       "embedding_cosine_similarity": 0.9691191911697388
     },
@@ -509,7 +509,7 @@
       "word_error_rate": 1.3,
       "map_at_5": 0.0,
       "bertscore_precision": 0.892734944820404,
-      "bertscore_recall": 0.878189742565155,
+      "bertscore_recall": 0.8781896829605103,
       "bertscore_f1": 0.8854026198387146,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.5056782960891724
@@ -522,9 +522,9 @@
       "character_error_rate": 3.2419354838709675,
       "word_error_rate": 3.5,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.8226243853569031,
+      "bertscore_precision": 0.8226243257522583,
       "bertscore_recall": 0.8855371475219727,
-      "bertscore_f1": 0.8529221415519714,
+      "bertscore_f1": 0.8529222011566162,
       "meteor": 0.2519774011299435,
       "embedding_cosine_similarity": 0.4154953956604004
     },
@@ -540,7 +540,7 @@
       "bertscore_recall": 0.8310708403587341,
       "bertscore_f1": 0.8341148495674133,
       "meteor": 0.07505302659487682,
-      "embedding_cosine_similarity": 0.1926267445087433
+      "embedding_cosine_similarity": 0.1926266998052597
     },
     {
       "test_id": "GOLDEN_V3_005680",
@@ -620,8 +620,8 @@
       "character_error_rate": 0.3559322033898305,
       "word_error_rate": 0.42857142857142855,
       "map_at_5": 0.2,
-      "bertscore_precision": 0.9849916100502014,
-      "bertscore_recall": 0.9463803768157959,
+      "bertscore_precision": 0.9849916696548462,
+      "bertscore_recall": 0.9463803172111511,
       "bertscore_f1": 0.9653000235557556,
       "meteor": 0.5836397058823528,
       "embedding_cosine_similarity": 0.8146369457244873
@@ -676,11 +676,11 @@
       "character_error_rate": 0.9492151431209603,
       "word_error_rate": 0.9879518072289156,
       "map_at_5": 0.5833333333333333,
-      "bertscore_precision": 0.8661561012268066,
-      "bertscore_recall": 0.7705140113830566,
-      "bertscore_f1": 0.8155405521392822,
+      "bertscore_precision": 0.8661559820175171,
+      "bertscore_recall": 0.7705139517784119,
+      "bertscore_f1": 0.8155404925346375,
       "meteor": 0.02127736631476015,
-      "embedding_cosine_similarity": 0.3774980902671814
+      "embedding_cosine_similarity": 0.3774980306625366
     },
     {
       "test_id": "GOLDEN_V3_005765",
@@ -719,8 +719,8 @@
       "word_error_rate": 2.0,
       "map_at_5": 0.0,
       "bertscore_precision": 0.8393282890319824,
-      "bertscore_recall": 0.8814898729324341,
-      "bertscore_f1": 0.8598926067352295,
+      "bertscore_recall": 0.8814897537231445,
+      "bertscore_f1": 0.8598925471305847,
       "meteor": 0.07518796992481203,
       "embedding_cosine_similarity": 0.40793880820274353
     },
@@ -880,17 +880,17 @@
     },
     {
       "test_id": "GOLDEN_V3_005876",
-      "chrf": 14.330385317812006,
-      "chrf_pp": 14.953219022806536,
-      "sacrebleu": 2.367237491794474,
-      "character_error_rate": 0.7894736842105263,
+      "chrf": 13.655441344421378,
+      "chrf_pp": 13.83783596731375,
+      "sacrebleu": 1.5905552007142194,
+      "character_error_rate": 0.8157894736842105,
       "word_error_rate": 0.875,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9405117034912109,
-      "bertscore_recall": 0.8558692932128906,
-      "bertscore_f1": 0.8961963653564453,
-      "meteor": 0.12583892617449666,
-      "embedding_cosine_similarity": 0.2725456953048706
+      "bertscore_precision": 0.9150048494338989,
+      "bertscore_recall": 0.8406049013137817,
+      "bertscore_f1": 0.8762284517288208,
+      "meteor": 0.12668918918918917,
+      "embedding_cosine_similarity": 0.3137134909629822
     },
     {
       "test_id": "GOLDEN_V3_005877",
@@ -957,7 +957,7 @@
       "word_error_rate": 7.363636363636363,
       "map_at_5": 0.0,
       "bertscore_precision": 0.8211538791656494,
-      "bertscore_recall": 0.9220787882804871,
+      "bertscore_recall": 0.9220787286758423,
       "bertscore_f1": 0.8686947822570801,
       "meteor": 0.20327868852459013,
       "embedding_cosine_similarity": 0.49715539813041687
@@ -1282,7 +1282,7 @@
       "bertscore_recall": 0.8727152347564697,
       "bertscore_f1": 0.9064412117004395,
       "meteor": 0.0,
-      "embedding_cosine_similarity": 0.036009155213832855
+      "embedding_cosine_similarity": 0.03600911796092987
     },
     {
       "test_id": "GOLDEN_V3_006168",
@@ -1338,7 +1338,7 @@
       "bertscore_recall": 0.8340011835098267,
       "bertscore_f1": 0.8588749766349792,
       "meteor": 0.0,
-      "embedding_cosine_similarity": 0.14530439674854279
+      "embedding_cosine_similarity": 0.14530441164970398
     },
     {
       "test_id": "GOLDEN_V3_006187",
@@ -1352,7 +1352,7 @@
       "bertscore_recall": 0.8002586960792542,
       "bertscore_f1": 0.8330045938491821,
       "meteor": 0.0,
-      "embedding_cosine_similarity": 0.24299439787864685
+      "embedding_cosine_similarity": 0.24299444258213043
     },
     {
       "test_id": "GOLDEN_V3_006203",
@@ -1366,7 +1366,7 @@
       "bertscore_recall": 0.8695212602615356,
       "bertscore_f1": 0.8768512010574341,
       "meteor": 0.0,
-      "embedding_cosine_similarity": 0.19526860117912292
+      "embedding_cosine_similarity": 0.1952686309814453
     },
     {
       "test_id": "GOLDEN_V3_006217",
@@ -1544,9 +1544,9 @@
       "character_error_rate": 0.7580645161290323,
       "word_error_rate": 0.8571428571428571,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.9459367990493774,
-      "bertscore_recall": 0.8919907808303833,
-      "bertscore_f1": 0.9181721210479736,
+      "bertscore_precision": 0.9459367394447327,
+      "bertscore_recall": 0.8919909000396729,
+      "bertscore_f1": 0.9181721806526184,
       "meteor": 0.14423076923076922,
       "embedding_cosine_similarity": 0.17870905995368958
     },
@@ -1656,9 +1656,9 @@
       "character_error_rate": 1.4137931034482758,
       "word_error_rate": 1.7142857142857142,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.8783836364746094,
-      "bertscore_recall": 0.9286630749702454,
-      "bertscore_f1": 0.9028239250183105,
+      "bertscore_precision": 0.8783835172653198,
+      "bertscore_recall": 0.9286630153656006,
+      "bertscore_f1": 0.9028237462043762,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.367501437664032
     },
@@ -1716,7 +1716,7 @@
       "bertscore_recall": 0.8323760628700256,
       "bertscore_f1": 0.8783035278320312,
       "meteor": 0.07651363938789088,
-      "embedding_cosine_similarity": 0.5813445448875427
+      "embedding_cosine_similarity": 0.581344485282898
     },
     {
       "test_id": "GOLDEN_V3_006451",
@@ -1754,9 +1754,9 @@
       "character_error_rate": 0.7678571428571429,
       "word_error_rate": 1.0,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.851697564125061,
+      "bertscore_precision": 0.8516974449157715,
       "bertscore_recall": 0.8755821585655212,
-      "bertscore_f1": 0.8634747266769409,
+      "bertscore_f1": 0.8634746670722961,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.3170470595359802
     },
@@ -1768,8 +1768,8 @@
       "character_error_rate": 0.9176029962546817,
       "word_error_rate": 0.9758064516129032,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.8921282887458801,
-      "bertscore_recall": 0.7853381037712097,
+      "bertscore_precision": 0.8921283483505249,
+      "bertscore_recall": 0.7853380441665649,
       "bertscore_f1": 0.8353339433670044,
       "meteor": 0.022635567365416786,
       "embedding_cosine_similarity": 0.3076624870300293
@@ -1838,9 +1838,9 @@
       "character_error_rate": 1.6,
       "word_error_rate": 2.1538461538461537,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.8414417505264282,
-      "bertscore_recall": 0.878860354423523,
-      "bertscore_f1": 0.859744131565094,
+      "bertscore_precision": 0.8414416909217834,
+      "bertscore_recall": 0.8788602948188782,
+      "bertscore_f1": 0.8597440719604492,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.2395225465297699
     },
@@ -1867,7 +1867,7 @@
       "word_error_rate": 6.5,
       "map_at_5": 0.5,
       "bertscore_precision": 0.8214913010597229,
-      "bertscore_recall": 0.9260964393615723,
+      "bertscore_recall": 0.926096498966217,
       "bertscore_f1": 0.8706632256507874,
       "meteor": 0.24658203125000006,
       "embedding_cosine_similarity": 0.46369627118110657
@@ -1968,7 +1968,7 @@
       "bertscore_recall": 0.8265784978866577,
       "bertscore_f1": 0.8744276165962219,
       "meteor": 0.0674289064790384,
-      "embedding_cosine_similarity": 0.35813748836517334
+      "embedding_cosine_similarity": 0.3581375479698181
     },
     {
       "test_id": "GOLDEN_V3_006644",
@@ -2006,7 +2006,7 @@
       "character_error_rate": 0.6896551724137931,
       "word_error_rate": 1.0,
       "map_at_5": 0.25,
-      "bertscore_precision": 0.890026867389679,
+      "bertscore_precision": 0.8900269269943237,
       "bertscore_recall": 0.8778496980667114,
       "bertscore_f1": 0.8838963508605957,
       "meteor": 0.15368852459016394,
@@ -2021,8 +2021,8 @@
       "word_error_rate": 0.9896193771626297,
       "map_at_5": 0.0,
       "bertscore_precision": 0.9148708581924438,
-      "bertscore_recall": 0.770637035369873,
-      "bertscore_f1": 0.8365826606750488,
+      "bertscore_recall": 0.7706369161605835,
+      "bertscore_f1": 0.836582601070404,
       "meteor": 0.008698531558374729,
       "embedding_cosine_similarity": 0.468139111995697
     },
@@ -2104,9 +2104,9 @@
       "character_error_rate": 0.7894736842105263,
       "word_error_rate": 0.875,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.940885066986084,
-      "bertscore_recall": 0.8540396690368652,
-      "bertscore_f1": 0.8953614234924316,
+      "bertscore_precision": 0.9408850073814392,
+      "bertscore_recall": 0.8540395498275757,
+      "bertscore_f1": 0.8953613042831421,
       "meteor": 0.12583892617449666,
       "embedding_cosine_similarity": 0.26443788409233093
     },
@@ -2132,9 +2132,9 @@
       "character_error_rate": 0.6545454545454545,
       "word_error_rate": 0.7692307692307693,
       "map_at_5": 0.25,
-      "bertscore_precision": 0.9576625823974609,
-      "bertscore_recall": 0.9177636504173279,
-      "bertscore_f1": 0.9372887015342712,
+      "bertscore_precision": 0.9576626420021057,
+      "bertscore_recall": 0.9177637100219727,
+      "bertscore_f1": 0.9372888207435608,
       "meteor": 0.20947176684881602,
       "embedding_cosine_similarity": 0.4057232141494751
     },
@@ -2175,8 +2175,8 @@
       "word_error_rate": 3.5714285714285716,
       "map_at_5": 0.0,
       "bertscore_precision": 0.8488248586654663,
-      "bertscore_recall": 0.9097111821174622,
-      "bertscore_f1": 0.8782139420509338,
+      "bertscore_recall": 0.9097112417221069,
+      "bertscore_f1": 0.8782140016555786,
       "meteor": 0.3801300740076251,
       "embedding_cosine_similarity": 0.5410705208778381
     },
@@ -2528,10 +2528,10 @@
       "word_error_rate": 0.5217391304347826,
       "map_at_5": 1.0,
       "bertscore_precision": 0.9311813116073608,
-      "bertscore_recall": 0.8950346112251282,
+      "bertscore_recall": 0.895034670829773,
       "bertscore_f1": 0.912750244140625,
       "meteor": 0.6185660104749865,
-      "embedding_cosine_similarity": 0.9256397485733032
+      "embedding_cosine_similarity": 0.9256396889686584
     },
     {
       "test_id": "GOLDEN_V3_000373",
@@ -2583,9 +2583,9 @@
       "character_error_rate": 0.17307692307692307,
       "word_error_rate": 0.23076923076923078,
       "map_at_5": 0.5,
-      "bertscore_precision": 0.9901773929595947,
+      "bertscore_precision": 0.9901775121688843,
       "bertscore_recall": 0.9836518168449402,
-      "bertscore_f1": 0.9869037866592407,
+      "bertscore_f1": 0.9869039058685303,
       "meteor": 0.7720930232558141,
       "embedding_cosine_similarity": 0.9807136654853821
     },
@@ -2615,7 +2615,7 @@
       "bertscore_recall": 0.7257856130599976,
       "bertscore_f1": 0.7867124676704407,
       "meteor": 0.001817520901490367,
-      "embedding_cosine_similarity": 0.2514272928237915
+      "embedding_cosine_similarity": 0.2514273524284363
     },
     {
       "test_id": "GOLDEN_V3_000705",
@@ -2807,9 +2807,9 @@
       "character_error_rate": 0.20675944333996024,
       "word_error_rate": 0.19008264462809918,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9559909105300903,
+      "bertscore_precision": 0.9559910297393799,
       "bertscore_recall": 0.9209025502204895,
-      "bertscore_f1": 0.9381187558174133,
+      "bertscore_f1": 0.9381188154220581,
       "meteor": 0.8250270088951283,
       "embedding_cosine_similarity": 0.8956552743911743
     },
@@ -2821,7 +2821,7 @@
       "character_error_rate": 0.8142076502732241,
       "word_error_rate": 1.0,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.8631882667541504,
+      "bertscore_precision": 0.8631882071495056,
       "bertscore_recall": 0.8111099004745483,
       "bertscore_f1": 0.8363391160964966,
       "meteor": 0.0,
@@ -2863,8 +2863,8 @@
       "character_error_rate": 12.25,
       "word_error_rate": 12.0,
       "map_at_5": 0.5,
-      "bertscore_precision": 0.7706050872802734,
-      "bertscore_recall": 0.7963074445724487,
+      "bertscore_precision": 0.7706049680709839,
+      "bertscore_recall": 0.7963076829910278,
       "bertscore_f1": 0.7832455039024353,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.21235014498233795
@@ -2905,9 +2905,9 @@
       "character_error_rate": 0.6605504587155964,
       "word_error_rate": 0.7692307692307693,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.9229034185409546,
+      "bertscore_precision": 0.9229034781455994,
       "bertscore_recall": 0.9327887296676636,
-      "bertscore_f1": 0.9278197288513184,
+      "bertscore_f1": 0.9278197884559631,
       "meteor": 0.674939436374973,
       "embedding_cosine_similarity": 0.9080755710601807
     },
@@ -2933,9 +2933,9 @@
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9943549036979675,
-      "bertscore_recall": 0.9870731830596924,
-      "bertscore_f1": 0.9907006025314331,
+      "bertscore_precision": 0.9943548440933228,
+      "bertscore_recall": 0.9870730638504028,
+      "bertscore_f1": 0.9907005429267883,
       "meteor": 0.9997106481481481,
       "embedding_cosine_similarity": 0.9943925142288208
     },
@@ -2969,17 +2969,17 @@
     },
     {
       "test_id": "GOLDEN_V3_000957",
-      "chrf": 5.159261985331611,
-      "chrf_pp": 8.790336732778773,
-      "sacrebleu": 2.4023613750483324,
-      "character_error_rate": 47.5462962962963,
-      "word_error_rate": 22.26923076923077,
+      "chrf": 61.350192989065576,
+      "chrf_pp": 60.256311411912776,
+      "sacrebleu": 26.519554194725405,
+      "character_error_rate": 0.6666666666666666,
+      "word_error_rate": 0.7692307692307693,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.7329074144363403,
-      "bertscore_recall": 0.9157683849334717,
-      "bertscore_f1": 0.8141970038414001,
-      "meteor": 0.22037179187664793,
-      "embedding_cosine_similarity": 0.7494626045227051
+      "bertscore_precision": 0.9208856821060181,
+      "bertscore_recall": 0.934019923210144,
+      "bertscore_f1": 0.9274063110351562,
+      "meteor": 0.674939436374973,
+      "embedding_cosine_similarity": 0.879385769367218
     },
     {
       "test_id": "GOLDEN_V3_000199",
@@ -2989,7 +2989,7 @@
       "character_error_rate": 4.027027027027027,
       "word_error_rate": 4.166666666666667,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.8175888061523438,
+      "bertscore_precision": 0.817588746547699,
       "bertscore_recall": 0.9155343770980835,
       "bertscore_f1": 0.8637939691543579,
       "meteor": 0.4707052090406441,
@@ -3399,7 +3399,7 @@
       "bertscore_recall": 1.0,
       "bertscore_f1": 1.0,
       "meteor": 0.9999892832647462,
-      "embedding_cosine_similarity": 1.0
+      "embedding_cosine_similarity": 1.0000001192092896
     },
     {
       "test_id": "GOLDEN_V3_000312",
@@ -3493,7 +3493,7 @@
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9999999403953552,
+      "bertscore_precision": 0.9999998807907104,
       "bertscore_recall": 0.9999999403953552,
       "bertscore_f1": 0.9999999403953552,
       "meteor": 0.9998518518518519,
@@ -3501,17 +3501,17 @@
     },
     {
       "test_id": "GOLDEN_V3_001616",
-      "chrf": 5.943454743186486,
-      "chrf_pp": 6.010824282512844,
-      "sacrebleu": 1.1364798261497331e-06,
-      "character_error_rate": 0.9483849483849484,
-      "word_error_rate": 0.9526372443487621,
-      "map_at_5": 1.0,
-      "bertscore_precision": 0.8793437480926514,
-      "bertscore_recall": 0.8123787641525269,
-      "bertscore_f1": 0.8445358872413635,
-      "meteor": 0.0463299414158943,
-      "embedding_cosine_similarity": 0.759882390499115
+      "chrf": 0.0,
+      "chrf_pp": 0.0,
+      "sacrebleu": 0.0,
+      "character_error_rate": 1.0,
+      "word_error_rate": 1.0,
+      "map_at_5": 0.0,
+      "bertscore_precision": 0.0,
+      "bertscore_recall": 0.0,
+      "bertscore_f1": 0.0,
+      "meteor": 0.0,
+      "embedding_cosine_similarity": 0.1313120573759079
     },
     {
       "test_id": "GOLDEN_V3_001101",
@@ -3577,9 +3577,9 @@
       "character_error_rate": 94.54545454545455,
       "word_error_rate": 79.0,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.7304154634475708,
-      "bertscore_recall": 0.8193578124046326,
-      "bertscore_f1": 0.7723344564437866,
+      "bertscore_precision": 0.7304157614707947,
+      "bertscore_recall": 0.8193586468696594,
+      "bertscore_f1": 0.7723349332809448,
       "meteor": 0.03759398496240602,
       "embedding_cosine_similarity": 0.08836746960878372
     },
@@ -3637,7 +3637,7 @@
       "bertscore_recall": 0.9999998807907104,
       "bertscore_f1": 0.9999999403953552,
       "meteor": 0.9999794989544467,
-      "embedding_cosine_similarity": 0.9999999403953552
+      "embedding_cosine_similarity": 1.0
     },
     {
       "test_id": "GOLDEN_V3_002097",
@@ -3651,7 +3651,7 @@
       "bertscore_recall": 0.9657796025276184,
       "bertscore_f1": 0.9727613925933838,
       "meteor": 0.9261123106078464,
-      "embedding_cosine_similarity": 0.9507279396057129
+      "embedding_cosine_similarity": 0.9507278203964233
     },
     {
       "test_id": "GOLDEN_V3_001196",
@@ -3661,9 +3661,9 @@
       "character_error_rate": 0.8518518518518519,
       "word_error_rate": 1.1538461538461537,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.8694114089012146,
-      "bertscore_recall": 0.8773608207702637,
-      "bertscore_f1": 0.8733680248260498,
+      "bertscore_precision": 0.8694115281105042,
+      "bertscore_recall": 0.8773623704910278,
+      "bertscore_f1": 0.8733687996864319,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.3366251587867737
     },
@@ -3697,17 +3697,17 @@
     },
     {
       "test_id": "GOLDEN_V3_000185",
-      "chrf": 97.16285805555366,
-      "chrf_pp": 95.73093761295898,
-      "sacrebleu": 84.08964152537145,
+      "chrf": 100.0,
+      "chrf_pp": 100.0,
+      "sacrebleu": 100.00000000000004,
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9738754034042358,
-      "bertscore_recall": 0.9717814922332764,
-      "bertscore_f1": 0.9728273153305054,
+      "bertscore_precision": 1.0,
+      "bertscore_recall": 1.0,
+      "bertscore_f1": 1.0,
       "meteor": 0.9990234375,
-      "embedding_cosine_similarity": 0.9749107360839844
+      "embedding_cosine_similarity": 0.9999999403953552
     },
     {
       "test_id": "GOLDEN_V3_002201",
@@ -3717,9 +3717,9 @@
       "character_error_rate": 0.22580645161290322,
       "word_error_rate": 0.26666666666666666,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9481388926506042,
-      "bertscore_recall": 0.8953907489776611,
-      "bertscore_f1": 0.9210101366043091,
+      "bertscore_precision": 0.9481390118598938,
+      "bertscore_recall": 0.8953908681869507,
+      "bertscore_f1": 0.9210103154182434,
       "meteor": 0.7457828597305557,
       "embedding_cosine_similarity": 0.9295631051063538
     },
@@ -3735,7 +3735,7 @@
       "bertscore_recall": 0.8040201663970947,
       "bertscore_f1": 0.8353180885314941,
       "meteor": 0.011494252873563218,
-      "embedding_cosine_similarity": 0.31578850746154785
+      "embedding_cosine_similarity": 0.3157884478569031
     },
     {
       "test_id": "GOLDEN_V3_001527",
@@ -3791,7 +3791,7 @@
       "bertscore_recall": 0.9448541402816772,
       "bertscore_f1": 0.958977460861206,
       "meteor": 0.8175740318170359,
-      "embedding_cosine_similarity": 0.930993378162384
+      "embedding_cosine_similarity": 0.9309934377670288
     },
     {
       "test_id": "GOLDEN_V3_001205",
@@ -3959,7 +3959,7 @@
       "bertscore_recall": 1.0,
       "bertscore_f1": 1.0,
       "meteor": 0.9999892832647462,
-      "embedding_cosine_similarity": 1.0000001192092896
+      "embedding_cosine_similarity": 1.0
     },
     {
       "test_id": "GOLDEN_V3_000538",
@@ -3983,9 +3983,9 @@
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 0.5,
-      "bertscore_precision": 0.9999998211860657,
-      "bertscore_recall": 0.9999998211860657,
-      "bertscore_f1": 0.9999998211860657,
+      "bertscore_precision": 0.9999998807907104,
+      "bertscore_recall": 0.9999998807907104,
+      "bertscore_f1": 0.9999998807907104,
       "meteor": 0.9998779296875,
       "embedding_cosine_similarity": 1.0
     },
@@ -4085,7 +4085,7 @@
       "bertscore_recall": 0.8264397382736206,
       "bertscore_f1": 0.8493619561195374,
       "meteor": 0.01016260162601626,
-      "embedding_cosine_similarity": 0.27900317311286926
+      "embedding_cosine_similarity": 0.2790031433105469
     },
     {
       "test_id": "GOLDEN_V3_001753",
@@ -4141,7 +4141,7 @@
       "bertscore_recall": 0.7890945672988892,
       "bertscore_f1": 0.8417456150054932,
       "meteor": 0.08045680222933618,
-      "embedding_cosine_similarity": 0.5391919016838074
+      "embedding_cosine_similarity": 0.5391918420791626
     },
     {
       "test_id": "GOLDEN_V3_002125",
@@ -4193,9 +4193,9 @@
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 1.0,
-      "bertscore_precision": 1.0,
-      "bertscore_recall": 1.0,
-      "bertscore_f1": 1.0,
+      "bertscore_precision": 1.0000001192092896,
+      "bertscore_recall": 1.0000001192092896,
+      "bertscore_f1": 1.0000001192092896,
       "meteor": 0.9996243425995492,
       "embedding_cosine_similarity": 0.9999999403953552
     },
@@ -4449,7 +4449,7 @@
       "bertscore_recall": 0.9826892614364624,
       "bertscore_f1": 0.9698214530944824,
       "meteor": 0.9411459343287442,
-      "embedding_cosine_similarity": 0.942621111869812
+      "embedding_cosine_similarity": 0.9426210522651672
     },
     {
       "test_id": "GOLDEN_V3_000854",
@@ -4487,9 +4487,9 @@
       "character_error_rate": 15.454545454545455,
       "word_error_rate": 13.666666666666666,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.7558398842811584,
-      "bertscore_recall": 0.8328481316566467,
-      "bertscore_f1": 0.7924776077270508,
+      "bertscore_precision": 0.7558403015136719,
+      "bertscore_recall": 0.8328491449356079,
+      "bertscore_f1": 0.7924782633781433,
       "meteor": 0.07246376811594203,
       "embedding_cosine_similarity": 0.3199779689311981
     },
@@ -4676,7 +4676,7 @@
       "bertscore_recall": 0.8683539628982544,
       "bertscore_f1": 0.8904666304588318,
       "meteor": 0.28633171258779044,
-      "embedding_cosine_similarity": 0.6151719093322754
+      "embedding_cosine_similarity": 0.6151720285415649
     },
     {
       "test_id": "GOLDEN_V3_UA_000062",
@@ -4725,8 +4725,8 @@
       "character_error_rate": 0.9040697674418605,
       "word_error_rate": 1.0,
       "bertscore_precision": 0.9140342473983765,
-      "bertscore_recall": 0.8396294116973877,
-      "bertscore_f1": 0.8752533793449402,
+      "bertscore_recall": 0.8396295309066772,
+      "bertscore_f1": 0.8752534985542297,
       "meteor": 0.03584229390681004,
       "embedding_cosine_similarity": 0.5353925824165344
     },
@@ -4854,7 +4854,7 @@
       "sacrebleu": 73.38290971897929,
       "character_error_rate": 0.1596958174904943,
       "word_error_rate": 0.1774193548387097,
-      "bertscore_precision": 0.978793740272522,
+      "bertscore_precision": 0.9787936806678772,
       "bertscore_recall": 0.979259729385376,
       "bertscore_f1": 0.9790266752243042,
       "meteor": 0.941701809824763,
@@ -4910,7 +4910,7 @@
       "bertscore_recall": 0.8315160274505615,
       "bertscore_f1": 0.8469571471214294,
       "meteor": 0.05202797202797202,
-      "embedding_cosine_similarity": 0.32895079255104065
+      "embedding_cosine_similarity": 0.32895076274871826
     },
     {
       "test_id": "GOLDEN_V3_UA_000096",
@@ -4990,8 +4990,8 @@
       "word_error_rate": 146.0,
       "map_at_5": 0.0,
       "bertscore_precision": 0.6980106830596924,
-      "bertscore_recall": 0.8321733474731445,
-      "bertscore_f1": 0.759210467338562,
+      "bertscore_recall": 0.8321734666824341,
+      "bertscore_f1": 0.7592105269432068,
       "meteor": 0.032051282051282055,
       "embedding_cosine_similarity": 0.1560119390487671
     },
@@ -5059,9 +5059,9 @@
       "character_error_rate": 21.64814814814815,
       "word_error_rate": 24.363636363636363,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.757912278175354,
-      "bertscore_recall": 0.8994926810264587,
-      "bertscore_f1": 0.8226553797721863,
+      "bertscore_precision": 0.7579123973846436,
+      "bertscore_recall": 0.8994928598403931,
+      "bertscore_f1": 0.8226554989814758,
       "meteor": 0.11431337503723567,
       "embedding_cosine_similarity": 0.1201627254486084
     },
@@ -5091,7 +5091,7 @@
       "bertscore_recall": 0.9956185817718506,
       "bertscore_f1": 0.9923191666603088,
       "meteor": 0.9943065862708721,
-      "embedding_cosine_similarity": 0.9349358081817627
+      "embedding_cosine_similarity": 0.9349356293678284
     },
     {
       "test_id": "GOLDEN_V3_001343",
@@ -5129,9 +5129,9 @@
       "character_error_rate": 0.8235294117647058,
       "word_error_rate": 0.75,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9054121375083923,
-      "bertscore_recall": 0.9408149719238281,
-      "bertscore_f1": 0.922774076461792,
+      "bertscore_precision": 0.9054113626480103,
+      "bertscore_recall": 0.9408143758773804,
+      "bertscore_f1": 0.9227734208106995,
       "meteor": 0.9229651162790699,
       "embedding_cosine_similarity": 0.9195421934127808
     },
@@ -5269,9 +5269,9 @@
       "character_error_rate": 0.8235294117647058,
       "word_error_rate": 0.75,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9054121375083923,
-      "bertscore_recall": 0.9408149719238281,
-      "bertscore_f1": 0.922774076461792,
+      "bertscore_precision": 0.9054112434387207,
+      "bertscore_recall": 0.9408143758773804,
+      "bertscore_f1": 0.9227733612060547,
       "meteor": 0.9229651162790699,
       "embedding_cosine_similarity": 0.9195421934127808
     },
@@ -5311,9 +5311,9 @@
       "character_error_rate": 0.7283950617283951,
       "word_error_rate": 0.8888888888888888,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9503287672996521,
-      "bertscore_recall": 0.9040331840515137,
-      "bertscore_f1": 0.9266030192375183,
+      "bertscore_precision": 0.9503287076950073,
+      "bertscore_recall": 0.9040332436561584,
+      "bertscore_f1": 0.9266030788421631,
       "meteor": 0.39324501730516764,
       "embedding_cosine_similarity": 0.628808856010437
     },
@@ -5409,9 +5409,9 @@
       "character_error_rate": 0.8235294117647058,
       "word_error_rate": 0.75,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9054121375083923,
-      "bertscore_recall": 0.9408150315284729,
-      "bertscore_f1": 0.9227741360664368,
+      "bertscore_precision": 0.9054113626480103,
+      "bertscore_recall": 0.9408144354820251,
+      "bertscore_f1": 0.922773540019989,
       "meteor": 0.9229651162790699,
       "embedding_cosine_similarity": 0.9195421934127808
     },
@@ -5619,9 +5619,9 @@
       "character_error_rate": 0.35714285714285715,
       "word_error_rate": 0.3333333333333333,
       "map_at_5": 0.5,
-      "bertscore_precision": 0.9240239262580872,
-      "bertscore_recall": 0.9500265121459961,
-      "bertscore_f1": 0.9368448853492737,
+      "bertscore_precision": 0.9240236282348633,
+      "bertscore_recall": 0.950026273727417,
+      "bertscore_f1": 0.936844527721405,
       "meteor": 0.9674619175627239,
       "embedding_cosine_similarity": 0.959980845451355
     },
@@ -5689,7 +5689,7 @@
       "character_error_rate": 0.9333333333333333,
       "word_error_rate": 0.75,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9017932415008545,
+      "bertscore_precision": 0.9017931818962097,
       "bertscore_recall": 0.9367839097976685,
       "bertscore_f1": 0.9189556241035461,
       "meteor": 0.9229651162790699,
@@ -5763,7 +5763,7 @@
       "bertscore_recall": 0.9999998807907104,
       "bertscore_f1": 0.9999998807907104,
       "meteor": 0.9999847412109375,
-      "embedding_cosine_similarity": 1.0000001192092896
+      "embedding_cosine_similarity": 1.0
     },
     {
       "test_id": "GOLDEN_V3_001795",
@@ -5900,8 +5900,8 @@
       "word_error_rate": 92.54545454545455,
       "map_at_5": 0.0,
       "bertscore_precision": 0.7485877275466919,
-      "bertscore_recall": 0.8616495132446289,
-      "bertscore_f1": 0.801149308681488,
+      "bertscore_recall": 0.8616495728492737,
+      "bertscore_f1": 0.8011493682861328,
       "meteor": 0.03796873454041754,
       "embedding_cosine_similarity": 0.23355309665203094
     },
@@ -5959,7 +5959,7 @@
       "bertscore_recall": 0.9549880623817444,
       "bertscore_f1": 0.9533158540725708,
       "meteor": 0.5656371505204113,
-      "embedding_cosine_similarity": 0.8348649740219116
+      "embedding_cosine_similarity": 0.8348648548126221
     },
     {
       "test_id": "GOLDEN_V3_000528",
@@ -5969,9 +5969,9 @@
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 0.5,
-      "bertscore_precision": 0.9999999403953552,
-      "bertscore_recall": 0.9999999403953552,
-      "bertscore_f1": 0.9999999403953552,
+      "bertscore_precision": 1.0,
+      "bertscore_recall": 1.0000001192092896,
+      "bertscore_f1": 1.0000001192092896,
       "meteor": 0.9997724169321802,
       "embedding_cosine_similarity": 1.0
     },
@@ -6057,7 +6057,7 @@
       "bertscore_recall": 0.9984912276268005,
       "bertscore_f1": 0.9984912276268005,
       "meteor": 0.9999901289163524,
-      "embedding_cosine_similarity": 0.991746187210083
+      "embedding_cosine_similarity": 0.9917463064193726
     },
     {
       "test_id": "GOLDEN_V3_001153",
@@ -6319,9 +6319,9 @@
       "character_error_rate": 5.769230769230769,
       "word_error_rate": 5.666666666666667,
       "map_at_5": 0.5,
-      "bertscore_precision": 0.8238002061843872,
-      "bertscore_recall": 0.8122860789299011,
-      "bertscore_f1": 0.8180026412010193,
+      "bertscore_precision": 0.8238003253936768,
+      "bertscore_recall": 0.812285840511322,
+      "bertscore_f1": 0.8180025219917297,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.22838231921195984
     },
@@ -6435,7 +6435,7 @@
       "bertscore_recall": 0.970215380191803,
       "bertscore_f1": 0.9794832468032837,
       "meteor": 0.755913802697753,
-      "embedding_cosine_similarity": 0.9931623935699463
+      "embedding_cosine_similarity": 0.9931625127792358
     },
     {
       "test_id": "GOLDEN_V3_000883",
@@ -6453,17 +6453,17 @@
     },
     {
       "test_id": "GOLDEN_V3_000780",
-      "chrf": 97.16285805555366,
-      "chrf_pp": 95.73093761295898,
-      "sacrebleu": 84.08964152537145,
+      "chrf": 100.0,
+      "chrf_pp": 100.0,
+      "sacrebleu": 100.00000000000004,
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 0.3333333333333333,
-      "bertscore_precision": 0.9738754034042358,
-      "bertscore_recall": 0.9717814922332764,
-      "bertscore_f1": 0.9728273153305054,
+      "bertscore_precision": 1.0,
+      "bertscore_recall": 1.0,
+      "bertscore_f1": 1.0,
       "meteor": 0.9990234375,
-      "embedding_cosine_similarity": 0.9749107360839844
+      "embedding_cosine_similarity": 0.9999999403953552
     },
     {
       "test_id": "GOLDEN_V3_002767",
@@ -6529,9 +6529,9 @@
       "character_error_rate": 16.25,
       "word_error_rate": 16.666666666666668,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.7480620741844177,
-      "bertscore_recall": 0.9005402326583862,
-      "bertscore_f1": 0.8172498345375061,
+      "bertscore_precision": 0.7480621337890625,
+      "bertscore_recall": 0.900540292263031,
+      "bertscore_f1": 0.8172498941421509,
       "meteor": 0.0,
       "embedding_cosine_similarity": 0.21927523612976074
     },
@@ -6669,9 +6669,9 @@
       "character_error_rate": 0.5789473684210527,
       "word_error_rate": 0.625,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.9750816822052002,
-      "bertscore_recall": 0.8744080662727356,
-      "bertscore_f1": 0.9220049381256104,
+      "bertscore_precision": 0.975081741809845,
+      "bertscore_recall": 0.874407947063446,
+      "bertscore_f1": 0.9220048785209656,
       "meteor": 0.3925925925925926,
       "embedding_cosine_similarity": 0.5047102570533752
     },
@@ -6781,7 +6781,7 @@
       "character_error_rate": 51.666666666666664,
       "word_error_rate": 52.888888888888886,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.7426950931549072,
+      "bertscore_precision": 0.742695152759552,
       "bertscore_recall": 0.8576010465621948,
       "bertscore_f1": 0.7960227727890015,
       "meteor": 0.02823121645796064,
@@ -6950,8 +6950,8 @@
       "word_error_rate": 1.6666666666666667,
       "map_at_5": 1.0,
       "bertscore_precision": 0.8869723081588745,
-      "bertscore_recall": 0.9447470903396606,
-      "bertscore_f1": 0.914948582649231,
+      "bertscore_recall": 0.9447469711303711,
+      "bertscore_f1": 0.9149485230445862,
       "meteor": 0.8412698412698413,
       "embedding_cosine_similarity": 0.8956114053726196
     },
@@ -6963,9 +6963,9 @@
       "character_error_rate": 0.5072463768115942,
       "word_error_rate": 0.5,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9462616443634033,
-      "bertscore_recall": 0.8811638355255127,
-      "bertscore_f1": 0.9125532507896423,
+      "bertscore_precision": 0.9462682008743286,
+      "bertscore_recall": 0.8811639547348022,
+      "bertscore_f1": 0.9125563502311707,
       "meteor": 0.5258018092105263,
       "embedding_cosine_similarity": 0.7376357913017273
     },
@@ -7089,9 +7089,9 @@
       "character_error_rate": 0.9854368932038835,
       "word_error_rate": 1.5333333333333334,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.8041411638259888,
+      "bertscore_precision": 0.8041450381278992,
       "bertscore_recall": 0.7997074127197266,
-      "bertscore_f1": 0.8019182085990906,
+      "bertscore_f1": 0.8019200563430786,
       "meteor": 0.031512605042016806,
       "embedding_cosine_similarity": 0.031311240047216415
     },
@@ -7159,9 +7159,9 @@
       "character_error_rate": 1.1666666666666667,
       "word_error_rate": 1.0,
       "map_at_5": 0.5,
-      "bertscore_precision": 0.8712510466575623,
-      "bertscore_recall": 0.9269295334815979,
-      "bertscore_f1": 0.8982282876968384,
+      "bertscore_precision": 0.8712509870529175,
+      "bertscore_recall": 0.9269294738769531,
+      "bertscore_f1": 0.8982282280921936,
       "meteor": 0.8922558922558923,
       "embedding_cosine_similarity": 0.7920138835906982
     },
@@ -7177,7 +7177,7 @@
       "bertscore_recall": 0.9312082529067993,
       "bertscore_f1": 0.9446074366569519,
       "meteor": 0.7404355649594907,
-      "embedding_cosine_similarity": 0.9284840226173401
+      "embedding_cosine_similarity": 0.9284840822219849
     },
     {
       "test_id": "GOLDEN_V3_002516",
@@ -7289,7 +7289,7 @@
       "bertscore_recall": 0.847892165184021,
       "bertscore_f1": 0.8104965090751648,
       "meteor": 0.17045454545454544,
-      "embedding_cosine_similarity": 0.49132174253463745
+      "embedding_cosine_similarity": 0.491321861743927
     },
     {
       "test_id": "GOLDEN_V3_000920",
@@ -7342,7 +7342,7 @@
       "word_error_rate": 0.953125,
       "map_at_5": 1.0,
       "bertscore_precision": 0.9457736611366272,
-      "bertscore_recall": 0.8143056035041809,
+      "bertscore_recall": 0.8143056631088257,
       "bertscore_f1": 0.8751296997070312,
       "meteor": 0.11494854351997208,
       "embedding_cosine_similarity": 0.3972584009170532
@@ -7355,8 +7355,8 @@
       "character_error_rate": 1.5666666666666667,
       "word_error_rate": 1.625,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.8108108043670654,
-      "bertscore_recall": 0.8889928460121155,
+      "bertscore_precision": 0.8108108639717102,
+      "bertscore_recall": 0.8889929056167603,
       "bertscore_f1": 0.8481038808822632,
       "meteor": 0.5377777777777778,
       "embedding_cosine_similarity": 0.5126346349716187
@@ -7369,9 +7369,9 @@
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 0.5,
-      "bertscore_precision": 0.9999998807907104,
-      "bertscore_recall": 0.9999998807907104,
-      "bertscore_f1": 0.9999998807907104,
+      "bertscore_precision": 0.9999999403953552,
+      "bertscore_recall": 0.9999999403953552,
+      "bertscore_f1": 0.9999999403953552,
       "meteor": 0.9998177842565598,
       "embedding_cosine_similarity": 1.0
     },
@@ -7443,7 +7443,7 @@
       "bertscore_recall": 0.8878238201141357,
       "bertscore_f1": 0.8882520198822021,
       "meteor": 0.9402573529411764,
-      "embedding_cosine_similarity": 0.9388281106948853
+      "embedding_cosine_similarity": 0.93882817029953
     },
     {
       "test_id": "GOLDEN_V3_003641",
@@ -7579,9 +7579,9 @@
       "character_error_rate": 17.32758620689655,
       "word_error_rate": 17.0,
       "map_at_5": 0.0,
-      "bertscore_precision": 0.777724027633667,
-      "bertscore_recall": 0.8401256799697876,
-      "bertscore_f1": 0.8077214360237122,
+      "bertscore_precision": 0.7777241468429565,
+      "bertscore_recall": 0.8401257395744324,
+      "bertscore_f1": 0.8077214956283569,
       "meteor": 0.013698630136986302,
       "embedding_cosine_similarity": 0.30943891406059265
     },
@@ -7789,9 +7789,9 @@
       "character_error_rate": 0.0,
       "word_error_rate": 0.0,
       "map_at_5": 1.0,
-      "bertscore_precision": 1.0,
-      "bertscore_recall": 1.0,
-      "bertscore_f1": 1.0,
+      "bertscore_precision": 1.000000238418579,
+      "bertscore_recall": 1.000000238418579,
+      "bertscore_f1": 1.000000238418579,
       "meteor": 0.9993141289437586,
       "embedding_cosine_similarity": 1.0
     },
@@ -8013,9 +8013,9 @@
       "character_error_rate": 14.090909090909092,
       "word_error_rate": 11.666666666666666,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.7983263731002808,
-      "bertscore_recall": 0.8763182163238525,
-      "bertscore_f1": 0.8355061411857605,
+      "bertscore_precision": 0.7983270883560181,
+      "bertscore_recall": 0.876319408416748,
+      "bertscore_f1": 0.8355071544647217,
       "meteor": 0.45299145299145305,
       "embedding_cosine_similarity": 0.26024317741394043
     },
@@ -8308,8 +8308,8 @@
       "word_error_rate": 0.3707865168539326,
       "map_at_5": 1.0,
       "bertscore_precision": 0.989942193031311,
-      "bertscore_recall": 0.9700018763542175,
-      "bertscore_f1": 0.979870617389679,
+      "bertscore_recall": 0.9700018167495728,
+      "bertscore_f1": 0.9798705577850342,
       "meteor": 0.6336323911128046,
       "embedding_cosine_similarity": 0.9803054332733154
     },
@@ -8689,7 +8689,7 @@
       "bertscore_recall": 0.9999998807907104,
       "bertscore_f1": 0.9999998807907104,
       "meteor": 0.9999908878845313,
-      "embedding_cosine_similarity": 0.9999999403953552
+      "embedding_cosine_similarity": 1.0
     },
     {
       "test_id": "GOLDEN_V3_001211",
@@ -8713,9 +8713,9 @@
       "character_error_rate": 8.545454545454545,
       "word_error_rate": 7.0,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.7949258089065552,
-      "bertscore_recall": 0.8729557394981384,
-      "bertscore_f1": 0.8321155309677124,
+      "bertscore_precision": 0.7949264049530029,
+      "bertscore_recall": 0.8729568719863892,
+      "bertscore_f1": 0.8321163654327393,
       "meteor": 0.5773420479302833,
       "embedding_cosine_similarity": 0.28979653120040894
     },
@@ -8741,9 +8741,9 @@
       "character_error_rate": 0.23161764705882354,
       "word_error_rate": 0.234375,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.9601977467536926,
-      "bertscore_recall": 0.9459643959999084,
-      "bertscore_f1": 0.9530279040336609,
+      "bertscore_precision": 0.9601978063583374,
+      "bertscore_recall": 0.9459644556045532,
+      "bertscore_f1": 0.9530279636383057,
       "meteor": 0.7919968304278923,
       "embedding_cosine_similarity": 0.9356927871704102
     },
@@ -8848,14 +8848,14 @@
     {
       "test_id": "GOLDEN_V3_005119",
       "chrf": 41.019217054555845,
-      "chrf_pp": 39.28528156167361,
-      "sacrebleu": 15.776775969676576,
+      "chrf_pp": 39.27573417594279,
+      "sacrebleu": 15.778184641573699,
       "character_error_rate": 0.7589285714285714,
       "word_error_rate": 0.9860335195530726,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.8587175607681274,
-      "bertscore_recall": 0.8703286647796631,
-      "bertscore_f1": 0.8644841313362122,
+      "bertscore_precision": 0.8577511310577393,
+      "bertscore_recall": 0.8703917264938354,
+      "bertscore_f1": 0.8640251755714417,
       "meteor": 0.32891572210224085,
       "embedding_cosine_similarity": 0.500036358833313
     },
@@ -8923,7 +8923,7 @@
       "character_error_rate": 1.9,
       "word_error_rate": 2.5,
       "map_at_5": 1.0,
-      "bertscore_precision": 0.863813042640686,
+      "bertscore_precision": 0.8638129830360413,
       "bertscore_recall": 0.9035580158233643,
       "bertscore_f1": 0.8832386136054993,
       "meteor": 0.36610191752035726,
@@ -8990,9 +8990,9 @@
     "golden_dataset": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\Data\\dataset_v3\\test_rag\\test_rag_pa1.jsonl",
     "golden_sha256": "f62867a7a0af3cba543c9602392a82e7c4f5912fe1e97b0b22e3c7b4bf1b3583",
     "predictions": "outputs\\evaluation\\eval-qlora-rag-sft-v3\\predictions.jsonl",
-    "predictions_sha256": "9f76665e0f983b2a85eb7868c47bfa57236f98672551bde32a76d7dc4c6c90cd",
+    "predictions_sha256": "bd34617326990354e5db1ab0809d6415c424116dd435f12f2f8d159d8760312a",
     "scorer_version": "offline-v3-supplement-2",
-    "created_at": "2026-11-04T02:07:49+07:00",
+    "created_at": "2026-11-04T04:40:12+07:00",
     "inference_performed": false
   }
 }
