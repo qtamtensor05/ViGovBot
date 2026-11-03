@@ -1,0 +1,18 @@
+{
+  "architecture_type": "finetuned_rag",
+  "web_model_id": "qwen-rag-qlora",
+  "split": "test",
+  "selected": 638,
+  "execution_status": {
+    "success": 638
+  },
+  "output": "outputs\\evaluation\\eval-qlora-rag-sft-v3\\predictions.jsonl",
+  "endpoint": "http://127.0.0.1:8002/api/chat",
+  "started_at": "2026-11-04T00:47:53+07:00",
+  "completed_at": "2026-11-04T02:05:27+07:00",
+  "gold_labels_sent_to_model": false,
+  "evaluation_trace_requested": true,
+  "evaluation_trace_status": {
+    "available": 638
+  }
+}
