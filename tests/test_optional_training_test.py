@@ -29,7 +29,7 @@ class OptionalTestSplitTests(unittest.TestCase):
     def test_profiles_and_omitted_test(self):
         golden = load_config('configs/training/experiments/golden_sft.yaml')
         self.assertEqual(set(dataset_paths(golden)), {'train', 'validation'})
-        self.assertIn('golden_dataset_sft', str(dataset_paths(golden)['train']))
+        self.assertIn('finetuning_v1', str(dataset_paths(golden)['train']))
         legacy = load_config('configs/training/base.yaml')
         self.assertEqual(set(dataset_paths(legacy)), {'train', 'validation', 'test'})
         splits = Splits(train='train.jsonl', validation='val.jsonl')

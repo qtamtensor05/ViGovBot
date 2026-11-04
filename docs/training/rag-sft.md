@@ -9,24 +9,24 @@ runtime RAG. Pipeline chạy độc lập, không thay đổi artifact hoặc pr
 
 ```powershell
 vigov data filter-rag-leakage `
-  --source-dir Data/dataset_v3/fintuning `
+  --source-dir Data/dataset_v3/finetuning_v1 `
   --test Data/dataset_v3/test_rag/test_rag_pa1.jsonl `
   --test Data/dataset_v3/test_rag/test_rag_pa2.jsonl `
-  --output-dir Data/dataset_v3/fintuning_clean
+  --output-dir Data/dataset_v3/finetuning_v2
 
 vigov data golden-to-rag-sft `
-  --source-dir Data/dataset_v3/fintuning_clean `
-  --output-dir Data/dataset_v3/finetuning_rag_clean
+  --source-dir Data/dataset_v3/finetuning_v2 `
+  --output-dir Data/dataset_v3/finetuning_v2
 
 vigov data check `
   --config configs/training/experiments/golden_rag_sft.yaml `
-  --output Data/dataset_v3/finetuning_rag_clean/validation_report.json
+  --output Data/dataset_v3/finetuning_v2/reports/validation_report.json
 ```
 
 Filter dùng policy procedure/content-disjoint: loại case trùng mã thủ tục, context
 ID/text, standalone query hoặc đáp án dài nguyên văn với PA1/PA2. Câu mẫu ngắn và
 near-duplicate khác thủ tục chỉ được báo cáo, không tự loại. Nguồn và test không bị
-ghi đè; danh sách bị loại nằm trong `fintuning_clean/excluded_cases.jsonl`.
+ghi đè; danh sách bị loại nằm trong `finetuning_v2/reports/excluded_cases.jsonl`.
 
 Converter chỉ đọc `train` và `val` sạch, không đọc test. Input gồm system prompt, lịch
 sử, câu hỏi và evidence JSON; target gồm `answer`, `action`, `evidence_status` và

@@ -102,8 +102,8 @@ def data_check(config: Path = typer.Option(Path("configs/training/base.yaml"), "
 
 @data_app.command("golden-to-sft")
 def golden_to_sft(
-    source_dir: Path = typer.Option(Path("Data/dataset_v3"), "--source-dir"),
-    output_dir: Path = typer.Option(Path("Data/golden_dataset_sft"), "--output-dir"),
+    source_dir: Path = typer.Option(Path("Data/dataset_v3/finetuning_v1"), "--source-dir"),
+    output_dir: Path = typer.Option(Path("Data/dataset_v3/finetuning_v1"), "--output-dir"),
 ) -> None:
     """Convert Golden train/val to lossless SFT JSONL without reading test."""
     from vigovbot.training.golden_sft import convert_golden
@@ -117,8 +117,8 @@ def golden_to_sft(
 
 @data_app.command("golden-to-rag-sft")
 def golden_to_rag_sft(
-    source_dir: Path = typer.Option(Path("Data/dataset_v3/fintuning_clean"), "--source-dir"),
-    output_dir: Path = typer.Option(Path("Data/dataset_v3/finetuning_rag_clean"), "--output-dir"),
+    source_dir: Path = typer.Option(Path("Data/dataset_v3/finetuning_v2"), "--source-dir"),
+    output_dir: Path = typer.Option(Path("Data/dataset_v3/finetuning_v2"), "--output-dir"),
 ) -> None:
     """Convert Golden train/val to the structured RAG prompt/answer contract."""
     from vigovbot.training.golden_rag_sft import convert_golden
@@ -132,12 +132,12 @@ def golden_to_rag_sft(
 
 @data_app.command("filter-rag-leakage")
 def filter_rag_leakage(
-    source_dir: Path = typer.Option(Path("Data/dataset_v3/fintuning"), "--source-dir"),
+    source_dir: Path = typer.Option(Path("Data/dataset_v3/finetuning_v1"), "--source-dir"),
     test_file: list[Path] = typer.Option([
         Path("Data/dataset_v3/test_rag/test_rag_pa1.jsonl"),
         Path("Data/dataset_v3/test_rag/test_rag_pa2.jsonl"),
     ], "--test"),
-    output_dir: Path = typer.Option(Path("Data/dataset_v3/fintuning_clean"), "--output-dir"),
+    output_dir: Path = typer.Option(Path("Data/dataset_v3/finetuning_v2"), "--output-dir"),
 ) -> None:
     """Remove strong train/validation leakage against one or more RAG test files."""
     from vigovbot.training.leakage_filter import filter_splits

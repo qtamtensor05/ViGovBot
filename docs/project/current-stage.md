@@ -1,5 +1,20 @@
 # Trạng thái hệ thống hiện tại
 
+## Chuẩn hóa và đồng bộ đường dẫn dataset finetuning_v1 và finetuning_v2 - 2026-11-04
+
+- **Mục tiêu:** Khắc phục lỗi chính tả `fintuning`, hợp nhất các thư mục phân mảnh trong `Data/dataset_v3/` thành 2 không gian tên phẳng chuẩn hóa `finetuning_v1/` và `finetuning_v2/` đồng bộ với kết quả nghiệm thu `eval-qlora_v1` và `eval-qlora_v2` trong `result_final/`.
+- **Thực hiện:**
+  - Thiết lập `Data/dataset_v3/finetuning_v1/`: tập hợp toàn bộ dữ liệu huấn luyện QLoRA v1 gồm raw Golden QA (`train.jsonl`, `val.jsonl`) và ChatML SFT (`train_sft.jsonl`, `validation_sft.jsonl`).
+  - Thiết lập `Data/dataset_v3/finetuning_v2/`: tập hợp toàn bộ dữ liệu huấn luyện QLoRA v2 gồm raw clean chống rò rỉ (`train.jsonl`, `val.jsonl`, `excluded_cases.jsonl`, `leakage_report.json`) và RAG-SFT sạch (`train_rag_sft.jsonl`, `validation_rag_sft.jsonl`, `manifest.json`, `validation_report.json`).
+  - Cập nhật cấu hình huấn luyện `configs/training/experiments/golden_sft.yaml` và `golden_rag_sft.yaml`.
+  - Cập nhật tham số mặc định CLI trong `src/vigovbot/cli/main.py` (`golden-to-sft`, `golden-to-rag-sft`, `filter-rag-leakage`).
+  - Bổ sung ứng viên đường dẫn mới vào `records.py` và `golden_sft.py` nhưng vẫn giữ fallback cho đường dẫn lịch sử.
+  - Cập nhật test `tests/test_optional_training_test.py` và tài liệu `docs/training/rag-sft.md`.
+  - Dọn dẹp an toàn các thư mục cũ `fintuning`, `fintuning_clean`, `golden_dataset_sft`, `finetuning_rag`, `finetuning_rag_clean`.
+- **Kết quả:**
+  - 100% cấu hình huấn luyện vượt qua `validate_data` với số lượng mẫu nguyên vẹn (v1: 1.931 train / 827 val; v2: 1.863 train / 786 val; 0 duplicate).
+  - 100% test liên quan (`test_evaluation_v3.py`, `test_optional_training_test.py`) và `compileall` đạt kết quả OK.
+
 ## Hàng rào hồi quy cho QLoRA + RAG - 2026-11-04
 
 - **Mục tiêu:** Loại các lỗi hành vi đã nhận diện từ prediction mà không quy kết sai cho riêng trọng số model.

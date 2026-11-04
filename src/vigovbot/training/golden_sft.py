@@ -52,8 +52,14 @@ def encode_jsonl(records: list[dict]) -> bytes:
 
 
 def _split_file(dir_path: Path, name: str) -> Path:
-    for candidate in (dir_path / f"{name}_golden.jsonl", dir_path / f"golden_{name}.jsonl",
-                      dir_path / f"{name}.jsonl", dir_path / "fintuning" / f"{name}.jsonl"):
+    for candidate in (
+        dir_path / f"{name}_golden.jsonl",
+        dir_path / f"golden_{name}.jsonl",
+        dir_path / f"{name}.jsonl",
+        dir_path / "finetuning_v1" / f"{name}.jsonl",
+        dir_path / "finetuning" / f"{name}.jsonl",
+        dir_path / "fintuning" / f"{name}.jsonl",
+    ):
         if candidate.is_file():
             return candidate
     return dir_path / f"{name}_golden.jsonl"

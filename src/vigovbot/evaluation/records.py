@@ -142,6 +142,8 @@ def golden_split_path(dataset: Path, split: str) -> Path:
         dataset / f"{split}_rag" / f"golden_{split}_rag.jsonl",
         dataset / f"{split}_rag.jsonl",
         dataset / f"{split}_router" / f"{split}_router.jsonl",
+        dataset / "finetuning_v2" / f"{split}.jsonl",
+        dataset / "finetuning_v1" / f"{split}.jsonl",
         dataset / "fintuning" / f"{split}.jsonl",
         dataset / "finetuning" / f"{split}.jsonl",
         dataset / split / f"{split}.jsonl",
