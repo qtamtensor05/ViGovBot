@@ -1,142 +1,109 @@
 # Báo cáo đánh giá QLoRA v2 + RAG
 
-> **Nguồn:** `result_final/eval-qlora_v2-rag/` · **Trạng thái:** Ứng viên tiếp tục hardening · **638/638 prediction cuối**
+> Nguồn: `result_final/eval-qlora_v2-rag/` · Dataset PA1: 638 case · Thực thi: 637 thành công, 1 lỗi.
 
-## Nhận định nhanh
+## Kết luận nhanh
 
-QLoRA v2 + RAG dẫn đầu phần lớn metric đáp án và citation, đồng thời nhanh hơn hai cấu hình RAG còn lại. Tuy nhiên follow-up và trích dẫn không hợp lệ còn yếu; ưu tiên hardening, chưa production-ready.
+QLoRA v2 + RAG vẫn dẫn đầu phần lớn chỉ số tương đồng đáp án và citation trong nhóm RAG, đồng thời nhanh hơn RAG thuần và QLoRA v1 + RAG. Tuy nhiên lần predict lại chưa xác nhận bản sửa hồi quy đã đạt: một case lỗi HTTP 502, 97/97 case mất ý định lựa chọn không truy xuất trúng context chuẩn, và 9/13 case thiếu bằng chứng vẫn trả `action=answer`. Model chưa production-ready.
 
-## Bảng điểm theo nhóm
+## Kiểm tra 107 case hồi quy
 
-### Định tuyến
+| Nhóm lỗi | Tổng | Chạy thành công | Kết quả kiểm tra assertion |
+| :--- | ---: | ---: | :--- |
+| Mất ý định sau khi chọn thủ tục | 97 | 97 | 0/97 truy xuất trúng context chuẩn; chỉ 1 output thay đổi |
+| Bị cắt do hết token | 3 | 2 | 0/2 case thành công còn `finish_reason=length`; 1 case HTTP 502 |
+| `answer` khi nội dung thiếu thông tin | 13 | 13 | Còn 9/13 case vi phạm; chỉ 3 output thay đổi |
+
+Case chưa chạy thành công là `GOLDEN_V3_001616`: `HTTPError: HTTP Error 502: Bad Gateway`. `status=success` chỉ chứng minh request hoàn tất, không chứng minh hành vi đúng.
+
+## Chỉ số tổng thể
+
+### Định tuyến và truy vấn
 
 | Chỉ số | Kết quả | Số mẫu |
 | :--- | ---: | ---: |
-| Độ chính xác định tuyến | 83,86% | 638 |
-
-### Xử lý truy vấn
-
-| Chỉ số | Kết quả | Số mẫu |
-| :--- | ---: | ---: |
-| Độ tương đồng câu viết lại | 62,51% | 638 |
-| Độ chính xác truy vấn con | 0,00% | 107 |
-| Độ bao phủ truy vấn con | 0,00% | 107 |
+| Route accuracy | 83,83% | 637 |
+| Query rewrite similarity | 62,50% | 637 |
+| Sub-query precision / recall | 0,00% / 0,00% | 107 |
+| Multi-intent retrieval coverage | 0,00% | 107 |
 
 ### Truy xuất
 
 | Chỉ số | Kết quả | Số mẫu |
 | :--- | ---: | ---: |
-| Tỷ lệ nhiễu ngữ cảnh | 56,98% | 504 |
-| Độ chính xác ngữ cảnh | 43,02% | 504 |
-| Độ bao phủ ngữ cảnh | 86,71% | 504 |
-| Hit@1 | 55,56% | 504 |
-| Hit@10 | 87,10% | 504 |
-| Hit@15 | 90,67% | 504 |
-| Hit@3 | 72,62% | 504 |
-| Hit@5 | 78,37% | 504 |
-| MAP@10 | 65,77% | 504 |
-| MAP@5 | 54,56% | 597 |
-| MRR@10 | 65,85% | 504 |
-| MRR@15 | 66,14% | 504 |
-| MRR@5 | 64,74% | 504 |
-| Bao phủ truy vấn đa ý định | 0,00% | 107 |
-| nDCG@10 | 70,91% | 504 |
-| nDCG@15 | 71,92% | 504 |
-| nDCG@5 | 68,12% | 504 |
-| Precision@1 | 55,56% | 504 |
-| Precision@10 | 43,02% | 504 |
-| Precision@15 | 42,76% | 504 |
-| Precision@3 | 46,13% | 504 |
-| Precision@5 | 44,39% | 504 |
-| Recall@1 | 52,92% | 504 |
-| Recall@10 | 86,71% | 504 |
-| Recall@15 | 90,35% | 504 |
-| Recall@3 | 71,91% | 504 |
-| Recall@5 | 78,11% | 504 |
+| Context precision / noise | 42,90% / 57,10% | 503 |
+| Context recall | 86,75% | 503 |
+| Hit@1 / @3 / @5 / @10 / @15 | 55,47% / 72,56% / 78,33% / 87,08% / 90,66% | 503 |
+| Precision@1 / @3 / @5 / @10 / @15 | 55,47% / 46,02% / 44,28% / 42,90% / 42,65% | 503 |
+| Recall@1 / @3 / @5 / @10 / @15 | 53,02% / 72,02% / 78,20% / 86,75% / 90,33% | 503 |
+| MRR@5 / @10 / @15 | 64,67% / 65,78% / 66,07% | 503 |
+| nDCG@5 / @10 / @15 | 68,05% / 70,85% / 71,86% | 503 |
+| MAP@10 | 65,70% | 503 |
+| MAP@5 | 54,39% | 597 |
 
-### Sinh câu trả lời và chất lượng nội dung
+### Sinh câu trả lời
 
 | Chỉ số | Kết quả | Số mẫu |
 | :--- | ---: | ---: |
-| BERTScore F1 | 90,64% | 638 |
-| BERTScore precision | 90,98% | 638 |
-| BERTScore recall | 90,51% | 638 |
-| Character Error Rate | 2,62 | 638 |
-| chrF | 47,62 | 638 |
-| chrF++ | 47,15 | 638 |
-| Tương đồng embedding | 65,00% | 638 |
-| Khớp chính xác | 20,06% | 638 |
-| Bao phủ dữ kiện chính | 38,72% | 597 |
-| METEOR | 48,88% | 638 |
-| Khớp chính xác sau chuẩn hóa | 21,47% | 638 |
-| ROUGE-1 F1 | 47,00% | 638 |
-| ROUGE-1 precision | 52,60% | 638 |
-| ROUGE-1 recall | 54,34% | 638 |
-| ROUGE-2 F1 | 42,93% | 638 |
-| ROUGE-2 precision | 45,77% | 638 |
-| ROUGE-2 recall | 48,62% | 638 |
-| ROUGE-L F1 | 45,55% | 638 |
-| ROUGE-L precision | 50,39% | 638 |
-| ROUGE-L recall | 52,29% | 638 |
-| SacreBLEU | 36,19 | 638 |
-| Token F1 | 47,00% | 638 |
-| Token precision | 52,60% | 638 |
-| Token recall | 54,34% | 638 |
-| Word Error Rate | 2,51 | 638 |
+| Exact Match / normalized EM | 20,41% / 21,51% | 637 |
+| Key-fact coverage | 38,78% | 596 |
+| BERTScore P / R / F1 | 90,88% / 90,40% / 90,53% | 638 |
+| ROUGE-1 P / R / F1 | 52,62% / 54,42% / 47,15% | 637 |
+| ROUGE-2 P / R / F1 | 45,78% / 48,69% / 43,06% | 637 |
+| ROUGE-L P / R / F1 | 50,41% / 52,37% / 45,69% | 637 |
+| Token precision / recall / F1 | 52,62% / 54,42% / 47,15% | 637 |
+| Embedding cosine | 64,94% | 638 |
+| METEOR / chrF / chrF++ / SacreBLEU | 48,94% / 47,71 / 47,23 / 36,28 | 638 |
+| Character Error Rate / Word Error Rate | 2,54 / 2,48 | 638 |
 
-### Trích dẫn
+BERTScore, BLEU, ROUGE và embedding chỉ đo độ tương đồng với đáp án tham chiếu; không tự chứng minh factuality hoặc groundedness.
+
+### Citation và hành vi
 
 | Chỉ số | Kết quả | Số mẫu |
 | :--- | ---: | ---: |
-| Độ chính xác trích dẫn | 50,86% | 597 |
-| Độ bao phủ trích dẫn | 54,01% | 597 |
-| Tỷ lệ trích dẫn không hợp lệ | 31,22% | 597 |
-
-### Độ bền và an toàn hành vi
-
-| Chỉ số | Kết quả | Số mẫu |
-| :--- | ---: | ---: |
-| Từ chối đúng | 36,59% | 41 |
-| Độ chính xác hành động | 80,88% | 638 |
-| Từ chối nhầm | 14,89% | 638 |
-| Tuân thủ định dạng | 100,00% | 523 |
-| Câu trả lời thiếu căn cứ | 36,59% | 41 |
+| Citation precision / recall | 50,52% / 53,43% | 596 |
+| Invalid citation rate | 30,35% | 596 |
+| Action accuracy | 80,85% | 637 |
+| False refusal | 14,91% | 637 |
+| Abstention correct / unsupported answer | 36,59% / 36,59% | 41 |
+| Format compliance | 100,00% | 522 |
 
 ### Hiệu năng
 
 | Chỉ số | Kết quả | Số mẫu |
 | :--- | ---: | ---: |
-| Token đầu ra | 230,24 | 533 |
-| Lượt lỗi | 0,00 | 638 |
-| Độ trễ sinh | 6,49 giây | 638 |
-| Tốc độ sinh | 48,77 token/s | 533 |
-| Lượt OOM | 0,00 | 638 |
-| Token prompt | 3277,90 | 533 |
-| Độ trễ truy xuất | 0,05 giây | 638 |
-| Lượt timeout | 0,00 | 638 |
-| Độ trễ toàn trình | 7,27 giây | 638 |
-| Tổng token | 3508,14 | 533 |
-| Thời gian tới token đầu | 2,92 giây | 533 |
+| Tổng độ trễ / sinh / truy xuất | 7,02 s / 6,24 s / 0,05 s | 637 |
+| TTFT | 2,90 s | 532 |
+| Prompt / completion / tổng token | 3269,15 / 224,83 / 3493,98 | 532 |
+| Tốc độ sinh | 48,81 token/s | 532 |
+| Execution failure | 0,16% | 638 |
+| Timeout / OOM | 0,00% / 0,00% | 638 |
 
-## So sánh cohort quan trọng
+## So sánh trước và sau predict lại
 
-| Cohort | Route accuracy | Exact Match | Key-fact coverage | Tổng độ trễ |
-| :--- | ---: | ---: | ---: | ---: |
-| answerable | 84,59% | 21,44% | 38,72% | 7,39 giây |
-| turn_type:follow_up | 87,42% | 12,89% | 23,53% | 7,59 giây |
-| turn_type:new_question | 80,31% | 27,19% | 54,80% | 6,96 giây |
-| unanswerable | 73,17% | 0,00% | N/A | 5,64 giây |
+| Chỉ số | Trước | Mới | Thay đổi |
+| :--- | ---: | ---: | ---: |
+| Exact Match | 20,06% | 20,41% | +0,35 điểm % |
+| Key-fact coverage | 38,72% | 38,78% | +0,06 điểm % |
+| BERTScore F1 | 90,64% | 90,53% | -0,11 điểm % |
+| Citation precision | 50,86% | 50,52% | -0,33 điểm % |
+| Citation recall | 54,01% | 53,43% | -0,58 điểm % |
+| Invalid citation | 31,22% | 30,35% | tốt hơn 0,87 điểm % |
+| Tổng độ trễ | 7,27 s | 7,02 s | nhanh hơn 0,25 s |
+
+Chênh lệch phải đọc cùng thay đổi mẫu số: bản mới có một execution lỗi nên nhiều metric còn `n=637`, retrieval `n=503`, key-fact/citation `n=596`.
 
 ## LLM-as-a-Judge
+
+Judge artifact không được tạo lại trong commit predict mới; các số dưới đây là artifact judge hiện có, không chứng minh 107 case đã được judge lại.
 
 | Phạm vi | Correctness | Relevancy | Intent coverage | Groundedness | Faithfulness |
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | Toàn bộ | 48,43% | 49,76% | 45,20% | 90,10% | 91,09% |
-| follow_up | 29,64% | 32,80% | 29,10% | 91,96% | 93,47% |
-| new_question | 66,33% | 66,56% | 60,44% | 88,29% | 88,78% |
+| Follow-up | 29,64% | 32,80% | 29,10% | 91,96% | 93,47% |
+| New question | 66,33% | 66,56% | 60,44% | 88,29% | 88,78% |
 
 ## Kết luận
 
-QLoRA v2 + RAG dẫn đầu phần lớn metric đáp án và citation, đồng thời nhanh hơn hai cấu hình RAG còn lại. Tuy nhiên follow-up và trích dẫn không hợp lệ còn yếu; ưu tiên hardening, chưa production-ready.
-
-Các metric được đọc trực tiếp từ `scores.json`; tỷ lệ hiển thị theo %, latency theo giây. Metric không áp dụng hiển thị `N/A`, không thay bằng 0.
+Không nên kết luận “đã sửa xong” từ lần rerun này. Cần bảo đảm máy predict dùng đúng commit runtime có bản sửa phục hồi section intent, chạy bù `GOLDEN_V3_001616`, rồi chấm trực tiếp toàn bộ `rerun_assertions`. Top-15 vẫn tạo đánh đổi recall cao và nhiễu lớn, nhưng kết quả này không phải ablation nên không chứng minh Top-15 là nguyên nhân duy nhất.
