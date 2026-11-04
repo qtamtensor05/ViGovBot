@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Tổng hợp đầy đủ fragment cùng mục trong QLoRA + RAG - 2026-11-04
+
+- **Mục tiêu:** Khắc phục trường hợp retrieval đưa đủ nhiều chunk cùng mục vào prompt nhưng QLoRA chỉ trả nội dung chunk đầu và tự đánh giá `sufficient`.
+- **Thực hiện:** Đánh dấu group, vị trí và tổng số fragment theo thứ tự corpus; bổ sung hậu kiểm độ bao phủ, một lần sinh sửa có fragment thiếu ở cuối prompt và fallback grounded chỉ nối đoạn nguồn mới chưa xuất hiện.
+- **Kết quả:** Live `qwen-rag-qlora` cho thủ tục 6.006714 dùng `p1` và `p2`, trả đủ hạn 28/3, 15/4, nhánh phân cấp và xử lý sai quy định với `answer/sufficient`. 80 test RAG/server liên quan, compileall và diff check đạt; Web Docker healthy.
+
 ## Sửa lỗi hồi quy QLoRA + RAG từ prediction - 2026-11-04
 
 - **Mục tiêu:** Khắc phục ba nhóm lỗi có thể xử lý ở runtime: mất section intent sau lựa chọn, output bị cắt do hết token và action/evidence không nhất quán.

@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## Bảo toàn nội dung nhiều chunk trong cùng mục RAG - 2026-11-04
+
+- **Mục tiêu:** Không phát hành câu trả lời `sufficient` chỉ dựa vào chunk đầu khi evidence của cùng thủ tục và cùng mục kéo dài qua nhiều chunk.
+- **Thực hiện:** Prompt đánh dấu group/vị trí fragment theo thứ tự tài liệu; generation hậu kiểm trigram mới của các fragment sau, thử sinh lại và chỉ nối nguyên văn đoạn evidence mới khi model vẫn bỏ sót.
+- **Kết quả:** Runtime QLoRA + RAG hiện tổng hợp đủ hai chunk trình tự của mã 6.006714; Web Docker healthy, ca live trả `answer/sufficient`. 80 test liên quan, compileall và diff check đạt; Ruff không có trong Python host nên chưa chạy ở lượt này.
+
 ## Chuẩn hóa và đồng bộ đường dẫn dataset finetuning_v1 và finetuning_v2 - 2026-11-04
 
 - **Mục tiêu:** Khắc phục lỗi chính tả `fintuning`, hợp nhất các thư mục phân mảnh trong `Data/dataset_v3/` thành 2 không gian tên phẳng chuẩn hóa `finetuning_v1/` và `finetuning_v2/` đồng bộ với kết quả nghiệm thu `eval-qlora_v1` và `eval-qlora_v2` trong `result_final/`.

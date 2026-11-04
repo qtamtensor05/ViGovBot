@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Tổng hợp đầy đủ các chunk nối tiếp trong cùng mục RAG - 2026-11-04
+
+- **Mục tiêu:** Không để QLoRA + RAG chỉ trả lời từ chunk đầu khi nhiều chunk của cùng thủ tục và cùng mục đã được đưa vào prompt.
+- **Thực hiện:** Gắn thứ tự các mảnh cùng thủ tục/mục vào prompt; hậu kiểm phần nội dung mới của từng mảnh, sinh lại khi model bỏ sót và dùng fallback chỉ nối đoạn evidence gốc chưa xuất hiện nếu lần sửa vẫn thiếu.
+- **Kết quả:** 80 test RAG/server liên quan, compileall và diff check đạt. Web Docker healthy; live `qwen-rag-qlora` với mã 6.006714 dùng đủ hai chunk, trả cả hạn 28/3, 15/4, nhánh phân cấp và xử lý báo cáo sai quy định với `answer/sufficient`.
+
 ## Khóa các lỗi hồi quy QLoRA + RAG cần chạy lại - 2026-11-04
 
 - **Mục tiêu:** Sửa các nhánh runtime gây mất ý định mục sau khi chọn thủ tục, phát hành câu trả lời bị cắt và báo đủ bằng chứng khi thực tế không có thông tin.

@@ -112,6 +112,29 @@ class EvidencePackagingTests(unittest.TestCase):
         self.assertEqual(json.loads(sources[1]['content']), value)
         self.assertFalse(any(x['content_truncated'] for x in used))
 
+    def test_same_procedure_section_is_marked_as_ordered_fragments(self):
+        hits = [
+            {'row_id': 12, 'chunk_id': 'part-2', 'source_code': '6.006714',
+             'section_type': 'procedure_step', 'text_content': 'Second fragment'},
+            {'row_id': 11, 'chunk_id': 'part-1', 'source_code': '6.006714',
+             'section_type': 'procedure_step', 'text_content': 'First fragment'},
+            {'row_id': 13, 'chunk_id': 'fee', 'source_code': '6.006714',
+             'section_type': 'fee', 'text_content': 'No fee'},
+        ]
+
+        messages, used, _ = self.build(hits)
+        sources = unpack(messages)['sources']
+
+        self.assertEqual([item['chunk_id'] for item in used], ['part-2', 'part-1', 'fee'])
+        self.assertEqual(sources[0]['fragment'], {'group': 1, 'position': 2, 'total': 2})
+        self.assertEqual(sources[1]['fragment'], {'group': 1, 'position': 1, 'total': 2})
+        self.assertEqual(used[0]['fragment'], {'group': 1, 'position': 2, 'total': 2})
+        self.assertEqual(used[1]['fragment'], {'group': 1, 'position': 1, 'total': 2})
+        self.assertNotIn('fragment', sources[2])
+        self.assertIn('Đọc đủ mọi position theo thứ tự', messages[0]['content'])
+        self.assertIn('Không được đánh giá sufficient nếu câu trả lời chỉ dùng một phần group',
+                      messages[0]['content'])
+
     def test_metadata_bound_preserves_values_and_marks_omissions(self):
         tok = CharacterTokenizer()
         metadata, omitted = bounded_metadata({'noise': 'x' * 1000, 'version': 4, 'id': 'A'}, tok, 40)

@@ -83,6 +83,32 @@ def build_messages(question, hits, tokenizer, num_ctx=8192, num_predict=512, max
     budget = num_ctx - num_predict - 256
     history = validate_history(history)
     system = SYSTEM_PROMPT
+    fragment_positions = {}
+    fragment_groups = {}
+    for hit_index, hit in enumerate(hits):
+        if not isinstance(hit, dict):
+            continue
+        identity = (hit.get("source_code"), hit.get("section_type"))
+        if all(isinstance(value, str) and value for value in identity):
+            fragment_groups.setdefault(identity, []).append((hit_index, hit))
+    for group_index, group in enumerate(fragment_groups.values(), 1):
+        if len(group) < 2:
+            continue
+        ordered = sorted(group, key=lambda item: (
+            item[1].get("row_id") if isinstance(item[1].get("row_id"), int) else float("inf"),
+            item[0],
+        ))
+        for position, (hit_index, _) in enumerate(ordered, 1):
+            fragment_positions[hit_index] = {
+                "group": group_index, "position": position, "total": len(ordered),
+            }
+    if fragment_positions:
+        system += (
+            "\nGHÉP MẢNH CÙNG MỤC\n"
+            "Các source có fragment cùng group là các mảnh của cùng một mục tài liệu, không phải các đáp án "
+            "độc lập. Đọc đủ mọi position theo thứ tự, bỏ phần văn bản gối đầu bị lặp và tổng hợp toàn bộ dữ kiện "
+            "liên quan trước khi kết luận. Không được đánh giá sufficient nếu câu trả lời chỉ dùng một phần group."
+        )
     presentation = _presentation_instruction(question)
     if presentation:
         system += "\n" + presentation
@@ -131,7 +157,7 @@ def build_messages(question, hits, tokenizer, num_ctx=8192, num_predict=512, max
 
     if size(envelope([], len(hits))) > budget:
         raise ValueError("Câu hỏi quá dài so với NUM_CTX")
-    for hit in hits:
+    for hit_index, hit in enumerate(hits):
         if not isinstance(hit, dict):
             raise ValueError("Retrieved chunk must be an object")
         raw_content = hit.get("text_content")
@@ -142,6 +168,7 @@ def build_messages(question, hits, tokenizer, num_ctx=8192, num_predict=512, max
         atomic = is_atomic(raw_content, text)
         def source(included):
             return {**({"chunk_id": hit["chunk_id"]} if isinstance(hit.get("chunk_id"), str) else {}),
+                    **({"fragment": fragment_positions[hit_index]} if hit_index in fragment_positions else {}),
                     "metadata": metadata, "metadata_omitted": metadata_omitted,
                     "content": included, "content_truncated": included != text}
 
@@ -169,6 +196,7 @@ def build_messages(question, hits, tokenizer, num_ctx=8192, num_predict=512, max
             {k: hit[k] for k in ("row_id", "score", "chunk_id", "source_file", "source_code", "section_type") if k in hit}
             | {"included_text": included, "included_metadata": metadata,
                "metadata_omitted": metadata_omitted, "content_truncated": included != text}
+            | ({"fragment": fragment_positions[hit_index]} if hit_index in fragment_positions else {})
             | {k: hit[k] for k in ('pages', 'source_sha256') if k in hit}
         )
     context = envelope(sources, len(hits) - len(used))

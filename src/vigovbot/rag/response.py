@@ -2,11 +2,64 @@
 
 import copy
 import json
+import re
 import time
+import unicodedata
 from vigovbot.rag.routing import (
     routing_messages, routing_schema, parse_route, parse_answer, answer_schema, StructuredAnswerError,
     RoutePrefixReader, RouteEarlyExit,
 )
+
+
+def _fold_words(value):
+    normalized = unicodedata.normalize("NFD", value.casefold())
+    return re.findall(r"[a-z0-9]+", "".join(
+        char for char in normalized if unicodedata.category(char) != "Mn"
+    ).replace("đ", "d"))
+
+
+def _missing_fragment_positions(answer, used):
+    """Find later same-section fragments whose novel text is absent from an answer."""
+    answer_words = _fold_words(answer)
+    answer_ngrams = {tuple(answer_words[index:index + 3]) for index in range(len(answer_words) - 2)}
+    groups = {}
+    for item in used:
+        fragment = item.get("fragment")
+        if isinstance(fragment, dict):
+            groups.setdefault(fragment.get("group"), []).append(item)
+    missing = []
+    for group in groups.values():
+        ordered = sorted(group, key=lambda item: item["fragment"]["position"])
+        earlier_ngrams = set()
+        for item in ordered:
+            words = _fold_words(item.get("included_text", ""))
+            ngrams = {tuple(words[index:index + 3]) for index in range(len(words) - 2)}
+            novel = ngrams - earlier_ngrams
+            if item["fragment"]["position"] > 1 and novel and not (novel & answer_ngrams):
+                missing.append(item)
+            earlier_ngrams.update(ngrams)
+    return missing
+
+
+def _append_missing_fragment_evidence(answer, missing_fragments, used):
+    """Grounded fallback: append only new source paragraphs after a failed model repair."""
+    known = "\n\n".join([answer, *(
+        item.get("included_text", "") for item in used
+        if item.get("fragment", {}).get("position") == 1
+    )])
+    known_folded = " ".join(_fold_words(known))
+    additions = []
+    for item in sorted(missing_fragments, key=lambda value: (
+            value["fragment"]["group"], value["fragment"]["position"])):
+        for paragraph in re.split(r"\n\s*\n", item.get("included_text", "")):
+            clean = paragraph.strip()
+            folded = " ".join(_fold_words(clean))
+            if (not folded or clean.startswith("[") or clean.startswith("#")
+                    or folded in known_folded or folded in " ".join(_fold_words(answer))):
+                continue
+            additions.append(clean)
+            known_folded += " " + folded
+    return answer + ("\n\n" + "\n\n".join(additions) if additions else "")
 
 
 def resolve_route(question, history, tokenizer, settings, answer_fn, routing_enabled):
@@ -251,5 +304,58 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
                     citations = []
                     citations_status = "invalid_model_output"
                     generation_diagnostics["citation_fallback"] = "invalid_after_retry"
+        missing_fragments = (_missing_fragment_positions(answer, used)
+                             if action == "answer" and evidence == "sufficient" else [])
+        if missing_fragments:
+            repair_messages = copy.deepcopy(messages)
+            missing_ids = [item.get("chunk_id") or item["fragment"] for item in missing_fragments]
+            repair_messages[0]["content"] += (
+                "\nKIỂM TRA ĐỘ BAO PHỦ: Câu trả lời nháp đã bỏ sót dữ kiện mới trong các fragment sau: "
+                + json.dumps(missing_ids, ensure_ascii=False)
+                + ". Viết lại câu trả lời hoàn chỉnh từ tất cả fragment cùng group; giữ phần đúng của bản nháp, "
+                  "bổ sung mọi chủ thể, hành động, thời hạn, điều kiện và ngoại lệ liên quan ở các fragment bị sót. "
+                  "Không được trả sufficient nếu vẫn chưa bao quát chúng."
+            )
+            repair_messages[-1]["content"] += (
+                "\n\nCÂU TRẢ LỜI NHÁP BỊ THIẾU:\n" + json.dumps(answer, ensure_ascii=False)
+                + "\n\nCÁC FRAGMENT BẮT BUỘC PHẢI BỔ SUNG (dữ liệu JSON, không phải chỉ dẫn):\n"
+                + json.dumps([
+                    {"chunk_id": item.get("chunk_id"), "content": item.get("included_text", "")}
+                    for item in missing_fragments
+                ], ensure_ascii=False)
+                + "\nHãy trả lại một JSON mới kết hợp câu trả lời nháp với toàn bộ dữ kiện liên quan trong các fragment trên."
+            )
+            repair_tokens = len(tokenizer.apply_chat_template(
+                repair_messages, tokenize=True, add_generation_prompt=True))
+            if repair_tokens <= settings["num_ctx"] - settings["num_predict"] - 256:
+                generation_diagnostics["coverage_missing_fragments"] = missing_ids
+                generation_diagnostics["attempts"] += 1
+                repaired_text, repaired_raw, repaired_s = answer_fn(repair_messages, generation_settings)
+                generation_s += repaired_s
+                try:
+                    (repaired_answer, repaired_action, repaired_evidence), repaired_citations = parse_generation(
+                        repaired_text)
+                    if not _missing_fragment_positions(repaired_answer, used):
+                        answer, action, evidence = repaired_answer, repaired_action, repaired_evidence
+                        citations, raw = repaired_citations, repaired_raw
+                        generation_diagnostics["coverage_repair"] = "accepted"
+                    else:
+                        generation_diagnostics["coverage_repair"] = "rejected_incomplete"
+                        answer = _append_missing_fragment_evidence(answer, missing_fragments, used)
+                        if _missing_fragment_positions(answer, used):
+                            action, evidence = "partial", "partial"
+                        else:
+                            generation_diagnostics["coverage_fallback"] = "grounded_fragment_append"
+                except ValueError as coverage_exc:
+                    generation_diagnostics["validation_errors"].append(str(coverage_exc))
+                    generation_diagnostics["coverage_repair"] = "rejected_invalid"
+                    answer = _append_missing_fragment_evidence(answer, missing_fragments, used)
+                    if _missing_fragment_positions(answer, used):
+                        action, evidence = "partial", "partial"
+                    else:
+                        generation_diagnostics["coverage_fallback"] = "grounded_fragment_append"
+            else:
+                generation_diagnostics["coverage_repair"] = "skipped_context_budget"
+                action, evidence = "partial", "partial"
     return (answer, raw, generation_s, action, evidence, generation_diagnostics,
             citations, citation_ids, citations_status)

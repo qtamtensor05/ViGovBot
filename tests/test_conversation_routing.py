@@ -24,6 +24,66 @@ def route(relation="new_question", scope="in_scope", query="Phí cấp hộ chi�
 
 
 class RoutingTests(unittest.TestCase):
+    def test_sufficient_answer_is_repaired_when_later_fragment_is_missing(self):
+        draft = json.dumps(dict(
+            answer="Chủ đầu tư gửi báo cáo chậm nhất ngày 28/3.",
+            action="answer", evidence_status="sufficient",
+        ))
+        complete = json.dumps(dict(
+            answer=("Chủ đầu tư gửi báo cáo chậm nhất ngày 28/3. Các sở ban xét duyệt báo cáo "
+                    "và gửi Sở Tài chính chậm nhất ngày 15/4."),
+            action="answer", evidence_status="sufficient",
+        ))
+        responses = iter([(draft, {"done_reason": "stop"}, .1),
+                          (complete, {"done_reason": "stop"}, .2)])
+        used = [
+            {"chunk_id": "part-1", "included_text": "Chủ đầu tư gửi báo cáo chậm nhất ngày 28/3.",
+             "fragment": {"group": 1, "position": 1, "total": 2}},
+            {"chunk_id": "part-2", "included_text": "Các sở ban xét duyệt báo cáo và gửi Sở Tài chính chậm nhất ngày 15/4.",
+             "fragment": {"group": 1, "position": 2, "total": 2}},
+        ]
+        calls = []
+
+        def provider(messages, settings):
+            calls.append((messages, settings))
+            return next(responses)
+
+        result = generate_answer(
+            [{"role": "system", "content": "system"}, {"role": "user", "content": "Trình tự?"}],
+            used, Tokenizer(), self.settings, provider, True, True,
+        )
+
+        self.assertEqual(result[0], json.loads(complete)["answer"])
+        self.assertEqual((result[3], result[4]), ("answer", "sufficient"))
+        self.assertEqual(result[5]["coverage_repair"], "accepted")
+        self.assertEqual(result[5]["coverage_missing_fragments"], ["part-2"])
+        self.assertIn("part-2", calls[1][0][0]["content"])
+        self.assertIn("Các sở ban xét duyệt báo cáo", calls[1][0][-1]["content"])
+
+    def test_incomplete_coverage_repair_appends_only_new_grounded_paragraphs(self):
+        draft_answer = "Chủ đầu tư gửi báo cáo chậm nhất ngày 28/3."
+        draft = json.dumps(dict(answer=draft_answer, action="answer", evidence_status="sufficient"))
+        responses = iter([(draft, {"done_reason": "stop"}, .1),
+                          (draft, {"done_reason": "stop"}, .2)])
+        used = [
+            {"chunk_id": "part-1", "included_text": "[Nguồn]\n\n" + draft_answer,
+             "fragment": {"group": 1, "position": 1, "total": 2}},
+            {"chunk_id": "part-2",
+             "included_text": ("[Nguồn]\n\n" + draft_answer
+                               + "\n\nCác sở ban xét duyệt báo cáo và gửi Sở Tài chính chậm nhất ngày 15/4."),
+             "fragment": {"group": 1, "position": 2, "total": 2}},
+        ]
+
+        result = generate_answer(
+            [{"role": "system", "content": "system"}, {"role": "user", "content": "Trình tự?"}],
+            used, Tokenizer(), self.settings, lambda *_: next(responses), True, True,
+        )
+
+        self.assertEqual((result[3], result[4]), ("answer", "sufficient"))
+        self.assertEqual(result[0].count(draft_answer), 1)
+        self.assertIn("Các sở ban xét duyệt báo cáo", result[0])
+        self.assertEqual(result[5]["coverage_fallback"], "grounded_fragment_append")
+
     def test_length_finish_retries_with_bounded_summary(self):
         calls = []
         responses = iter([
@@ -197,7 +257,8 @@ class RoutingTests(unittest.TestCase):
 
         result, _ = self.run_answer([
             route(),
-            json.dumps(dict(answer="Đủ bằng chứng", action="answer", evidence_status="sufficient")),
+            json.dumps(dict(answer=" ".join(f"Nội dung {i}" for i in range(1, 6)),
+                            action="answer", evidence_status="sufficient")),
         ])
         self.retriever.search.assert_called_once_with("Phí cấp hộ chiếu?", 5)
         self.assertEqual(result["retrieval_candidate_top_k"], 5)
