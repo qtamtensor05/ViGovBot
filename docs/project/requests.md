@@ -1,5 +1,17 @@
 # Thay đổi hệ thống
 
+## Hợp nhất chuẩn hóa tiếng Việt bỏ dấu - 2026-11-06
+
+- **Mục tiêu:** Loại các primitive Unicode bỏ dấu trùng lặp gây sai khác matching giữa retrieval, routing, prompt và chunking.
+- **Thực hiện:** Đưa NFD/casefold/bỏ dấu vào `fold_vietnamese`; routing, retrieval, prompt, chunking và taxonomy dùng chung primitive, còn sửa “đăng kí”, co khoảng trắng và token ASCII là policy có tên riêng.
+- **Kết quả:** Hoàn tất source trên nhánh `codex/section-intent-state-retrieval`; 171 test liên quan, Ruff, compileall và diff check đạt. Chưa triển khai runtime thật.
+
+## Khóa section intent qua bước chọn thủ tục - 2026-11-06
+
+- **Mục tiêu:** Không để mất mục dữ liệu người dùng hỏi khi hội thoại phải mở menu chọn mã thủ tục trước retrieval.
+- **Thực hiện:** Nâng signed state lên v3; lưu pending request bất biến; phục hồi atomic khi chọn thủ tục; thêm trace, invariant, filter mã/section và constraint `step_number` tách khỏi taxonomy.
+- **Kết quả:** Hoàn tất source trên nhánh `codex/section-intent-state-retrieval`; 133 test conversation/routing/server, Ruff, compileall, test tài liệu và diff check đạt. Chưa chạy lại 97 case bằng model thật hoặc triển khai runtime.
+
 ## Tổng hợp đầy đủ các chunk nối tiếp trong cùng mục RAG - 2026-11-04
 
 - **Mục tiêu:** Không để QLoRA + RAG chỉ trả lời từ chunk đầu khi nhiều chunk của cùng thủ tục và cùng mục đã được đưa vào prompt.
@@ -461,3 +473,9 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Không để nội dung train/validation trùng thủ tục hoặc bằng chứng với PA1/PA2 làm sai lệch kết quả test.
 - **Thực hiện:** Thêm bộ lọc procedure/content-disjoint, giữ nguyên nguồn/test và xuất danh sách case bị loại kèm lý do.
 - **Kết quả:** Loại 68/1.931 train và 41/827 validation; bộ sạch còn 1.863/786 case, các hậu kiểm leak mạnh đều bằng 0.
+
+## 2026-11-06 - Khắc phục lỗi xác nhận từ báo cáo đánh giá toàn diện
+
+- **Mục tiêu:** Xác minh báo cáo chưa commit và sửa các lỗi runtime có bằng chứng, không tự thay đổi các policy kiến trúc hoặc huấn luyện.
+- **Thực hiện:** Tối ưu fingerprint mã nguồn nhưng vẫn phát hiện thay đổi nóng ở CLI; cache source identity theo vòng đời server; siết matching từ khóa trình bày theo biên từ; sửa parser token JSON cho cặp surrogate Unicode; thống nhất fold discovery/routing; bỏ chuẩn hóa max-abs dư thừa trước L2; bổ sung hồi quy tập trung.
+- **Kết quả:** Các nhóm 37 test sửa lỗi ban đầu, 121 test fold/routing, 31 test fingerprint/server và 130 test retrieval/routing đều đạt; Ruff và compileall đạt. Full suite chạy 458 test, còn 1 failure và 5 error độc lập với thay đổi (catalog skill, fixture cấu hình/Torch, socket sandbox và SQLite cleanup trên Python 3.14).

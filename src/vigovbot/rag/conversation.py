@@ -9,11 +9,18 @@ from threading import Lock
 
 from vigovbot.rag.classification import classify, fallback, rewrite_mixed_scope
 from vigovbot.rag.clarification import Clarifier, _signature, selection_index
-from vigovbot.rag.sections import SECTION_INTENTS, available_sections, explicit_section_intents, section_query
+from vigovbot.rag.sections import (
+    SECTION_INTENTS,
+    available_sections,
+    explicit_section_intents,
+    section_detail_constraints,
+    section_detail_query,
+    section_query,
+)
 from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK, legacy_section_matches
 from vigovbot.rag.response import generate_answer
 from vigovbot.prompts.prompt_templates import build_messages, validate_history
-from vigovbot.retrieval.retriever import _fold, extract_source_codes
+from vigovbot.retrieval.retriever import extract_source_codes, fold_retrieval_text as _fold
 from vigovbot.utils.helpers import json_hash
 
 MIXED_NOTICE = "\n\nPhần yêu cầu ngoài thủ tục hành chính nằm ngoài phạm vi hỗ trợ."
@@ -27,12 +34,13 @@ _SOCIAL_GREETING = re.compile(
     re.I,
 )
 _OPAQUE_IDENTIFIER = re.compile(r"\b[A-ZĐ]{2,}(?:-[A-Z0-9Đ]+){2,}\b", re.I)
+STATE_CONTRACT_VERSION = 3
 _STATES = OrderedDict()
 _STATE_LOCK = Lock()
 
 
 def validate_state(state, history, scope, corpus):
-    if not isinstance(state, dict) or state.get("version") != 2:
+    if not isinstance(state, dict) or state.get("version") != STATE_CONTRACT_VERSION:
         return None
     value = {k: v for k, v in state.items() if k != "signature"}
     signature = state.get("signature")
@@ -41,6 +49,39 @@ def validate_state(state, history, scope, corpus):
             or value.get("history_fingerprint") != json_hash(history)):
         return None
     return copy.deepcopy(value)
+
+
+def pending_request_snapshot(requests):
+    """Freeze the retrieval goal while a clarification menu is awaiting selection."""
+    return [
+        {
+            "procedure": request["procedure"],
+            "original_query": request["query"],
+            "sections": list(request["sections"]),
+            "section_types": list(dict.fromkeys(
+                section_type
+                for section in request["sections"]
+                for section_type in SECTION_INTENTS[section][1]
+            )),
+            "detail_constraints": section_detail_constraints(request["query"]),
+        }
+        for request in requests
+    ]
+
+
+def restore_pending_requests(state):
+    """Restore immutable goals; selected codes are applied separately."""
+    pending = state.get("pending_requests") or []
+    if not pending:
+        return copy.deepcopy(state["requests"])
+    return [
+        {
+            "procedure": request["procedure"],
+            "query": request["original_query"],
+            "sections": list(request["sections"]),
+        }
+        for request in pending
+    ]
 
 
 def direct_choice(question, menu, selection=None):
@@ -105,10 +146,14 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
     phobert = settings.get("routing_backend") == "phobert"
     clarifier = Clarifier(retriever, clarification_scope, settings)
     corpus = json_hash({"catalog": clarifier.catalog, "identity": getattr(retriever, "evaluation_identity", {})})
+    provided_state = conversation_state is not None
+    state_source = "client" if provided_state else "none"
     if conversation_state is None:
         # Text-only clients can return the exact history without carrying opaque state.
         with _STATE_LOCK:
             conversation_state = _STATES.get((clarification_scope, corpus, json_hash(history)))
+        if conversation_state is not None:
+            state_source = "server_cache"
     state = validate_state(conversation_state, history, clarification_scope, corpus)
     menu = state.get("menu") if state else None
     option, invalid = direct_choice(question, menu, selection)
@@ -121,6 +166,10 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                   clarification_context=None, retrieval_context=None, conversation_state=None, menu=None,
                   retrieved=[], context_used=[], actual_sub_queries=[], sub_query_retrieval={},
                   retrieval_query=None, retrieval_strategy=None, retrieval_fallback_reason=None,
+                  retrieval_filters=[], state_transition=None,
+                  state_validation={"contract_version": STATE_CONTRACT_VERSION,
+                                    "provided": provided_state, "source": state_source,
+                                    "accepted": state is not None},
                   retrieval_top_k=settings["top_k"], retrieval_candidate_top_k=settings["top_k"],
                   retrieval_s=0., rerank_s=0., generation_s=0., prompt_tokens_estimated=0,
                   raw_ollama=None, evidence_status=None, decomposition_status="classified_requests")
@@ -133,8 +182,9 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                       routing_attempts=trace["attempts"], routing_s=trace["seconds"],
                       routing_prompt_tokens_estimated=trace["tokens"], fallback_reason=trace.get("fallback_reason"),
                       raw_routing=trace, latency_s=time.perf_counter()-started, menu=next_menu)
-        next_state = dict(version=2, scope=clarification_scope, corpus=corpus, menu=next_menu,
+        next_state = dict(version=STATE_CONTRACT_VERSION, scope=clarification_scope, corpus=corpus, menu=next_menu,
                           selected=selected or [], requests=requests, classification=route,
+                          pending_requests=pending_request_snapshot(requests) if next_menu else [],
                           history_fingerprint=json_hash([*history, {"role": "user", "content": question},
                                                          {"role": "assistant", "content": text}]))
         result["conversation_state"] = {**next_state, "signature": _signature(next_state)}
@@ -215,13 +265,35 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 return menu_result("procedure", 0, alternatives,
                                    prefix="Các trường hợp khác phù hợp gồm:\n")
     if option:
-        requests, route = state["requests"], state["classification"]
+        requests, route = restore_pending_requests(state), state["classification"]
         request = requests[menu["request_index"]]
         if menu["kind"] == "procedure":
             request["code"] = option["id"]
+            result["state_transition"] = {
+                "type": "procedure_selection",
+                "menu_id": menu["id"],
+                "selected_code": option["id"],
+                "restored_query": request["query"],
+                "restored_sections": list(request["sections"]),
+                "restored_section_types": list(dict.fromkeys(
+                    section_type
+                    for section in request["sections"]
+                    for section_type in SECTION_INTENTS[section][1]
+                )),
+                "restored_detail_constraints": section_detail_constraints(request["query"]),
+            }
         else:
             request["sections"] = [option["id"]]
             request["query"] = SECTION_INTENTS[option["id"]][0]
+            result["state_transition"] = {
+                "type": "section_selection",
+                "menu_id": menu["id"],
+                "selected_section": option["id"],
+                "restored_query": request["query"],
+                "restored_sections": list(request["sections"]),
+                "restored_section_types": list(SECTION_INTENTS[option["id"]][1]),
+                "restored_detail_constraints": {},
+            }
         route = {**route, "scope": "IN_SCOPE" if menu.get("confirmation") else route["scope"],
                  "conversation": "FOLLOW_UP", "needs_clarification": False, "clarification": "",
                  "query": request["query"] if menu.get("confirmation") else route["query"],
@@ -250,9 +322,9 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 if candidate:
                     original_codes = extract_source_codes(question)
                     candidate_codes = extract_source_codes(candidate)
-                    from vigovbot.retrieval.procedure_discovery import NEGATIVE_QUALIFIERS, fold
+                    from vigovbot.retrieval.procedure_discovery import NEGATIVE_QUALIFIERS
                     dropped_qualifiers = [q for q in NEGATIVE_QUALIFIERS
-                                          if fold(q) in fold(question) and fold(q) not in fold(candidate)]
+                                          if _fold(q) in folded_question and _fold(q) not in folded_candidate]
                     if (not folded_candidate or folded_candidate == folded_question
                             or folded_candidate not in folded_question
                             or original_codes != candidate_codes or dropped_qualifiers):
@@ -424,6 +496,29 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
             request["missing"] = True
         else:
             request["code"] = codes[0]
+    if result["state_transition"] and result["state_transition"]["type"] == "procedure_selection":
+        transition = result["state_transition"]
+        restored = requests[menu["request_index"]]
+        pending = state["pending_requests"][menu["request_index"]]
+        restored_types = list(dict.fromkeys(
+            section_type
+            for section in restored["sections"]
+            for section_type in SECTION_INTENTS[section][1]
+        ))
+        if (transition["restored_sections"] != restored["sections"]
+                or transition["restored_query"] != restored["query"]
+                or pending["original_query"] != restored["query"]
+                or pending["sections"] != restored["sections"]
+                or pending["section_types"] != restored_types
+                or pending["detail_constraints"] != section_detail_constraints(restored["query"])):
+            result.update(actual_route="clarify", action="clarify", evidence_status="missing",
+                          retrieval_s=time.perf_counter()-retrieval_started)
+            return finish(
+                "Mục nội dung của câu hỏi trước không còn hợp lệ. Bạn vui lòng chọn lại mục cần tra cứu.",
+                "section_intent_lost",
+                selected=[r["code"] for r in requests if r.get("code")],
+            )
+
     for index, request in enumerate(requests):
         if request.get("code") and not request["sections"]:
             procedure_selection = bool(option and menu and (menu.get("kind") == "procedure" or menu.get("confirmation")))
@@ -440,18 +535,34 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
     hits, queries, ranked_requests = [], [], []
     for index, request in enumerate(requests):
         code = request.get("code")
-        query = request["query"] + "\n" + section_query(request["sections"])
+        detail_constraints = section_detail_constraints(request["query"])
+        query = (request["query"] + "\n" + section_query(request["sections"])
+                 + section_detail_query(detail_constraints))
         if code:
             # Never search old/mixed procedure names from a query rewrite across sources.
             detail = request["query"]
             for mentioned in extract_source_codes(detail):
                 detail = detail.replace(mentioned, "")
-            query = detail + "\n" + section_query(request["sections"]) + f"\nThủ tục: {clarifier.catalog[code]['name']}\nMã thủ tục: {code}"
+            query = (detail + "\n" + section_query(request["sections"])
+                     + section_detail_query(detail_constraints)
+                     + f"\nThủ tục: {clarifier.catalog[code]['name']}\nMã thủ tục: {code}")
         queries.append(query)
         ranked = []
         if code:
             types = [] if any(not SECTION_INTENTS[s][1] for s in request["sections"]) else list(
                 dict.fromkeys(t for s in request["sections"] for t in SECTION_INTENTS[s][1]))
+            result["retrieval_filters"].append({
+                "request_index": index,
+                "source_codes": [code],
+                "section_intents": list(request["sections"]),
+                "section_types": list(types),
+                "detail_constraints": detail_constraints,
+                "strict_source": True,
+                "strict_sections": bool(types),
+                "legacy_taxonomy_fallback": any(
+                    section_type in LEGACY_SECTION_FALLBACK for section_type in types
+                ),
+            })
             groups = []
             for section_type in types or [None]:
                 section_hits = retriever.search(query, settings["top_k"], section_types=[section_type] if section_type else ([] if phobert else None))

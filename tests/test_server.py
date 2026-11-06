@@ -22,15 +22,18 @@ class WebChatTests(unittest.TestCase):
         }
         router = SimpleNamespace(identity={"heads.pt": "sha256"})
         self.app.models["local"].model_dump = lambda **_: {"provider": "ollama", "model": "qwen"}
-        with (patch("vigovbot.rag.pipeline.source_fingerprint", return_value="source"),
+        with (patch("vigovbot.rag.pipeline.source_fingerprint", return_value="source") as fingerprint,
               patch("vigovbot.rag.phobert_router.get_router", return_value=router),
               patch("requests.get") as request):
             request.return_value.json.return_value = {"models": []}
             value = self.app.evaluation_identity()
+            repeated = self.app.evaluation_identity()
         self.assertEqual(value["routing"]["backend"], "phobert")
         self.assertEqual(value["routing"]["checkpoint"], router.identity)
         self.assertRegex(value["routing"]["procedure_aliases_sha256"], r"^[0-9a-f]{64}$")
         self.assertEqual(value["settings"]["routing_phobert_path"], "checkpoint")
+        self.assertEqual(repeated["source_sha256"], "source")
+        fingerprint.assert_called_once_with()
 
     def test_v2_state_and_selection_round_trip_streaming(self):
         old_settings = self.config.inference_settings
@@ -185,6 +188,13 @@ class WebChatTests(unittest.TestCase):
         for chunk in ('{"action":"answer","ans', 'wer":"Dòng 1\\nHồ s', 'ơ \\u0111ầy \\"x\\"","evidence_status":"sufficient"}'):
             extractor.feed(chunk)
         self.assertEqual("".join(parts), 'Dòng 1\nHồ sơ đầy "x"')
+
+    def test_structured_answer_extractor_combines_split_surrogate_pair(self):
+        parts = []
+        extractor = _AnswerTokenExtractor(parts.append)
+        for chunk in ('{"answer":"A \\uD83D', '\\uDE00 B"}'):
+            extractor.feed(chunk)
+        self.assertEqual("".join(parts), "A 😀 B")
 
     def test_generation_failure_does_not_log_source_or_rejected_output(self):
         from vigovbot.rag.routing import StructuredAnswerError

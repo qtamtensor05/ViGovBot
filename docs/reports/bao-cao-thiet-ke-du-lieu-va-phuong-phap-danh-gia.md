@@ -86,7 +86,7 @@ Kho tài liệu nền tảng của hệ thống ViGovBot được thu thập và
 - **Số lượng thủ tục hành chính định danh:** **6.191 thủ tục** riêng biệt với mã số quốc gia bất biến (ví dụ: `1.003537`, `1.014137`).
 - **Độ bao phủ lĩnh vực:** Phân bổ toàn diện trên **209 lĩnh vực pháp lý chuyên ngành** của nền hành chính nhà nước.
 - **Giải thuật Phân mảnh Nhận thức Cấu trúc (`TTHCStructureAwareChunker`):**  
-  Các bộ phân mảnh văn bản thông thường (như RecursiveCharacterTextSplitter) chỉ cắt văn bản dựa trên số lượng ký tự hoặc token cố định. Phương pháp ngây thơ này phá vỡ cấu trúc ngữ nghĩa của văn bản pháp quy: cắt đôi một điều khoản luật giữa chừng, cắt ngang một dòng trong bảng danh mục hồ sơ, khiến mô hình nhúng không thể hiểu được mối quan hệ logic. ViGovBot thiết kế giải thuật phân mảnh chuyên biệt tại [`src/vigovbot/chunking/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/):
+  Các bộ phân mảnh văn bản thông thường (như RecursiveCharacterTextSplitter) chỉ cắt văn bản dựa trên số lượng ký tự hoặc token cố định. Phương pháp ngây thơ này phá vỡ cấu trúc ngữ nghĩa của văn bản pháp quy: cắt đôi một điều khoản luật giữa chừng, cắt ngang một dòng trong bảng danh mục hồ sơ, khiến mô hình nhúng không thể hiểu được mối quan hệ logic. ViGovBot thiết kế giải thuật phân mảnh chuyên biệt tại [`src/vigovbot/chunking/`](../../src/vigovbot/chunking/):
 
 ```mermaid
 flowchart TD
@@ -236,7 +236,7 @@ Do đó, ngưỡng cắt chuỗi an toàn tuyệt đối được xác lập t�
 Bộ kiểm thử chuẩn **`test_rag_pa1.jsonl`** (lưu tại `Data/dataset_v3/test_rag/test_rag_pa1.jsonl`, dung lượng 4,11 MB) là bộ dữ liệu đánh giá chính thức được xây dựng theo **Phương án 1 (Golden Ratio Balanced)**. Bộ dữ liệu gồm đúng **638 ca kiểm chuẩn độc lập**, đại diện cho kỳ thi sát hạch toàn diện năng lực của các mô hình ngôn ngữ trong nghiệp vụ dịch vụ công.
 
 #### b. Cấu trúc Chi tiết của một Test Case
-Mỗi ca kiểm thử tuân thủ nghiêm ngặt theo hợp đồng lược đồ [**`schema/golden_dataset.schema.json`**](file:///c:/Users/quangTam/Documents/ViGovBot/schema/golden_dataset.schema.json) (chuẩn JSON Schema Draft 2020-12), bao gồm 6 khối thông tin cốt lõi:
+Mỗi ca kiểm thử tuân thủ nghiêm ngặt theo hợp đồng lược đồ [**`schema/golden_dataset.schema.json`**](../../schema/golden_dataset.schema.json) (chuẩn JSON Schema Draft 2020-12), bao gồm 6 khối thông tin cốt lõi:
 
 | Trường Dữ liệu | Kiểu Dữ liệu | Ý nghĩa Nghiệp vụ và Kỹ thuật |
 | :--- | :---: | :--- |
@@ -445,7 +445,7 @@ sequenceDiagram
     participant Env as Môi trường & GPU
     participant Server as Ollama & ViGovBot API
     participant EvaCLI as vigov eva CLI
-    participant Disk as result_final/ Artifacts
+    participant Disk as result/ Artifacts
 
     Nghiencuu->>Env: Khởi tạo UTF-8, kiểm tra CUDA, nạp chỉ mục 117K Chunks
     Nghiencuu->>Server: Khởi động Ollama daemon (FlashAttn, Q8 KV Cache)

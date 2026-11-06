@@ -1,5 +1,17 @@
 # Lịch sử thay đổi hệ thống
 
+## Hợp nhất chuẩn hóa tiếng Việt bỏ dấu - 2026-11-06
+
+- **Mục tiêu:** Ngăn matching lệch nhau do retrieval, routing, prompt, chunking và taxonomy tự triển khai các biến thể Unicode folding.
+- **Thực hiện:** Tạo primitive `fold_vietnamese` trong `vigovbot.utils.text`; chuyển các caller sang dùng chung, tách rõ policy sửa “đăng kí”, co khoảng trắng, bỏ Markdown và token hóa ASCII.
+- **Kết quả:** Các biến thể giữ nguyên hành vi có chủ đích bằng contract test; 171 test liên quan, Ruff, compileall và diff check đạt. Chưa kiểm chứng trên runtime web/model thật.
+
+## Khóa section intent qua lựa chọn thủ tục - 2026-11-06
+
+- **Mục tiêu:** Ngăn câu hỏi về một mục cụ thể bị biến thành truy vấn tổng quan sau khi người dùng chọn mã thủ tục từ menu.
+- **Thực hiện:** Nâng signed state lên v3 với pending request bất biến; thực hiện transition lựa chọn không gọi lại router; thêm invariant fail-closed, trace state/filter, lọc cứng theo mã và section type, đồng thời tách `step_number` khỏi nhãn section.
+- **Kết quả:** Luồng chọn thủ tục giữ nguyên câu hỏi “bước 1”, `PROCEDURE`, `procedure_step` và `step_number=1`; retrieval chỉ trả đúng mã/section trong hồi quy. 133 test conversation/routing/server, Ruff, compileall, test tài liệu và diff check đạt; chưa chạy model thật hoặc 97 case đánh giá.
+
 ## Tổng hợp đầy đủ fragment cùng mục trong QLoRA + RAG - 2026-11-04
 
 - **Mục tiêu:** Khắc phục trường hợp retrieval đưa đủ nhiều chunk cùng mục vào prompt nhưng QLoRA chỉ trả nội dung chunk đầu và tự đánh giá `sufficient`.
@@ -624,3 +636,9 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Loại rủi ro ghi nhớ trực tiếp nội dung test khỏi pipeline RAG-SFT.
 - **Thực hiện:** Lọc theo test ID, standalone query, context ID/text, đáp án dài và mã thủ tục; template ngắn/near-query khác thủ tục chỉ báo cáo.
 - **Kết quả:** Loại 109 case, giữ 2.649 case; hậu kiểm mạnh đều bằng 0 và 2.649 target JSON qua parser runtime. Dữ liệu nguồn và hai file test giữ nguyên hash.
+
+## 2026-11-06 - Khắc phục lỗi runtime từ báo cáo đánh giá toàn diện
+
+- **Mục tiêu:** Loại bỏ chi phí đọc lại source không cần thiết, tránh kích hoạt sai chỉ dẫn trình bày và bảo toàn Unicode khi stream structured answer.
+- **Thực hiện:** Cache nội dung fingerprint theo chữ ký đường dẫn/mtime/kích thước; cache source identity thread-safe theo vòng đời `ChatApplication`; matching từ khóa theo biên từ; ghép đúng cặp surrogate JSON; thống nhất fold discovery/routing; bỏ max-abs dư thừa trước L2 và thêm hồi quy.
+- **Kết quả:** Các nhóm 37, 121, 31 và 130 test tập trung đều đạt; Ruff và compileall đạt. Full suite chạy 458 test; 1 failure và 5 error còn lại thuộc các vấn đề độc lập đã nêu trong hồ sơ yêu cầu, không phát sinh từ thay đổi này.

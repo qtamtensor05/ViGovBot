@@ -1,6 +1,6 @@
 # Báo cáo đánh giá RAG
 
-> **Nguồn:** `result_final/eval-rag/` · **Trạng thái:** Baseline RAG · **638/638 prediction cuối**
+> **Nguồn:** `result/eval-rag/` · **Trạng thái:** Baseline RAG · **638/638 prediction cuối**
 
 ## Nhận định nhanh
 

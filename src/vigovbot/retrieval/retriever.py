@@ -3,10 +3,10 @@ import json
 import re
 import sqlite3
 import threading
-import unicodedata
 from pathlib import Path
 
 from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK, legacy_section_matches
+from vigovbot.utils.text import fold_vietnamese
 
 SOURCE_CODE_RE = re.compile(r"(?<![\w.])\d+\.\d{6}(?:[_-][A-Za-z0-9]+)?(?![\w.])", re.IGNORECASE)
 IDENTITY_LEVEL_RE = re.compile(r"\|\*\*Cấp thực hiện\*\*\|([^|\n]*)")
@@ -19,11 +19,9 @@ def extract_source_codes(question):
     return list(dict.fromkeys(match.group(0) for match in SOURCE_CODE_RE.finditer(question)))
 
 
-def _fold(text):
-    """Casefold and strip diacritics so Vietnamese matching ignores input style."""
-    normalized = unicodedata.normalize("NFD", text.casefold())
-    folded = "".join(char for char in normalized if unicodedata.category(char) != "Mn").replace("đ", "d")
-    return re.sub(r"\bdang ki\b", "dang ky", folded)
+def fold_retrieval_text(text):
+    """Apply the retrieval-only spelling alias after shared Unicode folding."""
+    return re.sub(r"\bdang ki\b", "dang ky", fold_vietnamese(text))
 
 
 def _is_word(char):
@@ -48,7 +46,7 @@ def _contains_phrase(folded, phrase):
 
 def preferred_section_types(question):
     """Map explicit question intent to the matching corpus section taxonomy."""
-    folded = _fold(question)
+    folded = fold_retrieval_text(question)
     groups = (
         (("so quyet dinh", "linh vuc", "cap thuc hien", "doi tuong", "co quan", "thong tin chung"),
          "metadata_identity"),
@@ -128,7 +126,6 @@ class Retriever:
         if vector.shape != (1, 1024) or not np.isfinite(vector).all() or not np.any(vector):
             raise ValueError("Vector câu hỏi không hợp lệ")
         vector = np.ascontiguousarray(vector)
-        vector /= np.max(np.abs(vector))
         faiss.normalize_L2(vector)
         preferred = preferred_section_types(question) if section_types is None else section_types
         exact = self._search_source_codes(source_codes, vector, top_k, preferred,
@@ -165,7 +162,7 @@ class Retriever:
         matching procedure when the corpus distinguishes them; ambiguous or overly
         broad matches fall back to semantic search.
         """
-        folded = _fold(question)
+        folded = fold_retrieval_text(question)
         with self._db_lock:
             if self._procedure_names is None:
                 self._procedure_names, self._procedure_levels = self._procedure_catalog()
@@ -216,7 +213,7 @@ class Retriever:
             codes = extract_source_codes(text)
             if codes and set(codes) != {code}:
                 return None, "subject_changed", None
-            folded = _fold(text)
+            folded = fold_retrieval_text(text)
             named = {candidate for candidate, name in self._procedure_names
                      if _contains_phrase(folded, name)}
             if named and named != {code}:
@@ -288,7 +285,7 @@ class Retriever:
                     part.strip() for part in match.group(1).split(",") if part.strip()
                 )
         return (
-            tuple((code, _fold(name)) for code, name in names if code and name),
+            tuple((code, fold_retrieval_text(name)) for code, name in names if code and name),
             levels,
         )
 
@@ -379,7 +376,8 @@ class Retriever:
                 "substr(json_extract(payload, '$.text_content'), 1, 500) FROM chunks "
                 "WHERE json_extract(payload, '$.source_code') = ? "
                 "AND json_extract(payload, '$.section_type') = 'other'", (code,))
-            return any("dieu kien thuc hien" in _fold((prefix or "") + (text or "")) for prefix, text in rows)
+            return any("dieu kien thuc hien" in fold_retrieval_text((prefix or "") + (text or ""))
+                       for prefix, text in rows)
 
     def has_forms(self, code):
         with self._db_lock:
@@ -387,7 +385,8 @@ class Retriever:
                 "SELECT substr(json_extract(payload, '$.text_content'), 1, 1500) FROM chunks "
                 "WHERE json_extract(payload, '$.source_code') = ? "
                 "AND json_extract(payload, '$.section_type') = 'required_documents'", (code,))
-            return any("mau don" in _fold(text or "") or "to khai" in _fold(text or "") for (text,) in rows)
+            return any("mau don" in fold_retrieval_text(text or "")
+                       or "to khai" in fold_retrieval_text(text or "") for (text,) in rows)
 
     def _search_source_codes(self, source_codes, vector, top_k, preferred_sections=(), *, strict_sections=False):
         """Rank exact-code chunks; return None only when the question contains no code."""

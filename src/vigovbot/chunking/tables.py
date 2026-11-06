@@ -1,7 +1,8 @@
 """Pure Markdown table repair and presentation; no chunker configuration required."""
 
 import re
-import unicodedata
+
+from vigovbot.utils.text import fold_vietnamese
 
 
 def _is_table_line(line: str) -> bool:
@@ -106,9 +107,7 @@ def repeat_table_header(bodies: list[str], table_header: str) -> list[str]:
 
 def _fold_cell(value: str) -> str:
     value = re.sub(r"[*_`]+", "", value)
-    normalized = unicodedata.normalize("NFD", value.casefold())
-    return " ".join("".join(c for c in normalized if unicodedata.category(c) != "Mn")
-                    .replace("đ", "d").split())
+    return " ".join(fold_vietnamese(value).split())
 
 
 def project_submission_table(text: str) -> dict[str, str]:

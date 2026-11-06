@@ -1,8 +1,9 @@
 """Vietnamese TTHC metadata, text normalization and heading taxonomy."""
 import re
-import unicodedata
 from html import unescape
 from typing import Literal
+
+from vigovbot.utils.text import fold_vietnamese
 
 SectionType = Literal[
     "metadata_identity", "procedure_step", "required_documents", "submission_method",
@@ -31,11 +32,6 @@ class TTHCChunkingError(ValueError):
     """Raised when input cannot satisfy the chunk contract."""
 
 
-def _fold(value: str) -> str:
-    normalized = unicodedata.normalize("NFD", value.casefold())
-    return "".join(char for char in normalized if unicodedata.category(char) != "Mn").replace("đ", "d")
-
-
 def _heading_title(line: str) -> str | None:
     stripped = line.strip()
     markdown_match = HEADING_RE.match(stripped)
@@ -46,7 +42,7 @@ def _heading_title(line: str) -> str | None:
 
 
 def _slug(value: str, fallback: str = "other") -> str:
-    value = re.sub(r"[^a-z0-9]+", "_", _fold(value)).strip("_")
+    value = re.sub(r"[^a-z0-9]+", "_", fold_vietnamese(value)).strip("_")
     return value[:48] or fallback
 
 
@@ -65,7 +61,7 @@ def extract_metadata(text: str) -> dict[str, str]:
             candidate = match.group(2).strip() if match and match.group(1) == "#" else ""
             if (
                 candidate
-                and _fold(candidate) not in GENERIC_PAGE_TITLES
+                and fold_vietnamese(candidate) not in GENERIC_PAGE_TITLES
                 and not SOURCE_CODE_RE.fullmatch(candidate)
             ):
                 procedure_name = candidate
@@ -94,7 +90,7 @@ def extract_procedure_name(text: str) -> str:
             candidate = following.strip().strip("|#* ")
             if not candidate or re.fullmatch(r"[:\-\s|]+", candidate):
                 continue
-            if _fold(candidate) in GENERIC_PAGE_TITLES:
+            if fold_vietnamese(candidate) in GENERIC_PAGE_TITLES:
                 continue
             return candidate
     return ""
@@ -102,7 +98,7 @@ def extract_procedure_name(text: str) -> str:
 
 def classify_section(title: str, section_keywords: dict[str, list[str]]) -> SectionType:
     """Map a Vietnamese heading to the controlled section taxonomy."""
-    folded = _fold(sanitize_text(title))
+    folded = fold_vietnamese(sanitize_text(title))
     for section_type, keywords in section_keywords.items():
         if any(re.search(r"\b" + re.escape(keyword) + r"\b", folded) for keyword in keywords):
             return section_type

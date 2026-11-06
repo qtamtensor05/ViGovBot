@@ -4,23 +4,16 @@ import copy
 import json
 import re
 import time
-import unicodedata
 from vigovbot.rag.routing import (
     routing_messages, routing_schema, parse_route, parse_answer, answer_schema, StructuredAnswerError,
     RoutePrefixReader, RouteEarlyExit,
 )
-
-
-def _fold_words(value):
-    normalized = unicodedata.normalize("NFD", value.casefold())
-    return re.findall(r"[a-z0-9]+", "".join(
-        char for char in normalized if unicodedata.category(char) != "Mn"
-    ).replace("đ", "d"))
+from vigovbot.utils.text import ascii_word_tokens
 
 
 def _missing_fragment_positions(answer, used):
     """Find later same-section fragments whose novel text is absent from an answer."""
-    answer_words = _fold_words(answer)
+    answer_words = ascii_word_tokens(answer)
     answer_ngrams = {tuple(answer_words[index:index + 3]) for index in range(len(answer_words) - 2)}
     groups = {}
     for item in used:
@@ -32,7 +25,7 @@ def _missing_fragment_positions(answer, used):
         ordered = sorted(group, key=lambda item: item["fragment"]["position"])
         earlier_ngrams = set()
         for item in ordered:
-            words = _fold_words(item.get("included_text", ""))
+            words = ascii_word_tokens(item.get("included_text", ""))
             ngrams = {tuple(words[index:index + 3]) for index in range(len(words) - 2)}
             novel = ngrams - earlier_ngrams
             if item["fragment"]["position"] > 1 and novel and not (novel & answer_ngrams):
@@ -47,15 +40,15 @@ def _append_missing_fragment_evidence(answer, missing_fragments, used):
         item.get("included_text", "") for item in used
         if item.get("fragment", {}).get("position") == 1
     )])
-    known_folded = " ".join(_fold_words(known))
+    known_folded = " ".join(ascii_word_tokens(known))
     additions = []
     for item in sorted(missing_fragments, key=lambda value: (
             value["fragment"]["group"], value["fragment"]["position"])):
         for paragraph in re.split(r"\n\s*\n", item.get("included_text", "")):
             clean = paragraph.strip()
-            folded = " ".join(_fold_words(clean))
+            folded = " ".join(ascii_word_tokens(clean))
             if (not folded or clean.startswith("[") or clean.startswith("#")
-                    or folded in known_folded or folded in " ".join(_fold_words(answer))):
+                    or folded in known_folded or folded in " ".join(ascii_word_tokens(answer))):
                 continue
             additions.append(clean)
             known_folded += " " + folded

@@ -1,6 +1,6 @@
 # Báo cáo đánh giá QLoRA v1 + RAG
 
-> **Nguồn:** `result_final/eval-qlora_v1-rag/` · **Trạng thái:** Baseline tích hợp lịch sử · **638/638 prediction cuối**
+> **Nguồn:** `result/eval-qlora_v1-rag/` · **Trạng thái:** Baseline tích hợp lịch sử · **638/638 prediction cuối**
 
 ## Nhận định nhanh
 

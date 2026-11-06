@@ -1,6 +1,6 @@
 # Báo cáo đánh giá Base
 
-> **Nguồn:** `result_final/eval-base/` · **Trạng thái:** Baseline zero-shot · **638/638 prediction cuối**
+> **Nguồn:** `result/eval-base/` · **Trạng thái:** Baseline zero-shot · **638/638 prediction cuối**
 
 ## Nhận định nhanh
 

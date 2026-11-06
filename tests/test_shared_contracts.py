@@ -13,7 +13,8 @@ try:
     from vigovbot.artifacts import file_hash as sha256
     from vigovbot.evaluation.io import read_jsonl
     from vigovbot.evaluation.lexical import bleu_metric
-    from vigovbot.utils.text import normalize_vietnamese as normalize
+    from vigovbot.utils.text import ascii_word_tokens, fold_vietnamese, normalize_vietnamese as normalize
+    from vigovbot.retrieval.retriever import fold_retrieval_text
     from vigovbot.evaluation.records import _normalize
     from vigovbot.experiments import read_results
     from vigovbot.training.data import normalize_text, sha256_file, read_jsonl as training_read
@@ -44,6 +45,12 @@ class SharedContractsTests(unittest.TestCase):
         for text in ("LỆ PHÍ Straße: hồ_sơ 10.000 đồng!", unicodedata.normalize("NFD", "LỆ PHÍ Straße: hồ_sơ 10.000 đồng!")):
             for function in (normalize_text, normalize_vietnamese, normalize, _normalize):
                 self.assertEqual(function(text), expected)
+
+    def test_accent_folding_has_one_primitive_and_explicit_policies(self):
+        text = unicodedata.normalize("NFD", "  Đăng kí  HỒ_SƠ, Straße!  ")
+        self.assertEqual(fold_vietnamese(text), "  dang ki  ho_so, strasse!  ")
+        self.assertEqual(fold_retrieval_text(text), "  dang ky  ho_so, strasse!  ")
+        self.assertEqual(ascii_word_tokens(text), ["dang", "ki", "ho", "so", "strasse"])
 
     @requires_dependencies("sacrebleu", "rouge_score")
     def test_training_bleu_matches_modern_contract(self):

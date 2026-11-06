@@ -28,7 +28,7 @@ HỆ THỐNG ĐIỀU PHỐI HAI TẦNG VIGOVBOT (TWO-TIER HYBRID ARCHITECTURE)
 Biểu đồ này mô tả toàn cảnh luồng dữ liệu cấp cao giữa người dùng, tầng phân loại nơ-ron, tầng trọng tài danh mục, tầng quản lý phiên hội thoại và tầng sinh ngữ RAG:
 
 ![Biểu đồ Cấp cao Tổng thể](images/flowchart_macro_architecture.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_macro_architecture.png](file:///c:/Users/quangTam/Documents/ViGovBot/docs/reports/images/flowchart_macro_architecture.png))*
+*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_macro_architecture.png](images/flowchart_macro_architecture.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -57,10 +57,10 @@ flowchart TD
 
 ### 1.2. Biểu đồ Module 1: Phân loại Ngữ nghĩa PhoBERT 4-Head & Trọng tài Phạm vi (Scope Arbitration)
 
-Mô tả chi tiết luồng xử lý tại [`src/vigovbot/rag/phobert_router.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py), nơi câu hỏi được phân loại qua 4 classification heads song song và kích hoạt cơ chế trọng tài cứu vớt câu hỏi ở ngưỡng phân vân:
+Mô tả chi tiết luồng xử lý tại [`src/vigovbot/rag/phobert_router.py`](../../src/vigovbot/rag/phobert_router.py), nơi câu hỏi được phân loại qua 4 classification heads song song và kích hoạt cơ chế trọng tài cứu vớt câu hỏi ở ngưỡng phân vân:
 
 ![Module 1: Phân loại Ngữ nghĩa PhoBERT & Trọng tài Phạm vi](images/flowchart_module1_phobert_scope.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module1_phobert_scope.png](file:///c:/Users/quangTam/Documents/ViGovBot/docs/reports/images/flowchart_module1_phobert_scope.png))*
+*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module1_phobert_scope.png](images/flowchart_module1_phobert_scope.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -95,10 +95,10 @@ flowchart TD
 
 ### 1.3. Biểu đồ Module 2: Trọng tài Trộn thủ tục (Mix) & Phân rã Câu hỏi Hỗn hợp (Mixed Scope)
 
-Mô tả chi tiết logic tại [`src/vigovbot/rag/phobert_router.py#L228`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py#L228) và [`src/vigovbot/rag/classification.py#L62`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/classification.py#L62):
+Mô tả chi tiết logic tại [`src/vigovbot/rag/phobert_router.py#L228`](../../src/vigovbot/rag/phobert_router.py#L228) và [`src/vigovbot/rag/classification.py#L62`](../../src/vigovbot/rag/classification.py#L62):
 
 ![Module 2: Trọng tài Trộn thủ tục & Phân rã Câu hỏi Hỗn hợp](images/flowchart_module2_mix_rewrite.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module2_mix_rewrite.png](file:///c:/Users/quangTam/Documents/ViGovBot/docs/reports/images/flowchart_module2_mix_rewrite.png))*
+*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module2_mix_rewrite.png](images/flowchart_module2_mix_rewrite.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -142,10 +142,10 @@ flowchart TD
 
 ### 1.4. Biểu đồ Module 3: Đối soát Thực thể Catalog & Phân giải Danh tính Thủ tục
 
-Mô tả chi tiết quy trình tại [`src/vigovbot/rag/conversation.py#L330-L440`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L330-L440) và [`clarification.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/clarification.py):
+Mô tả chi tiết quy trình tại [`src/vigovbot/rag/conversation.py#L330-L440`](../../src/vigovbot/rag/conversation.py#L330-L440) và [`clarification.py`](../../src/vigovbot/rag/clarification.py):
 
 ![Module 3: Đối soát Thực thể Catalog & Phân giải Danh tính Thủ tục](images/flowchart_module3_catalog_disambiguation.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module3_catalog_disambiguation.png](file:///c:/Users/quangTam/Documents/ViGovBot/docs/reports/images/flowchart_module3_catalog_disambiguation.png))*
+*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module3_catalog_disambiguation.png](images/flowchart_module3_catalog_disambiguation.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -185,7 +185,7 @@ flowchart TD
    - **`len(codes) == 0`:** Kích hoạt chiến lược dự phòng `retrieval_strategy = "semantic"`, tìm kiếm ngữ nghĩa trên toàn bộ corpus tài liệu.
 3. **Thuật toán Xử lý Câu hỏi Tỉnh lược trong Mạch Follow-up (`is_elliptical` & Shared Topic):**
    - **Vấn đề kỹ thuật:** Khi người dùng hỏi nối tiếp cộc lốc không nhắc lại tên thủ tục (ví dụ: *"thế còn lệ phí?", "hết mấy ngày?", "nộp ở đâu?"*), làm sao phân biệt câu hỏi này thực sự thuộc về thủ tục đang thảo luận hay là một câu hỏi trôi dạt ngữ cảnh sang chủ đề khác?
-   - **Cơ chế triển khai tại [`conversation.py#L380-L389`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L380-L389):**
+   - **Cơ chế triển khai tại [`conversation.py#L380-L389`](../../src/vigovbot/rag/conversation.py#L380-L389):**
      ```python
      if len(selected) == 1 and len(requests) == 1 and not named:
          from vigovbot.rag.clarification import _DISCOVERY_STOP
@@ -207,10 +207,10 @@ flowchart TD
 
 ### 1.5. Biểu đồ Module 4: Vòng đời Trạng thái Phiên, Chữ ký HMAC SHA-256 & Tương tác Menu
 
-Mô tả chi tiết cơ chế bảo mật và xử lý phản hồi người dùng tại [`src/vigovbot/rag/conversation.py#L34-L217`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L34-L217):
+Mô tả chi tiết cơ chế bảo mật và xử lý phản hồi người dùng tại [`src/vigovbot/rag/conversation.py#L34-L217`](../../src/vigovbot/rag/conversation.py#L34-L217):
 
 ![Module 4: Vòng đời Trạng thái Phiên, Chữ ký HMAC & Tương tác Menu](images/flowchart_module4_state_security.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module4_state_security.png](file:///c:/Users/quangTam/Documents/ViGovBot/docs/reports/images/flowchart_module4_state_security.png))*
+*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module4_state_security.png](images/flowchart_module4_state_security.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -240,7 +240,7 @@ flowchart TD
    - Người dùng hỏi tìm biến thể (*"trường hợp khác"*, `_OTHER_VARIANT`): Quét các thủ tục liên quan cùng nhóm nghiệp vụ trong Catalog.
 3. **Kiến trúc Bộ nhớ đệm Trạng thái LRU 256 Phiên Chống Rò rỉ RAM (`_STATES` & Thread-Safe Lock):**
    - **Vấn đề kỹ thuật:** Trong môi trường phục vụ đồng thời hàng nghìn công dân truy cập dịch vụ công, việc lưu trữ không kiểm soát trạng thái hội thoại trên RAM sẽ dẫn đến tràn bộ nhớ (Memory Leak / OOM).
-   - **Cơ chế triển khai tại [`conversation.py#L30-L31, L141-L147`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L30-L31):**
+   - **Cơ chế triển khai tại [`conversation.py#L30-L31, L141-L147`](../../src/vigovbot/rag/conversation.py#L30-L31):**
      ```python
      _STATES = OrderedDict()
      _STATE_LOCK = Lock()
@@ -262,10 +262,10 @@ flowchart TD
 
 ### 1.6. Biểu đồ Module 5: Kiểm soát Bằng chứng, Chống Đoán mò & Sinh ngữ Có cấu trúc
 
-Mô tả chi tiết hàng rào kiểm soát an toàn dữ liệu và sinh câu trả lời tại [`src/vigovbot/rag/conversation.py#L483-L522`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L483-L522) và [`routing.py#L140-L209`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/routing.py#L140-L209):
+Mô tả chi tiết hàng rào kiểm soát an toàn dữ liệu và sinh câu trả lời tại [`src/vigovbot/rag/conversation.py#L483-L522`](../../src/vigovbot/rag/conversation.py#L483-L522) và [`routing.py#L140-L209`](../../src/vigovbot/rag/routing.py#L140-L209):
 
 ![Module 5: Kiểm soát Bằng chứng, Chống Đoán mò & Sinh ngữ RAG](images/flowchart_module5_evidence_constrained_generation.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module5_evidence_constrained_generation.png](file:///c:/Users/quangTam/Documents/ViGovBot/docs/reports/images/flowchart_module5_evidence_constrained_generation.png))*
+*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module5_evidence_constrained_generation.png](images/flowchart_module5_evidence_constrained_generation.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -303,7 +303,7 @@ flowchart TD
 
 Mô hình PhoBERT nhận đầu vào là chuỗi tokenized định dạng:
 `<s> question </s></s> previous_utterance </s></s> procedure_context </s>`  
-(giới hạn tối đa 128 token) và sử dụng 4 linear heads độc lập được cấu hình trong [`meta.json`](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/phobert_v3_finetuned_20261028/checkpoint/meta.json):
+(giới hạn tối đa 128 token) và sử dụng 4 linear heads độc lập được cấu hình trong [`meta.json`](../../outputs/phobert_v3_finetuned_20261028/checkpoint/meta.json):
 
 ### 2.1. Head 1: Phạm vi (`scope` / `phạm_vi`)
 Đánh giá mức độ liên quan tới lĩnh vực Thủ tục hành chính (TTHC) Việt Nam (Hàm Softmax, 3 lớp):
@@ -342,7 +342,7 @@ Bài toán phân loại đa nhãn (multi-label binary classification) với 11 h
 
 ### 2.5. Định dạng Dữ liệu Đầu ra Thực tế của PhoBERT (`PhoBERTRouter.predict`)
 
-Khi gọi hàm [`predict()`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py#L124-L139), đối tượng trả về là một `dict` (JSON format) cấu trúc rõ ràng gồm 3 phần:
+Khi gọi hàm [`predict()`](../../src/vigovbot/rag/phobert_router.py#L124-L139), đối tượng trả về là một `dict` (JSON format) cấu trúc rõ ràng gồm 3 phần:
 
 ```json
 {
@@ -414,7 +414,7 @@ Khi gọi hàm [`predict()`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vi
 
 ### 3.1. Hệ thống Nhãn Hành vi Toàn diện (`action` & `canonical_action`)
 
-Theo hợp đồng chuẩn hóa tại [`src/vigovbot/evaluation/records.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/records.py#L212-L220) và schema [`prediction.schema.json`](file:///c:/Users/quangTam/Documents/ViGovBot/schema/prediction.schema.json#L128-L136), hệ thống ViGovBot quản lý **5 hành vi chuẩn (`canonical_action`)**:
+Theo hợp đồng chuẩn hóa tại [`src/vigovbot/evaluation/records.py`](../../src/vigovbot/evaluation/records.py#L212-L220) và schema [`prediction.schema.json`](../../schema/prediction.schema.json#L128-L136), hệ thống ViGovBot quản lý **5 hành vi chuẩn (`canonical_action`)**:
 
 | Nhãn `action` Runtime | Nhãn Chuẩn `canonical_action` | Bản chất Hành vi & Kịch bản Kích hoạt |
 |---|---|---|
@@ -440,7 +440,7 @@ Theo hợp đồng chuẩn hóa tại [`src/vigovbot/evaluation/records.py`](fil
 
 ### 3.3. Hệ thống Nhãn Trạng thái Bằng chứng (`evidence_status`) & Ràng buộc Kép Giải mã
 
-Trong [`src/vigovbot/rag/routing.py` (dòng 140–162)](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/routing.py#L140-L162), từ điển `EVIDENCE_ACTIONS` quy định nghiêm ngặt:
+Trong [`src/vigovbot/rag/routing.py` (dòng 140–162)](../../src/vigovbot/rag/routing.py#L140-L162), từ điển `EVIDENCE_ACTIONS` quy định nghiêm ngặt:
 
 ```python
 EVIDENCE_ACTIONS = {
@@ -535,7 +535,7 @@ Bảng tổng hợp đối soát ma trận trạng thái đa chiều kết nối
 
 ## 5. Phân tích Khám phá Dữ liệu EDA trên Bộ Benchmark `test_router.jsonl` (1.246 mẫu)
 
-Tập benchmark [`Data/dataset_v3/test_router/test_router.jsonl`](file:///c:/Users/quangTam/Documents/ViGovBot/Data/dataset_v3/test_router/test_router.jsonl) bao gồm **1.246 mẫu kiểm chuẩn độc lập** bao phủ 150 lĩnh vực quản lý nhà nước:
+Tập benchmark [`Data/dataset_v3/test_router/test_router.jsonl`](../../Data/dataset_v3/test_router/test_router.jsonl) bao gồm **1.246 mẫu kiểm chuẩn độc lập** bao phủ 150 lĩnh vực quản lý nhà nước:
 
 ### 5.1. Quy mô Tập dữ liệu và Phân lớp Mẫu
 
@@ -670,7 +670,7 @@ Bộ dữ liệu trải rộng trên 150 lĩnh vực công vụ khác nhau:
 ### 7.3. Phân tích Bản chất 323 Ca Lỗi Còn lại trong Router V2
 
 ![Bản chất 323 ca lỗi còn lại trong Router V2](images/chart_router_v2_failures_pie.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [chart_router_v2_failures_pie.png](file:///c:/Users/quangTam/Documents/ViGovBot/docs/reports/images/chart_router_v2_failures_pie.png))*
+*(Xem tệp hình ảnh gốc độ phân giải cao tại: [chart_router_v2_failures_pie.png](images/chart_router_v2_failures_pie.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>

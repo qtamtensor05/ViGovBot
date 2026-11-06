@@ -272,7 +272,7 @@ llm:
   ollama_url: http://localhost:11434
 ```
 
-Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không xác minh được model/revision đã tạo vector tài liệu. Khi thiếu manifest, `revision: null` không thể tự khôi phục revision gốc. Chi tiết tại [Migration dữ liệu cũ](../architecture/migration.md).
+Chế độ legacy vẫn kiểm tra cấu trúc index và metadata nhưng không xác minh được model/revision đã tạo vector tài liệu. Khi thiếu manifest, `revision: null` không thể tự khôi phục revision gốc; nên xây lại corpus bằng cấu hình hiện hành thay vì coi index cũ là tái lập đầy đủ.
 
 ### 4.4. Chuẩn bị và hỏi đáp trong container
 

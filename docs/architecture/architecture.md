@@ -160,8 +160,9 @@ resume kiểm tra trạng thái optimizer/scheduler/RNG và dữ liệu trước
 Artifact nằm trong `outputs/qlora/`; web có chế độ QLoRA qua local Transformers.
 QLoRA trực tiếp không truy hồi nguồn như RAG. Đây là pipeline nghiên cứu có
 kiểm tra tính toàn vẹn, chưa phải chứng nhận vận hành production.
-Các nội dung liên quan được quy định tại [migration](migration.md),
-[môi trường](../setup/environments.md) và [quy trình phát triển](../../CONTRIBUTING.md).
+Các nội dung liên quan được quy định tại [môi trường](../setup/environments.md),
+[vận hành RAG](../guides/trien-khai-rag-co-ban.md) và
+[quy trình phát triển](../../CONTRIBUTING.md).
 
 ## Ranh giới orchestration và routing v2 (2026-10-29)
 
