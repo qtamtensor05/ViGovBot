@@ -11,7 +11,7 @@ from vigovbot.embeddings.embedder import load_encoder
 from vigovbot.llm.llm_client import check_model, unload_model
 from vigovbot.rag.response import resolve_route, generate_answer
 from vigovbot.rag.clarification import Clarifier, selection_index
-from vigovbot.retrieval.retriever import Retriever, extract_source_codes, _fold
+from vigovbot.retrieval.retriever import Retriever, extract_source_codes, fold_retrieval_text as _fold
 from vigovbot.utils.helpers import json_hash
 from vigovbot.vectordb.vector_store import prepare_corpus
 from vigovbot.prompts.prompt_templates import build_messages, validate_history

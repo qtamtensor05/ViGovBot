@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import math
 import re
-import unicodedata
 from collections import Counter
 
 import numpy as np
+from vigovbot.utils.text import fold_vietnamese
 
 NEGATIVE_QUALIFIERS = (
     "người nước ngoài", "quân sự", "công an", "ngoại giao",
@@ -15,9 +15,8 @@ NEGATIVE_QUALIFIERS = (
 
 
 def fold(text):
-    normalized = unicodedata.normalize("NFD", text.casefold())
-    return " ".join("".join(c for c in normalized if unicodedata.category(c) != "Mn")
-                    .replace("đ", "d").split())
+    """Collapse whitespace for discovery after shared Unicode folding."""
+    return " ".join(fold_vietnamese(text).split())
 
 
 def tokens(text):

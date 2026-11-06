@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Hợp nhất chuẩn hóa tiếng Việt bỏ dấu - 2026-11-06
+
+- **Mục tiêu:** Ngăn matching lệch nhau do retrieval, routing, prompt, chunking và taxonomy tự triển khai các biến thể Unicode folding.
+- **Thực hiện:** Tạo primitive `fold_vietnamese` trong `vigovbot.utils.text`; chuyển các caller sang dùng chung, tách rõ policy sửa “đăng kí”, co khoảng trắng, bỏ Markdown và token hóa ASCII.
+- **Kết quả:** Các biến thể giữ nguyên hành vi có chủ đích bằng contract test; 171 test liên quan, Ruff, compileall và diff check đạt. Chưa kiểm chứng trên runtime web/model thật.
+
 ## Khóa section intent qua lựa chọn thủ tục - 2026-11-06
 
 - **Mục tiêu:** Ngăn câu hỏi về một mục cụ thể bị biến thành truy vấn tổng quan sau khi người dùng chọn mã thủ tục từ menu.

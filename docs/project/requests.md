@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Hợp nhất chuẩn hóa tiếng Việt bỏ dấu - 2026-11-06
+
+- **Mục tiêu:** Loại các primitive Unicode bỏ dấu trùng lặp gây sai khác matching giữa retrieval, routing, prompt và chunking.
+- **Thực hiện:** Đưa NFD/casefold/bỏ dấu vào `fold_vietnamese`; routing, retrieval, prompt, chunking và taxonomy dùng chung primitive, còn sửa “đăng kí”, co khoảng trắng và token ASCII là policy có tên riêng.
+- **Kết quả:** Hoàn tất source trên nhánh `codex/section-intent-state-retrieval`; 171 test liên quan, Ruff, compileall và diff check đạt. Chưa triển khai runtime thật.
+
 ## Khóa section intent qua bước chọn thủ tục - 2026-11-06
 
 - **Mục tiêu:** Không để mất mục dữ liệu người dùng hỏi khi hội thoại phải mở menu chọn mã thủ tục trước retrieval.

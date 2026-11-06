@@ -1,6 +1,6 @@
 """Shared corpus taxonomy and read-only migration compatibility."""
 
-import unicodedata
+from vigovbot.utils.text import fold_vietnamese
 
 ROUTING_SECTION_TYPES = frozenset({
     "metadata_identity", "procedure_step", "required_documents", "submission_method",
@@ -27,8 +27,5 @@ def legacy_section_matches(section_type, hit):
     if section_type != "result":
         return False
     text = "\n".join(str(hit.get(key) or "") for key in ("context_prefix", "text_content"))[:800]
-    folded = "".join(
-        char for char in unicodedata.normalize("NFD", text.casefold())
-        if unicodedata.category(char) != "Mn"
-    ).replace("đ", "d")
+    folded = fold_vietnamese(text)
     return "ket qua xu ly" in folded or "ket qua thuc hien" in folded

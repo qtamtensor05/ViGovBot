@@ -15,7 +15,7 @@ from functools import lru_cache
 from pathlib import Path
 from threading import Lock
 
-from vigovbot.retrieval.retriever import _fold, extract_source_codes
+from vigovbot.retrieval.retriever import extract_source_codes, fold_retrieval_text as _fold
 from vigovbot.rag.sections import explicit_section_intents
 
 LABEL_MAP = {

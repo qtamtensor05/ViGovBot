@@ -20,7 +20,7 @@ from vigovbot.rag.sections import (
 from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK, legacy_section_matches
 from vigovbot.rag.response import generate_answer
 from vigovbot.prompts.prompt_templates import build_messages, validate_history
-from vigovbot.retrieval.retriever import _fold, extract_source_codes
+from vigovbot.retrieval.retriever import extract_source_codes, fold_retrieval_text as _fold
 from vigovbot.utils.helpers import json_hash
 
 MIXED_NOTICE = "\n\nPhần yêu cầu ngoài thủ tục hành chính nằm ngoài phạm vi hỗ trợ."

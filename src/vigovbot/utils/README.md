@@ -3,7 +3,7 @@
 ## Trách nhiệm
 
 Module chứa tiện ích hạ tầng không thuộc domain RAG: hàm băm dữ liệu/file, nhận
-diện trạng thái file và hỗ trợ runtime Colab. Logic quản lý lượt chạy nằm tại
+diện trạng thái file, chuẩn hóa văn bản Unicode dùng chung và hỗ trợ runtime Colab. Logic quản lý lượt chạy nằm tại
 `vigovbot.experiments`; một số tên được re-export để tương thích.
 
 ## Thành phần
@@ -11,6 +11,7 @@ diện trạng thái file và hỗ trợ runtime Colab. Logic quản lý lượt
 | File | Đầu vào | Đầu ra |
 |---|---|---|
 | `helpers.py` | Giá trị JSON hoặc đường dẫn file | SHA-256 và định danh trạng thái file |
+| `text.py` | Văn bản Unicode tiếng Việt | Normalization có dấu, dạng bỏ dấu và token ASCII theo contract tường minh |
 | `colab_runtime.py` | Tên model, URL Ollama | Kiểm tra executable/service và trạng thái model |
 | `build_colab_notebooks.py` | Template notebook trong mã nguồn | Notebook được sinh tại `ipynb/` |
 

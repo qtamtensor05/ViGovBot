@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## Chuẩn hóa tiếng Việt bỏ dấu dùng chung - 2026-11-06
+
+- **Mục tiêu:** Dùng một primitive Unicode thống nhất cho các luồng matching runtime.
+- **Thực hiện:** `fold_vietnamese` là primitive duy nhất cho NFD/casefold/bỏ dấu; các wrapper còn lại chỉ thực hiện policy riêng được đặt tên và kiểm thử.
+- **Kết quả:** Source đạt 171 test retrieval/chunking/prompt/conversation, Ruff, compileall và diff check. Chưa triển khai web/model thật.
+
 ## Khóa section intent qua lựa chọn thủ tục - 2026-11-06
 
 - **Mục tiêu:** Bảo toàn câu hỏi gốc và section intent từ lúc tạo menu đến khi truy xuất đúng mã thủ tục.

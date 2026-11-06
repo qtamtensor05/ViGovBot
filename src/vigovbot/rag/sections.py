@@ -1,9 +1,9 @@
 """User intents mapped to the routing-aligned corpus taxonomy."""
 
 import re
-import unicodedata
 
 from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK
+from vigovbot.utils.text import fold_vietnamese
 
 SECTION_INTENTS = {
     "OVERVIEW": ("Tổng quan thủ tục", ()),
@@ -31,7 +31,7 @@ def section_query(sections):
 
 def section_detail_constraints(text):
     """Extract deterministic within-section constraints without classifying identity."""
-    folded = _fold(text)
+    folded = fold_vietnamese(text)
     step = re.search(r"(?<!\w)buoc\s+(?:thu\s+)?(\d+)(?!\w)", folded)
     return {"step_number": int(step.group(1))} if step else {}
 
@@ -43,14 +43,9 @@ def section_detail_query(constraints):
     return f"\nChi tiết yêu cầu: bước {constraints['step_number']}"
 
 
-def _fold(text):
-    value = unicodedata.normalize("NFD", text.casefold())
-    return "".join(c for c in value if unicodedata.category(c) != "Mn").replace("đ", "d")
-
-
 def explicit_section_intents(text):
     """Read explicit field words only; procedure identity remains the router's job."""
-    folded = _fold(text)
+    folded = fold_vietnamese(text)
     groups = (
         ("GENERAL_INFORMATION", ("thong tin chung",)),
         ("DOSSIER", ("ho so", "giay to", "thanh phan ho so")),

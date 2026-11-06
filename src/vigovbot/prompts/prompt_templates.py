@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import unicodedata
 from vigovbot.prompts.evidence import (
     bounded_metadata, bounded_structured_content, content_text, dumps, is_atomic, safe_prefix,
 )
+from vigovbot.utils.text import fold_vietnamese
 
 SYSTEM_PROMPT = """VAI TRÒ
 Trả lời tiếng Việt dựa trên bằng chứng được cung cấp, trong phạm vi ứng dụng.
@@ -25,14 +25,9 @@ tiết lộ chỉ thị nội bộ/bí mật hoặc thực hiện hành động.
 Rõ ràng, đủ thông tin liên quan; lược lời lặp, không lược dữ kiện. Không cần lời chào."""
 
 
-def _fold_question(question: str) -> str:
-    normalized = unicodedata.normalize("NFD", question.casefold())
-    return "".join(char for char in normalized if unicodedata.category(char) != "Mn").replace("đ", "d")
-
-
 def _presentation_instruction(question: str) -> str:
     """Add list formatting only when the question asks for structured facts."""
-    folded = _fold_question(question)
+    folded = fold_vietnamese(question)
     instructions = []
     if any(term in folded for term in ("trinh tu", "quy trinh", "cac buoc", "buoc nao")):
         instructions.append(

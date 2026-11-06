@@ -11,7 +11,12 @@ from pathlib import Path
 
 import yaml
 
-from vigovbot.retrieval.retriever import _contains_phrase, _fold, extract_source_codes, preferred_section_types
+from vigovbot.retrieval.retriever import (
+    _contains_phrase,
+    extract_source_codes,
+    fold_retrieval_text as _fold,
+    preferred_section_types,
+)
 from vigovbot.utils.helpers import json_hash
 
 SECTION_LABELS = {
