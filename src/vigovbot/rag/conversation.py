@@ -322,9 +322,9 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 if candidate:
                     original_codes = extract_source_codes(question)
                     candidate_codes = extract_source_codes(candidate)
-                    from vigovbot.retrieval.procedure_discovery import NEGATIVE_QUALIFIERS, fold
+                    from vigovbot.retrieval.procedure_discovery import NEGATIVE_QUALIFIERS
                     dropped_qualifiers = [q for q in NEGATIVE_QUALIFIERS
-                                          if fold(q) in fold(question) and fold(q) not in fold(candidate)]
+                                          if _fold(q) in folded_question and _fold(q) not in folded_candidate]
                     if (not folded_candidate or folded_candidate == folded_question
                             or folded_candidate not in folded_question
                             or original_codes != candidate_codes or dropped_qualifiers):

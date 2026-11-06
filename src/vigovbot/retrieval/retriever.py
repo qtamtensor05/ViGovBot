@@ -126,7 +126,6 @@ class Retriever:
         if vector.shape != (1, 1024) or not np.isfinite(vector).all() or not np.any(vector):
             raise ValueError("Vector câu hỏi không hợp lệ")
         vector = np.ascontiguousarray(vector)
-        vector /= np.max(np.abs(vector))
         faiss.normalize_L2(vector)
         preferred = preferred_section_types(question) if section_types is None else section_types
         exact = self._search_source_codes(source_codes, vector, top_k, preferred,

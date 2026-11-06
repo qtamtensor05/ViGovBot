@@ -3,6 +3,7 @@ from tests.dependencies import skip_missing_dependency
 
 
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,12 +16,25 @@ except ModuleNotFoundError as exc:
 
 try:
     from vigovbot.rag.config import load_config, RAGConfig
-    from vigovbot.rag.pipeline import source_fingerprint
+    from vigovbot.rag.pipeline import _fingerprint_source_files, source_fingerprint
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 
 
 class ConfigTests(unittest.TestCase):
+    def test_fingerprint_reuses_contents_while_source_tree_is_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = root / "rag" / "pipeline.py"
+            entry.parent.mkdir()
+            entry.write_text("# pipeline", encoding="utf-8")
+            with patch("vigovbot.rag.pipeline.__file__", str(entry)):
+                before = _fingerprint_source_files.cache_info()
+                self.assertEqual(source_fingerprint(), source_fingerprint())
+                after = _fingerprint_source_files.cache_info()
+                self.assertEqual(after.misses, before.misses + 1)
+                self.assertEqual(after.hits, before.hits + 1)
+
     def test_fingerprint_covers_new_helpers_and_nested_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -37,6 +51,7 @@ class ConfigTests(unittest.TestCase):
                     self.assertNotEqual(previous, current, name)
                     self.assertEqual(current, source_fingerprint())
                     path.write_text("# modified", encoding="utf-8")
+                    os.utime(path, ns=(path.stat().st_atime_ns, path.stat().st_mtime_ns + 1))
                     previous = source_fingerprint()
                     self.assertNotEqual(current, previous, name)
 

@@ -1,6 +1,6 @@
 # Tổng hợp đánh giá các model ViGovBot
 
-> Nguồn: artifact canonical trong `result_final/`; benchmark PA1 gồm 638 case. Các tỷ lệ luôn đi cùng mẫu số vì không phải metric nào cũng áp dụng cho toàn bộ case.
+> Nguồn: artifact canonical trong `result/`; benchmark PA1 gồm 638 case. Các tỷ lệ luôn đi cùng mẫu số vì không phải metric nào cũng áp dụng cho toàn bộ case.
 
 ## Tổng quan sáu cấu hình
 

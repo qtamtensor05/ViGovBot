@@ -473,3 +473,9 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Không để nội dung train/validation trùng thủ tục hoặc bằng chứng với PA1/PA2 làm sai lệch kết quả test.
 - **Thực hiện:** Thêm bộ lọc procedure/content-disjoint, giữ nguyên nguồn/test và xuất danh sách case bị loại kèm lý do.
 - **Kết quả:** Loại 68/1.931 train và 41/827 validation; bộ sạch còn 1.863/786 case, các hậu kiểm leak mạnh đều bằng 0.
+
+## 2026-11-06 - Khắc phục lỗi xác nhận từ báo cáo đánh giá toàn diện
+
+- **Mục tiêu:** Xác minh báo cáo chưa commit và sửa các lỗi runtime có bằng chứng, không tự thay đổi các policy kiến trúc hoặc huấn luyện.
+- **Thực hiện:** Tối ưu fingerprint mã nguồn nhưng vẫn phát hiện thay đổi nóng ở CLI; cache source identity theo vòng đời server; siết matching từ khóa trình bày theo biên từ; sửa parser token JSON cho cặp surrogate Unicode; thống nhất fold discovery/routing; bỏ chuẩn hóa max-abs dư thừa trước L2; bổ sung hồi quy tập trung.
+- **Kết quả:** Các nhóm 37 test sửa lỗi ban đầu, 121 test fold/routing, 31 test fingerprint/server và 130 test retrieval/routing đều đạt; Ruff và compileall đạt. Full suite chạy 458 test, còn 1 failure và 5 error độc lập với thay đổi (catalog skill, fixture cấu hình/Torch, socket sandbox và SQLite cleanup trên Python 3.14).

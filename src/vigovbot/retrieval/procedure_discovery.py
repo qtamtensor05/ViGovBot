@@ -6,7 +6,7 @@ import re
 from collections import Counter
 
 import numpy as np
-from vigovbot.utils.text import fold_vietnamese
+from vigovbot.retrieval.retriever import fold_retrieval_text
 
 NEGATIVE_QUALIFIERS = (
     "người nước ngoài", "quân sự", "công an", "ngoại giao",
@@ -14,13 +14,13 @@ NEGATIVE_QUALIFIERS = (
 )
 
 
-def fold(text):
-    """Collapse whitespace for discovery after shared Unicode folding."""
-    return " ".join(fold_vietnamese(text).split())
+def _fold_discovery_text(text):
+    """Apply the retrieval fold policy, then collapse whitespace for discovery."""
+    return " ".join(fold_retrieval_text(text).split())
 
 
 def tokens(text):
-    return re.findall(r"\w+", fold(text))
+    return re.findall(r"\w+", _fold_discovery_text(text))
 
 
 class ProcedureDiscovery:
@@ -48,7 +48,7 @@ class ProcedureDiscovery:
         if top_k < 2 or not 0 <= alpha <= 1 or not 0 < qualifier_penalty <= 1:
             raise ValueError("Invalid procedure discovery settings")
         query_tokens = tokens(query)
-        query_folded = fold(query)
+        query_folded = _fold_discovery_text(query)
         query_vector = np.asarray(vector, dtype=np.float32).reshape(-1)
         norm = float(np.linalg.norm(query_vector))
         if query_vector.shape != (self.vectors.shape[1],) or not norm or not np.isfinite(query_vector).all():
@@ -67,8 +67,8 @@ class ProcedureDiscovery:
         penalties, matched_qualifiers = [], []
         for entry in self.entries:
             qualifiers = [qualifier for qualifier in NEGATIVE_QUALIFIERS
-                          if fold(qualifier) in fold(entry["name"])
-                          and fold(qualifier) not in query_folded]
+                          if _fold_discovery_text(qualifier) in _fold_discovery_text(entry["name"])
+                          and _fold_discovery_text(qualifier) not in query_folded]
             matched_qualifiers.append(qualifiers)
             penalties.append(qualifier_penalty if qualifiers else 1.0)
         gated = raw_hybrid * np.asarray(penalties, dtype=np.float32)

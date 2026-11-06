@@ -1,6 +1,6 @@
 # Báo cáo đánh giá QLoRA v2
 
-> **Nguồn:** `result_final/eval-qlora_v2/` · **Trạng thái:** RAG-SFT chạy độc lập, không có retrieval · **638/638 prediction cuối**
+> **Nguồn:** `result/eval-qlora_v2/` · **Trạng thái:** RAG-SFT chạy độc lập, không có retrieval · **638/638 prediction cuối**
 
 ## Nhận định nhanh
 

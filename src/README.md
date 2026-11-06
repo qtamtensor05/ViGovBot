@@ -8,4 +8,4 @@ Evaluation và benchmark QA v4 thống nhất tại
 [vigovbot.evaluation](vigovbot/evaluation/README.md), chạy bằng
 `python -m vigovbot eva`.
 
-[Kiến trúc hệ thống](../docs/architecture/architecture.md) · [Giao diện CLI](../README.md) · [Migration](../docs/architecture/migration.md)
+[Kiến trúc hệ thống](../docs/architecture/architecture.md) · [Giao diện CLI](../README.md) · [Mục lục tài liệu](../docs/README.md)

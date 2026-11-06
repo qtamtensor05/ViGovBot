@@ -1,6 +1,6 @@
 # Báo cáo đánh giá QLoRA v1
 
-> **Nguồn:** `result_final/eval-qlora_v1/` · **Trạng thái:** Baseline fine-tuning lịch sử · **638/638 prediction cuối**
+> **Nguồn:** `result/eval-qlora_v1/` · **Trạng thái:** Baseline fine-tuning lịch sử · **638/638 prediction cuối**
 
 ## Nhận định nhanh
 

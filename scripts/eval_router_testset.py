@@ -361,7 +361,7 @@ def main():
     }
 
     # Save artifacts
-    out_dir = Path("outputs/evaluation/router_testset")
+    out_dir = Path("outputs/evaluation/router_threshold-v1-baseline")
     out_dir.mkdir(parents=True, exist_ok=True)
     
     (out_dir / "summary_report.json").write_text(json.dumps(report_summary, ensure_ascii=False, indent=2), encoding="utf-8")

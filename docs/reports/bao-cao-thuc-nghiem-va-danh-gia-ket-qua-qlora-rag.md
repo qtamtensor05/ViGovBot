@@ -7,7 +7,7 @@
 > **Hạ tầng thực nghiệm chính:** 1x NVIDIA GeForce RTX 5060 Ti (16 GB GDDR6 / 15,90 GiB khả dụng)  
 > **Tập kiểm chuẩn tỷ lệ vàng:** `Data/dataset_v3/test_rag/test_rag_pa1.jsonl` ($N = 638$ mẫu kiểm thử chuẩn hóa thuộc 407 thủ tục, 169 lĩnh vực)  
 > **Kho tri thức vector:** `Data/vector/unified/` (117.871 đoạn trích, mô hình nhúng `BAAI/bge-m3`, chỉ mục `FAISS IndexFlatIP` + `metadata.sqlite`)  
-> **Nguồn dữ liệu thực chứng:** Tập hợp artifact chuẩn tắc tại `result_final/` (`eval-base/`, `eval-rag/`, `eval-qlora_v1/`, `eval-qlora_v1-rag/`, `eval-qlora_v2/`, `eval-qlora_v2-rag/`)  
+> **Nguồn dữ liệu thực chứng:** Tập hợp artifact chuẩn tắc tại `result/` (`eval-base/`, `eval-rag/`, `eval-qlora_v1/`, `eval-qlora_v1-rag/`, `eval-qlora_v2/`, `eval-qlora_v2-rag/`)  
 > **Chuẩn Schema nghiệm thu:** Evaluation Protocol v3.2 (JSON Schema Draft 2020-12)  
 > **Thời điểm thẩm định artifact:** Tháng 11/2026  
 
@@ -17,7 +17,7 @@
 
 Báo cáo này công bố chi tiết môi trường thực nghiệm, cấu hình tham số, kết quả đo lường định lượng và phân tích chuyên sâu hiệu quả đối chuẩn giữa hai kỹ thuật then chốt: **Tinh chỉnh tham số hiệu quả thích ứng lượng tử hóa thứ hạng thấp (QLoRA)** và **Tạo sinh Tăng cường Truy xuất (RAG)** trên mô hình ngôn ngữ lớn **Qwen2.5-7B-Instruct** trong khuôn khổ dự án trợ lý công vụ ViGovBot. Nhằm giải quyết triệt để hai thách thức cốt lõi trong tư vấn thủ tục hành chính công (TTHC) tại Việt Nam: (1) hiện tượng ảo giác pháp lý (*legal hallucination*) của các mô hình nền tảng gốc, và (2) sự suy giảm độ chính xác trích dẫn do nhiễu tài liệu trong các hệ thống RAG zero-shot, nghiên cứu thiết lập mô hình thực nghiệm thừa số trực giao $2 \times 2$ gồm bốn kịch bản đối sánh độc lập: **Mô hình Base**, **Base + RAG**, **QLoRA Độc lập** và **QLoRA + RAG** (kết hợp đối chứng lịch sử với thế hệ sơ bộ QLoRA v1).
 
-Toàn bộ 6 cấu hình được đo kiểm thống nhất trên cùng một tập kiểm chuẩn chuẩn mực gồm **638 ca kiểm thử tỷ lệ vàng (`test_rag_pa1.jsonl`)**, bảo đảm tính hợp lệ nội tại và khả năng tái lập 100%. Kết quả thực nghiệm xác nhận cấu hình chính thức **QLoRA v2 + RAG thiết lập đường biên tối ưu Pareto áp đảo hoàn toàn**: Tỷ lệ khớp chính xác (**Exact Match**) tăng vọt từ **0,00%** (Base) và **1,25%** (Base + RAG) lên **20,41%** (chuẩn hóa đạt **21,51%**), chỉ số **SacreBLEU** đạt **36,28**, **chrF++** đạt **47,23**, và độ phủ dữ kiện pháp lý cốt lõi (**Key-Fact Coverage**) đạt **38,78%** (vượt trội so với 1,45% của Base và 17,65% của Base + RAG). Độ chính xác trích dẫn nguồn (**Citation Precision / Recall**) đạt **50,52% / 53,43%**, trong khi các kiểm định độc lập qua **LLM-as-a-Judge** xác nhận độ bám sát nguồn (*Source Groundedness*) đạt **90,10%** và độ trung thực ngữ cảnh (*Context Faithfulness*) đạt **91,09%** với 0% chấp nhận sai ngoài miền (OOD). Đáng chú ý, nhờ học được cấu trúc JSON và phong cách trả lời hành chính súc tích, độ trễ suy luận toàn trình của QLoRA v2 + RAG rút ngắn tới **45,3%** so với Base + RAG (giảm từ 12,83 giây xuống **7,02 giây/câu**) trên cùng một card đồ họa thương mại **NVIDIA GeForce RTX 5060 Ti 16 GB**. Bên cạnh các thành tựu, báo cáo bóc tách chi tiết các điểm nghẽn kỹ thuật hiện hữu (97 ca hồi quy mất ý định section qua menu, tỷ lệ trích dẫn không hợp lệ 30,35% do nhiễu Top-15) và đề xuất lộ trình hoàn thiện hệ thống phục vụ chuyển giao công nghệ.
+Toàn bộ 6 cấu hình được đo kiểm thống nhất trên cùng một tập kiểm chuẩn gồm **638 ca kiểm thử (`test_rag_pa1.jsonl`)**. Trong snapshot này, QLoRA v2 + RAG đạt Exact Match **20,41%** (chuẩn hóa **21,51%**), SacreBLEU **36,28**, chrF++ **47,23** và Key-Fact Coverage **38,78%**. Citation Precision / Recall đạt **50,52% / 53,43%**; LLM-as-a-Judge ghi nhận Source Groundedness **90,10%** và Context Faithfulness **91,09%**. Độ trễ trung bình giảm từ 12,83 xuống **7,02 giây/câu** trên phần cứng được ghi nhận trong manifest. Các con số này là kết quả của lần chạy đã lưu, không tự động chứng minh runtime hiện tại. Báo cáo cũng ghi nhận 97 ca mất section intent qua menu tại thời điểm đánh giá và tỷ lệ trích dẫn không hợp lệ 30,35%; lỗi state/section-intent đã được sửa ở source nhưng chưa chạy lại toàn bộ benchmark model để xác nhận tác động.
 
 ---
 
@@ -93,7 +93,7 @@ flowchart TD
 
 Nhằm bảo đảm tính khả thi kinh tế và năng lực triển khai thực tế của hệ thống trợ lý công vụ tại các trung tâm dữ liệu địa phương hoặc cơ quan hành chính nhà nước, toàn bộ quy trình từ huấn luyện mô hình đến đối chuẩn thực nghiệm được thiết kế tối ưu trên hạ tầng GPU thương mại 16 GB VRAM. Bảng dưới đây phân định chi tiết cấu hình phần cứng giữa pha thực nghiệm chính thức và các pha khảo nghiệm sơ bộ:
 
-| Hạng mục phần cứng | Cấu hình thực nghiệm chính thức (`outputs/qlora_v2/`, `result_final/`) | Cấu hình thử nghiệm sơ bộ (QLoRA v1 & Khảo nghiệm ban đầu) |
+| Hạng mục phần cứng | Cấu hình thực nghiệm chính thức (`outputs/qlora_v2/`, `result/`) | Cấu hình thử nghiệm sơ bộ (QLoRA v1 & Khảo nghiệm ban đầu) |
 | :--- | :--- | :--- |
 | **Bộ xử lý đồ họa (GPU)** | **1x NVIDIA GeForce RTX 5060 Ti**<br>- Dung lượng VRAM: **16.384 MB (16 GB GDDR6)**<br>- Bộ nhớ khả dụng thực tế: 15,90 GiB<br>- Kiến trúc vi mô: **SM 12.0**<br>- Tập lệnh hỗ trợ native: `bfloat16`, Tensor Cores thế hệ mới | **1x NVIDIA Tesla T4** (16 GB GDDR4, SM 7.5, Google Colab)<br>hoặc **1x NVIDIA Tesla V100-SXM2** (16 GB HBM2, SM 7.0, Remote Server) |
 | **Bộ vi xử lý trung tâm (CPU)** | **AMD Ryzen 7 / Intel Core i7 đa nhân** (16 luồng xử lý)<br>- Khóa cấu hình: `torch.set_num_threads(2)` dành riêng cho PhoBERT Router | Intel Xeon Virtual CPU (2–4 vCPU, môi trường máy chủ đám mây chia sẻ) |
@@ -103,14 +103,14 @@ Nhằm bảo đảm tính khả thi kinh tế và năng lực triển khai thự
 
 > [!NOTE]
 > **Nguyên tắc phân định bằng chứng phần cứng:**  
-> - Toàn bộ chu kỳ huấn luyện QLoRA v2 (675 optimizer steps, 26.161,3 giây) và 100% các phép đo suy luận đối kháng của 6 thư mục tại `result_final/` được thực hiện trực tiếp trên phần cứng **NVIDIA GeForce RTX 5060 Ti 16 GB**.
+> - Toàn bộ chu kỳ huấn luyện QLoRA v2 (675 optimizer steps, 26.161,3 giây) và 100% các phép đo suy luận đối kháng của 6 thư mục tại `result/` được thực hiện trực tiếp trên phần cứng **NVIDIA GeForce RTX 5060 Ti 16 GB**.
 > - Các kết quả huấn luyện sơ bộ của QLoRA v1 trên tập dữ liệu ChatML cũ được thực thi trên cụm GPU **Tesla T4 / V100**. Để tuân thủ kỷ luật khoa học, các chỉ số đánh giá của QLoRA v1 được báo cáo độc lập như một mốc đối chứng lịch sử và tuyệt đối không được gộp chung thành phép so sánh trực tiếp với các mô hình thế hệ v2 khi khác biệt về phân bổ dữ liệu nguồn.
 
 ---
 
 ### 4.1.2. Môi trường phần mềm và thư viện phụ thuộc
 
-Môi trường phần mềm được khóa phiên bản chuẩn tắc thông qua các tệp khóa môi trường tại [`locks/`](file:///c:/Users/quangTam/Documents/ViGovBot/locks/) và định nghĩa chính thức tại [`pyproject.toml`](file:///c:/Users/quangTam/Documents/ViGovBot/pyproject.toml):
+Môi trường phần mềm được khóa phiên bản chuẩn tắc thông qua các tệp khóa môi trường tại [`locks/`](../../locks/) và định nghĩa chính thức tại [`pyproject.toml`](../../pyproject.toml):
 
 - **Hệ điều hành:** Microsoft Windows 11 Pro 64-bit (bản dựng 23H2/24H2), thiết lập cờ hệ thống bắt buộc `$env:PYTHONUTF8 = "1"` nhằm bảo đảm 100% tính tương thích của bảng mã tiếng Việt Unicode dựng sẵn; song song với container hóa Docker trên nền tảng Ubuntu 22.04 LTS (x86_64) phục vụ triển khai backend suy luận.
 - **Môi trường thực thi (Python Runtime):** Python 3.12 (baseline cho quá trình huấn luyện GPU) và Python 3.11+ / Python 3.14 (môi trường máy trạm thử nghiệm).
@@ -125,7 +125,7 @@ Môi trường phần mềm được khóa phiên bản chuẩn tắc thông qua
 - **Hạ tầng Cơ sở tri thức Vector và Công cụ Phục vụ Suy luận (Serving & Vector DB):**
   - `Ollama Runtime (v0.5+)`: Daemon suy luận cục bộ, hỗ trợ định dạng nhị phân GGUF, kích hoạt tính toán **Flash Attention** và tối ưu hóa bộ nhớ đệm KV Cache ở định dạng **Q8 (`q8_0 KV Cache`)**.
   - `faiss-cpu == 1.8.0` kết hợp `sqlite3` (`metadata.sqlite`): Chỉ mục vector không gian Metric `IndexFlatIP` (Cosine similarity qua tích vô hướng chuẩn hóa L2).
-  - `sentence-transformers >= 3.0, < 6.0`: Tích hợp mô hình nhúng văn bản đa ngôn ngữ `BAAI/bge-m3` (sinh vector đặc trưng 1.024 chiều) và mô hình tái xếp hạng `BAAI/bge-reranker-v2-m3`.
+  - `sentence-transformers >= 3.0, < 6.0`: Tích hợp mô hình nhúng văn bản đa ngôn ngữ `BAAI/bge-m3` (sinh vector đặc trưng 1.024 chiều). `BAAI/bge-reranker-v2-m3` chỉ được dùng trong benchmark ngoại tuyến lịch sử, không nằm trong runtime online hiện hành.
   - `pyvi == 0.1.1`: Tiền xử lý bóc tách từ tố tiếng Việt phục vụ bộ mã hóa PhoBERT Tokenizer.
   - `FastAPI == 0.115.x` và `uvicorn == 0.34.x`: Máy chủ API RESTful bất đồng bộ phục vụ endpoint `/api/chat` tại cổng `:8002`.
 - **Thư viện Đo lường và Thẩm định Chất lượng (Evaluation Suite):**
@@ -139,7 +139,7 @@ Môi trường phần mềm được khóa phiên bản chuẩn tắc thông qua
 
 ### 4.1.3. Cấu trúc tổ chức mã nguồn và vai trò của repository định tuyến PhoBERT
 
-Hệ thống ViGovBot được đóng gói chuẩn tắc dưới dạng package Python [`vigovbot`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/) (phiên bản 0.2.0) tuân thủ triệt để [nguyên tắc cấu trúc dự án](file:///c:/Users/quangTam/Documents/ViGovBot/.agents/skills/vigovbot-project-structure/SKILL.md), tách bạch hoàn toàn ranh giới giữa tầng bóc tách dữ liệu, biểu diễn tri thức, định tuyến, sinh ngôn ngữ và kiểm chuẩn độc lập:
+Hệ thống ViGovBot được đóng gói chuẩn tắc dưới dạng package Python [`vigovbot`](../../src/vigovbot/) (phiên bản 0.2.0) tuân thủ triệt để [nguyên tắc cấu trúc dự án](../../.agents/skills/vigovbot-project-structure/SKILL.md), tách bạch hoàn toàn ranh giới giữa tầng bóc tách dữ liệu, biểu diễn tri thức, định tuyến, sinh ngôn ngữ và kiểm chuẩn độc lập:
 
 ```
 src/vigovbot/
@@ -160,7 +160,7 @@ src/vigovbot/
 
 #### Vai trò của Bộ định tuyến Đa nhiệm PhoBERT (PhoBERT Router)
 
-Trong kiến trúc của ViGovBot, bộ định tuyến chuyên dụng [`vigovbot.rag.phobert_router`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py) đóng vai trò là "người gác cổng" thông minh đặt trước pipeline RAG:
+Trong kiến trúc của ViGovBot, bộ định tuyến chuyên dụng [`vigovbot.rag.phobert_router`](../../src/vigovbot/rag/phobert_router.py) đóng vai trò là "người gác cổng" thông minh đặt trước pipeline RAG:
 1. **Kiến trúc mạng 4-Head:** Được xây dựng trên nền tảng mô hình ngôn ngữ tiếng Việt tiền huấn luyện `vinai/phobert-base-v2`, tích hợp 4 đầu phân loại tuyến tính độc lập (*Linear Heads*) hoạt động song song trên vector pooling CLS:
    - **Head 1 — Xác định Phạm vi (`scope`):** Phân loại nhị phân giữa `IN_SCOPE` (câu hỏi nghiệp vụ TTHC) và `OUT_OF_SCOPE` (chào hỏi, ngoài lề, độc hại).
    - **Head 2 — Mạch hội thoại (`turn_type`):** Nhận diện `NEW_QUESTION` (câu hỏi mở đầu) hoặc `FOLLOW_UP` (hỏi tiếp nối ngữ cảnh trước đó).
@@ -169,7 +169,7 @@ Trong kiến trúc của ViGovBot, bộ định tuyến chuyên dụng [`vigovbo
 2. **Triệt tiêu gánh nặng VRAM thông qua thực thi CPU:**  
    Toàn bộ mô hình PhoBERT Router và checkpoint trọng số (`outputs/phobert_v3_finetuned_20261028/checkpoint`) được cấu hình nạp ở chế độ chỉ đọc `weights_only=True` và chạy **100% trên CPU máy chủ** với thiết lập phân luồng cố định `intra-op threads = 2`. Quyết định này giúp giải phóng hoàn toàn **100% dung lượng VRAM của GPU RTX 5060 Ti** để dành trọn vẹn tài nguyên cho mô hình sinh lớn `Qwen2.5-7B` và các phép đo ngữ nghĩa `xlm-roberta-large`.
 3. **Cơ chế Trọng tài Catalog và Hàng rào An toàn Chống Ảo giác:**  
-   PhoBERT không sinh văn bản tự do hay viết lại câu hỏi bừa bãi. Kết quả phân loại được đưa qua lớp trọng tài ([`vigovbot.rag.routing`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/routing.py)) đối soát với danh mục 6.191 thủ tục hành chính quốc gia. Nếu xác suất ngoài phạm vi $P(\text{OUT}) \ge 0,85$, hệ thống lập tức kích hoạt hành vi từ chối an toàn với chi phí đúng **0 token LLM**, ngăn chặn triệt để nguy cơ mô hình ngôn ngữ lớn bị khai thác câu hỏi bẫy hoặc sinh thông tin sai lệch.
+   PhoBERT không sinh văn bản tự do hay viết lại câu hỏi bừa bãi. Kết quả phân loại được đưa qua lớp trọng tài ([`vigovbot.rag.routing`](../../src/vigovbot/rag/routing.py)) đối soát với danh mục 6.191 thủ tục hành chính quốc gia. Nếu xác suất ngoài phạm vi $P(\text{OUT}) \ge 0,85$, hệ thống lập tức kích hoạt hành vi từ chối an toàn với chi phí đúng **0 token LLM**, ngăn chặn triệt để nguy cơ mô hình ngôn ngữ lớn bị khai thác câu hỏi bẫy hoặc sinh thông tin sai lệch.
 
 ---
 
@@ -185,7 +185,7 @@ Trong kiến trúc của ViGovBot, bộ định tuyến chuyên dụng [`vigovbo
 
 ### 4.2.2. Kết quả đánh giá định lượng trên 638 ca kiểm thử PA1
 
-Dữ liệu được trích xuất trực tiếp từ artifact chính thức [`result_final/eval-base/scores.json`](file:///c:/Users/quangTam/Documents/ViGovBot/result_final/eval-base/scores.json) trên toàn bộ 638 mẫu thử nghiệm:
+Dữ liệu được trích xuất trực tiếp từ artifact chính thức [`result/eval-base/scores.json`](../../result/eval-base/scores.json) trên toàn bộ 638 mẫu thử nghiệm:
 
 | Nhóm chỉ số đánh giá | Tên chỉ số đo lường | Kết quả thực nghiệm | Số mẫu hợp lệ ($N$) |
 | :--- | :--- | :---: | :---: |
@@ -221,9 +221,9 @@ Dữ liệu được trích xuất trực tiếp từ artifact chính thức [`r
 
 ### 4.3.1. Cấu hình kho tri thức và tham số biểu diễn vector
 
-Kho tri thức chuẩn hóa của hệ thống ViGovBot được xây dựng tại thư mục [`Data/vector/unified/`](file:///c:/Users/quangTam/Documents/ViGovBot/Data/vector/unified/):
+Kho tri thức chuẩn hóa của hệ thống ViGovBot được xây dựng tại thư mục [`Data/vector/unified/`](../../Data/vector/unified/):
 - **Quy mô dữ liệu nguồn:** Bóc tách từ **6.192 tài liệu PDF** và **6.191 hồ sơ thủ tục hành chính** thuộc 209 lĩnh vực quản lý nhà nước.
-- **Giải thuật phân mảnh nhận thức cấu trúc ([`TTHCStructureAwareChunker`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/)):**  
+- **Giải thuật phân mảnh nhận thức cấu trúc ([`TTHCStructureAwareChunker`](../../src/vigovbot/chunking/)):**  
   Văn bản được phân giải thành **117.871 đoạn trích (chunks)** chuẩn hóa. Mỗi đoạn trích có độ dài ngân sách 1.200 – 1.500 ký tự, bảo toàn nguyên vẹn cấu trúc bảng biểu liên trang qua hàm `repair_table_continuations` và làm phẳng hàng dữ liệu qua `flatten_tables`. Đầu mỗi chunk được gắn tiền tố nhận thức ngữ cảnh bất biến: `[Thủ tục: <Tên> | MÃ TTHC: <Mã> | Mục: <Nhãn SectionType>]`.
 - **Mô hình nhúng và Không gian vector:**  
   Mô hình `BAAI/bge-m3` mã hóa mỗi chunk thành vector đặc trưng dày đặc 1.024 chiều ở độ chính xác FP16, chuẩn hóa độ dài Euclidean ($L_2$ norm = 1.0).
@@ -236,11 +236,11 @@ Pipeline truy xuất hoạt động theo chuỗi xử lý khép kín:
 2. **Chiến lược lọc chính xác mã thủ tục (Exact Code Filter):**  
    Nếu tên thủ tục được xác thực hợp lệ qua trọng tài catalog, hệ thống kích hoạt bộ lọc cứng `procedure_code` trên SQLite, giới hạn không gian tìm kiếm vector chỉ nằm trong các chunk thuộc đúng thủ tục đó. Nếu không có mã, hệ thống tự động kích hoạt cơ chế truy xuất ngữ nghĩa toàn phần (*Semantic Fallback*).
 3. **Thu hồi và Tái xếp hạng (Top-15 Reranking):**  
-   Hệ thống thu hồi Top-50 ứng viên thô từ FAISS, sau đó đưa qua mô hình Cross-Encoder `BAAI/bge-reranker-v2-m3` để chấm điểm tương quan sâu giữa câu hỏi và từng chunk, trích xuất chính xác **Top-15 đoạn trích có điểm số cao nhất** nạp vào prompt.
+   Hệ thống hiện truy xuất trực tiếp **Top-15** ứng viên từ FAISS trong các profile host/evaluation/Ollama, sau đó áp dụng ràng buộc mã thủ tục và section intent trước khi đóng gói evidence. Runtime online không chạy Cross-Encoder reranker; profile Docker GPU dùng `top_k=5`.
 
 ### 4.3.3. Đóng gói ngữ cảnh vào Prompt Envelope
 
-Toàn bộ 15 khối tài liệu trích xuất được bao bọc trong một phong bì cấu trúc an toàn ([`JSON Prompt Envelope`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/evidence.py)) nhằm thiết lập ranh giới dữ liệu rõ ràng, ngăn chặn triệt để tấn công tiêm nhiễm chỉ thị (Prompt Injection):
+Toàn bộ 15 khối tài liệu trích xuất được bao bọc trong một phong bì cấu trúc an toàn ([`JSON Prompt Envelope`](../../src/vigovbot/prompts/evidence.py)) nhằm thiết lập ranh giới dữ liệu rõ ràng, ngăn chặn triệt để tấn công tiêm nhiễm chỉ thị (Prompt Injection):
 
 ```text
 <|im_start|>user
@@ -256,7 +256,7 @@ Thời hạn giải quyết thủ tục cấp lại thẻ BHYT do bị rách là
 
 ### 4.3.4. Kết quả đánh giá định lượng và Phân tích khả năng cải thiện khi bổ sung RAG
 
-Dữ liệu trích xuất từ [`result_final/eval-rag/scores.json`](file:///c:/Users/quangTam/Documents/ViGovBot/result_final/eval-rag/scores.json):
+Dữ liệu trích xuất từ [`result/eval-rag/scores.json`](../../result/eval-rag/scores.json):
 
 | Nhóm chỉ số | Chỉ số đo lường | Mô hình Base | Mô hình Base + RAG | Mức độ cải thiện ($\Delta$) |
 | :--- | :--- | :---: | :---: | :---: |
@@ -285,7 +285,7 @@ Việc bổ sung kho tri thức RAG đem lại bước nhảy vọt về chất 
 
 ### 4.4.1. Kết quả huấn luyện và Động lực học tối ưu hóa
 
-Quá trình tinh chỉnh tham số hiệu quả QLoRA được thực hiện trên tập dữ liệu sạch [`Data/dataset_v3/finetuning_v2/`](file:///c:/Users/quangTam/Documents/ViGovBot/Data/dataset_v3/finetuning_v2/) thông qua cấu hình [`configs/training/environments/rtx5060ti_16gb_rag_sft.yaml`](file:///c:/Users/quangTam/Documents/ViGovBot/configs/training/environments/rtx5060ti_16gb_rag_sft.yaml):
+Quá trình tinh chỉnh tham số hiệu quả QLoRA được thực hiện trên tập dữ liệu sạch [`Data/dataset_v3/finetuning_v2/`](../../Data/dataset_v3/finetuning_v2/) thông qua cấu hình [`configs/training/environments/rtx5060ti_16gb_rag_sft.yaml`](../../configs/training/environments/rtx5060ti_16gb_rag_sft.yaml):
 
 ```text
 Mô hình nền: Qwen/Qwen2.5-7B-Instruct (4-bit NF4, Double Quantization, compute: bfloat16)
@@ -323,7 +323,7 @@ Toàn bộ khóa huấn luyện trải qua trọn vẹn **3,0 epochs** (tổng c
 
 ### 4.4.2. Kết quả suy luận độc lập (Closed-Book QLoRA v2)
 
-Trọng số tại `checkpoint-600` được trích xuất thành [`outputs/qlora_v2/training_run/best_adapter/`](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/qlora_v2/training_run/best_adapter/) (154,05 MiB), sau đó được đánh giá độc lập (không nạp RAG) trên tập kiểm thử PA1 tại [`result_final/eval-qlora_v2/scores.json`](file:///c:/Users/quangTam/Documents/ViGovBot/result_final/eval-qlora_v2/scores.json):
+Trọng số tại `checkpoint-600` được trích xuất thành [`outputs/qlora_v2/training_run/best_adapter/`](../../outputs/qlora_v2/training_run/best_adapter/) (154,05 MiB), sau đó được đánh giá độc lập (không nạp RAG) trên tập kiểm thử PA1 tại [`result/eval-qlora_v2/scores.json`](../../result/eval-qlora_v2/scores.json):
 
 | Chỉ số đo lường | Mô hình Base | QLoRA v2 (Độc lập không RAG) | So sánh và Nhận định hành vi |
 | :--- | :---: | :---: | :--- |
@@ -371,7 +371,7 @@ flowchart LR
 ```
 
 1. **Hợp nhất trọng số ma trận (Weight Merging):**  
-   Tại [`outputs/qlora/merged_qwen_rag_sft`](file:///c:/Users/quangTam/Documents/ViGovBot/outputs/qlora/), trọng số adapter LoRA được hòa tan trực tiếp vào trọng số gốc FP16 của mô hình nền theo công thức $W_{\text{merged}} = W_0 + \frac{\alpha}{r} (B \times A)$, tạo thành mô hình hoàn chỉnh dung lượng 15,2 GB, loại bỏ hoàn toàn độ trễ tính toán adapter trong quá trình suy luận.
+   Tại [`outputs/qlora/merged_qwen_rag_sft`](../../outputs/qlora/), trọng số adapter LoRA được hòa tan trực tiếp vào trọng số gốc FP16 của mô hình nền theo công thức $W_{\text{merged}} = W_0 + \frac{\alpha}{r} (B \times A)$, tạo thành mô hình hoàn chỉnh dung lượng 15,2 GB, loại bỏ hoàn toàn độ trễ tính toán adapter trong quá trình suy luận.
 2. **Lượng tử hóa định dạng nhị phân GGUF Q8_0:**  
    Mô hình sau hợp nhất được biên dịch sang định dạng GGUF chuẩn của thư viện `llama.cpp` ở mức lượng tử hóa **Q8_0** (`outputs/qlora_v2/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`, dung lượng 8,10 GB). Mức lượng tử hóa Q8_0 bảo toàn 99,9% độ chính xác số học so với FP16 nhưng giảm 47% dung lượng bộ nhớ.
 3. **Phục vụ qua Ollama và ViGovBot API Gateway:**  
@@ -389,7 +389,7 @@ flowchart LR
 
 ### 4.5.3. Kết quả đánh giá định lượng trên tập kiểm chuẩn chuẩn mực
 
-Dữ liệu được trích xuất từ [`result_final/eval-qlora_v2-rag/scores.json`](file:///c:/Users/quangTam/Documents/ViGovBot/result_final/eval-qlora_v2-rag/scores.json) và [`result_final/eval-qlora_v2-rag/judge_summary.json`](file:///c:/Users/quangTam/Documents/ViGovBot/result_final/eval-qlora_v2-rag/judge_summary.json):
+Dữ liệu được trích xuất từ [`result/eval-qlora_v2-rag/scores.json`](../../result/eval-qlora_v2-rag/scores.json) và [`result/eval-qlora_v2-rag/judge_summary.json`](../../result/eval-qlora_v2-rag/judge_summary.json):
 
 | Nhóm chỉ số | Tên chỉ số đo lường | Mô hình Base + RAG | Mô hình QLoRA v2 + RAG | Mức độ vượt trội ($\Delta$) |
 | :--- | :--- | :---: | :---: | :---: |
@@ -541,7 +541,7 @@ Sự đồng nhất của các chỉ số truy xuất khẳng định: **sự v�
 - **Phản hồi của QLoRA v2 + RAG:**  
   Chỉ sinh duy nhất dòng chữ: `Cấp thực hiện: Tỉnh` (EM = 0,00%, Key-Facts = 0,00%).
 - **Nguyên nhân phân tích sâu:**  
-  Đây là một trong **97 ca lỗi hồi quy** được ghi nhận trong báo cáo [`docs/reports/model-evaluation/qlora-v2-rag.md`](file:///c:/Users/quangTam/Documents/ViGovBot/docs/reports/model-evaluation/qlora-v2-rag.md). Khi người dùng nhấn chọn số thứ tự trên menu, bộ điều khiển hội thoại đã phân giải đúng mã thủ tục nhưng **vô tình làm rơi nhãn ý định `SectionType = sequence_of_implementation` (bước 1)** đã được dự đoán ở lượt trước. Hậu quả là khối truy xuất ưu tiên nạp thông tin tổng quan thẩm quyền thay vì nạp chi tiết các bước, khiến mô hình chỉ trả lời cấp thực hiện.
+  Đây là một trong **97 ca lỗi hồi quy** được ghi nhận trong báo cáo [`docs/reports/model-evaluation/qlora-v2-rag.md`](model-evaluation/qlora-v2-rag.md). Ở runtime của lần đánh giá đó, lượt chọn menu làm rơi `SectionType = sequence_of_implementation`. Source hiện tại đã chuyển sang signed state v3 để bảo toàn yêu cầu đang chờ và section intent; chưa có lần chạy lại toàn bộ benchmark model để xác nhận mức cải thiện.
 
 #### Trường hợp 4: Truy xuất nhiễu dẫn đến trích dẫn không hợp lệ (Context Noise Impact)
 - Hiện tượng tỷ lệ trích dẫn không hợp lệ (*Invalid Citation Rate*) ở QLoRA v2 + RAG đạt **30,35%**. Phân tích log cho thấy khi nạp danh sách Top-15 đoạn trích có độ nhiễu lên tới **57,10%**, nhiều chunk có độ tương đồng ngữ nghĩa rất cao (ví dụ: cùng mô tả hồ sơ của thủ tục tương tự ở cấp Huyện thay vì cấp Tỉnh). Mô hình đã trích xuất đúng nội dung văn bản nhưng gán nhầm mã `chunk_id` của đoạn trích nhiễu lân cận.
@@ -585,7 +585,7 @@ flowchart TD
 ### 4.7.3. Giải thích các trường hợp kết quả chưa đạt kỳ vọng
 
 Bên cạnh những thành tựu nổi bật, báo cáo chỉ ra 3 nguyên nhân cốt lõi dẫn đến các trường hợp xử lý chưa đạt yêu cầu:
-1. **Lỗi ngắt mạch ý định trong hội thoại đa lượt (State Continuity Bug):** 97 ca kiểm thử bị mất ý định section sau khi bấm menu lựa chọn thủ tục là nguyên nhân chính khiến chỉ số EM chưa thể vượt ngưỡng 30%.
+1. **Lỗi ngắt mạch ý định trong snapshot đánh giá:** 97 ca kiểm thử bị mất section intent sau khi bấm menu. Source hiện tại đã có bản sửa state v3, nhưng tác động lên chỉ số model vẫn chờ chạy lại benchmark.
 2. **Hiện tượng nhiễu ngữ cảnh do chiến lược Top-15 quá rộng (Context Dilution):** Tỷ lệ nhiễu ngữ cảnh 57,10% nạp quá nhiều đoạn trích không liên quan vào prompt, gây phân tán cơ chế tự chú ý (Self-Attention) của mô hình và làm tăng tỷ lệ trích dẫn sai mã chunk lên 30,35%.
 3. **Hiện tượng suy giảm khả năng từ chối khi câu hỏi chứa từ khóa mơ hồ:** Một số câu hỏi không thể trả lời vẫn bị mô hình trả lời liều lĩnh (9/13 ca trong nhóm kiểm định hồi quy) do bộ định tuyến nhầm lẫn giữa việc "thiếu thông tin" với việc "cần làm rõ thủ tục".
 
@@ -595,7 +595,7 @@ Bên cạnh những thành tựu nổi bật, báo cáo chỉ ra 3 nguyên nhân
 
 - **Về Dữ liệu (Data Boundaries):** Phân bố dữ liệu TTHC mang đặc trưng đuôi dài nặng (*heavy-tail*), với hơn 150 lĩnh vực chỉ có 1 – 5 mẫu huấn luyện, đòi hỏi bổ sung kỹ thuật tăng cường dữ liệu tổng hợp có kiểm duyệt (*controlled synthetic data augmentation*).
 - **Về Kiến trúc Suy luận (Retrieval Ablation):** Cần tiến hành thực nghiệm triệt tiêu (*ablation study*) thu hẹp độ rộng cửa sổ truy xuất từ Top-15 xuống **Top-5 đoạn trích có điểm tái xếp hạng cao nhất**, nhằm giảm tỷ lệ nhiễu ngữ cảnh xuống dưới 20% và đưa tỷ lệ trích dẫn không hợp lệ về dưới 10%.
-- **Về Kỹ thuật Điều phối (Orchestration & State Management):** Sửa đổi dứt điểm module [`vigovbot.rag.conversation`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py) để lưu vết và kế thừa trạng thái `SectionType` xuyên suốt các lượt thoại có phát sinh menu lựa chọn.
+- **Về Kỹ thuật Điều phối (Orchestration & State Management):** Sửa đổi dứt điểm module [`vigovbot.rag.conversation`](../../src/vigovbot/rag/conversation.py) để lưu vết và kế thừa trạng thái `SectionType` xuyên suốt các lượt thoại có phát sinh menu lựa chọn.
 - **Về Hạ tầng Thực nghiệm:** Chạy kiểm thử bù cho mẫu lỗi `GOLDEN_V3_001616` (HTTP 502) để bảo đảm 100% mẫu số $N = 638$ đồng nhất tuyệt đối trên toàn bộ các bảng đo lường.
 
 ---
@@ -604,5 +604,5 @@ Bên cạnh những thành tựu nổi bật, báo cáo chỉ ra 3 nguyên nhân
 > **Ghi chú về các hạng mục thực nghiệm bổ sung cần thực thi:**
 > - [ ] Chạy bù dự đoán và chấm điểm cho duy nhất 01 trường hợp bị lỗi kết nối mạng `GOLDEN_V3_001616` trong kịch bản `eval-qlora_v2-rag`.
 > - [ ] Thực thi ablation study so sánh đối đầu cố định giữa Top-5, Top-10 và Top-15 đoạn trích để định lượng chính xác tác động của tỷ lệ nhiễu ngữ cảnh (*Context Noise Ratio*) lên chỉ số trích dẫn không hợp lệ (*Invalid Citation Rate*).
-> - [ ] Tái đánh giá toàn bộ 97 ca hồi quy sau khi triển khai bản vá lưu vết `SectionType` trên nhánh runtime chính.
+> - [ ] Tái đánh giá toàn bộ 97 ca hồi quy sau bản sửa signed state v3; đây là bước xác minh kết quả, không phải huấn luyện lại model.
 

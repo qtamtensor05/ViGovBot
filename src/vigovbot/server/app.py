@@ -48,6 +48,7 @@ class _AnswerTokenExtractor:
         self.position = 0
         self.escaped = False
         self.unicode_escape = None
+        self.high_surrogate = None
         self.done = False
 
     def feed(self, chunk):
@@ -67,7 +68,20 @@ class _AnswerTokenExtractor:
             if self.unicode_escape is not None:
                 self.unicode_escape += char
                 if len(self.unicode_escape) == 4:
-                    output.append(chr(int(self.unicode_escape, 16)))
+                    codepoint = int(self.unicode_escape, 16)
+                    if 0xD800 <= codepoint <= 0xDBFF:
+                        if self.high_surrogate is not None:
+                            output.append("\ufffd")
+                        self.high_surrogate = codepoint
+                    elif 0xDC00 <= codepoint <= 0xDFFF and self.high_surrogate is not None:
+                        output.append(chr(0x10000 + ((self.high_surrogate - 0xD800) << 10)
+                                          + codepoint - 0xDC00))
+                        self.high_surrogate = None
+                    else:
+                        if self.high_surrogate is not None:
+                            output.append("\ufffd")
+                            self.high_surrogate = None
+                        output.append(chr(codepoint) if not 0xDC00 <= codepoint <= 0xDFFF else "\ufffd")
                     self.unicode_escape = None
                     self.escaped = False
                 continue
@@ -75,6 +89,9 @@ class _AnswerTokenExtractor:
                 if char == "u":
                     self.unicode_escape = ""
                 else:
+                    if self.high_surrogate is not None:
+                        output.append("\ufffd")
+                        self.high_surrogate = None
                     output.append({'"': '"', "\\": "\\", "/": "/", "b": "\b", "f": "\f",
                                    "n": "\n", "r": "\r", "t": "\t"}.get(char, char))
                     self.escaped = False
@@ -82,9 +99,15 @@ class _AnswerTokenExtractor:
             if char == "\\":
                 self.escaped = True
             elif char == '"':
+                if self.high_surrogate is not None:
+                    output.append("\ufffd")
+                    self.high_surrogate = None
                 self.done = True
                 break
             else:
+                if self.high_surrogate is not None:
+                    output.append("\ufffd")
+                    self.high_surrogate = None
                 output.append(char)
         if output:
             self.callback("".join(output))
@@ -148,6 +171,8 @@ class ChatApplication:
         self.retriever = retriever
         self.tokenizer = tokenizer
         self._lock = threading.Lock()
+        self._source_identity_lock = threading.Lock()
+        self._source_sha256 = None
         configured = config.web.models
         if configured:
             self.models = {item.id: item for item in configured}
@@ -212,7 +237,11 @@ class ChatApplication:
             key: str(value) if isinstance(value, Path) else value
             for key, value in self.config.inference_settings().items()
         }
-        return {"routing": routing, "source_sha256": source_fingerprint(),
+        if self._source_sha256 is None:
+            with self._source_identity_lock:
+                if self._source_sha256 is None:
+                    self._source_sha256 = source_fingerprint()
+        return {"routing": routing, "source_sha256": self._source_sha256,
                 "retrieval": getattr(self.retriever, "evaluation_identity", None),
                 "models": models, "settings": settings}
 

@@ -510,7 +510,7 @@ def main():
         all_mix_preds=all_mix_preds,
         all_sec_probs=all_sec_probs,
         section_en_labels=section_en_labels,
-        out_dir="outputs/evaluation/router_testset",
+        out_dir="outputs/evaluation/router_threshold-v1-baseline",
         total_elapsed_seconds=infer_time + (time.time() - t_v1_start),
     )
     print(f"   -> Lần 1 hoàn tất:")
@@ -522,7 +522,7 @@ def main():
     print(f"      + PhoBERT Joint Match:     {v1_summary['metrics_percentage']['phobert_4head_joint_accuracy']:.2f}%")
     print(f"      ★ STRICT E2E ACCURACY:     {v1_summary['metrics_percentage']['strict_e2e_accuracy']:.2f}%")
     print(f"      + Tổng số ca lỗi:          {len(v1_fails)}/{total_samples}")
-    print(f"      + Đã lưu tại:              outputs/evaluation/router_testset/")
+    print(f"      + Đã lưu tại:              outputs/evaluation/router_threshold-v1-baseline/")
 
     # =========================================================================
     # 7. PHÂN TÍCH HIỆU SUẤT TỪNG CHUYÊN MỤC VÀ TỐI ƯU HÓA NGƯỠNG
@@ -618,7 +618,7 @@ def main():
         all_mix_preds=all_mix_preds,
         all_sec_probs=all_sec_probs,
         section_en_labels=section_en_labels,
-        out_dir="outputs/evaluation/router_testset_v2",
+        out_dir="outputs/evaluation/router_threshold-v2-calibrated",
         total_elapsed_seconds=infer_time + (time.time() - t_v2_start),
     )
     print(f"   -> Lần 2 hoàn tất:")
@@ -630,7 +630,7 @@ def main():
     print(f"      + PhoBERT Joint Match:     {v2_summary['metrics_percentage']['phobert_4head_joint_accuracy']:.2f}%")
     print(f"      ★ STRICT E2E ACCURACY:     {v2_summary['metrics_percentage']['strict_e2e_accuracy']:.2f}%")
     print(f"      + Tổng số ca lỗi:          {len(v2_fails)}/{total_samples}")
-    print(f"      + Đã lưu tại:              outputs/evaluation/router_testset_v2/")
+    print(f"      + Đã lưu tại:              outputs/evaluation/router_threshold-v2-calibrated/")
 
     # =========================================================================
     # 9. SO SÁNH ĐỐI ĐẦU TOÀN DIỆN LẦN 1 VS LẦN 2
@@ -707,7 +707,7 @@ def main():
         "marginal_threshold_overlap_failures": len(marginal_threshold_gap),
     }
 
-    v2_out_dir = Path("outputs/evaluation/router_testset_v2")
+    v2_out_dir = Path("outputs/evaluation/router_threshold-v2-calibrated")
     (v2_out_dir / "summary_report.json").write_text(
         json.dumps(v2_summary, indent=2, ensure_ascii=False), encoding="utf-8"
     )
@@ -715,8 +715,8 @@ def main():
     total_time = time.time() - start_time
     print(f"\n-> HOÀN THÀNH TOÀN BỘ 2 LẦN CHẤM ROUTING TRONG {total_time:.2f}s (~{total_time/60:.1f} phút)!")
     print(f"-> Đã ghi nhận đầy đủ artifacts vào:")
-    print(f"   1. Lần 1: outputs/evaluation/router_testset/")
-    print(f"   2. Lần 2: outputs/evaluation/router_testset_v2/")
+    print(f"   1. Lần 1: outputs/evaluation/router_threshold-v1-baseline/")
+    print(f"   2. Lần 2: outputs/evaluation/router_threshold-v2-calibrated/")
     print("=" * 70)
 
 

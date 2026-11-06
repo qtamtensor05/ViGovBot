@@ -14,7 +14,6 @@ try:
     from vigovbot.evaluation.io import read_jsonl
     from vigovbot.evaluation.lexical import bleu_metric
     from vigovbot.utils.text import ascii_word_tokens, fold_vietnamese, normalize_vietnamese as normalize
-    from vigovbot.retrieval.procedure_discovery import fold as fold_discovery
     from vigovbot.retrieval.retriever import fold_retrieval_text
     from vigovbot.evaluation.records import _normalize
     from vigovbot.experiments import read_results
@@ -50,7 +49,6 @@ class SharedContractsTests(unittest.TestCase):
     def test_accent_folding_has_one_primitive_and_explicit_policies(self):
         text = unicodedata.normalize("NFD", "  Đăng kí  HỒ_SƠ, Straße!  ")
         self.assertEqual(fold_vietnamese(text), "  dang ki  ho_so, strasse!  ")
-        self.assertEqual(fold_discovery(text), "dang ki ho_so, strasse!")
         self.assertEqual(fold_retrieval_text(text), "  dang ky  ho_so, strasse!  ")
         self.assertEqual(ascii_word_tokens(text), ["dang", "ki", "ho", "so", "strasse"])
 

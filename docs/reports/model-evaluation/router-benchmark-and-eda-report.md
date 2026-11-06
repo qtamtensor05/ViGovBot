@@ -9,7 +9,7 @@
 
 ## Tóm tắt
 
-Chúng tôi trình bày phân tích khám phá dữ liệu (EDA) toàn diện và báo cáo thực nghiệm đối chuẩn cho tập dữ liệu kiểm thử **`test_router`** (1.246 mẫu, [`Data/dataset_v3/test_router/test_router.jsonl`](file:///c:/Users/quangTam/Documents/ViGovBot/Data/dataset_v3/test_router/test_router.jsonl)), được thiết kế chuyên biệt để đánh giá năng lực định tuyến ý định, phân định hội thoại đa lượt, ánh xạ thực thể danh mục thủ tục hành chính và phân loại đa nhãn chuyên mục văn bản luật. Đóng vai trò là "cổng gác" (gatekeeper) quyết định tối cao trong kiến trúc ViGovBot, tầng định tuyến xác định câu hỏi của công dân sẽ kích hoạt truy xuất trả lời RAG (`rag_answer`), xuất menu thẻ làm rõ (`clarify`) hay thực hiện hành vi từ chối an toàn (`abstain`). Trên 150 lĩnh vực quản lý nhà nước và 407 thủ tục pháp lý, chúng tôi đối chuẩn kiến trúc đa nhiệm **PhoBERT-4Head hiệu chuẩn ngưỡng động** với các phiên bản cơ sở trước đây. Kiến trúc hiệu chuẩn đạt **96,95% Độ chính xác Phạm vi (Scope Accuracy)**, **98,80% Độ chính xác Luồng (Flow Accuracy)**, **91,81% Khớp chính xác Mã TTHC**, và nâng độ chính xác khớp toàn diện End-to-End từ 67,09% lên **74,08%** với độ trễ phản hồi chỉ **208,26 ms** trên phần cứng CPU thông thường.
+Chúng tôi trình bày phân tích khám phá dữ liệu (EDA) toàn diện và báo cáo thực nghiệm đối chuẩn cho tập dữ liệu kiểm thử **`test_router`** (1.246 mẫu, [`Data/dataset_v3/test_router/test_router.jsonl`](../../../Data/dataset_v3/test_router/test_router.jsonl)), được thiết kế chuyên biệt để đánh giá năng lực định tuyến ý định, phân định hội thoại đa lượt, ánh xạ thực thể danh mục thủ tục hành chính và phân loại đa nhãn chuyên mục văn bản luật. Đóng vai trò là "cổng gác" (gatekeeper) quyết định tối cao trong kiến trúc ViGovBot, tầng định tuyến xác định câu hỏi của công dân sẽ kích hoạt truy xuất trả lời RAG (`rag_answer`), xuất menu thẻ làm rõ (`clarify`) hay thực hiện hành vi từ chối an toàn (`abstain`). Trên 150 lĩnh vực quản lý nhà nước và 407 thủ tục pháp lý, chúng tôi đối chuẩn kiến trúc đa nhiệm **PhoBERT-4Head hiệu chuẩn ngưỡng động** với các phiên bản cơ sở trước đây. Kiến trúc hiệu chuẩn đạt **96,95% Độ chính xác Phạm vi (Scope Accuracy)**, **98,80% Độ chính xác Luồng (Flow Accuracy)**, **91,81% Khớp chính xác Mã TTHC**, và nâng độ chính xác khớp toàn diện End-to-End từ 67,09% lên **74,08%** với độ trễ phản hồi chỉ **208,26 ms** trên phần cứng CPU thông thường.
 
 ---
 
@@ -89,7 +89,7 @@ Mỗi câu hỏi được gán nhãn tương ứng với các chuyên mục thô
 ## 3. Kết quả Thực nghiệm Đối chuẩn Bộ định tuyến PhoBERT-4Head
 
 ### 3.1 Bảng So sánh Hiệu năng (Phiên bản v1 vs. Phiên bản v2 Hiệu chuẩn)
-Thực nghiệm đánh giá toàn diện trên 1.246 ca kiểm thử chạy native trên CPU (`outputs/evaluation/router_testset_v2/summary_report.json`), phiên bản hiệu chuẩn ngưỡng động (**v2**) vượt trội rõ rệt so với bản cũ dùng ngưỡng cứng (**v1**):
+Thực nghiệm đánh giá toàn diện trên 1.246 ca kiểm thử chạy native trên CPU (`outputs/evaluation/router_threshold-v2-calibrated/summary_report.json`), phiên bản hiệu chuẩn ngưỡng động (**v2**) vượt trội rõ rệt so với bản cũ dùng ngưỡng cứng (**v1**):
 
 | Chỉ số Đánh giá | Bản cơ sở v1 (%) | Bản hiệu chuẩn v2 (%) | Mức tăng tuyệt đối ($\Delta$) | Ý nghĩa Vận hành Thực tế |
 | :--- | :---: | :---: | :---: | :--- |

@@ -5,6 +5,7 @@ import gc
 import logging
 import re
 from contextlib import contextmanager
+from functools import lru_cache
 from pathlib import Path
 
 from vigovbot.embeddings.embedder import load_encoder
@@ -21,12 +22,25 @@ from vigovbot.console import configure_console
 LOG = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=2)
+def _fingerprint_source_files(root_value, signature):
+    root = Path(root_value)
+    return json_hash({name: (root / name).read_text(encoding="utf-8") for name, _, _ in signature})
+
+
 def source_fingerprint():
     """Phát hiện mã pipeline đổi, kể cả khi quên tăng số phiên bản."""
     root = Path(__file__).resolve().parents[1]
     # Conservative package-wide identity: newly added helpers must invalidate runs too.
-    paths = sorted(root.rglob("*.py"))
-    return json_hash({p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in paths})
+    paths = sorted(
+        path for path in root.rglob("*.py")
+        if "__pycache__" not in path.relative_to(root).parts
+    )
+    signature = tuple(
+        (path.relative_to(root).as_posix(), path.stat().st_mtime_ns, path.stat().st_size)
+        for path in paths
+    )
+    return _fingerprint_source_files(str(root), signature)
 
 
 def prepare(config):

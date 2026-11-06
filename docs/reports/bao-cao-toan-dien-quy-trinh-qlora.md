@@ -414,7 +414,7 @@ Mô hình hợp nhất tiếp tục được biên dịch sang định dạng nh
 
 ### 3.5.6. Đánh giá Thực nghiệm Hiệu năng Mô hình QLoRA trong Hệ thống RAG
 
-Hiệu năng của mô hình **QLoRA RAG-SFT** đã được đánh giá độc lập trên bộ câu hỏi kiểm thử chuẩn **PA1** gồm **638 ca kiểm thử** thực tế (nguồn dữ liệu từ `result_final/`). Bảng dưới đây đối chứng hiệu năng toàn diện của QLoRA trong tương quan với mô hình nền và các cấu hình baseline:
+Hiệu năng của mô hình **QLoRA RAG-SFT** đã được đánh giá độc lập trên bộ câu hỏi kiểm thử chuẩn **PA1** gồm **638 ca kiểm thử** thực tế (nguồn dữ liệu từ `result/`). Bảng dưới đây đối chứng hiệu năng toàn diện của QLoRA trong tương quan với mô hình nền và các cấu hình baseline:
 
 | Cấu hình Mô hình | Tỷ lệ Thành công | Khớp chính xác (EM) | Độ phủ thực tế (Key-Facts) | BERTScore F1 | Độ chính xác trích dẫn (Citation P / R) | Trích dẫn không hợp lệ | Thời gian trễ (Latency) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |

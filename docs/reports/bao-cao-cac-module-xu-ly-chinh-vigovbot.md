@@ -68,17 +68,17 @@ flowchart TD
 
 | STT | Tên Module | Thư mục Package | File triển khai chính | Trách nhiệm cốt lõi |
 |:---:|---|---|---|---|
-| **1** | **Ingestion Pipeline** | [`src/vigovbot/ingestion/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/ingestion/) | [`recovery.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/ingestion/recovery.py), [`unified.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/ingestion/unified.py), [`indexing.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/pipelines/indexing.py) | Nạp PDF, OCR Tesseract, trích xuất Markdown có cấu trúc, đọc corpus ZIP an toàn. |
-| **2** | **Chunking Engine** | [`src/vigovbot/chunking/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/) | [`markdown.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/markdown.py), [`splitter.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/splitter.py), [`headings.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/headings.py), [`tables.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/tables.py) | Cắt đoạn bảo toàn cấu trúc bảng biểu và phân cấp mục TTHC, bổ sung context prefix. |
-| **3** | **Embeddings & VectorDB** | [`src/vigovbot/embeddings/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/), [`src/vigovbot/vectordb/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/vectordb/) | [`embedder.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/embedder.py), [`corpus_builder.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/corpus_builder.py), [`vector_store.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/vectordb/vector_store.py) | Tạo vector BGE-M3 1024 chiều, lập chỉ mục `faiss.IndexFlatIP`, bộ đệm SQLite `metadata.sqlite`. |
-| **4** | **Hybrid Retrieval** | [`src/vigovbot/retrieval/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/) | [`retriever.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/retriever.py), [`procedure_discovery.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/procedure_discovery.py) | Tra cứu chính xác theo mã TTHC, fallback tương đồng cosine, thuật toán Hybrid BM25+Cosine khám phá thủ tục. |
-| **5** | **RAG Routing & Conversation** | [`src/vigovbot/rag/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/) | [`phobert_router.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py), [`conversation.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py), [`clarification.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/clarification.py), [`sections.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/sections.py) | Định tuyến thần kinh PhoBERT 4-head trên CPU, máy trạng thái HMAC SHA-256, sinh menu làm rõ động. |
-| **6** | **Prompts & Evidence Security** | [`src/vigovbot/prompts/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/) | [`evidence.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/evidence.py), [`prompt_templates.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/prompt_templates.py) | Đóng gói JSON Envelope chống Injection, quản lý token metadata, khuôn mẫu prompt hành chính nghiêm ngặt. |
-| **7** | **LLM Serving Integration** | [`src/vigovbot/llm/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/llm/) | [`llm_client.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/llm/llm_client.py) | Tích hợp Ollama API client, đo đạc TTFT, quản lý tham số suy luận và stream tokens. |
-| **8** | **Server & Hardware Telemetry** | [`src/vigovbot/server/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/) | [`app.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/app.py), [`gpu_metrics.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/gpu_metrics.py), [`providers.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/providers.py) | Máy chủ FastAPI, Server-Sent Events (SSE), bộ trích xuất token thời gian thực `_AnswerTokenExtractor`, telemetry GPU. |
-| **9** | **QLoRA Fine-Tuning** | [`src/vigovbot/training/`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/) | [`train.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/train.py), [`masking.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/masking.py), [`checkpoints.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/checkpoints.py), [`early_stopping.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/early_stopping.py) | Huấn luyện SFT 4-bit QLoRA cho Qwen 2.5 7B, che nhãn prompt loss masking (`IGNORE_INDEX = -100`), kiểm soát vòng đời huấn luyện. |
+| **1** | **Ingestion Pipeline** | [`src/vigovbot/ingestion/`](../../src/vigovbot/ingestion/) | [`recovery.py`](../../src/vigovbot/ingestion/recovery.py), [`unified.py`](../../src/vigovbot/ingestion/unified.py), [`indexing.py`](../../src/vigovbot/pipelines/indexing.py) | Nạp PDF, OCR Tesseract, trích xuất Markdown có cấu trúc, đọc corpus ZIP an toàn. |
+| **2** | **Chunking Engine** | [`src/vigovbot/chunking/`](../../src/vigovbot/chunking/) | [`markdown.py`](../../src/vigovbot/chunking/markdown.py), [`splitter.py`](../../src/vigovbot/chunking/splitter.py), [`headings.py`](../../src/vigovbot/chunking/headings.py), [`tables.py`](../../src/vigovbot/chunking/tables.py) | Cắt đoạn bảo toàn cấu trúc bảng biểu và phân cấp mục TTHC, bổ sung context prefix. |
+| **3** | **Embeddings & VectorDB** | [`src/vigovbot/embeddings/`](../../src/vigovbot/embeddings/), [`src/vigovbot/vectordb/`](../../src/vigovbot/vectordb/) | [`embedder.py`](../../src/vigovbot/embeddings/embedder.py), [`corpus_builder.py`](../../src/vigovbot/embeddings/corpus_builder.py), [`vector_store.py`](../../src/vigovbot/vectordb/vector_store.py) | Tạo vector BGE-M3 1024 chiều, lập chỉ mục `faiss.IndexFlatIP`, bộ đệm SQLite `metadata.sqlite`. |
+| **4** | **Hybrid Retrieval** | [`src/vigovbot/retrieval/`](../../src/vigovbot/retrieval/) | [`retriever.py`](../../src/vigovbot/retrieval/retriever.py), [`procedure_discovery.py`](../../src/vigovbot/retrieval/procedure_discovery.py) | Tra cứu chính xác theo mã TTHC, fallback tương đồng cosine, thuật toán Hybrid BM25+Cosine khám phá thủ tục. |
+| **5** | **RAG Routing & Conversation** | [`src/vigovbot/rag/`](../../src/vigovbot/rag/) | [`phobert_router.py`](../../src/vigovbot/rag/phobert_router.py), [`conversation.py`](../../src/vigovbot/rag/conversation.py), [`clarification.py`](../../src/vigovbot/rag/clarification.py), [`sections.py`](../../src/vigovbot/rag/sections.py) | Định tuyến thần kinh PhoBERT 4-head trên CPU, máy trạng thái HMAC SHA-256, sinh menu làm rõ động. |
+| **6** | **Prompts & Evidence Security** | [`src/vigovbot/prompts/`](../../src/vigovbot/prompts/) | [`evidence.py`](../../src/vigovbot/prompts/evidence.py), [`prompt_templates.py`](../../src/vigovbot/prompts/prompt_templates.py) | Đóng gói JSON Envelope chống Injection, quản lý token metadata, khuôn mẫu prompt hành chính nghiêm ngặt. |
+| **7** | **LLM Serving Integration** | [`src/vigovbot/llm/`](../../src/vigovbot/llm/) | [`llm_client.py`](../../src/vigovbot/llm/llm_client.py) | Tích hợp Ollama API client, đo đạc TTFT, quản lý tham số suy luận và stream tokens. |
+| **8** | **Server & Hardware Telemetry** | [`src/vigovbot/server/`](../../src/vigovbot/server/) | [`app.py`](../../src/vigovbot/server/app.py), [`gpu_metrics.py`](../../src/vigovbot/server/gpu_metrics.py), [`providers.py`](../../src/vigovbot/server/providers.py) | Máy chủ FastAPI, Server-Sent Events (SSE), bộ trích xuất token thời gian thực `_AnswerTokenExtractor`, telemetry GPU. |
+| **9** | **QLoRA Fine-Tuning** | [`src/vigovbot/training/`](../../src/vigovbot/training/) | [`train.py`](../../src/vigovbot/training/train.py), [`masking.py`](../../src/vigovbot/training/masking.py), [`checkpoints.py`](../../src/vigovbot/training/checkpoints.py), [`early_stopping.py`](../../src/vigovbot/training/early_stopping.py) | Huấn luyện SFT 4-bit QLoRA cho Qwen 2.5 7B, che nhãn prompt loss masking (`IGNORE_INDEX = -100`), kiểm soát vòng đời huấn luyện. |
 | **10** | **Evaluation & Benchmarking** | `src/vigovbot/evaluation/` | `records.py`, `scoring.py`, `lexical.py`, `extended.py`, `workflow.py`, `ollama_judge.py`, `retrieval_benchmark.py` | Đọc Golden v3; đo lexical, retrieval tại nhiều k, routing, format và các đánh giá judge tùy chọn. |
-| **11** | **Contracts, Artifacts & CLI** | Gốc `src/vigovbot/` | [`schemas.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/schemas.py), [`artifacts.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/artifacts.py), [`configuration.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/configuration.py), [`cli/main.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/cli/main.py) | Hợp đồng schema dữ liệu, kiểm tra mã băm SHA-256, khóa tệp giao dịch `output_lock`, cây lệnh CLI `vigov`. |
+| **11** | **Contracts, Artifacts & CLI** | Gốc `src/vigovbot/` | [`schemas.py`](../../src/vigovbot/schemas.py), [`artifacts.py`](../../src/vigovbot/artifacts.py), [`configuration.py`](../../src/vigovbot/configuration.py), [`cli/main.py`](../../src/vigovbot/cli/main.py) | Hợp đồng schema dữ liệu, kiểm tra mã băm SHA-256, khóa tệp giao dịch `output_lock`, cây lệnh CLI `vigov`. |
 
 ---
 
@@ -90,8 +90,8 @@ flowchart TD
 
 Module ingestion chịu trách nhiệm đọc tài liệu định dạng PDF hành chính công, tự động nhận diện tài liệu dạng văn bản máy tính hay bản quét (scan), chuyển đổi thành định dạng Markdown chuẩn hóa mà không làm mất cấu trúc phân mục.
 
-#### Triển khai chi tiết tại [`recovery.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/ingestion/recovery.py)
-Hàm trọng tâm [`extract_pdf(file_path, settings)`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/ingestion/recovery.py#L6-L53) duyệt tuần tự từng trang tài liệu PDF thông qua thư viện `pymupdf` (FitZ):
+#### Triển khai chi tiết tại [`recovery.py`](../../src/vigovbot/ingestion/recovery.py)
+Hàm trọng tâm [`extract_pdf(file_path, settings)`](../../src/vigovbot/ingestion/recovery.py#L6-L53) duyệt tuần tự từng trang tài liệu PDF thông qua thư viện `pymupdf` (FitZ):
 1. **Kiểm tra mã hóa:** Nếu tài liệu yêu cầu mật khẩu (`document.needs_pass`), phát sinh lỗi ngay lập tức.
 2. **Ưu tiên văn bản gốc (Native Text):** Gọi `page.get_text().strip()`. Nếu phát hiện có lớp văn bản, hệ thống gọi `pymupdf4llm.to_markdown(document, pages=[index], use_ocr=False)` để chuyển đổi trực tiếp sang Markdown. Phương thức này ghi nhận trạng thái trang là `entry["method"] = "markdown"`. Nếu quá trình chuyển đổi Markdown bị lỗi, hàm sử dụng văn bản thô native text làm phương án dự phòng (`entry["method"] = "native_text"`).
 3. **Xử lý tài liệu Scan & Trang trắng:**
@@ -109,10 +109,10 @@ Hàm trọng tâm [`extract_pdf(file_path, settings)`](file:///c:/Users/quangTam
      ```
 4. **Báo cáo trạng thái trang:** Trả về chuỗi Markdown hoàn chỉnh kèm một từ điển `report` ghi nhận chi tiết phương pháp trích xuất của từng trang (`pages`), các cảnh báo (`warnings`), và danh sách trang trích xuất thất bại (`missing_pages`).
 
-#### Triển khai chi tiết tại [`unified.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/ingestion/unified.py)
+#### Triển khai chi tiết tại [`unified.py`](../../src/vigovbot/ingestion/unified.py)
 Quản lý việc nạp corpus tri thức dưới dạng thư mục phẳng hoặc file lưu trữ `.zip`:
-- **Đọc an toàn trong ZIP ([`zip_member`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/ingestion/unified.py#L10-L22)):** Chỉ đọc đúng file cần thiết theo tên tệp (`basename`), lọc bỏ các thư mục hệ thống như `__MACOSX/`, ngăn chặn tấn công Zip Slip.
-- **Xác thực toàn vẹn ([`verify_corpus`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/ingestion/unified.py#L45-L69)):** So sánh mã băm SHA-256 thực tế của các file dữ liệu (`tthc_unified.index`, `tthc_unified_metadata.json`) với tệp manifest `corpus_manifest.json`. Nếu mã băm không khớp, hệ thống từ chối tải chỉ mục FAISS để bảo vệ an toàn dữ liệu.
+- **Đọc an toàn trong ZIP ([`zip_member`](../../src/vigovbot/ingestion/unified.py#L10-L22)):** Chỉ đọc đúng file cần thiết theo tên tệp (`basename`), lọc bỏ các thư mục hệ thống như `__MACOSX/`, ngăn chặn tấn công Zip Slip.
+- **Xác thực toàn vẹn ([`verify_corpus`](../../src/vigovbot/ingestion/unified.py#L45-L69)):** So sánh mã băm SHA-256 thực tế của các file dữ liệu (`tthc_unified.index`, `tthc_unified_metadata.json`) với tệp manifest `corpus_manifest.json`. Nếu mã băm không khớp, hệ thống từ chối tải chỉ mục FAISS để bảo vệ an toàn dữ liệu.
 
 ---
 
@@ -120,7 +120,7 @@ Quản lý việc nạp corpus tri thức dưới dạng thư mục phẳng ho�
 
 Không giống như các bộ chunker thông thường chỉ cắt theo số ký tự hoặc token cố định, module chunking của ViGovBot được thiết kế riêng cho cấu trúc văn bản hành chính công Việt Nam: hiểu tiêu đề phân cấp, nhận diện taxonomy mục, và bảo toàn nguyên vẹn bảng biểu.
 
-#### Taxonomy và Phân cấp Mục tại [`headings.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/headings.py)
+#### Taxonomy và Phân cấp Mục tại [`headings.py`](../../src/vigovbot/chunking/headings.py)
 Định nghĩa kiểu dữ liệu `SectionType`:
 ```python
 SectionType = Literal[
@@ -130,23 +130,23 @@ SectionType = Literal[
 ]
 ```
 - Sử dụng biểu thức chính quy `SOURCE_CODE_RE = re.compile(r"\b\d\.\d{6}\b")` để bóc tách mã định danh TTHC chuẩn quốc gia (ví dụ: `1.002840`).
-- Hàm [`classify_section`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/headings.py#L70-L109) ánh xạ các cụm từ tiếng Việt như *"Trình tự thực hiện"*, *"Thành phần hồ sơ"*, *"Thời hạn giải quyết"*, *"Phí, lệ phí"* sang các nhãn `SectionType` chuẩn hóa.
-- Hàm [`sanitize_text`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/headings.py#L17-L28) loại bỏ các thẻ HTML rác từ PDF nhưng bảo toàn tuyệt đối cú pháp Markdown và các dòng của bảng.
+- Hàm [`classify_section`](../../src/vigovbot/chunking/headings.py#L70-L109) ánh xạ các cụm từ tiếng Việt như *"Trình tự thực hiện"*, *"Thành phần hồ sơ"*, *"Thời hạn giải quyết"*, *"Phí, lệ phí"* sang các nhãn `SectionType` chuẩn hóa.
+- Hàm [`sanitize_text`](../../src/vigovbot/chunking/headings.py#L17-L28) loại bỏ các thẻ HTML rác từ PDF nhưng bảo toàn tuyệt đối cú pháp Markdown và các dòng của bảng.
 
-#### Kỹ thuật Xử lý Bảng biểu tại [`tables.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/tables.py)
+#### Kỹ thuật Xử lý Bảng biểu tại [`tables.py`](../../src/vigovbot/chunking/tables.py)
 Bảng biểu trong tài liệu hành chính (danh mục giấy tờ, mức thu phí, các bước thực hiện) thường bị vỡ hàng hoặc ngắt trang khi chuyển đổi từ PDF:
-1. **Sửa lỗi vỡ dòng do ngắt trang ([`repair_table_continuations`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/tables.py#L13-L51)):** Nhận diện lỗi phổ biến khi từ *"chứng từ"* bị ngắt thành hàng trên kết thúc bằng *"chứng t"* và hàng dưới bắt đầu bằng *"ừ ..."*, tự động ghép lại thành một hàng duy nhất và tái lập cấu trúc cột.
-2. **Làm phẳng bảng thành văn bản có gán nhãn ([`flatten_tables`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/tables.py#L53-L74)):** Biến đổi từng hàng trong bảng Markdown thành chuỗi dạng `Tên cột: Giá trị ô` (ví dụ: `Tên giấy tờ: Đơn đề nghị cấp phép; Số lượng: 01 bản chính`). Điều này giúp mô hình nhúng ngữ nghĩa (embedding) hiểu rõ quan hệ thuộc tính - giá trị thay vì chỉ thấy các thanh phân cách `|`.
-3. **Lặp tiêu đề bảng cho các chunk con ([`repeat_table_header`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/tables.py#L88-L120)):** Khi một bảng quá dài buộc phải cắt làm nhiều chunk, dòng tiêu đề cột (`header`) và đường phân cách Markdown luôn được đặt ở đầu mỗi chunk con tiếp theo.
+1. **Sửa lỗi vỡ dòng do ngắt trang ([`repair_table_continuations`](../../src/vigovbot/chunking/tables.py#L13-L51)):** Nhận diện lỗi phổ biến khi từ *"chứng từ"* bị ngắt thành hàng trên kết thúc bằng *"chứng t"* và hàng dưới bắt đầu bằng *"ừ ..."*, tự động ghép lại thành một hàng duy nhất và tái lập cấu trúc cột.
+2. **Làm phẳng bảng thành văn bản có gán nhãn ([`flatten_tables`](../../src/vigovbot/chunking/tables.py#L53-L74)):** Biến đổi từng hàng trong bảng Markdown thành chuỗi dạng `Tên cột: Giá trị ô` (ví dụ: `Tên giấy tờ: Đơn đề nghị cấp phép; Số lượng: 01 bản chính`). Điều này giúp mô hình nhúng ngữ nghĩa (embedding) hiểu rõ quan hệ thuộc tính - giá trị thay vì chỉ thấy các thanh phân cách `|`.
+3. **Lặp tiêu đề bảng cho các chunk con ([`repeat_table_header`](../../src/vigovbot/chunking/tables.py#L88-L120)):** Khi một bảng quá dài buộc phải cắt làm nhiều chunk, dòng tiêu đề cột (`header`) và đường phân cách Markdown luôn được đặt ở đầu mỗi chunk con tiếp theo.
 
-#### Thuật toán Phân khối tại [`splitter.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/splitter.py)
-Lớp [`BlockSplitter`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/splitter.py#L7-L116) quản lý ngân sách ký tự (`target_chars=1200`, `max_chars=1500`, `overlap_chars=100`):
+#### Thuật toán Phân khối tại [`splitter.py`](../../src/vigovbot/chunking/splitter.py)
+Lớp [`BlockSplitter`](../../src/vigovbot/chunking/splitter.py#L7-L116) quản lý ngân sách ký tự (`target_chars=1200`, `max_chars=1500`, `overlap_chars=100`):
 - **Khối nguyên tử (Atomic Blocks):** Chia văn bản thành các đoạn văn hoặc bảng biểu nguyên khối.
-- **Không bao giờ cắt giữa hàng bảng:** Phương thức `_split_table` chỉ cho phép ngắt giữa hai hàng hoàn chỉnh. Nếu một hàng đơn lẻ vượt quá giới hạn cứng, hệ thống phát sinh lỗi [`TTHCChunkingError`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/headings.py#L30) thay vì cắt xẻ hàng làm sai lệch thông tin pháp lý.
+- **Không bao giờ cắt giữa hàng bảng:** Phương thức `_split_table` chỉ cho phép ngắt giữa hai hàng hoàn chỉnh. Nếu một hàng đơn lẻ vượt quá giới hạn cứng, hệ thống phát sinh lỗi [`TTHCChunkingError`](../../src/vigovbot/chunking/headings.py#L30) thay vì cắt xẻ hàng làm sai lệch thông tin pháp lý.
 - **Ngắt văn bản trơn an toàn:** Phương thức `_split_plain_block` ưu tiên lùi về dấu xuống dòng `\n` hoặc dấu cách ` ` gần nhất trong phạm vi giới hạn, không bao giờ ngắt ngang một từ tiếng Việt.
 
-#### Đóng gói Chunk hoàn chỉnh tại [`markdown.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/markdown.py)
-Lớp [`TTHCStructureAwareChunker`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/markdown.py#L62-L293) tạo ra các đối tượng [`TTHCChunk`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/chunking/markdown.py#L25-L36):
+#### Đóng gói Chunk hoàn chỉnh tại [`markdown.py`](../../src/vigovbot/chunking/markdown.py)
+Lớp [`TTHCStructureAwareChunker`](../../src/vigovbot/chunking/markdown.py#L62-L293) tạo ra các đối tượng [`TTHCChunk`](../../src/vigovbot/chunking/markdown.py#L25-L36):
 - Bổ sung **Tiền tố ngữ cảnh (`context_prefix`)** có cấu trúc:
   ```
   [Thủ tục: {procedure_name} | Mã: {source_code} | Mục: {section_type}]
@@ -157,19 +157,19 @@ Lớp [`TTHCStructureAwareChunker`](file:///c:/Users/quangTam/Documents/ViGovBot
 
 ### 2.3. Module Nhúng Ngữ nghĩa & Quản trị Chỉ mục Vector (Embeddings & VectorDB)
 
-#### Nạp Mô hình Nhúng tại [`embedder.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/embedder.py)
+#### Nạp Mô hình Nhúng tại [`embedder.py`](../../src/vigovbot/embeddings/embedder.py)
 - Sử dụng mô hình chuẩn quốc tế đa ngôn ngữ **BAAI/bge-m3** thông qua thư viện `sentence-transformers`.
-- Hàm [`load_encoder`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/embedder.py#L4-L10) kiểm tra chặt chẽ:
+- Hàm [`load_encoder`](../../src/vigovbot/embeddings/embedder.py#L4-L10) kiểm tra chặt chẽ:
   ```python
   if encoder.get_sentence_embedding_dimension() != 1024:
       raise ValueError("Encoder phải tạo vector 1024 chiều như chỉ mục unified")
   ```
   Ngăn chặn việc dùng nhầm phiên bản mô hình khác gây xung đột kích thước chỉ mục.
 
-#### Xây dựng Chỉ mục Thống nhất tại [`corpus_builder.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/corpus_builder.py)
-Hàm [`build_corpus`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/corpus_builder.py#L123-L202) phối hợp toàn bộ quy trình tạo chỉ mục từ các file JSON chunks:
-1. **Tiền tố hóa văn bản nhúng ([`embedding_text`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/corpus_builder.py#L77-L83)):** Nối `context_prefix` vào trước `text_content` nếu văn bản chưa có tiền tố.
-2. **Mã hóa theo lô an toàn với GPU OOM ([`encode_chunks`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/embeddings/corpus_builder.py#L85-L120)):**
+#### Xây dựng Chỉ mục Thống nhất tại [`corpus_builder.py`](../../src/vigovbot/embeddings/corpus_builder.py)
+Hàm [`build_corpus`](../../src/vigovbot/embeddings/corpus_builder.py#L123-L202) phối hợp toàn bộ quy trình tạo chỉ mục từ các file JSON chunks:
+1. **Tiền tố hóa văn bản nhúng ([`embedding_text`](../../src/vigovbot/embeddings/corpus_builder.py#L77-L83)):** Nối `context_prefix` vào trước `text_content` nếu văn bản chưa có tiền tố.
+2. **Mã hóa theo lô an toàn với GPU OOM ([`encode_chunks`](../../src/vigovbot/embeddings/corpus_builder.py#L85-L120)):**
    ```python
    try:
        batch = model.encode(texts, batch_size=batch_size, ...)
@@ -187,16 +187,16 @@ Hàm [`build_corpus`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/
 4. **Tạo chỉ mục FAISS:** Sử dụng `faiss.IndexFlatIP(1024)` (Inner Product trên các vector đã chuẩn hóa L2 tương đương chính xác với Cosine Similarity, đạt tốc độ tính toán phần cứng tối đa).
 5. **Công bố tệp nguyên tử (Atomic Publication):** Sử dụng khóa file `output_lock` và thư mục tạm `staging`, đảm bảo các file `tthc_unified.index` và `tthc_unified_metadata.json` chỉ được ghi đè khi toàn bộ quy trình hoàn tất thành công.
 
-#### Lưu trữ và Đệm Chỉ mục tại [`vector_store.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/vectordb/vector_store.py)
-Lớp quản lý lưu trữ [`prepare_corpus`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/vectordb/vector_store.py#L41-L47):
+#### Lưu trữ và Đệm Chỉ mục tại [`vector_store.py`](../../src/vigovbot/vectordb/vector_store.py)
+Lớp quản lý lưu trữ [`prepare_corpus`](../../src/vigovbot/vectordb/vector_store.py#L41-L47):
 - Đọc file JSON metadata bằng kỹ thuật streaming `ijson`, nạp trực tiếp vào cơ sở dữ liệu SQLite cục bộ `metadata.sqlite`.
-- **Tạo chỉ mục tra cứu mã thủ tục $O(1)$ ([`_ensure_source_code_index`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/vectordb/vector_store.py#L16-L32)):**
+- **Tạo chỉ mục tra cứu mã thủ tục $O(1)$ ([`_ensure_source_code_index`](../../src/vigovbot/vectordb/vector_store.py#L16-L32)):**
   ```sql
   CREATE INDEX idx_chunks_source_code 
   ON chunks(json_extract(payload, '$.source_code') COLLATE NOCASE)
   ```
   Cho phép hệ thống tìm kiếm ngay lập tức toàn bộ các đoạn văn bản thuộc một thủ tục cụ thể mà không cần quét tuần tự toàn bộ database.
-- Tệp đánh dấu [`ready.json`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/vectordb/vector_store.py#L35-L39) lưu trữ SHA-256 của cả file index FAISS và database SQLite, bảo đảm tính toàn vẹn tuyệt đối qua các lần khởi động lại hệ thống.
+- Tệp đánh dấu [`ready.json`](../../src/vigovbot/vectordb/vector_store.py#L35-L39) lưu trữ SHA-256 của cả file index FAISS và database SQLite, bảo đảm tính toàn vẹn tuyệt đối qua các lần khởi động lại hệ thống.
 
 ---
 
@@ -204,10 +204,10 @@ Lớp quản lý lưu trữ [`prepare_corpus`](file:///c:/Users/quangTam/Documen
 
 Module truy xuất kết hợp kỹ thuật lọc mã chính xác (deterministic code filter) và tìm kiếm ngữ nghĩa vector (semantic vector search), cùng thuật toán khám phá thủ tục mờ (fuzzy procedure discovery).
 
-#### Triển khai Bộ truy xuất tại [`retriever.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/retriever.py)
-Lớp [`Retriever`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/retriever.py#L73-L420) đóng vai trò trung gian:
+#### Triển khai Bộ truy xuất tại [`retriever.py`](../../src/vigovbot/retrieval/retriever.py)
+Lớp [`Retriever`](../../src/vigovbot/retrieval/retriever.py#L73-L420) đóng vai trò trung gian:
 - **Kiểm soát đa luồng an toàn (Thread Safety):** Tách biệt hai khóa độc lập `self._encoder_lock` (đồng bộ hóa việc mã hóa qua SentenceTransformer) và `self._db_lock` (đồng bộ hóa truy vấn SQLite), trong khi chỉ mục FAISS được đọc đồng thời nhiều luồng không cần khóa.
-- **Thuật toán truy xuất 2 giai đoạn ([`search`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/retriever.py#L100-L156)):
+- **Thuật toán truy xuất 2 giai đoạn ([`search`](../../src/vigovbot/retrieval/retriever.py#L100-L156)):
   1. Trích xuất mã thủ tục trong câu hỏi người dùng qua hàm `extract_source_codes(question)`.
   2. Nếu tìm thấy mã hợp lệ trong catalog SQLite, gọi `_search_source_codes`: chỉ lấy các chunk thuộc đúng mã thủ tục đó, lọc theo `section_types` được yêu cầu, sau đó xếp hạng lại bằng tích vô hướng với vector câu hỏi.
   3. Nếu không có mã cụ thể, kiểm tra tên thủ tục đầy đủ qua `_procedure_name_codes`.
@@ -216,10 +216,10 @@ Lớp [`Retriever`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/re
      scores, ids = self.index.search(vector, min(top_k, self.index.ntotal))
      ```
      Sau đó lấy chi tiết payload từ SQLite theo danh sách `row_id` nhận được.
-- **Theo dõi ngữ cảnh hội thoại ([`follow_up`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/retriever.py#L183-L230)):** Kiểm tra tính hợp lệ của ngữ cảnh vòng trước (`context`). Nếu người dùng hỏi câu hỏi tiếp theo (*"hết bao nhiêu tiền?", "mất mấy ngày?"*), hệ thống giữ nguyên mã thủ tục đã xác định từ phiên trước và chỉ truy xuất các chunk thuộc mục nội dung mới.
+- **Theo dõi ngữ cảnh hội thoại ([`follow_up`](../../src/vigovbot/retrieval/retriever.py#L183-L230)):** Kiểm tra tính hợp lệ của ngữ cảnh vòng trước (`context`). Nếu người dùng hỏi câu hỏi tiếp theo (*"hết bao nhiêu tiền?", "mất mấy ngày?"*), hệ thống giữ nguyên mã thủ tục đã xác định từ phiên trước và chỉ truy xuất các chunk thuộc mục nội dung mới.
 
-#### Thuật toán Khám phá Thủ tục Hybrid tại [`procedure_discovery.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/procedure_discovery.py)
-Khi người dùng chỉ nhập một cụm từ ngắn gọn hoặc mơ hồ (ví dụ: *"đổi bằng lái xe"*), hệ thống sử dụng lớp [`ProcedureDiscovery`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/retrieval/procedure_discovery.py#L27-L86):
+#### Thuật toán Khám phá Thủ tục Hybrid tại [`procedure_discovery.py`](../../src/vigovbot/retrieval/procedure_discovery.py)
+Khi người dùng chỉ nhập một cụm từ ngắn gọn hoặc mơ hồ (ví dụ: *"đổi bằng lái xe"*), hệ thống sử dụng lớp [`ProcedureDiscovery`](../../src/vigovbot/retrieval/procedure_discovery.py#L27-L86):
 - **Công thức tính điểm lai (Hybrid Score):**
   $$S_{\text{hybrid}} = \alpha \cdot S_{\text{BM25}} + (1 - \alpha) \cdot S_{\text{Cosine}}$$
   Trong đó $\alpha = 0.45$ cân bằng giữa từ khóa chính xác và ngữ nghĩa vector.
@@ -294,8 +294,8 @@ sequenceDiagram
     end
 ```
 
-#### Định tuyến Thần kinh 4-Head tại [`phobert_router.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py)
-Lớp [`PhoBERTRouter`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py#L89-L140) tải mô hình PhoBERT đã tinh chỉnh chạy trực tiếp trên **CPU** với số luồng cấu hình được (`threads=2`):
+#### Định tuyến Thần kinh 4-Head tại [`phobert_router.py`](../../src/vigovbot/rag/phobert_router.py)
+Lớp [`PhoBERTRouter`](../../src/vigovbot/rag/phobert_router.py#L89-L140) tải mô hình PhoBERT đã tinh chỉnh chạy trực tiếp trên **CPU** với số luồng cấu hình được (`threads=2`):
 - Đầu vào được phân đoạn từ PyVi và ghép nối: `<s> question </s></s> previous_message </s></s> procedure </s>`.
 - Trích xuất biểu diễn vector `[CLS]` từ tầng ẩn cuối cùng (`last_hidden_state[:, 0]`).
 - Bốn linear head độc lập:
@@ -304,37 +304,37 @@ Lớp [`PhoBERTRouter`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbo
   3. **Head 3: Trộn thủ tục (`mix`):** Softmax nhị phân phát hiện câu hỏi có bị trộn đồng thời nhiều thủ tục khác nhau hay không.
   4. **Head 4: Mục nội dung (`sections`):** **11 đầu ra Sigmoid độc lập** phân loại đa nhãn (multi-label) kèm bảng ngưỡng riêng (`thresholds`):
      - `OVERVIEW`: 0.50 | `PROCEDURE`: 0.65 | `SUBMISSION_METHOD`: 0.70 | `DOSSIER`: 0.40 | `PROCESSING_TIME`: 0.75 | `FEE`: 0.70 | v.v.
-- **Trọng tài Catalog ([`catalog_scope_arbitration`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/phobert_router.py#L167-L185)):** Nếu mô hình dự đoán `OUT_OF_SCOPE` nhưng câu hỏi chứa mã TTHC hoặc bí danh chuẩn trong catalog, và xác suất `P(OUT_OF_SCOPE)` nằm trong dải bất định $[0.50, 0.85)$, hệ thống trọng tài sẽ chủ động ghi đè về `IN_SCOPE`.
+- **Trọng tài Catalog ([`catalog_scope_arbitration`](../../src/vigovbot/rag/phobert_router.py#L167-L185)):** Nếu mô hình dự đoán `OUT_OF_SCOPE` nhưng câu hỏi chứa mã TTHC hoặc bí danh chuẩn trong catalog, và xác suất `P(OUT_OF_SCOPE)` nằm trong dải bất định $[0.50, 0.85)$, hệ thống trọng tài sẽ chủ động ghi đè về `IN_SCOPE`.
 
-#### Quản lý Hội thoại & Bảo mật State tại [`conversation.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py)
-Hàm điều phối trung tâm [`answer_conversation`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L101-L486):
-- **Bảo mật State bằng HMAC SHA-256 ([`validate_state`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L34-L44)):**
+#### Quản lý Hội thoại & Bảo mật State tại [`conversation.py`](../../src/vigovbot/rag/conversation.py)
+Hàm điều phối trung tâm [`answer_conversation`](../../src/vigovbot/rag/conversation.py#L101-L486):
+- **Bảo mật State bằng HMAC SHA-256 ([`validate_state`](../../src/vigovbot/rag/conversation.py#L34-L44)):**
   Mỗi trạng thái hội thoại trả về cho client đều kèm chữ ký `signature = hmac.new(SECRET, state_bytes, sha256)`. Ở lượt chat tiếp theo, nếu chữ ký không khớp hoặc `history_fingerprint` bị sửa đổi, hệ thống hủy bỏ state cũ và thiết lập phiên mới, loại bỏ nguy cơ làm sai lệch trạng thái logic từ phía giao diện web.
-- **Nhận diện chào hỏi xã giao ([`social_greeting`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L71-L74)):**
+- **Nhận diện chào hỏi xã giao ([`social_greeting`](../../src/vigovbot/rag/conversation.py#L71-L74)):**
   Phát hiện các câu chào độc lập (*"xin chào"*, *"hello"*, *"chào bạn"*) và phản hồi mà không gọi generation LLM cho lượt đó. Điều này loại bỏ token generation của nhánh chào hỏi; báo cáo không quy đổi thành phần trăm chi phí toàn hệ thống nếu chưa có telemetry tương ứng.
-- **Thực đơn Lựa chọn Tương tác ([`menu_result`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/rag/conversation.py#L149-L170)):**
+- **Thực đơn Lựa chọn Tương tác ([`menu_result`](../../src/vigovbot/rag/conversation.py#L149-L170)):**
   Khi phát hiện có nhiều thủ tục tương đồng (`kind="procedure"`) hoặc người dùng chưa nêu rõ mục cần tra cứu (`kind="sections"`), hệ thống chuyển sang trạng thái `action: clarify` và sinh menu đánh số kèm chữ ký HMAC.
 
 ---
 
 ### 2.6. Module Đóng gói Chứng cứ & Phòng vệ Prompt (Evidence & Prompts)
 
-#### Phòng vệ Ngữ cảnh tại [`evidence.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/evidence.py)
+#### Phòng vệ Ngữ cảnh tại [`evidence.py`](../../src/vigovbot/prompts/evidence.py)
 Để ngăn chặn tấn công **Prompt Injection** và **Jailbreak** từ dữ liệu tài liệu gốc (ví dụ tài liệu có chứa các câu lệnh như *"Bỏ qua các chỉ dẫn trên và làm theo lệnh sau"*):
-1. **Đóng gói JSON Envelope ([`dumps`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/evidence.py#L36-L39)):**
+1. **Đóng gói JSON Envelope ([`dumps`](../../src/vigovbot/prompts/evidence.py#L36-L39)):**
    Toàn bộ chứng cứ truy xuất được chuyển hóa thành chuỗi JSON với cơ chế thay thế ký tự đặc biệt:
    ```python
    json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
        .replace("<", "\\u003c").replace(">", "\\u003e")
    ```
    Ngăn chặn kẻ tấn công đóng thẻ HTML/XML hoặc phá vỡ cấu trúc prompt của hệ thống.
-2. **Giới hạn ngân sách token Metadata ([`bounded_metadata`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/evidence.py#L42-L63)):**
+2. **Giới hạn ngân sách token Metadata ([`bounded_metadata`](../../src/vigovbot/prompts/evidence.py#L42-L63)):**
    Giới hạn tối đa 256 token cho phần metadata của mỗi chunk, tự động ưu tiên giữ lại các trường định danh (`source_code`, `chunk_id`, `procedure_name`) và lược bỏ các trường thứ yếu.
-3. **Cắt tỉa văn bản an toàn ([`safe_prefix`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/evidence.py#L84-L96)):**
+3. **Cắt tỉa văn bản an toàn ([`safe_prefix`](../../src/vigovbot/prompts/evidence.py#L84-L96)):**
    Khi văn bản vượt quá ngân sách ngữ cảnh của LLM, hàm cắt lùi về ranh giới xuống dòng hoặc dấu cách, kiểm tra tính toàn vẹn của chuỗi UTF-8 tiếng Việt, không bao giờ để lại ký tự rác hoặc token dở dang.
 
-#### Mẫu Prompt Hành chính Chuẩn hóa tại [`prompt_templates.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/prompt_templates.py)
-Hàm [`build_messages`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/prompts/prompt_templates.py#L75-L160) thiết lập hệ thống câu lệnh nguyên tắc cho LLM:
+#### Mẫu Prompt Hành chính Chuẩn hóa tại [`prompt_templates.py`](../../src/vigovbot/prompts/prompt_templates.py)
+Hàm [`build_messages`](../../src/vigovbot/prompts/prompt_templates.py#L75-L160) thiết lập hệ thống câu lệnh nguyên tắc cho LLM:
 - Chỉ trả lời dựa trên tài liệu được cung cấp trong khối JSON ngữ cảnh.
 - Tuyệt đối không suy đoán ngoài dữ liệu; nếu thiếu thông tin phải nêu rõ căn cứ còn thiếu.
 - Bắt buộc trả về định dạng JSON nghiêm ngặt chứa hai trường: `"answer"` (nội dung trả lời công dân) và `"citations"` (danh sách ID các chunk được sử dụng làm căn cứ).
@@ -343,10 +343,10 @@ Hàm [`build_messages`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbo
 
 ### 2.7. Module Tích hợp Giao tiếp LLM (LLM Client)
 
-Triển khai tại [`llm_client.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/llm/llm_client.py):
+Triển khai tại [`llm_client.py`](../../src/vigovbot/llm/llm_client.py):
 - **Giao tiếp Ollama REST API:** Kết nối trực tiếp tới endpoint `/api/chat` của Ollama daemon.
 - **Hỗ trợ Chế độ Streaming và Đo đạc Độ trễ:**
-  Hàm [`ollama_answer`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/llm/llm_client.py#L24-L78) kiểm tra cờ `measure_ttft` hoặc sự hiện diện của `token_callback`. Nếu kích hoạt:
+  Hàm [`ollama_answer`](../../src/vigovbot/llm/llm_client.py#L24-L78) kiểm tra cờ `measure_ttft` hoặc sự hiện diện của `token_callback`. Nếu kích hoạt:
   ```python
   for line in response.iter_lines():
       event = json.loads(line)
@@ -356,15 +356,15 @@ Triển khai tại [`llm_client.py`](file:///c:/Users/quangTam/Documents/ViGovBo
       if content and token_callback:
           token_callback(content)               # Bắn token tức thì về client
   ```
-- **Kiểm tra tính sẵn sàng ([`check_model`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/llm/llm_client.py#L6-L14)):** Kiểm tra danh sách model hiện có qua `/api/tags`, cảnh báo rõ ràng kèm lệnh kéo model (`ollama pull <model>`) nếu chưa có mô hình cục bộ.
+- **Kiểm tra tính sẵn sàng ([`check_model`](../../src/vigovbot/llm/llm_client.py#L6-L14)):** Kiểm tra danh sách model hiện có qua `/api/tags`, cảnh báo rõ ràng kèm lệnh kéo model (`ollama pull <model>`) nếu chưa có mô hình cục bộ.
 
 ---
 
 ### 2.8. Module Giao diện Web API & Vận hành Hạ tầng Server
 
-Triển khai tại [`app.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/app.py) và [`gpu_metrics.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/gpu_metrics.py).
+Triển khai tại [`app.py`](../../src/vigovbot/server/app.py) và [`gpu_metrics.py`](../../src/vigovbot/server/gpu_metrics.py).
 
-#### Bộ trích xuất Token JSON Trực tuyến ([`_AnswerTokenExtractor`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/server/app.py#L41-L90))
+#### Bộ trích xuất Token JSON Trực tuyến ([`_AnswerTokenExtractor`](../../src/vigovbot/server/app.py#L41-L90))
 Khi LLM được cấu hình để trả về một đối tượng JSON cấu trúc `{"answer": "...", "citations": [...]}`, các ứng dụng thông thường phải đợi toàn bộ chuỗi JSON hoàn tất mới có thể phân tích cú pháp để hiển thị cho người dùng, làm mất đi trải nghiệm streaming mượt mà.
 ViGovBot giải quyết vấn đề này bằng một bộ máy phân tích trạng thái (State Machine Parser) độc đáo:
 ```python
@@ -391,9 +391,9 @@ class _AnswerTokenExtractor:
 
 Module training cung cấp quy trình huấn luyện cục bộ độc lập chuẩn **QLoRA 4-bit** cho mô hình nền Qwen 2.5 7B Instruct trên tập dữ liệu thủ tục hành chính chuyên biệt.
 
-#### Cơ chế Che Loss Chính xác tại [`masking.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/masking.py)
+#### Cơ chế Che Loss Chính xác tại [`masking.py`](../../src/vigovbot/training/masking.py)
 Trong bài toán Supervised Fine-Tuning (SFT) hội thoại nhiều lượt, việc tính toán gradient loss trên toàn bộ câu hỏi của người dùng và hướng dẫn hệ thống sẽ làm suy giảm năng lực hiểu ngữ cảnh của mô hình.
-Hàm [`encode_assistant_only`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/masking.py#L18-L45) thực hiện kỹ thuật che nhãn tuyệt đối:
+Hàm [`encode_assistant_only`](../../src/vigovbot/training/masking.py#L18-L45) thực hiện kỹ thuật che nhãn tuyệt đối:
 ```python
 IGNORE_INDEX = -100
 
@@ -408,16 +408,16 @@ for index, message in enumerate(messages):
 - Khởi tạo toàn bộ mảng `labels` bằng `-100` (giá trị bỏ qua tính toán hàm mất mát của PyTorch `CrossEntropyLoss`).
 - Xác định điểm bắt đầu của lượt trả lời trợ lý thông qua mẫu tạo sinh `add_generation_prompt=True`.
 - **Chỉ duy nhất nội dung trả lời của assistant, thẻ đóng `<|im_end|>` và ký tự xuống dòng template được gán nhãn tính loss.**
-- Hàm [`padding_collator`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/masking.py#L47-L59) đệm động các chuỗi trong cùng batch về độ dài tối đa với nhãn `-100`.
+- Hàm [`padding_collator`](../../src/vigovbot/training/masking.py#L47-L59) đệm động các chuỗi trong cùng batch về độ dài tối đa với nhãn `-100`.
 
-#### Quy trình Huấn luyện tại [`train.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/train.py)
-Hàm [`train`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/train.py#L45-L160) điều phối phiên huấn luyện:
-1. **Kiểm tra tiền trạm (Preflight Checks):** Gọi [`preflight.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/preflight.py) kiểm tra tính tương thích CUDA, phiên bản `bitsandbytes`, và ước tính dung lượng VRAM cần thiết. Không bao giờ âm thầm lùi về huấn luyện trên CPU.
+#### Quy trình Huấn luyện tại [`train.py`](../../src/vigovbot/training/train.py)
+Hàm [`train`](../../src/vigovbot/training/train.py#L45-L160) điều phối phiên huấn luyện:
+1. **Kiểm tra tiền trạm (Preflight Checks):** Gọi [`preflight.py`](../../src/vigovbot/training/preflight.py) kiểm tra tính tương thích CUDA, phiên bản `bitsandbytes`, và ước tính dung lượng VRAM cần thiết. Không bao giờ âm thầm lùi về huấn luyện trên CPU.
 2. **Cấu hình Lượng tử hóa 4-bit (NF4):**
    Sử dụng BitsAndBytes với `bnb_4bit_quant_type="nf4"`, `bnb_4bit_use_double_quant=True`. Tự động nhận diện phần cứng: sử dụng kiểu dữ liệu tính toán `bfloat16` trên kiến trúc Ampere/Ada/Hopper hoặc `float16` trên kiến trúc Turing/Volta.
 3. **Tích hợp Bộ điều hợp LoRA (PEFT):** Gắn các ma trận thích ứng vào các tầng chú ý và feed-forward (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`).
 4. **Cơ chế Dừng sớm (Early Stopping) & Checkpoint:**
-   Theo dõi `eval_loss` sau mỗi chu kỳ đánh giá, kích hoạt dừng sớm khi độ suy giảm mất mát không vượt qua ngưỡng trong số lượt kiên nhẫn (`patience`). Tích hợp bộ điều khiển [`QLoRAControlCallback`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/training/control.py#L11-L60) cho phép tạm dừng, lưu checkpoint và tiếp tục huấn luyện một cách an toàn.
+   Theo dõi `eval_loss` sau mỗi chu kỳ đánh giá, kích hoạt dừng sớm khi độ suy giảm mất mát không vượt qua ngưỡng trong số lượt kiên nhẫn (`patience`). Tích hợp bộ điều khiển [`QLoRAControlCallback`](../../src/vigovbot/training/control.py#L11-L60) cho phép tạm dừng, lưu checkpoint và tiếp tục huấn luyện một cách an toàn.
 
 ---
 
@@ -425,18 +425,18 @@ Hàm [`train`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/trainin
 
 Module đánh giá được xây dựng hoàn toàn độc lập với module inference, nhằm bảo đảm tính khách quan và có thể tái lập trong các bài đo đối sánh mô hình.
 
-#### Hệ thống Chỉ số Đánh giá tại [`scoring.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/scoring.py)
+#### Hệ thống Chỉ số Đánh giá tại [`scoring.py`](../../src/vigovbot/evaluation/scoring.py)
 Bao gồm cả các chỉ số hình thức từ vựng và chỉ số chất lượng truy xuất:
 1. **Chỉ số từ vựng (Lexical Metrics):**
    - **sacreBLEU:** Đo lường độ trùng lặp n-gram chuẩn hóa.
    - **chrF / chrF++:** Đo mức độ trùng khớp cấp độ ký tự và từ vựng, đặc biệt hiệu quả với ngôn ngữ đơn âm tiết có dấu như tiếng Việt.
    - **Tỷ lệ lỗi ký tự (CER) và Tỷ lệ lỗi từ (WER):** Đo khoảng cách Levenshtein chuẩn hóa giữa câu sinh ra và câu chuẩn tham chiếu.
-   - **METEOR tối ưu cho tiếng Việt ([`meteor_vi`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/scoring.py#L73-L84)):** Loại bỏ bộ stemmer và WordNet tiếng Anh của thư viện NLTK gốc, triển khai lớp `IdentityStemmer` và `NoSynonyms` để tính toán chính xác trên tập từ vựng tiếng Việt.
+   - **METEOR tối ưu cho tiếng Việt ([`meteor_vi`](../../src/vigovbot/evaluation/scoring.py#L73-L84)):** Loại bỏ bộ stemmer và WordNet tiếng Anh của thư viện NLTK gốc, triển khai lớp `IdentityStemmer` và `NoSynonyms` để tính toán chính xác trên tập từ vựng tiếng Việt.
 2. **Chỉ số truy xuất (Retrieval Metrics):**
-   - **MAP@5 (Mean Average Precision at Top-5) ([`_average_precision_at_5`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/scoring.py#L48-L59)):** Đánh giá độ chính xác trung bình của 5 chunk được truy xuất đầu tiên so với danh sách chunk vàng.
+   - **MAP@5 (Mean Average Precision at Top-5) ([`_average_precision_at_5`](../../src/vigovbot/evaluation/scoring.py#L48-L59)):** Đánh giá độ chính xác trung bình của 5 chunk được truy xuất đầu tiên so với danh sách chunk vàng.
    - **Hit@K và MRR (Mean Reciprocal Rank):** Đánh giá tỷ lệ và vị trí xuất hiện của chứng cứ đúng.
 
-#### Đánh giá bằng Mô hình Trọng tài tại [`ollama_judge.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/evaluation/ollama_judge.py)
+#### Đánh giá bằng Mô hình Trọng tài tại [`ollama_judge.py`](../../src/vigovbot/evaluation/ollama_judge.py)
 Áp dụng giao thức **LLM-as-a-Judge**: sử dụng một mô hình ngôn ngữ lớn độc lập để chấm điểm câu trả lời theo 4 tiêu chí cốt lõi:
 - **Tính trung thực (Faithfulness):** Câu trả lời có hoàn toàn dựa trên bằng chứng được cung cấp hay tự ý thêm thông tin?
 - **Độ chính xác hành chính (Administrative Factuality):** Các thông số về số ngày làm việc, mức phí, cơ quan giải quyết có chuẩn xác tuyệt đối không?
@@ -447,17 +447,17 @@ Bao gồm cả các chỉ số hình thức từ vựng và chỉ số chất l�
 
 ### 2.11. Module Hợp đồng Dữ liệu, Tính toàn vẹn Artifact & CLI Hợp nhất
 
-#### Hợp đồng Dữ liệu Nghiêm ngặt tại [`schemas.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/schemas.py)
+#### Hợp đồng Dữ liệu Nghiêm ngặt tại [`schemas.py`](../../src/vigovbot/schemas.py)
 Quy định các hằng số bất biến và cấu trúc trường dữ liệu:
 - `DIMENSION = 1024`, `MODEL_NAME = "BAAI/bge-m3"`, `CACHE_VERSION = 2`.
-- Hàm [`validate_records`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/schemas.py#L19-L35) kiểm tra tính hợp lệ của từng chunk: cấm ID trùng lặp, cấm chuỗi rỗng, bắt buộc có đủ các trường lưu trữ danh tính.
+- Hàm [`validate_records`](../../src/vigovbot/schemas.py#L19-L35) kiểm tra tính hợp lệ của từng chunk: cấm ID trùng lặp, cấm chuỗi rỗng, bắt buộc có đủ các trường lưu trữ danh tính.
 
-#### Đảm bảo Tính toàn vẹn tại [`artifacts.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/artifacts.py)
-- **Giao dịch an toàn đa tiến trình ([`output_lock`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/artifacts.py#L29-L38)):** Sử dụng `filelock.FileLock` trên tệp `.writer.lock`, ngăn chặn hai tiến trình cùng lúc ghi đè làm hỏng thư mục output.
-- **Mã băm dữ liệu theo luồng ([`stream_hash`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/artifacts.py#L17-L21)):** Tính toán mã băm SHA-256 theo từng khối 1 MB, xử lý các tệp chỉ mục nhiều Gigabyte mà không gây tràn RAM.
-- **Ràng buộc mã commit mô hình ([`embedding_identity`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/artifacts.py#L40-L45)):** Bắt buộc revision của mô hình nhúng phải là một commit SHA 40 ký tự bất biến trên Hugging Face Hub, bảo đảm tính tái lập của không gian vector.
+#### Đảm bảo Tính toàn vẹn tại [`artifacts.py`](../../src/vigovbot/artifacts.py)
+- **Giao dịch an toàn đa tiến trình ([`output_lock`](../../src/vigovbot/artifacts.py#L29-L38)):** Sử dụng `filelock.FileLock` trên tệp `.writer.lock`, ngăn chặn hai tiến trình cùng lúc ghi đè làm hỏng thư mục output.
+- **Mã băm dữ liệu theo luồng ([`stream_hash`](../../src/vigovbot/artifacts.py#L17-L21)):** Tính toán mã băm SHA-256 theo từng khối 1 MB, xử lý các tệp chỉ mục nhiều Gigabyte mà không gây tràn RAM.
+- **Ràng buộc mã commit mô hình ([`embedding_identity`](../../src/vigovbot/artifacts.py#L40-L45)):** Bắt buộc revision của mô hình nhúng phải là một commit SHA 40 ký tự bất biến trên Hugging Face Hub, bảo đảm tính tái lập của không gian vector.
 
-#### Cây lệnh CLI Hợp nhất tại [`cli/main.py`](file:///c:/Users/quangTam/Documents/ViGovBot/src/vigovbot/cli/main.py)
+#### Cây lệnh CLI Hợp nhất tại [`cli/main.py`](../../src/vigovbot/cli/main.py)
 Toàn bộ hệ thống được điều khiển qua console command duy nhất `vigov` sử dụng thư viện `typer`:
 - `vigov doctor`: Kiểm tra môi trường thông dịch, file cấu hình và tính sẵn sàng của hạ tầng mà không cần tải mô hình nặng.
 - `vigov data ...`: Xác thực và kiểm tra bộ dữ liệu SFT/Chunking.

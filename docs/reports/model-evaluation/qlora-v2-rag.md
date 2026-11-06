@@ -1,6 +1,6 @@
 # Báo cáo đánh giá QLoRA v2 + RAG
 
-> Nguồn: `result_final/eval-qlora_v2-rag/` · Dataset PA1: 638 case · Thực thi: 637 thành công, 1 lỗi.
+> Nguồn: `result/eval-qlora_v2-rag/` · Dataset PA1: 638 case · Thực thi: 637 thành công, 1 lỗi.
 
 ## Kết luận nhanh
 

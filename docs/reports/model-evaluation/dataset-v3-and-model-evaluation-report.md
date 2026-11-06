@@ -9,7 +9,7 @@
 
 ## Tóm tắt
 
-Chúng tôi trình bày báo cáo thực nghiệm và phân tích khám phá dữ liệu (EDA) cho các mô hình ngôn ngữ được tinh chỉnh trong lĩnh vực hành chính công Việt Nam. Dataset v3 gồm tập kiểm chuẩn PA1 638 mẫu (`test_rag_pa1`) cùng hai nhánh huấn luyện: SFT hội thoại (`finetuning_v1`, 1.931 train / 827 val) và RAG-SFT đã lọc rò rỉ (`finetuning_v2`, 1.863 train / 786 val). Trên sáu cấu hình trong `result_final`, QLoRA v2 + RAG dẫn đầu Exact Match (**20,41%**, `n=637`), normalized EM (**21,51%**, `n=637`), key-fact coverage (**38,78%**, `n=596`) và citation precision/recall (**50,52% / 53,43%**, `n=596`). Judge `qwen2.5:14b` đã chấm đủ 638 case, với source groundedness **90,10%** và retrieved-context faithfulness **91,09%**. Tuy vậy, một ca prediction bị lỗi HTTP 502 và các assertion hồi quy chưa đạt, nên kết quả chưa đủ để kết luận model production-ready.
+Chúng tôi trình bày báo cáo thực nghiệm và phân tích khám phá dữ liệu (EDA) cho các mô hình ngôn ngữ được tinh chỉnh trong lĩnh vực hành chính công Việt Nam. Dataset v3 gồm tập kiểm chuẩn PA1 638 mẫu (`test_rag_pa1`) cùng hai nhánh huấn luyện: SFT hội thoại (`finetuning_v1`, 1.931 train / 827 val) và RAG-SFT đã lọc rò rỉ (`finetuning_v2`, 1.863 train / 786 val). Trên sáu cấu hình trong `result`, QLoRA v2 + RAG dẫn đầu Exact Match (**20,41%**, `n=637`), normalized EM (**21,51%**, `n=637`), key-fact coverage (**38,78%**, `n=596`) và citation precision/recall (**50,52% / 53,43%**, `n=596`). Judge `qwen2.5:14b` đã chấm đủ 638 case, với source groundedness **90,10%** và retrieved-context faithfulness **91,09%**. Tuy vậy, một ca prediction bị lỗi HTTP 502 và các assertion hồi quy chưa đạt, nên kết quả chưa đủ để kết luận model production-ready.
 
 ---
 
@@ -17,7 +17,7 @@ Chúng tôi trình bày báo cáo thực nghiệm và phân tích khám phá d�
 
 Ứng dụng trí tuệ nhân tạo đàm thoại trong chính phủ số đòi hỏi tính chính xác pháp lý tuyệt đối, sự tuân thủ nghiêm ngặt các quy định công vụ và cơ chế đối soát minh bạch. Trong thủ tục hành chính tại Việt Nam, câu hỏi của người dân đòi hỏi việc trích xuất chính xác thành phần hồ sơ, trình tự các bước, cơ quan có thẩm quyền giải quyết và thời hạn trả kết quả trên hàng trăm lĩnh vực pháp luật chuyên ngành. Các mô hình nền tảng gốc và kiến trúc zero-shot RAG thông thường thường xuyên gặp phải hiện tượng bịa đặt thông tin (hallucination), viết lại truy vấn sai lệch hoặc không kết hợp được các tài liệu trích xuất vào câu trả lời.
 
-Bên cạnh đó, việc tinh chỉnh có giám sát (SFT) ngây thơ thường dẫn đến hiện tượng rò rỉ đề thi (leakage) khi tập huấn luyện và tập kiểm thử vô tình chia sẻ chung mã thủ tục hoặc các đoạn văn bản luật nguyên văn. Để giải quyết triệt để vấn đề này, chúng tôi phát triển **Dataset v3** và thực hiện thực nghiệm đối chuẩn có kiểm soát trên 6 cấu hình tại `result_final`.
+Bên cạnh đó, việc tinh chỉnh có giám sát (SFT) ngây thơ thường dẫn đến hiện tượng rò rỉ đề thi (leakage) khi tập huấn luyện và tập kiểm thử vô tình chia sẻ chung mã thủ tục hoặc các đoạn văn bản luật nguyên văn. Để giải quyết triệt để vấn đề này, chúng tôi phát triển **Dataset v3** và thực hiện thực nghiệm đối chuẩn có kiểm soát trên 6 cấu hình tại `result`.
 
 ---
 
@@ -108,7 +108,7 @@ Toàn bộ 109 ca bị cách ly được lưu tại `reports/excluded_cases.json
 
 ---
 
-## 3. Thực nghiệm Đánh giá Đối chuẩn tại `result_final`
+## 3. Thực nghiệm Đánh giá Đối chuẩn tại `result`
 
 ### 3.1 Thiết lập Thực nghiệm
 Tất cả các thử nghiệm đều sử dụng cùng kiến trúc mô hình nền `Qwen2.5-7B-Instruct` (lượng tử hóa NF4 khi huấn luyện trên GPU RTX 5060 Ti, hợp nhất adapter vào BF16 và phục vụ qua Ollama định dạng GGUF Q8_0 với Flash Attention và Q8 KV Cache).

@@ -6,6 +6,17 @@ from vigovbot.retrieval.procedure_discovery import ProcedureDiscovery
 
 
 class ProcedureDiscoveryTests(unittest.TestCase):
+    def test_registration_spelling_variants_share_the_retrieval_fold_policy(self):
+        discovery = ProcedureDiscovery([
+            {"code": "1", "name": "Đăng ký tạm trú", "aliases": []},
+            {"code": "2", "name": "Cấp hộ chiếu", "aliases": []},
+        ], [[1.0, 0.0], [0.0, 1.0]])
+
+        with_y = discovery.search("đăng ký tạm trú", [1.0, 0.0])
+        with_i = discovery.search("đăng kí tạm trú", [1.0, 0.0])
+
+        self.assertEqual(with_i, with_y)
+
     def test_missing_negative_qualifier_is_penalized_asymmetrically(self):
         discovery = ProcedureDiscovery([
             {"code": "foreign", "name": "Đổi bằng lái xe của người nước ngoài", "aliases": []},

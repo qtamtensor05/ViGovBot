@@ -636,3 +636,9 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Loại rủi ro ghi nhớ trực tiếp nội dung test khỏi pipeline RAG-SFT.
 - **Thực hiện:** Lọc theo test ID, standalone query, context ID/text, đáp án dài và mã thủ tục; template ngắn/near-query khác thủ tục chỉ báo cáo.
 - **Kết quả:** Loại 109 case, giữ 2.649 case; hậu kiểm mạnh đều bằng 0 và 2.649 target JSON qua parser runtime. Dữ liệu nguồn và hai file test giữ nguyên hash.
+
+## 2026-11-06 - Khắc phục lỗi runtime từ báo cáo đánh giá toàn diện
+
+- **Mục tiêu:** Loại bỏ chi phí đọc lại source không cần thiết, tránh kích hoạt sai chỉ dẫn trình bày và bảo toàn Unicode khi stream structured answer.
+- **Thực hiện:** Cache nội dung fingerprint theo chữ ký đường dẫn/mtime/kích thước; cache source identity thread-safe theo vòng đời `ChatApplication`; matching từ khóa theo biên từ; ghép đúng cặp surrogate JSON; thống nhất fold discovery/routing; bỏ max-abs dư thừa trước L2 và thêm hồi quy.
+- **Kết quả:** Các nhóm 37, 121, 31 và 130 test tập trung đều đạt; Ruff và compileall đạt. Full suite chạy 458 test; 1 failure và 5 error còn lại thuộc các vấn đề độc lập đã nêu trong hồ sơ yêu cầu, không phát sinh từ thay đổi này.

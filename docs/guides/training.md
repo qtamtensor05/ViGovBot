@@ -51,8 +51,8 @@ riêng trên phần cứng mục tiêu trước khi kết luận model hoạt đ
 checkpoint của model cũ sang model mới; chọn run mới.
 ## Tạo SFT từ Golden train/validation
 
-Từ gốc repository, chạy `vigov data golden-to-sft`. Có thể chỉ định
-`--source-dir Data/golden_dataset --output-dir Data/golden_dataset_sft`.
+Từ gốc repository, chạy `vigov data golden-to-sft`. Có thể chỉ định rõ
+`--source-dir Data/dataset_v3/finetuning_v1 --output-dir Data/dataset_v3/finetuning_v1`.
 Lệnh tạo `train_sft.jsonl` và `validation_sft.jsonl`, giữ nguyên ID, thứ tự và
 Unicode: `messages = chat_history + user(question) + assistant(expected_answer)`.
 Không thêm context, system prompt hoặc nhãn; giữ cả ca unanswerable.

@@ -50,6 +50,11 @@ class PromptPresentationTests(unittest.TestCase):
         self.assertNotIn("mục danh sách riêng", prompt)
         self.assertNotIn("từng loại thông tin thành một mục riêng", prompt)
 
+    def test_fee_keyword_does_not_match_inside_an_unrelated_word(self):
+        prompt = self.system_prompt("Phim hướng dẫn này nói gì?")
+
+        self.assertNotIn("phí, lệ phí hoặc thời hạn", prompt)
+
     def test_submission_method_requires_every_non_empty_table_row(self):
         prompt = self.system_prompt("Cách thức nộp hồ sơ là gì?")
 
