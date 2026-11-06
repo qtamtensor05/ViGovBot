@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Khóa section intent qua bước chọn thủ tục - 2026-11-06
+
+- **Mục tiêu:** Không để mất mục dữ liệu người dùng hỏi khi hội thoại phải mở menu chọn mã thủ tục trước retrieval.
+- **Thực hiện:** Nâng signed state lên v3; lưu pending request bất biến; phục hồi atomic khi chọn thủ tục; thêm trace, invariant, filter mã/section và constraint `step_number` tách khỏi taxonomy.
+- **Kết quả:** Hoàn tất source trên nhánh `codex/section-intent-state-retrieval`; 133 test conversation/routing/server, Ruff, compileall, test tài liệu và diff check đạt. Chưa chạy lại 97 case bằng model thật hoặc triển khai runtime.
+
 ## Tổng hợp đầy đủ các chunk nối tiếp trong cùng mục RAG - 2026-11-04
 
 - **Mục tiêu:** Không để QLoRA + RAG chỉ trả lời từ chunk đầu khi nhiều chunk của cùng thủ tục và cùng mục đã được đưa vào prompt.

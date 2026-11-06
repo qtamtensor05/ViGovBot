@@ -123,12 +123,42 @@ class FourHeadTests(unittest.TestCase):
         )
         menu = self.ask(question, classification)
         self.assertEqual(menu["menu"]["kind"], "procedure")
+        self.assertEqual(menu["conversation_state"]["version"], 3)
+        self.assertEqual(menu["conversation_state"]["pending_requests"], [{
+            "procedure": "Đăng ký kết hôn",
+            "original_query": question,
+            "sections": ["PROCEDURE"],
+            "section_types": ["procedure_step"],
+            "detail_constraints": {"step_number": 1},
+        }])
+        self.router.reset_mock()
         selected = self.ask("1. " + menu["menu"]["options"][0]["label"])
+        self.router.assert_not_called()
         self.assertEqual(selected["action"], "answer")
+        self.assertEqual(selected["state_validation"], {
+            "contract_version": 3, "provided": True, "source": "client", "accepted": True,
+        })
+        self.assertEqual(selected["state_transition"]["type"], "procedure_selection")
+        self.assertEqual(selected["state_transition"]["restored_query"], question)
+        self.assertEqual(selected["state_transition"]["restored_sections"], ["PROCEDURE"])
+        self.assertEqual(selected["state_transition"]["restored_section_types"], ["procedure_step"])
+        self.assertEqual(selected["state_transition"]["restored_detail_constraints"], {"step_number": 1})
+        self.assertEqual(selected["retrieval_filters"], [{
+            "request_index": 0,
+            "source_codes": [menu["menu"]["options"][0]["id"]],
+            "section_intents": ["PROCEDURE"],
+            "section_types": ["procedure_step"],
+            "detail_constraints": {"step_number": 1},
+            "strict_source": True,
+            "strict_sections": True,
+            "legacy_taxonomy_fallback": False,
+        }])
         self.assertIn("b\u01b0\u1edbc 1", selected["retrieval_query"].lower())
         self.assertIn("procedure_step", selected["retrieval_query"])
+        self.assertIn("Chi tiết yêu cầu: bước 1", selected["retrieval_query"])
         self.assertNotIn("C?p th?c hi?n", selected["retrieval_query"])
         self.assertEqual({hit["source_code"] for hit in selected["retrieved"]}, {"1.000894"})
+        self.assertEqual({hit["section_type"] for hit in selected["retrieved"]}, {"procedure_step"})
 
     def test_legal_li_follow_up_overrides_stale_fee_section(self):
         self.ask("Cấp hộ chiếu", route())

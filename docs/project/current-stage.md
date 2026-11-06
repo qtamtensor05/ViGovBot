@@ -1,5 +1,11 @@
 # Trạng thái hệ thống hiện tại
 
+## Khóa section intent qua lựa chọn thủ tục - 2026-11-06
+
+- **Mục tiêu:** Bảo toàn câu hỏi gốc và section intent từ lúc tạo menu đến khi truy xuất đúng mã thủ tục.
+- **Thực hiện:** Signed state v3 giữ `pending_requests`; lựa chọn phục hồi nguyên query/section/detail constraint, bỏ qua router và công bố transition/filter trong trace; retrieval khóa mã cùng section type.
+- **Kết quả:** Source và 133 test liên quan đã đạt trên nhánh `codex/section-intent-state-retrieval`. Chưa triển khai web/model thật và chưa chạy lại manifest 97 case.
+
 ## Bảo toàn nội dung nhiều chunk trong cùng mục RAG - 2026-11-04
 
 - **Mục tiêu:** Không phát hành câu trả lời `sufficient` chỉ dựa vào chunk đầu khi evidence của cùng thủ tục và cùng mục kéo dài qua nhiều chunk.

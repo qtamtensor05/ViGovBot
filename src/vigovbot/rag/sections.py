@@ -29,6 +29,20 @@ def section_query(sections):
     return ", ".join(labels) + "".join(f"\nMục dữ liệu: {t}" for t in types)
 
 
+def section_detail_constraints(text):
+    """Extract deterministic within-section constraints without classifying identity."""
+    folded = _fold(text)
+    step = re.search(r"(?<!\w)buoc\s+(?:thu\s+)?(\d+)(?!\w)", folded)
+    return {"step_number": int(step.group(1))} if step else {}
+
+
+def section_detail_query(constraints):
+    """Render structured constraints for retrieval while keeping them separate from taxonomy."""
+    if not constraints:
+        return ""
+    return f"\nChi tiết yêu cầu: bước {constraints['step_number']}"
+
+
 def _fold(text):
     value = unicodedata.normalize("NFD", text.casefold())
     return "".join(c for c in value if unicodedata.category(c) != "Mn").replace("đ", "d")

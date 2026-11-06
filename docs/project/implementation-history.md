@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Khóa section intent qua lựa chọn thủ tục - 2026-11-06
+
+- **Mục tiêu:** Ngăn câu hỏi về một mục cụ thể bị biến thành truy vấn tổng quan sau khi người dùng chọn mã thủ tục từ menu.
+- **Thực hiện:** Nâng signed state lên v3 với pending request bất biến; thực hiện transition lựa chọn không gọi lại router; thêm invariant fail-closed, trace state/filter, lọc cứng theo mã và section type, đồng thời tách `step_number` khỏi nhãn section.
+- **Kết quả:** Luồng chọn thủ tục giữ nguyên câu hỏi “bước 1”, `PROCEDURE`, `procedure_step` và `step_number=1`; retrieval chỉ trả đúng mã/section trong hồi quy. 133 test conversation/routing/server, Ruff, compileall, test tài liệu và diff check đạt; chưa chạy model thật hoặc 97 case đánh giá.
+
 ## Tổng hợp đầy đủ fragment cùng mục trong QLoRA + RAG - 2026-11-04
 
 - **Mục tiêu:** Khắc phục trường hợp retrieval đưa đủ nhiều chunk cùng mục vào prompt nhưng QLoRA chỉ trả nội dung chunk đầu và tự đánh giá `sufficient`.
