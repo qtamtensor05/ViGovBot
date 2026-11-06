@@ -44,7 +44,11 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 ## Báo cáo kết quả
 
+- [Báo cáo toàn diện quy trình QLoRA (Mục 3.5)](reports/bao-cao-toan-dien-quy-trinh-qlora.md)
+- [Báo cáo thiết kế dữ liệu thực nghiệm và phương pháp đánh giá (Mục 3.6 & 3.7)](reports/bao-cao-thiet-ke-du-lieu-va-phuong-phap-danh-gia.md)
 - [Báo cáo chi tiết các module xử lý chính ViGovBot](reports/bao-cao-cac-module-xu-ly-chinh-vigovbot.md)
+- [Báo cáo chi tiết toàn bộ luồng hoạt động RAG ViGovBot](reports/bao-cao-chi-tiet-luong-rag-vigovbot.md)
+- [Phân tích chuyên sâu cơ chế Prompting, Routing và Quyết định](reports/chuyen-sau-prompting-routing-quyet-dinh-rag.md)
 - [Báo cáo hệ thống nhãn phân loại và actions](reports/bao-cao-phan-loai-nhan-va-actions.md)
 - [Benchmark độ trễ reranker (10 câu)](reports/reranker-latency-20261029.md)
 
@@ -55,6 +59,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [RAG](reports/model-evaluation/rag.md)
 - [QLoRA v1](reports/model-evaluation/qlora-v1.md)
 - [QLoRA v1 + RAG](reports/model-evaluation/qlora-v1-rag.md)
+- [QLoRA v2](reports/model-evaluation/qlora-v2.md)
 - [QLoRA v2 + RAG](reports/model-evaluation/qlora-v2-rag.md)
 
 ## Quản trị dự án

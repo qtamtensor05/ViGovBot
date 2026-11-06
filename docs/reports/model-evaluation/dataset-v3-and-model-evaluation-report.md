@@ -9,7 +9,7 @@
 
 ## Tóm tắt
 
-Chúng tôi trình bày báo cáo thực nghiệm toàn diện và phân tích khám phá dữ liệu (EDA) chuyên sâu cho các mô hình ngôn ngữ lớn (LLM) được tinh chỉnh thích ứng miền trong lĩnh vực hành chính công Việt Nam. Bằng việc xây dựng **Dataset v3**, chúng tôi thiết lập pipeline dữ liệu đa tầng nhằm giải quyết dứt điểm hai thách thức cốt lõi: rò rỉ dữ liệu giữa tập huấn luyện và tập kiểm thử (data leakage) và hiện tượng ảo giác cấu trúc trong kiến trúc Tạo sinh Tăng cường Truy xuất (RAG). Dataset v3 bao gồm một tập kiểm chuẩn tỷ lệ vàng 638 mẫu (**`test_rag_pa1`**) cùng hai mô thức huấn luyện phân tách: tập SFT hội thoại thông thường (**`finetuning_v1`**, 1.931 train / 827 val) và tập RAG-SFT sạch chống rò rỉ đề thi (**`finetuning_v2`**, 1.863 train / 786 val). Thông qua phân tích EDA chi tiết trên 209 lĩnh vực pháp lý, các trục taxonomy, phân bố độ dài token và các ràng buộc zero-leakage, chúng tôi xác lập nền tảng thống kê vững chắc cho dữ liệu. Trên 6 cấu hình triển khai đối sánh tại `result_final` được đánh giá trên cùng tập test 638 ca, kiến trúc tinh chỉnh định hướng ngữ cảnh (**QLoRA v2 + RAG**) thiết lập đường biên tối ưu Pareto mới: Khớp chính xác (Exact Match) tăng vọt từ 1,25% (Base + RAG) và 12,54% (QLoRA v1 + RAG) lên **20,38%** (chuẩn hóa: 21,47%), SacreBLEU đạt **36,39**, cùng các kiểm định LLM-as-a-Judge xác nhận độ bám sát nguồn (Source Groundedness) đạt **90,10%** và độ trung thực ngữ cảnh (Context Faithfulness) đạt **91,09%** với 0% chấp nhận sai ngoài miền (OOD).
+Chúng tôi trình bày báo cáo thực nghiệm và phân tích khám phá dữ liệu (EDA) cho các mô hình ngôn ngữ được tinh chỉnh trong lĩnh vực hành chính công Việt Nam. Dataset v3 gồm tập kiểm chuẩn PA1 638 mẫu (`test_rag_pa1`) cùng hai nhánh huấn luyện: SFT hội thoại (`finetuning_v1`, 1.931 train / 827 val) và RAG-SFT đã lọc rò rỉ (`finetuning_v2`, 1.863 train / 786 val). Trên sáu cấu hình trong `result_final`, QLoRA v2 + RAG dẫn đầu Exact Match (**20,41%**, `n=637`), normalized EM (**21,51%**, `n=637`), key-fact coverage (**38,78%**, `n=596`) và citation precision/recall (**50,52% / 53,43%**, `n=596`). Tuy vậy, một ca bị lỗi HTTP 502 và các assertion hồi quy chưa đạt; các artifact Judge hiện có không được tạo lại cùng lần predict cuối. Vì vậy kết quả chưa đủ để kết luận model production-ready.
 
 ---
 
@@ -125,12 +125,14 @@ Sáu cấu hình được đánh giá toàn diện trên 638 ca của `test_rag_
 
 | Cấu hình mô hình | Khớp chính xác (EM) (%) | EM Chuẩn hóa (%) | SacreBLEU | chrF++ | BERTScore F1 | Độ chính xác Action (%) | Độ bám sát nguồn (Judge) | Độ trung thực ngữ cảnh (Judge) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Base** | 0,00% | 0,00% | 2,69 | 19,93 | 0,8485 | 0,00% | N/A | N/A |
-| **RAG** | 1,25% | 1,34% | 15,57 | 35,20 | 0,8790 | 71,79% | 84,12% | 85,20% |
-| **QLoRA v1** | 4,23% | 4,86% | 27,24 | 45,32 | 0,9119 | 0,00% | N/A | N/A |
-| **QLoRA v1 + RAG** | 12,54% | 13,32% | 27,27 | 40,55 | 0,8965 | 79,00% | 85,30% | 86,40% |
-| **QLoRA v2 (Thuần)** | 0,00% | 0,00% | 6,82 | 25,62 | 0,8647 | **93,57%** | N/A (Chủ động từ chối) | N/A |
-| **QLoRA v2 + RAG** | **20,38%** | **21,47%** | **36,39** | **47,25** | **0,9022** | **80,88%** | **90,10%** | **91.09%** |
+| **Base** | 0,00% | 0,00% | 2,69 | 19,93 | 0,8485 | 93,57% | N/A | N/A |
+| **RAG** | 1,25% | 1,41% | 15,57 | 35,20 | 0,8790 | 71,79% | 84,12%* | 85,20%* |
+| **QLoRA v1** | 4,23% | 4,86% | 27,24 | 45,32 | 0,9119 | 93,57% | N/A | N/A |
+| **QLoRA v1 + RAG** | 12,54% | 13,32% | 27,27 | 40,55 | 0,8965 | 79,00% | 85,30%* | 86,40%* |
+| **QLoRA v2 (Thuần)** | 0,00% | 0,00% | 6,78 | 25,67 | 0,8647 | 93,57% | N/A | N/A |
+| **QLoRA v2 + RAG** | **20,41%** (`n=637`) | **21,51%** (`n=637`) | **36,28** | **47,23** | **0,9053** | **80,85%** (`n=637`) | **90,10%*** | **91,09%*** |
+
+\* Các số Judge thuộc artifact hiện có và không được chấm lại cùng prediction cuối của QLoRA v2 + RAG. BERTScore, BLEU/chrF và các metric tương đồng không tự chứng minh factuality hoặc groundedness.
 
 ---
 
@@ -139,16 +141,16 @@ Sáu cấu hình được đánh giá toàn diện trên 638 ca của `test_rag_
 ### 4.1 Cơ chế Chống Ảo giác Xuất hiện ở QLoRA v2
 So sánh hành vi giữa QLoRA v1 và QLoRA v2 khi chạy độc lập (không kích hoạt RAG):
 * **QLoRA v1 (Thuần):** Đạt EM 4,23% và SacreBLEU 27,24 nhờ khả năng ghi nhớ các mẫu câu đàm thoại trong tập train cũ; tuy nhiên khi gặp câu hỏi chi tiết về thủ tục ngoài dữ liệu, mô hình có xu hướng tự tạo ra các thông tin pháp lý không có căn cứ.
-* **QLoRA v2 (Thuần):** EM đạt 0,00% và SacreBLEU đạt 6,82, nhưng **Độ chính xác Hành vi (Action Accuracy) đạt tới 93,57%**. Nhờ hợp đồng huấn luyện RAG-SFT, khi không nhận được văn bản bằng chứng (`evidence`), mô hình nhận thức rõ sự thiếu hụt thông tin và từ chối trả lời liều lĩnh, chủ động yêu cầu người dùng cung cấp thêm ngữ cảnh hoặc mã thủ tục.
+* **QLoRA v2 (Thuần):** EM đạt 0,00% và SacreBLEU đạt 6,78. `Action accuracy` 93,57% bằng tỷ lệ 597/638 ca answerable, trong khi `abstention_correct` bằng 0% và `unsupported_answer` bằng 100% trên 41 ca unanswerable. Vì vậy số tổng này không chứng minh model biết từ chối khi thiếu evidence.
 
 ### 4.2 Sức mạnh Đột phá khi Kết hợp RAG
 Khi được kết hợp cùng hệ thống truy xuất tài liệu:
-* Exact Match của QLoRA v2 tăng gấp **16 lần** so với Base+RAG (20,38% so với 1,25%) và gần gấp đôi QLoRA v1+RAG (12,54%).
-* Độ trung thực ngữ cảnh đạt **91,09%**, độ phủ dữ kiện chính (Key Fact Coverage) tăng gấp đôi lên **38,59%**.
-* Tốc độ sinh đạt **47,62 tokens/giây**, độ trễ giảm 26% (từ 9,67s xuống 7,15s/mẫu) trên phần cứng thương mại phổ thông.
+* Exact Match của QLoRA v2 + RAG đạt 20,41% (`n=637`), cao hơn RAG 1,25% và QLoRA v1 + RAG 12,54%; phép so sánh phải giữ nguyên mẫu số khác nhau.
+* Key-fact coverage đạt 38,78% (`n=596`); citation precision/recall đạt 50,52%/53,43% (`n=596`), nhưng invalid citation vẫn ở mức 30,35%.
+* Tốc độ sinh đạt 48,81 token/giây (`n=532`), tổng độ trễ trung bình 7,02 giây (`n=637`). Một case lỗi HTTP 502 nên không được mô tả đây là run hoàn chỉnh 638/638.
 
 ---
 
 ## 5. Kết luận
 
-Việc chuẩn hóa Dataset v3 thành các phân vùng tường minh, sạch sẽ và khử rò rỉ đề thi (`finetuning_v1` và `finetuning_v2`) tạo tiền đề vững chắc cho việc kiểm chứng thực nghiệm. Mô thức huấn luyện tinh chỉnh có ràng buộc ngữ cảnh (Context-grounded RAG-SFT) kết hợp cùng kiểm toán rò rỉ dữ liệu đã chứng minh ưu thế áp đảo hoàn toàn so với tinh chỉnh tham số ngây thơ và hệ thống RAG zero-shot truyền thống trong các bài toán công vụ đòi hỏi độ tin cậy cao.
+Việc chuẩn hóa Dataset v3 thành các phân vùng tường minh và lọc rò rỉ tạo nền tảng cho đối sánh sáu cấu hình. QLoRA v2 + RAG là nhánh có kết quả tổng thể tốt nhất trong artifact hiện có, nhưng chưa thể coi là sẵn sàng production: cần chạy bù case HTTP 502, xác nhận runtime chứa bản sửa section intent và chấm trực tiếp toàn bộ assertion hồi quy. RAG thuần tiếp tục là baseline/rollback; QLoRA v2 thuần không phù hợp triển khai độc lập.

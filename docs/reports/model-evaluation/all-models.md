@@ -55,4 +55,5 @@ QLoRA v2 + RAG vẫn là nhánh hợp lý nhất để tiếp tục hardening, n
 - [RAG](rag.md)
 - [QLoRA v1](qlora-v1.md)
 - [QLoRA v1 + RAG](qlora-v1-rag.md)
+- [QLoRA v2](qlora-v2.md)
 - [QLoRA v2 + RAG](qlora-v2-rag.md)

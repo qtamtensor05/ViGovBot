@@ -1,0 +1,795 @@
+{
+  "metadata": {
+    "experiment_name": "Ablation Study: Head-to-Head Comparison of Top-5, Top-10, and Top-15 Retrieved Contexts",
+    "objective": "Quantify the causal impact of Context Noise Ratio on Invalid Citation Rate",
+    "dataset": "Data/dataset_v3/test_rag/test_rag_pa1.jsonl",
+    "total_test_cases": 638,
+    "baseline_run": "eval-qlora-rag-sft-v3 (QLoRA v2 + RAG)",
+    "methodology": "Attribution & Counterfactual Slicing across Top-K Rank Boundaries"
+  },
+  "cohort_summaries": {
+    "all": {
+      "sample_size": 638,
+      "k_metrics": {
+        "Top-5": {
+          "retrieval": {
+            "n": 532,
+            "context_noise_ratio": {
+              "mean": 0.581296992481203,
+              "std": 0.39274238924527366,
+              "median": 0.8
+            },
+            "context_precision": {
+              "mean": 0.41870300751879697,
+              "std": 0.3927423892452736
+            },
+            "context_recall": {
+              "mean": 0.781974817760106,
+              "std": 0.4119673084178426
+            },
+            "hit_rate": 0.7406015037593985,
+            "mrr": 0.6114035087719298
+          },
+          "citation": {
+            "n": 597,
+            "invalid_citation_rate": {
+              "mean": 0.2541317699609157,
+              "std": 0.4192839683342936,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.4946119486320491,
+              "std": 0.4860259268260916
+            },
+            "citation_recall": {
+              "mean": 0.518285873813512,
+              "std": 0.4968757617292762
+            },
+            "citation_f1": {
+              "mean": 0.5005025125628141,
+              "std": 0.4853653243547591
+            },
+            "total_actual_citations": 530,
+            "total_invalid_citations": 206,
+            "zero_citation_cases": 150,
+            "perfect_citation_cases": 279
+          }
+        },
+        "Top-10": {
+          "retrieval": {
+            "n": 532,
+            "context_noise_ratio": {
+              "mean": 0.594357918606039,
+              "std": 0.39858184298355365,
+              "median": 0.8
+            },
+            "context_precision": {
+              "mean": 0.4056420813939611,
+              "std": 0.39858184298355354
+            },
+            "context_recall": {
+              "mean": 0.8674524282874183,
+              "std": 0.3369238537203204
+            },
+            "hit_rate": 0.8233082706766918,
+            "mrr": 0.6219835302542069
+          },
+          "citation": {
+            "n": 597,
+            "invalid_citation_rate": {
+              "mean": 0.2912618648799553,
+              "std": 0.4377310337961898,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.49935790061418206,
+              "std": 0.48495325002525114
+            },
+            "citation_recall": {
+              "mean": 0.5266610831937465,
+              "std": 0.49649681007848206
+            },
+            "citation_f1": {
+              "mean": 0.5060859854829703,
+              "std": 0.4839833685546858
+            },
+            "total_actual_citations": 582,
+            "total_invalid_citations": 253,
+            "zero_citation_cases": 125,
+            "perfect_citation_cases": 281
+          }
+        },
+        "Top-15": {
+          "retrieval": {
+            "n": 532,
+            "context_noise_ratio": {
+              "mean": 0.5967602468542319,
+              "std": 0.4003334146966742,
+              "median": 0.8166666666666667
+            },
+            "context_precision": {
+              "mean": 0.4032397531457682,
+              "std": 0.4003334146966742
+            },
+            "context_recall": {
+              "mean": 0.9032945186026697,
+              "std": 0.2926073140779907
+            },
+            "hit_rate": 0.8571428571428571,
+            "mrr": 0.6247169497169497
+          },
+          "citation": {
+            "n": 597,
+            "invalid_citation_rate": {
+              "mean": 0.30298715801228365,
+              "std": 0.44218603116287464,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.5043830262423228,
+              "std": 0.48406955610181757
+            },
+            "citation_recall": {
+              "mean": 0.5333612506979342,
+              "std": 0.4960916475078388
+            },
+            "citation_f1": {
+              "mean": 0.5116694584031268,
+              "std": 0.48311106480952865
+            },
+            "total_actual_citations": 596,
+            "total_invalid_citations": 263,
+            "zero_citation_cases": 115,
+            "perfect_citation_cases": 283
+          }
+        }
+      }
+    },
+    "answerable": {
+      "sample_size": 597,
+      "k_metrics": {
+        "Top-5": {
+          "retrieval": {
+            "n": 503,
+            "context_noise_ratio": {
+              "mean": 0.5571570576540756,
+              "std": 0.3904476005405068,
+              "median": 0.6666666666666667
+            },
+            "context_precision": {
+              "mean": 0.4428429423459245,
+              "std": 0.3904476005405068
+            },
+            "context_recall": {
+              "mean": 0.781974817760106,
+              "std": 0.4119673084178426
+            },
+            "hit_rate": 0.7833001988071571,
+            "mrr": 0.6466534128561962
+          },
+          "citation": {
+            "n": 597,
+            "invalid_citation_rate": {
+              "mean": 0.2541317699609157,
+              "std": 0.4192839683342936,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.4946119486320491,
+              "std": 0.4860259268260916
+            },
+            "citation_recall": {
+              "mean": 0.518285873813512,
+              "std": 0.4968757617292762
+            },
+            "citation_f1": {
+              "mean": 0.5005025125628141,
+              "std": 0.4853653243547591
+            },
+            "total_actual_citations": 530,
+            "total_invalid_citations": 206,
+            "zero_citation_cases": 150,
+            "perfect_citation_cases": 279
+          }
+        },
+        "Top-10": {
+          "retrieval": {
+            "n": 503,
+            "context_noise_ratio": {
+              "mean": 0.5709709994004228,
+              "std": 0.39748355563023013,
+              "median": 0.6666666666666667
+            },
+            "context_precision": {
+              "mean": 0.4290290005995771,
+              "std": 0.39748355563023013
+            },
+            "context_recall": {
+              "mean": 0.8674524282874183,
+              "std": 0.3369238537203204
+            },
+            "hit_rate": 0.8707753479125249,
+            "mrr": 0.6578434156962983
+          },
+          "citation": {
+            "n": 597,
+            "invalid_citation_rate": {
+              "mean": 0.2912618648799553,
+              "std": 0.4377310337961898,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.49935790061418206,
+              "std": 0.48495325002525114
+            },
+            "citation_recall": {
+              "mean": 0.5266610831937465,
+              "std": 0.49649681007848206
+            },
+            "citation_f1": {
+              "mean": 0.5060859854829703,
+              "std": 0.4839833685546858
+            },
+            "total_actual_citations": 582,
+            "total_invalid_citations": 253,
+            "zero_citation_cases": 125,
+            "perfect_citation_cases": 281
+          }
+        },
+        "Top-15": {
+          "retrieval": {
+            "n": 503,
+            "context_noise_ratio": {
+              "mean": 0.5735118316629252,
+              "std": 0.3994893059651518,
+              "median": 0.6666666666666667
+            },
+            "context_precision": {
+              "mean": 0.426488168337075,
+              "std": 0.3994893059651518
+            },
+            "context_recall": {
+              "mean": 0.9032945186026697,
+              "std": 0.2926073140779907
+            },
+            "hit_rate": 0.9065606361829026,
+            "mrr": 0.6607344279312469
+          },
+          "citation": {
+            "n": 597,
+            "invalid_citation_rate": {
+              "mean": 0.30298715801228365,
+              "std": 0.44218603116287464,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.5043830262423228,
+              "std": 0.48406955610181757
+            },
+            "citation_recall": {
+              "mean": 0.5333612506979342,
+              "std": 0.4960916475078388
+            },
+            "citation_f1": {
+              "mean": 0.5116694584031268,
+              "std": 0.48311106480952865
+            },
+            "total_actual_citations": 596,
+            "total_invalid_citations": 263,
+            "zero_citation_cases": 115,
+            "perfect_citation_cases": 283
+          }
+        }
+      }
+    },
+    "unanswerable": {
+      "sample_size": 41,
+      "k_metrics": {
+        "Top-5": {
+          "retrieval": {
+            "n": 29,
+            "context_noise_ratio": {
+              "mean": 1.0,
+              "std": 0.0,
+              "median": 1.0
+            },
+            "context_precision": {
+              "mean": 0.0,
+              "std": 0.0
+            },
+            "context_recall": {
+              "mean": null,
+              "std": null
+            },
+            "hit_rate": 0.0,
+            "mrr": 0.0
+          },
+          "citation": {
+            "n": 0,
+            "invalid_citation_rate": {
+              "mean": null,
+              "std": null,
+              "median": null
+            },
+            "citation_precision": {
+              "mean": null,
+              "std": null
+            },
+            "citation_recall": {
+              "mean": null,
+              "std": null
+            },
+            "citation_f1": {
+              "mean": null,
+              "std": null
+            },
+            "total_actual_citations": 0,
+            "total_invalid_citations": 0,
+            "zero_citation_cases": 0,
+            "perfect_citation_cases": 0
+          }
+        },
+        "Top-10": {
+          "retrieval": {
+            "n": 29,
+            "context_noise_ratio": {
+              "mean": 1.0,
+              "std": 0.0,
+              "median": 1.0
+            },
+            "context_precision": {
+              "mean": 0.0,
+              "std": 0.0
+            },
+            "context_recall": {
+              "mean": null,
+              "std": null
+            },
+            "hit_rate": 0.0,
+            "mrr": 0.0
+          },
+          "citation": {
+            "n": 0,
+            "invalid_citation_rate": {
+              "mean": null,
+              "std": null,
+              "median": null
+            },
+            "citation_precision": {
+              "mean": null,
+              "std": null
+            },
+            "citation_recall": {
+              "mean": null,
+              "std": null
+            },
+            "citation_f1": {
+              "mean": null,
+              "std": null
+            },
+            "total_actual_citations": 0,
+            "total_invalid_citations": 0,
+            "zero_citation_cases": 0,
+            "perfect_citation_cases": 0
+          }
+        },
+        "Top-15": {
+          "retrieval": {
+            "n": 29,
+            "context_noise_ratio": {
+              "mean": 1.0,
+              "std": 0.0,
+              "median": 1.0
+            },
+            "context_precision": {
+              "mean": 0.0,
+              "std": 0.0
+            },
+            "context_recall": {
+              "mean": null,
+              "std": null
+            },
+            "hit_rate": 0.0,
+            "mrr": 0.0
+          },
+          "citation": {
+            "n": 0,
+            "invalid_citation_rate": {
+              "mean": null,
+              "std": null,
+              "median": null
+            },
+            "citation_precision": {
+              "mean": null,
+              "std": null
+            },
+            "citation_recall": {
+              "mean": null,
+              "std": null
+            },
+            "citation_f1": {
+              "mean": null,
+              "std": null
+            },
+            "total_actual_citations": 0,
+            "total_invalid_citations": 0,
+            "zero_citation_cases": 0,
+            "perfect_citation_cases": 0
+          }
+        }
+      }
+    },
+    "turn_type:new_question": {
+      "sample_size": 320,
+      "k_metrics": {
+        "Top-5": {
+          "retrieval": {
+            "n": 256,
+            "context_noise_ratio": {
+              "mean": 0.4458984375,
+              "std": 0.3929438066329201,
+              "median": 0.5
+            },
+            "context_precision": {
+              "mean": 0.5541015625,
+              "std": 0.3929438066329201
+            },
+            "context_recall": {
+              "mean": 0.9250363901018923,
+              "std": 0.2621784991011797
+            },
+            "hit_rate": 0.828125,
+            "mrr": 0.7475260416666667
+          },
+          "citation": {
+            "n": 290,
+            "invalid_citation_rate": {
+              "mean": 0.14557471264367816,
+              "std": 0.3195491243697185,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.6061494252873563,
+              "std": 0.4652539378814854
+            },
+            "citation_recall": {
+              "mean": 0.6517241379310345,
+              "std": 0.47461104921614494
+            },
+            "citation_f1": {
+              "mean": 0.6189655172413793,
+              "std": 0.4622828606550147
+            },
+            "total_actual_citations": 259,
+            "total_invalid_citations": 63,
+            "zero_citation_cases": 72,
+            "perfect_citation_cases": 163
+          }
+        },
+        "Top-10": {
+          "retrieval": {
+            "n": 256,
+            "context_noise_ratio": {
+              "mean": 0.4544069320436509,
+              "std": 0.40134815066829715,
+              "median": 0.5
+            },
+            "context_precision": {
+              "mean": 0.5455930679563492,
+              "std": 0.40134815066829715
+            },
+            "context_recall": {
+              "mean": 0.9301310043668122,
+              "std": 0.25492610514107295
+            },
+            "hit_rate": 0.83203125,
+            "mrr": 0.7479600694444445
+          },
+          "citation": {
+            "n": 290,
+            "invalid_citation_rate": {
+              "mean": 0.14672413793103448,
+              "std": 0.32111783407920597,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.608448275862069,
+              "std": 0.4649295318076018
+            },
+            "citation_recall": {
+              "mean": 0.6551724137931034,
+              "std": 0.473494861710861
+            },
+            "citation_f1": {
+              "mean": 0.6212643678160921,
+              "std": 0.4614776481746762
+            },
+            "total_actual_citations": 262,
+            "total_invalid_citations": 65,
+            "zero_citation_cases": 71,
+            "perfect_citation_cases": 164
+          }
+        },
+        "Top-15": {
+          "retrieval": {
+            "n": 256,
+            "context_noise_ratio": {
+              "mean": 0.4557227386328949,
+              "std": 0.40284901074128415,
+              "median": 0.5
+            },
+            "context_precision": {
+              "mean": 0.5442772613671051,
+              "std": 0.4028490107412841
+            },
+            "context_recall": {
+              "mean": 0.9301310043668122,
+              "std": 0.25492610514107295
+            },
+            "hit_rate": 0.83203125,
+            "mrr": 0.7479600694444445
+          },
+          "citation": {
+            "n": 290,
+            "invalid_citation_rate": {
+              "mean": 0.14672413793103448,
+              "std": 0.32111783407920597,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.608448275862069,
+              "std": 0.4649295318076018
+            },
+            "citation_recall": {
+              "mean": 0.6551724137931034,
+              "std": 0.473494861710861
+            },
+            "citation_f1": {
+              "mean": 0.6212643678160921,
+              "std": 0.4614776481746762
+            },
+            "total_actual_citations": 262,
+            "total_invalid_citations": 65,
+            "zero_citation_cases": 71,
+            "perfect_citation_cases": 164
+          }
+        }
+      }
+    },
+    "turn_type:follow_up": {
+      "sample_size": 318,
+      "k_metrics": {
+        "Top-5": {
+          "retrieval": {
+            "n": 276,
+            "context_noise_ratio": {
+              "mean": 0.7068840579710146,
+              "std": 0.34831506239712295,
+              "median": 0.8
+            },
+            "context_precision": {
+              "mean": 0.29311594202898555,
+              "std": 0.34831506239712295
+            },
+            "context_recall": {
+              "mean": 0.6624087591240876,
+              "std": 0.47192264853538235
+            },
+            "hit_rate": 0.6594202898550725,
+            "mrr": 0.4851449275362319
+          },
+          "citation": {
+            "n": 307,
+            "invalid_citation_rate": {
+              "mean": 0.3566775244299674,
+              "std": 0.47303101617502674,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.38925081433224756,
+              "std": 0.4816993794276994
+            },
+            "citation_recall": {
+              "mean": 0.3922366992399566,
+              "std": 0.48436502164611783
+            },
+            "citation_f1": {
+              "mean": 0.38859934853420197,
+              "std": 0.4800662275908019
+            },
+            "total_actual_citations": 271,
+            "total_invalid_citations": 143,
+            "zero_citation_cases": 78,
+            "perfect_citation_cases": 116
+          }
+        },
+        "Top-10": {
+          "retrieval": {
+            "n": 276,
+            "context_noise_ratio": {
+              "mean": 0.7241675293305728,
+              "std": 0.3489949377490349,
+              "median": 0.9
+            },
+            "context_precision": {
+              "mean": 0.2758324706694272,
+              "std": 0.3489949377490349
+            },
+            "context_recall": {
+              "mean": 0.815067778936392,
+              "std": 0.3847729009896648
+            },
+            "hit_rate": 0.8152173913043478,
+            "mrr": 0.5051357257878998
+          },
+          "citation": {
+            "n": 307,
+            "invalid_citation_rate": {
+              "mean": 0.42779587404994573,
+              "std": 0.48664587169922446,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.39630836047774154,
+              "std": 0.48092170271188145
+            },
+            "citation_recall": {
+              "mean": 0.40526601520086863,
+              "std": 0.48708097407825507
+            },
+            "citation_f1": {
+              "mean": 0.39728555917481,
+              "std": 0.4795528295030747
+            },
+            "total_actual_citations": 320,
+            "total_invalid_citations": 188,
+            "zero_citation_cases": 54,
+            "perfect_citation_cases": 117
+          }
+        },
+        "Top-15": {
+          "retrieval": {
+            "n": 276,
+            "context_noise_ratio": {
+              "mean": 0.7275776457841675,
+              "std": 0.3504702845149906,
+              "median": 0.9
+            },
+            "context_precision": {
+              "mean": 0.2724223542158325,
+              "std": 0.3504702845149906
+            },
+            "context_recall": {
+              "mean": 0.8808654848800834,
+              "std": 0.3189942978543427
+            },
+            "hit_rate": 0.8804347826086957,
+            "mrr": 0.5104044908392734
+          },
+          "citation": {
+            "n": 307,
+            "invalid_citation_rate": {
+              "mean": 0.45059717698154184,
+              "std": 0.48781998404001675,
+              "median": 0.0
+            },
+            "citation_precision": {
+              "mean": 0.4060803474484256,
+              "std": 0.4812359864095648
+            },
+            "citation_recall": {
+              "mean": 0.41829533116178075,
+              "std": 0.48943513387882237
+            },
+            "citation_f1": {
+              "mean": 0.40814332247557,
+              "std": 0.4802455847367831
+            },
+            "total_actual_citations": 334,
+            "total_invalid_citations": 198,
+            "zero_citation_cases": 44,
+            "perfect_citation_cases": 119
+          }
+        }
+      }
+    }
+  },
+  "rank_slice_attribution": {
+    "Rank 1-5": {
+      "retrieval": {
+        "total_chunks": 1713,
+        "relevant_chunks": 430,
+        "noise_chunks": 1283,
+        "noise_rate": 0.7489784004670169
+      },
+      "citations": {
+        "total_citations": 530,
+        "valid_citations": 324,
+        "invalid_citations": 206,
+        "invalid_rate": 0.3886792452830189
+      }
+    },
+    "Rank 6-10": {
+      "retrieval": {
+        "total_chunks": 1024,
+        "relevant_chunks": 52,
+        "noise_chunks": 972,
+        "noise_rate": 0.94921875
+      },
+      "citations": {
+        "total_citations": 52,
+        "valid_citations": 5,
+        "invalid_citations": 47,
+        "invalid_rate": 0.9038461538461539
+      }
+    },
+    "Rank 11-15": {
+      "retrieval": {
+        "total_chunks": 540,
+        "relevant_chunks": 24,
+        "noise_chunks": 516,
+        "noise_rate": 0.9555555555555556
+      },
+      "citations": {
+        "total_citations": 14,
+        "valid_citations": 4,
+        "invalid_citations": 10,
+        "invalid_rate": 0.7142857142857143
+      }
+    }
+  },
+  "stratified_noise_bins": [
+    {
+      "bin_name": "Low Noise (0% - 30%)",
+      "sample_count": 151,
+      "mean_context_noise_ratio": 0.002649006622516556,
+      "mean_invalid_citation_rate": 0.02207505518763797,
+      "mean_citation_precision": 0.9580573951434878
+    },
+    {
+      "bin_name": "Medium Noise (30% - 60%)",
+      "sample_count": 52,
+      "mean_context_noise_ratio": 0.4974358974358974,
+      "mean_invalid_citation_rate": 0.3141025641025641,
+      "mean_citation_precision": 0.6666666666666666
+    },
+    {
+      "bin_name": "High Noise (60% - 100%)",
+      "sample_count": 300,
+      "mean_context_noise_ratio": 0.8740326155326157,
+      "mean_invalid_citation_rate": 0.5373888888888889,
+      "mean_citation_precision": 0.40594444444444444
+    }
+  ],
+  "statistical_analysis": {
+    "Top-5": {
+      "n": 503,
+      "pearson_r": 0.5075207845734845,
+      "spearman_rho": 0.39109169683096645,
+      "regression_slope": 0.5730047205522325,
+      "regression_intercept": -0.017630032342140053
+    },
+    "Top-10": {
+      "n": 503,
+      "pearson_r": 0.5372765971603749,
+      "spearman_rho": 0.4939844899489423,
+      "regression_slope": 0.6173559452037938,
+      "regression_intercept": -0.006799829421718454
+    },
+    "Top-15": {
+      "n": 503,
+      "pearson_r": 0.5581112271773512,
+      "spearman_rho": 0.5079514376461776,
+      "regression_slope": 0.6428106719797528,
+      "regression_intercept": -0.009050513308464006
+    }
+  },
+  "paired_significance_tests": {
+    "Top-5_vs_Top-15": {
+      "context_noise_ratio_diff_mean": -0.016354774008849545,
+      "context_noise_t_stat": -5.387704375190026,
+      "invalid_citation_rate_diff_mean": -0.05798542080848244,
+      "invalid_citation_t_stat": -5.5392518009568645
+    }
+  }
+}
