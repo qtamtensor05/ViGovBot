@@ -96,7 +96,7 @@ Chênh lệch phải đọc cùng thay đổi mẫu số: bản mới có một 
 
 ## LLM-as-a-Judge
 
-Judge artifact không được tạo lại trong commit predict mới; các số dưới đây là artifact judge hiện có, không chứng minh 107 case đã được judge lại.
+Kết quả Judge dùng `qwen2.5:14b` trên đủ 638 case của QLoRA v2 + RAG.
 
 | Phạm vi | Correctness | Relevancy | Intent coverage | Groundedness | Faithfulness |
 | :--- | ---: | ---: | ---: | ---: | ---: |
@@ -106,4 +106,4 @@ Judge artifact không được tạo lại trong commit predict mới; các số
 
 ## Kết luận
 
-Không nên kết luận “đã sửa xong” từ lần rerun này. Cần bảo đảm máy predict dùng đúng commit runtime có bản sửa phục hồi section intent, chạy bù `GOLDEN_V3_001616`, rồi chấm trực tiếp toàn bộ `rerun_assertions`. Top-15 vẫn tạo đánh đổi recall cao và nhiễu lớn, nhưng kết quả này không phải ablation nên không chứng minh Top-15 là nguyên nhân duy nhất.
+QLoRA v2 + RAG là cấu hình mạnh nhất về EM, key-fact coverage, citation precision/recall và tổng latency trong nhóm RAG. Judge `qwen2.5:14b` đã chấm đủ 638 case, xác nhận source groundedness 90,10% và retrieved-context faithfulness 91,09%; tuy nhiên semantic correctness 48,43% và answer relevancy 49,76% vẫn thấp hơn RAG thuần, invalid citation 30,35% và unsupported answer 20,49% còn cao. Lần rerun prediction chỉ khôi phục artifact bị mất và model không thay đổi. Trước khi production cần chạy bù `GOLDEN_V3_001616`, giảm citation không hợp lệ, cải thiện abstention/unsupported answer và xác nhận trực tiếp các assertion hồi quy. Top-15 tạo đánh đổi recall cao với nhiễu lớn, nhưng kết quả hiện tại không phải ablation nên chưa chứng minh Top-15 là nguyên nhân duy nhất.

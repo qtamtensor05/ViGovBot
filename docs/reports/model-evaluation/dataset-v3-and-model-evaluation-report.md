@@ -9,7 +9,7 @@
 
 ## Tóm tắt
 
-Chúng tôi trình bày báo cáo thực nghiệm và phân tích khám phá dữ liệu (EDA) cho các mô hình ngôn ngữ được tinh chỉnh trong lĩnh vực hành chính công Việt Nam. Dataset v3 gồm tập kiểm chuẩn PA1 638 mẫu (`test_rag_pa1`) cùng hai nhánh huấn luyện: SFT hội thoại (`finetuning_v1`, 1.931 train / 827 val) và RAG-SFT đã lọc rò rỉ (`finetuning_v2`, 1.863 train / 786 val). Trên sáu cấu hình trong `result_final`, QLoRA v2 + RAG dẫn đầu Exact Match (**20,41%**, `n=637`), normalized EM (**21,51%**, `n=637`), key-fact coverage (**38,78%**, `n=596`) và citation precision/recall (**50,52% / 53,43%**, `n=596`). Tuy vậy, một ca bị lỗi HTTP 502 và các assertion hồi quy chưa đạt; các artifact Judge hiện có không được tạo lại cùng lần predict cuối. Vì vậy kết quả chưa đủ để kết luận model production-ready.
+Chúng tôi trình bày báo cáo thực nghiệm và phân tích khám phá dữ liệu (EDA) cho các mô hình ngôn ngữ được tinh chỉnh trong lĩnh vực hành chính công Việt Nam. Dataset v3 gồm tập kiểm chuẩn PA1 638 mẫu (`test_rag_pa1`) cùng hai nhánh huấn luyện: SFT hội thoại (`finetuning_v1`, 1.931 train / 827 val) và RAG-SFT đã lọc rò rỉ (`finetuning_v2`, 1.863 train / 786 val). Trên sáu cấu hình trong `result_final`, QLoRA v2 + RAG dẫn đầu Exact Match (**20,41%**, `n=637`), normalized EM (**21,51%**, `n=637`), key-fact coverage (**38,78%**, `n=596`) và citation precision/recall (**50,52% / 53,43%**, `n=596`). Judge `qwen2.5:14b` đã chấm đủ 638 case, với source groundedness **90,10%** và retrieved-context faithfulness **91,09%**. Tuy vậy, một ca prediction bị lỗi HTTP 502 và các assertion hồi quy chưa đạt, nên kết quả chưa đủ để kết luận model production-ready.
 
 ---
 
@@ -126,13 +126,13 @@ Sáu cấu hình được đánh giá toàn diện trên 638 ca của `test_rag_
 | Cấu hình mô hình | Khớp chính xác (EM) (%) | EM Chuẩn hóa (%) | SacreBLEU | chrF++ | BERTScore F1 | Độ chính xác Action (%) | Độ bám sát nguồn (Judge) | Độ trung thực ngữ cảnh (Judge) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Base** | 0,00% | 0,00% | 2,69 | 19,93 | 0,8485 | 93,57% | N/A | N/A |
-| **RAG** | 1,25% | 1,41% | 15,57 | 35,20 | 0,8790 | 71,79% | 84,12%* | 85,20%* |
+| **RAG** | 1,25% | 1,41% | 15,57 | 35,20 | 0,8790 | 71,79% | 84,12% | 85,20% |
 | **QLoRA v1** | 4,23% | 4,86% | 27,24 | 45,32 | 0,9119 | 93,57% | N/A | N/A |
-| **QLoRA v1 + RAG** | 12,54% | 13,32% | 27,27 | 40,55 | 0,8965 | 79,00% | 85,30%* | 86,40%* |
+| **QLoRA v1 + RAG** | 12,54% | 13,32% | 27,27 | 40,55 | 0,8965 | 79,00% | 85,30% | 86,40% |
 | **QLoRA v2 (Thuần)** | 0,00% | 0,00% | 6,78 | 25,67 | 0,8647 | 93,57% | N/A | N/A |
-| **QLoRA v2 + RAG** | **20,41%** (`n=637`) | **21,51%** (`n=637`) | **36,28** | **47,23** | **0,9053** | **80,85%** (`n=637`) | **90,10%*** | **91,09%*** |
+| **QLoRA v2 + RAG** | **20,41%** (`n=637`) | **21,51%** (`n=637`) | **36,28** | **47,23** | **0,9053** | **80,85%** (`n=637`) | **90,10%** | **91,09%** |
 
-\* Các số Judge thuộc artifact hiện có và không được chấm lại cùng prediction cuối của QLoRA v2 + RAG. BERTScore, BLEU/chrF và các metric tương đồng không tự chứng minh factuality hoặc groundedness.
+BERTScore, BLEU/chrF và các metric tương đồng không tự chứng minh factuality hoặc groundedness; groundedness và faithfulness trong bảng là kết quả Judge `qwen2.5:14b` trên 638 case.
 
 ---
 
@@ -153,4 +153,4 @@ Khi được kết hợp cùng hệ thống truy xuất tài liệu:
 
 ## 5. Kết luận
 
-Việc chuẩn hóa Dataset v3 thành các phân vùng tường minh và lọc rò rỉ tạo nền tảng cho đối sánh sáu cấu hình. QLoRA v2 + RAG là nhánh có kết quả tổng thể tốt nhất trong artifact hiện có, nhưng chưa thể coi là sẵn sàng production: cần chạy bù case HTTP 502, xác nhận runtime chứa bản sửa section intent và chấm trực tiếp toàn bộ assertion hồi quy. RAG thuần tiếp tục là baseline/rollback; QLoRA v2 thuần không phù hợp triển khai độc lập.
+Việc chuẩn hóa Dataset v3 thành các phân vùng tường minh và lọc rò rỉ tạo nền tảng cho đối sánh sáu cấu hình. QLoRA v2 + RAG dẫn đầu EM, key-fact coverage, citation precision/recall và latency; Judge đã chấm đủ 638 case với groundedness 90,10% và faithfulness 91,09%. Tuy nhiên cấu hình này chưa vượt RAG thuần về semantic correctness/answer relevancy, chưa vượt QLoRA v1 + RAG về groundedness/faithfulness, đồng thời invalid citation và unsupported answer còn cao. Lần rerun chỉ khôi phục artifact prediction bị mất, model không thay đổi và không cần chấm lại Judge. Trước khi production cần chạy bù case HTTP 502, giảm lỗi citation, cải thiện abstention và xác nhận các assertion hồi quy. RAG thuần tiếp tục là baseline/rollback; QLoRA v2 thuần không phù hợp triển khai độc lập.
