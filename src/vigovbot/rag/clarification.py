@@ -54,7 +54,8 @@ def _signature(value):
 
 
 def selection_index(text):
-    match = re.fullmatch(r"(?:(?:toi|minh|em) )?(?:muon )?(?:chon )?(?:(?:muc|so|thu tuc)(?: thu| so)? )?(\d+)",
+    match = re.fullmatch(r"(?:(?:toi|minh|em) )?(?:muon )?(?:(?:chon|hoi) )?"
+                         r"(?:(?:muc|so|thu tuc)(?: thu| so)? )?(\d+)",
                          _fold(text).strip(" .?!"))
     return int(match[1]) if match else None
 

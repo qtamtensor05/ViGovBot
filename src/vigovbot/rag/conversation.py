@@ -18,7 +18,7 @@ from vigovbot.rag.sections import (
     section_query,
 )
 from vigovbot.taxonomy import LEGACY_SECTION_FALLBACK, legacy_section_matches
-from vigovbot.rag.response import generate_answer
+from vigovbot.rag.response import enforce_procedure_identity, generate_answer
 from vigovbot.prompts.prompt_templates import build_messages, validate_history
 from vigovbot.retrieval.retriever import extract_source_codes, fold_retrieval_text as _fold
 from vigovbot.utils.helpers import json_hash
@@ -619,6 +619,9 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
         return finish("Tài liệu hiện có chưa cung cấp đủ thông tin để trả lời nội dung bạn hỏi.", "no_context")
     (answer, raw, elapsed, action, evidence, diagnostics, citations, _, status) = generate_answer(
         messages, used, tokenizer, settings, answer_fn, True, True)
+    answer, identity_repairs = enforce_procedure_identity(answer, used)
+    if identity_repairs:
+        diagnostics["identity_repairs"] = identity_repairs
     result.update(context_used=used, prompt_messages=messages, prompt_tokens_estimated=tokens,
                   generation_s=elapsed, raw_ollama=raw,
                   action=action, evidence_status=evidence, generation_diagnostics=diagnostics,

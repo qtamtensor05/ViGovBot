@@ -160,6 +160,30 @@ class FourHeadTests(unittest.TestCase):
         self.assertEqual({hit["source_code"] for hit in selected["retrieved"]}, {"1.000894"})
         self.assertEqual({hit["section_type"] for hit in selected["retrieved"]}, {"procedure_step"})
 
+    def test_natural_language_menu_choice_preserves_procedure_intent(self):
+        for code in ("1.000894", "1.000094"):
+            add_procedure(self.retriever, code, "Thủ tục đăng ký kết hôn",
+                          sections=("metadata_identity", "procedure_step"))
+        question = "Xin chào thủ tục kết hôn thực hiện như thế nào"
+        classification = route(
+            "Đăng ký kết hôn", ["PROCEDURE"], query=question,
+            requests=[dict(procedure="Đăng ký kết hôn", query=question,
+                           sections=["PROCEDURE"])],
+        )
+        menu = self.ask(question, classification)
+        selected_code = menu["menu"]["options"][1]["id"]
+
+        self.router.reset_mock()
+        selected = self.ask("tôi hỏi mục số 2")
+
+        self.router.assert_not_called()
+        self.assertEqual(selected["state_transition"]["type"], "procedure_selection")
+        self.assertEqual(selected["state_transition"]["selected_code"], selected_code)
+        self.assertEqual(selected["state_transition"]["restored_query"], question)
+        self.assertEqual(selected["state_transition"]["restored_sections"], ["PROCEDURE"])
+        self.assertEqual({hit["source_code"] for hit in selected["retrieved"]}, {selected_code})
+        self.assertEqual({hit["section_type"] for hit in selected["retrieved"]}, {"procedure_step"})
+
     def test_legal_li_follow_up_overrides_stale_fee_section(self):
         self.ask("Cấp hộ chiếu", route())
         result = self.ask("Căn cứ pháp lí", route(sections=["FEE"], conversation="FOLLOW_UP"))

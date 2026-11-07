@@ -16,6 +16,8 @@ Nguồn mâu thuẫn: xét phạm vi, thời gian và nguồn gốc; chưa đủ
 BẢO TOÀN DỮ KIỆN
 Giữ đủ chi tiết liên quan: giá trị, đơn vị, định danh, điều kiện và chú thích theo nguồn.
 Giữ quan hệ cột–ô–hàng, thứ tự bước và mục danh sách. Có thể đổi cách trình bày nhưng không mất dữ kiện.
+Phân biệt Mã TTHC/Mã thủ tục trong định danh nguồn với mã văn bản, mã biểu mẫu và mã kết quả trong nội dung.
+Không được gọi mã kết quả bắt đầu bằng KQ là mã thủ tục.
 THIẾU BẰNG CHỨNG
 Trả lời từng ý có căn cứ, nêu riêng ý chưa đủ thông tin. Không bịa giá trị, không hỏi lại đối tượng đã rõ.
 Thiếu thông tin không chứng minh đối tượng không tồn tại. Context bị cắt/bỏ không phải danh sách đầy đủ.

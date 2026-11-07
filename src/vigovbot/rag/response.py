@@ -11,6 +11,44 @@ from vigovbot.rag.routing import (
 from vigovbot.utils.text import ascii_word_tokens
 
 
+_CODE_LABEL = re.compile(
+    r"(?P<label>\bMã(?:\s+(?:thủ tục|TTHC))?\s*:\s*)"
+    r"(?P<code>[A-ZĐ0-9]+(?:[.-][A-ZĐ0-9]+)+)",
+    re.IGNORECASE,
+)
+
+
+def enforce_procedure_identity(answer, used):
+    """Disambiguate a grounded result code from the selected procedure code."""
+    source_codes = list(dict.fromkeys(
+        item.get("source_code") for item in used if isinstance(item.get("source_code"), str)
+    ))
+    if len(source_codes) != 1:
+        return answer, []
+    source_code = source_codes[0]
+    evidence = "\n".join(str(item.get("included_text", "")) for item in used).casefold()
+    repairs = []
+
+    def replace(match):
+        label, value = match.group("label"), match.group("code")
+        if value.casefold() == source_code.casefold():
+            return match.group(0)
+        explicit_procedure_label = bool(re.search(r"(?:thủ tục|TTHC)", label, re.IGNORECASE))
+        if value.casefold().startswith("kq.") and value.casefold() in evidence:
+            repairs.append({"type": "result_code_relabel", "from": value, "to": value})
+            return f"Mã kết quả: {value}"
+        if explicit_procedure_label or value.casefold() not in evidence:
+            repairs.append({"type": "procedure_code_replace", "from": value, "to": source_code})
+            return f"Mã thủ tục: {source_code}"
+        return match.group(0)
+
+    repaired = _CODE_LABEL.sub(replace, answer)
+    if repairs and source_code.casefold() not in repaired.casefold():
+        repaired = repaired.rstrip() + f"\n\nMã thủ tục: {source_code}"
+        repairs.append({"type": "procedure_code_append", "to": source_code})
+    return repaired, repairs
+
+
 def _missing_fragment_positions(answer, used):
     """Find later same-section fragments whose novel text is absent from an answer."""
     answer_words = ascii_word_tokens(answer)

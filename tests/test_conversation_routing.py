@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 try:
     from vigovbot.rag.pipeline import answer_question
     from vigovbot.rag.config import RAGConfig, load_config
-    from vigovbot.rag.response import generate_answer
+    from vigovbot.rag.response import enforce_procedure_identity, generate_answer
     from vigovbot.rag.routing import parse_route, StructuredAnswerError, answer_schema, parse_answer
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
@@ -24,6 +24,35 @@ def route(relation="new_question", scope="in_scope", query="Phí cấp hộ chi�
 
 
 class RoutingTests(unittest.TestCase):
+    def test_result_code_is_not_presented_as_procedure_code(self):
+        used = [
+            {
+                "source_code": "2.000066",
+                "included_text": "KẾT QUẢ XỬ LÝ\nChứng chỉ kiểm định viên\nMã: KQ.G02.000019",
+            },
+            {
+                "source_code": "2.000066",
+                "included_text": "Tên thủ tục: Cấp lại chứng chỉ kiểm định viên",
+            },
+        ]
+
+        answer, repairs = enforce_procedure_identity(
+            "Thủ tục: Cấp lại chứng chỉ kiểm định viên\nMã: KQ.G02.000019", used)
+
+        self.assertIn("Mã kết quả: KQ.G02.000019", answer)
+        self.assertIn("Mã thủ tục: 2.000066", answer)
+        self.assertEqual([repair["type"] for repair in repairs],
+                         ["result_code_relabel", "procedure_code_append"])
+
+    def test_wrong_explicit_procedure_code_is_replaced(self):
+        answer, repairs = enforce_procedure_identity(
+            "Mã thủ tục: KQ.G02.000019",
+            [{"source_code": "2.000066", "included_text": "Không có mã kết quả"}],
+        )
+
+        self.assertEqual(answer, "Mã thủ tục: 2.000066")
+        self.assertEqual(repairs[0]["type"], "procedure_code_replace")
+
     def test_sufficient_answer_is_repaired_when_later_fragment_is_missing(self):
         draft = json.dumps(dict(
             answer="Chủ đầu tư gửi báo cáo chậm nhất ngày 28/3.",
