@@ -58,6 +58,7 @@ def pending_request_snapshot(requests):
             "procedure": request["procedure"],
             "original_query": request["query"],
             "sections": list(request["sections"]),
+            **({"code": request["code"]} if request.get("code") else {}),
             "section_types": list(dict.fromkeys(
                 section_type
                 for section in request["sections"]
@@ -67,6 +68,17 @@ def pending_request_snapshot(requests):
         }
         for request in requests
     ]
+
+
+def constrain_resolved_hits(requests, hits):
+    """Keep evidence inside resolved procedure identities before generation."""
+    codes = [request.get("code") for request in requests]
+    if not requests or any(not code for code in codes):
+        return hits, []
+    allowed = set(codes)
+    kept = [hit for hit in hits if hit.get("source_code") in allowed]
+    dropped = [hit for hit in hits if hit.get("source_code") not in allowed]
+    return kept, dropped
 
 
 def restore_pending_requests(state):
@@ -79,6 +91,7 @@ def restore_pending_requests(state):
             "procedure": request["procedure"],
             "query": request["original_query"],
             "sections": list(request["sections"]),
+            **({"code": request["code"]} if request.get("code") else {}),
         }
         for request in pending
     ]
@@ -283,6 +296,10 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 "restored_detail_constraints": section_detail_constraints(request["query"]),
             }
         else:
+            if not request.get("code") and len(state.get("selected", [])) == 1:
+                # State v3 issued before procedure codes were frozen in pending
+                # section requests can still complete the selected procedure.
+                request["code"] = state["selected"][0]
             request["sections"] = [option["id"]]
             request["query"] = SECTION_INTENTS[option["id"]][0]
             result["state_transition"] = {
@@ -587,6 +604,14 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
     # Give each procedure evidence before spending the remaining prompt budget.
     hits = [hit for group in zip_longest(*ranked_requests) for hit in group if hit is not None]
     hits = list({h["chunk_id"]: h for h in hits}.values())
+    hits, dropped_hits = constrain_resolved_hits(requests, hits)
+    if dropped_hits:
+        trace.setdefault("adapter_decisions", []).append({
+            "type": "resolved_procedure_evidence_guard",
+            "outcome": "dropped_cross_procedure_context",
+            "source_codes": sorted({hit.get("source_code") for hit in dropped_hits if hit.get("source_code")}),
+            "chunk_ids": [hit.get("chunk_id") for hit in dropped_hits if hit.get("chunk_id")],
+        })
     result.update(retrieved=hits, retrieval_s=time.perf_counter()-retrieval_started,
                   retrieval_query="\n\n".join(queries),
                   retrieval_strategy="semantic" if unresolved_semantic_hits else "procedure_direct",

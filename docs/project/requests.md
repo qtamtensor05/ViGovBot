@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Khóa truy xuất theo thủ tục qua chuỗi menu hai bước - 2026-11-08
+
+- **Mục tiêu:** Ngăn lượt chọn mục sau khi đã chọn thủ tục rồi truy xuất semantic sang mã thủ tục khác.
+- **Thực hiện:** Giữ `code` trong snapshot pending của menu section, phục hồi mã từ `selected` cho state v3 cũ và lọc chặn context khác mã trước generation; bổ sung hồi quy đúng chuỗi chọn `1.000055` rồi `SUBMISSION_METHOD`.
+- **Kết quả:** 179 test liên quan đạt. API live ba lượt trả `procedure_direct`, chỉ nguồn `1.000055` và section `submission_deadline_fee`; Web Docker healthy.
+
 ## Hợp nhất chuẩn hóa tiếng Việt bỏ dấu - 2026-11-06
 
 - **Mục tiêu:** Loại các primitive Unicode bỏ dấu trùng lặp gây sai khác matching giữa retrieval, routing, prompt và chunking.

@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Khóa mã thủ tục qua menu chọn section - 2026-11-08
+
+- **Mục tiêu:** Ngăn lượt chọn section làm mất mã thủ tục đã chọn và rơi sang semantic retrieval toàn corpus.
+- **Thực hiện:** Đưa `code` vào pending request bất biến, phục hồi từ `selected` cho state v3 cũ và thêm chốt lọc context khác mã trước generation; bổ sung hồi quy hai menu liên tiếp.
+- **Kết quả:** Chuỗi live chọn `1.000055` rồi mục `SUBMISSION_METHOD` dùng `procedure_direct`, chỉ nguồn `1.000055`; 179 test conversation/routing/server đạt và Web Docker healthy.
+
 ## Hợp nhất chuẩn hóa tiếng Việt bỏ dấu - 2026-11-06
 
 - **Mục tiêu:** Ngăn matching lệch nhau do retrieval, routing, prompt, chunking và taxonomy tự triển khai các biến thể Unicode folding.

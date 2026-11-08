@@ -8,7 +8,7 @@ from tests.tokenizer_fixtures import CharacterTokenizer
 from tests.test_follow_up_retrieval import fixture_retriever
 from tests.test_clarification import add_procedure
 from vigovbot.rag.classification import parse_classification, classify
-from vigovbot.rag.conversation import answer_conversation, direct_choice
+from vigovbot.rag.conversation import answer_conversation, constrain_resolved_hits, direct_choice
 from vigovbot.rag.sections import available_sections, explicit_section_intents
 
 
@@ -107,6 +107,42 @@ class FourHeadTests(unittest.TestCase):
         result = self.ask("Lệ phí đăng ký kết hôn", route("Đăng ký kết hôn", ["FEE"]))
         self.assertEqual({o["id"] for o in result["menu"]["options"]}, {"1.000894", "2.000894"})
         self.answer.assert_not_called()
+
+    def test_two_step_procedure_then_submission_method_stays_on_selected_code(self):
+        organization = "Phê duyệt hoặc điều chỉnh phương án quản lý rừng bền vững của chủ rừng là tổ chức"
+        household = ("Phê duyệt hoặc điều chỉnh phương án quản lý rừng bền vững của chủ rừng là hộ gia đình, "
+                     "cá nhân, cộng đồng dân cư")
+        add_procedure(self.retriever, "1.000055", organization,
+                      sections=("metadata_identity", "submission_deadline_fee"))
+        add_procedure(self.retriever, "3.000250", household,
+                      sections=("metadata_identity", "submission_deadline_fee"))
+        if hasattr(self.retriever, "_clarification_catalog"):
+            del self.retriever._clarification_catalog
+
+        ambiguous = "Phê duyệt hoặc điều chỉnh phương án quản lý rừng bền vững"
+        first = self.ask(ambiguous, route(ambiguous, requests=[
+            dict(procedure=ambiguous, query=ambiguous, sections=[])]))
+        self.assertEqual(first["menu"]["kind"], "procedure")
+        chosen = next(option for option in first["menu"]["options"] if option["id"] == "1.000055")
+        second = self.ask("1. " + chosen["label"])
+        self.assertEqual(second["menu"]["kind"], "section")
+        submission = next(index for index, option in enumerate(second["menu"]["options"], 1)
+                          if option["id"] == "SUBMISSION_METHOD")
+        result = self.ask(str(submission))
+
+        self.assertEqual(result["retrieval_strategy"], "procedure_direct")
+        self.assertEqual({hit["source_code"] for hit in result["retrieved"]}, {"1.000055"})
+        self.assertEqual(result["conversation_state"]["selected"], ["1.000055"])
+
+    def test_resolved_procedure_guard_drops_cross_procedure_evidence(self):
+        requests = [{"code": "1.000055"}]
+        hits = [
+            {"chunk_id": "right", "source_code": "1.000055"},
+            {"chunk_id": "wrong", "source_code": "3.000442"},
+        ]
+        kept, dropped = constrain_resolved_hits(requests, hits)
+        self.assertEqual([hit["chunk_id"] for hit in kept], ["right"])
+        self.assertEqual([hit["chunk_id"] for hit in dropped], ["wrong"])
 
     def test_procedure_selection_restores_original_section_intent(self):
         for code in ("1.000894", "2.000894"):

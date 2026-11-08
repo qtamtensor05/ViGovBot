@@ -1,6 +1,6 @@
 # Trạng thái hiện tại của ViGovBot
 
-> Cập nhật: 2026-11-06. Đây là ảnh chụp trạng thái hiện hành; các mốc thay đổi
+> Cập nhật: 2026-11-08. Đây là ảnh chụp trạng thái hiện hành; các mốc thay đổi
 > chi tiết nằm trong [lịch sử triển khai](implementation-history.md).
 
 ## Phạm vi dự án
@@ -31,6 +31,8 @@ không suy ra từ báo cáo benchmark cũ.
   intent qua nhiều lượt.
 - Khi người dùng chọn một thủ tục trong menu, hệ thống khôi phục câu hỏi gốc và
   khóa retrieval theo mã thủ tục cùng section intent thay vì định tuyến lại.
+- Mã thủ tục đã chọn được giữ xuyên qua cả menu chọn section; context khác mã bị
+  loại trước generation, kể cả khi tiếp tục từ state v3 cũ.
 - State được ký HMAC để phát hiện sửa đổi. Lưu trữ phiên dùng bộ nhớ tiến trình,
   phù hợp demo một tiến trình và chưa phải session store phân tán.
 - Chuẩn hóa tiếng Việt dùng primitive chung `fold_vietnamese`; các policy bổ sung
