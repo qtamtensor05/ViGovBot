@@ -241,10 +241,11 @@ def web(config: Path = typer.Option(Path("configs/rag/inference.yaml"), "--confi
 
 
 def _web_readiness(config: Path, host: str, port: int, *, probe_services: bool) -> dict:
+    from vigovbot.cli._readiness_display import print_readiness_report
     from vigovbot.runtime_readiness import check_web_readiness
 
     report = check_web_readiness(config, host=host, port=port, probe_services=probe_services)
-    typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
+    print_readiness_report(report)
     return report
 
 

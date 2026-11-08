@@ -55,7 +55,8 @@ class WebReadinessTests(unittest.TestCase):
             patch("vigovbot.runtime_readiness.importlib.util.find_spec", return_value=object()),
             patch("vigovbot.runtime_readiness._check_port", return_value=(True, "available")),
         ):
-            return check_web_readiness(self.config_path, probe_services=probe_services)
+            report = check_web_readiness(self.config_path, probe_services=probe_services)
+        return report
 
     def test_required_artifacts_pass_and_skipped_service_is_warning(self):
         report = self.run_check()
