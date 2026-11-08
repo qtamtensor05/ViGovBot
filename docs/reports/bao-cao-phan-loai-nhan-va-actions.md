@@ -303,7 +303,7 @@ flowchart TD
 
 Mô hình PhoBERT nhận đầu vào là chuỗi tokenized định dạng:
 `<s> question </s></s> previous_utterance </s></s> procedure_context </s>`  
-(giới hạn tối đa 128 token) và sử dụng 4 linear heads độc lập được cấu hình trong [`meta.json`](../../outputs/phobert_v3_finetuned_20261028/checkpoint/meta.json):
+(giới hạn tối đa 128 token) và sử dụng 4 linear heads độc lập được cấu hình trong [`meta.json`](../../model/phobert_v3_finetuned_20261028/runtime/checkpoint/meta.json):
 
 ### 2.1. Head 1: Phạm vi (`scope` / `phạm_vi`)
 Đánh giá mức độ liên quan tới lĩnh vực Thủ tục hành chính (TTHC) Việt Nam (Hàm Softmax, 3 lớp):
@@ -795,7 +795,7 @@ print("State:", result["conversation_state"])      # Signed State bảo mật HM
 ```yaml
 conversation:
   routing_backend: phobert
-  routing_phobert_path: ../../outputs/phobert_v3_finetuned_20261028/checkpoint
+  routing_phobert_path: ../../model/phobert_v3_finetuned_20261028/runtime/checkpoint
   routing_phobert_threads: 2
 
 retrieval:

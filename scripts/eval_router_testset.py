@@ -44,7 +44,7 @@ def main():
     # 3. Khởi tạo PhoBERTRouter
     from vigovbot.rag.phobert_router import PhoBERTRouter
     print("3. Đang nạp PhoBERT Router...")
-    router = PhoBERTRouter("outputs/phobert_v3_finetuned_20261028/checkpoint")
+    router = PhoBERTRouter("model/phobert_v3_finetuned_20261028/runtime/checkpoint")
     print("   -> PhoBERT Router đã nạp thành công.")
 
     # 4. Đọc dataset

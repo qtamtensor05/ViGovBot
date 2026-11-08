@@ -1,0 +1,154 @@
+{
+  "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "disk_free_bytes": 567501676544,
+  "packages": {
+    "torch": "2.9.1+cu130",
+    "transformers": "4.57.3",
+    "peft": "0.18.0",
+    "trl": "0.26.2",
+    "accelerate": "1.12.0",
+    "bitsandbytes": "0.49.0",
+    "safetensors": "0.7.0"
+  },
+  "cuda_available": true,
+  "cuda_version": "13.0",
+  "gpu": "NVIDIA GeForce RTX 5060 Ti",
+  "vram_bytes": 17074421760,
+  "vram_free_bytes": 15911092224,
+  "compute_capability": [
+    12,
+    0
+  ],
+  "compiled_architectures": [
+    "sm_75",
+    "sm_80",
+    "sm_86",
+    "sm_90",
+    "sm_100",
+    "sm_120"
+  ],
+  "bf16_supported": true,
+  "compatibility": {
+    "pytorch": "ok",
+    "bitsandbytes": "installed; runtime 4-bit kernel must be verified by GPU smoke training"
+  },
+  "git_commit": "afcf332a356e8f343409771f35206d6c7211a941",
+  "dataset_hashes": {
+    "train": "d07dc6cf68dadb449a781eaafe7c8d6070a20f7d1025b070a56d958471607341",
+    "validation": "e8e61c7f3cfdf2f22192c2aec61ffb9470bb894125552459b71abc4da622a80c"
+  },
+  "effective_config": {
+    "model": {
+      "name": "Qwen/Qwen2.5-7B-Instruct",
+      "trust_remote_code": false,
+      "max_seq_length": 2048
+    },
+    "data": {
+      "splits": {
+        "train": "Data/dataset_v3/finetuning_rag_clean/train_rag_sft_2048.jsonl",
+        "validation": "Data/dataset_v3/finetuning_rag_clean/validation_rag_sft_2048.jsonl",
+        "test": null
+      },
+      "output_dir": "outputs/qlora",
+      "near_duplicate_threshold": 0.92
+    },
+    "quantization": {
+      "load_in_4bit": true,
+      "bnb_4bit_quant_type": "nf4",
+      "bnb_4bit_use_double_quant": true,
+      "bnb_4bit_compute_dtype": "bfloat16"
+    },
+    "lora": {
+      "r": 16,
+      "alpha": 32,
+      "dropout": 0.05,
+      "bias": "none",
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+      ]
+    },
+    "training": {
+      "num_train_epochs": 3.0,
+      "per_device_train_batch_size": 1,
+      "per_device_eval_batch_size": 1,
+      "gradient_accumulation_steps": 8,
+      "learning_rate": 5e-05,
+      "weight_decay": 0.01,
+      "lr_scheduler_type": "cosine",
+      "warmup_ratio": 0.03,
+      "max_grad_norm": 1.0,
+      "gradient_checkpointing": true,
+      "dataloader_num_workers": 0,
+      "dataloader_pin_memory": true,
+      "optim": "paged_adamw_8bit",
+      "seed": 42,
+      "logging_steps": 10,
+      "eval_strategy": "steps",
+      "eval_steps": 100,
+      "save_strategy": "steps",
+      "save_steps": 100,
+      "save_total_limit": 3,
+      "load_best_model_at_end": true,
+      "metric_for_best_model": "eval_loss",
+      "greater_is_better": false
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 2,
+      "threshold": 0.001
+    },
+    "reporting": {
+      "tensorboard": true,
+      "save_csv": true,
+      "save_json": true,
+      "generate_plots": true
+    },
+    "execution": {
+      "approved": true,
+      "max_samples": null,
+      "max_steps": -1,
+      "artifact_label": "rtx5060ti_16gb_rag_sft"
+    },
+    "evaluation": {
+      "generation": {
+        "max_new_tokens": 512,
+        "temperature": 0.0
+      }
+    }
+  },
+  "preflight_suggestions_not_applied": [
+    {
+      "setting": "quantization.bnb_4bit_compute_dtype",
+      "suggested": "bfloat16"
+    },
+    {
+      "setting": "training.per_device_train_batch_size",
+      "suggested": 1,
+      "reason": "Conservative estimate for 15.9 GiB; validate with smoke mode"
+    },
+    {
+      "setting": "training.gradient_accumulation_steps",
+      "suggested": 8
+    }
+  ],
+  "memory_estimates": {
+    "estimated_peak_vram_gib_range": [
+      12.0,
+      21.0
+    ],
+    "basis": "Heuristic QLoRA range for a 7B model; includes approximate weights/activations but varies by kernels and sequence mix.",
+    "is_estimate": true
+  },
+  "effective_precision": {
+    "compute_dtype": "torch.bfloat16",
+    "bf16": true,
+    "fp16": false
+  }
+}

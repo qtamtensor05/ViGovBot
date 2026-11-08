@@ -7,7 +7,7 @@ Các cấu hình `inference*.yaml` mặc định dùng `routing_contract: v2` v�
 quy tắc ghi đè nhãn section theo từ khóa. Qwen vẫn sinh câu trả lời từ tài liệu.
 Không tự fallback sang LLM khi checkpoint thiếu hoặc lỗi.
 
-Checkpoint local: `outputs/phobert_v3_finetuned_20261028/checkpoint`.
+Checkpoint runtime local: `model/phobert_v3_finetuned_20261028/runtime/checkpoint`.
 Bốn head dự đoán phạm vi, câu mới/hỏi tiếp, nhiều thủ tục, và 11 mục nội dung.
 Giữ thứ tự nhãn và ngưỡng sigmoid riêng từ `meta.json`; ba head đơn nhãn dùng
 softmax/argmax. Nhãn mục rỗng giữ rỗng, không tự thêm Tổng quan. Bốn nhãn
@@ -117,7 +117,7 @@ nhưng catalog procedure discovery không xác định được mã TTHC cụ th
 conversation:
   routing_contract: v2
   routing_backend: phobert
-  routing_phobert_path: ../../outputs/phobert_v3_finetuned_20261028/checkpoint
+  routing_phobert_path: ../../model/phobert_v3_finetuned_20261028/runtime/checkpoint
   routing_phobert_threads: 2
   state_secret: "change-me-in-production"
   procedure_aliases_path: configs/rag/procedure-aliases.yaml

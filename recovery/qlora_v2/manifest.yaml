@@ -1,0 +1,48 @@
+schema_version: 1
+model_name: qwen-qlora-rag-sft
+
+base_model:
+  repo_id: Qwen/Qwen2.5-7B-Instruct
+  # Training metadata only recorded `main`. Replace this with the original
+  # Hugging Face commit SHA when it becomes available.
+  revision: main
+
+adapter:
+  local_dir: recovery/qlora_v2/adapter
+  # Set repo_id/revision after publishing the compact bundle to Hugging Face.
+  repo_id: null
+  revision: null
+  files:
+    Modelfile.qwen-qlora-rag-sft: 285a95a4fb22de6cd4a71b625e16c064bc63837c5a989f16907d2c7ee0b8c47f
+    README.md: e18827e14f3d5c1820cd9c8999e383b2fd0e29ad96593bb71bfdf1f6f36c327a
+    adapter_config.json: 4ee9976f0dc245124b5da0386cbfdf91e44358619706f5c20d1a33d4141f464a
+    adapter_model.safetensors: 874c48436751cfb522267a0ef31c0bf7796d9cd499b5aa1f9efea8d0c59dc0c4
+    added_tokens.json: f0acedf99e19ec0a5b797ffbd0b94328172ccd90f7f385bbc521cda2701b03ab
+    chat_template.jinja: 8aa40ce145adb73cb3a75194dc0224702a95850ec5275cabb728496bbd749fc6
+    merges.txt: 8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5
+    model_metadata.json: ba2122b5465af62b2d33c0a5e43e90630205684cf0a73810168fceb76a427442
+    special_tokens_map.json: 57255613bbe23c9497211ca68561ff429a51e871dbaf5a59998fa4c8f7fe168a
+    tokenizer_config.json: 5fd4cea2574beb6b70ba31582179880d331b723f5b5119ee67c29d45b983f7be
+    tokenizer.json: 9c5ae00e602b8860cbd784ba82a8aa14e8feecec692e7076590d014d7b7fdafa
+    vocab.json: ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910
+
+outputs:
+  work_dir: model/qlora_v2/build
+  runtime_dir: model/qlora_v2/runtime
+  merged_dir: merged-hf
+  f16_gguf: qwen2.5-7b-qlora-rag-sft-f16.gguf
+  q8_gguf: qwen2.5-7b-qlora-rag-sft-q8_0.gguf
+  modelfile: Modelfile.qwen-qlora-rag-sft
+  minimum_free_gib: 50
+
+llama_cpp:
+  converter: convert_hf_to_gguf.py
+  quantizer_candidates:
+    - llama-quantize
+    - llama-quantize.exe
+    - build/bin/llama-quantize
+    - build/bin/Release/llama-quantize.exe
+
+ollama:
+  model: qwen-qlora-rag-sft:latest
+  template: Modelfile.qwen-qlora-rag-sft

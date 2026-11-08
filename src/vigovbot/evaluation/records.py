@@ -16,6 +16,8 @@ from .io import read_jsonl
 from vigovbot.artifacts import file_hash as _sha256
 from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
+from .provenance import portable_path
+
 ARCHITECTURES = {"base", "finetuned", "rag", "finetuned_rag"}
 ARCHITECTURE_ALIASES = {"rag_base": "rag", "rag_finetuned": "finetuned_rag"}
 DEFAULT_WEB_MODELS = {
@@ -940,19 +942,19 @@ def export_scores(*, dataset: Path, split: str, predictions: Path | None, archit
         raise ValueError("Model config must be a JSON object")
     config["model_name"] = model_name
     provenance = {
-        "golden_dataset": str(golden_path), "golden_sha256": golden_sha256,
-        "predictions": str(prediction_path) if prediction_path else None,
+        "golden_dataset": portable_path(golden_path), "golden_sha256": golden_sha256,
+        "predictions": portable_path(prediction_path) if prediction_path else None,
         "predictions_sha256": predictions_sha256,
-        "judgments": str(judgments) if judgments else None,
+        "judgments": portable_path(judgments) if judgments else None,
         "judgments_sha256": _sha256(Path(judgments)) if judgments else None,
-        "model_config": str(model_config_path) if model_config_path else None,
+        "model_config": portable_path(model_config_path) if model_config_path else None,
         "model_config_sha256": _sha256(Path(model_config_path)) if model_config_path else None,
         "scorer_versions": {"offline_v3": OFFLINE_SCORER_VERSION},
         "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "inference_performed": False,
     }
     if supplemental is not None:
-        provenance["supplemental"] = str(supplemental_reference or supplemental_path) if supplemental_path else None
+        provenance["supplemental"] = portable_path(supplemental_reference or supplemental_path) if supplemental_path else None
         provenance["supplemental_sha256"] = _sha256(supplemental_path) if supplemental_path else None
         provenance["scorer_versions"]["supplemental"] = supplemental_version
     output = Path(output)

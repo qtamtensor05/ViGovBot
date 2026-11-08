@@ -1639,15 +1639,15 @@
       }
     }
   },
-  "output": "outputs\\evaluation\\eval-qlora-rag-v3\\case-scores.jsonl",
+  "output": "outputs/evaluation/eval-qlora-rag-v3/case-scores.jsonl",
   "provenance": {
-    "golden_dataset": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\Data\\dataset_v3\\test_rag\\test_rag_pa1.jsonl",
+    "golden_dataset": "Data/dataset_v3/test_rag/test_rag_pa1.jsonl",
     "golden_sha256": "f62867a7a0af3cba543c9602392a82e7c4f5912fe1e97b0b22e3c7b4bf1b3583",
-    "predictions": "outputs\\evaluation\\eval-qlora-rag-v3\\predictions.jsonl",
+    "predictions": "outputs/evaluation/eval-qlora-rag-v3/predictions.jsonl",
     "predictions_sha256": "3a92cfffd38be97fb4a4194455afdd318f400f3bd555c939d8beb4c985a909f6",
-    "judgments": "outputs\\evaluation\\eval-qlora-rag-v3\\judgments.jsonl",
+    "judgments": "outputs/evaluation/eval-qlora-rag-v3/judgments.jsonl",
     "judgments_sha256": "b8a336ec97161ce964c972d81682937e0ba72cbf1827f6efddbcc8d2a1adc13a",
-    "model_config": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\outputs\\qlora\\best_adapter\\model_metadata.json",
+    "model_config": "outputs/qlora/best_adapter/model_metadata.json",
     "model_config_sha256": "9fcbf0ad16e08b006d506575a2362d1d64090d81112e727466ca36a6bbba7d36",
     "scorer_versions": {
       "offline_v3": "3.2.0",
@@ -1655,7 +1655,7 @@
     },
     "created_at": "2026-11-03T09:20:24+07:00",
     "inference_performed": false,
-    "supplemental": "outputs\\evaluation\\eval-qlora-rag-v3\\supplemental.json",
+    "supplemental": "outputs/evaluation/eval-qlora-rag-v3/supplemental.json",
     "supplemental_sha256": "50517bbcd99a194b8d868f4530647d77fa89b19f3dc0c830ae18a8893b149e99"
   },
   "note": "Offline export from immutable predictions; supplemental metrics were merged."

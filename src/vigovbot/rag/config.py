@@ -62,7 +62,7 @@ class ConversationConfig(StrictModel):
     routing_enabled: bool = True
     citations_enabled: bool = False
     routing_backend: str = Field(default="phobert", pattern=r"^(phobert|llm)$")
-    routing_phobert_path: Path = Path("outputs/phobert_v3_finetuned_20261028/checkpoint")
+    routing_phobert_path: Path = Path("model/phobert_v3_finetuned_20261028/runtime/checkpoint")
     routing_phobert_threads: int = Field(default=2, gt=0, le=32)
     procedure_aliases_path: Path = Path("procedure-aliases.yaml")
     procedure_confirmation_alpha: float = Field(default=.45, ge=0, le=1)

@@ -19,7 +19,7 @@ nằm trong `src/vigovbot/`.
 | Mô hình embedding | `BAAI/bge-m3`, dùng `SentenceTransformer`, vector dense 1024 chiều (chạy trên CPU/GPU) |
 | Chỉ mục tìm kiếm | FAISS `IndexFlatIP`, vector chuẩn hóa L2 |
 | Nội dung và metadata khi truy vấn | SQLite, tra theo vị trí vector trong FAISS |
-| Bộ phân loại & định tuyến | Mô hình cục bộ **PhoBERT-base fine-tuned 4-head** (`outputs/phobert_v3_finetuned_20261028/checkpoint`) chạy CPU (2 threads) |
+| Bộ phân loại & định tuyến | Mô hình cục bộ **PhoBERT-base fine-tuned 4-head** (`model/phobert_v3_finetuned_20261028/runtime/checkpoint`) chạy CPU (2 threads) |
 | Quản lý trạng thái phiên | State ký HMAC SHA-256, cache bộ nhớ 256 phiên; menu xác nhận thủ tục (BM25 + Cosine) và menu disambiguation |
 | Mô hình sinh | `qwen2.5:7b` (chạy qua Ollama hoặc QLoRA local) |
 | Tokenizer tính ngân sách prompt | `Qwen/Qwen2.5-7B-Instruct` |
@@ -129,7 +129,7 @@ Lệnh `rag prepare` xác minh corpus, sao chép index vào cache và chuyển m
 ### 2.4. Xử lý câu hỏi và lịch sử hội thoại (RAG Contract v2)
 
 1. Nạp BGE-M3 (chạy trên CPU/GPU) và nạp PhoBERT fine-tuned router checkpoint
-   (`outputs/phobert_v3_finetuned_20261028/checkpoint`, 2 CPU intra-op threads).
+   (`model/phobert_v3_finetuned_20261028/runtime/checkpoint`, 2 CPU intra-op threads).
 2. Kiểm tra chữ ký HMAC SHA-256 của state hội thoại. Nếu người dùng nhập lựa chọn
    và phiên đang có menu còn hiệu lực, xử lý trực tiếp (`direct_choice`) mà không
    chạy classifier. Ngược lại, nếu không có menu đang chờ, câu hỏi mới (kể cả có
@@ -176,7 +176,7 @@ GPU tùy chọn. Các tham số không khai báo lấy mặc định từ
 | `retrieval.max_chunk_tokens` | `1200` | Giới hạn token của mỗi chunk đưa vào prompt |
 | `conversation.routing_contract` | `v2` | Hợp đồng định tuyến v2 (mặc định hiện hành) |
 | `conversation.routing_backend` | `phobert` | Backend phân loại cục bộ dùng PhoBERT fine-tuned 4-head |
-| `conversation.routing_phobert_path` | `outputs/phobert_v3_finetuned_20261028/checkpoint` | Đường dẫn checkpoint PhoBERT local |
+| `conversation.routing_phobert_path` | `model/phobert_v3_finetuned_20261028/runtime/checkpoint` | Đường dẫn checkpoint PhoBERT local |
 | `conversation.routing_phobert_threads` | `2` | Số luồng CPU intra-op cho PhoBERT inference |
 | `conversation.procedure_aliases_path` | `configs/rag/procedure-aliases.yaml` | Danh sách alias kiểm duyệt ánh xạ trực tiếp đến mã TTHC |
 | `conversation.procedure_confirmation_score_threshold` | `0.70` | Ngưỡng điểm gated tối thiểu mở menu xác nhận thủ tục |

@@ -1,5 +1,47 @@
 # Thay đổi hệ thống
 
+## Bundle recovery tự chứa cho PhoBERT và QLoRA v2 - 2026-11-09
+
+- **Mục tiêu:** Chỉ cần chuyển thư mục `recovery/` sang máy mới và chạy script của từng model để tạo runtime.
+- **Thực hiện:** Gom script, manifest và checkpoint/adapter vào `recovery/phobert/` và `recovery/qlora_v2/`; đổi CLI sang các bundle mới, giữ trọng số lớn ngoài Git thường.
+- **Kết quả:** `python recovery/phobert/restore.py` đã tái tạo runtime 542.106.330 byte; cả sáu file trùng SHA-256 với runtime trước kiểm thử. QLoRA v2 mới chỉ kiểm tra cấu trúc/dry-run, chưa merge theo phạm vi yêu cầu.
+
+## Gom logic phục hồi model vào scripts - 2026-11-09
+
+- **Mục tiêu:** Đặt toàn bộ công cụ phục hồi PhoBERT và QLoRA v2 tại vị trí script dễ tìm.
+- **Thực hiện:** Chuyển logic khỏi `src/vigovbot/training/` sang `scripts/recovery/`; đổi CLI và kiểm thử gọi trực tiếp script tương ứng.
+- **Kết quả:** Hai script độc lập và hai lệnh CLI dry-run đều xác minh bundle thành công; ba unit test PhoBERT đạt.
+
+## Phân cấp và kiểm thử phục hồi PhoBERT v3 - 2026-11-09
+
+- **Mục tiêu:** Tách rõ bundle phục hồi, checkpoint runtime và hồ sơ training PhoBERT; cho phép máy mới tái tạo runtime có kiểm tra toàn vẹn.
+- **Thực hiện:** Chuyển checkpoint gốc vào `recovery/checkpoint`, hồ sơ tái lập vào `training/`; bổ sung manifest SHA-256, CLI `vigov train restore-phobert`, runtime path mới và hướng dẫn chuyển máy.
+- **Kết quả:** Phục hồi thật 542.106.330 byte sang `runtime/checkpoint` đạt, sáu checksum nguồn/đích trùng khớp và ba unit test đạt. Chưa lặp lại suy luận vì Docker Desktop đang tắt và Python host hiện không có PyTorch/Transformers.
+
+## Phân nhóm artifact QLoRA v2 theo trách nhiệm - 2026-11-09
+
+- **Mục tiêu:** Không để ảnh báo cáo, GGUF và Modelfile nằm lẫn ở gốc thư mục model.
+- **Thực hiện:** Chuyển ảnh sang `result/training-qlora_v2/plots/`; gom GGUF Q8_0 và Modelfile chạy vào `model/qlora_v2/runtime/`; tách đầu ra phục hồi trung gian sang `build/` và giữ bundle tại `recovery_adapter/`.
+- **Kết quả:** Cấp gốc QLoRA v2 chỉ còn các nhóm `recovery_adapter`, `runtime`, `training_run` và README. QLoRA v1 không thay đổi theo yêu cầu; không chạy test hoặc merge model.
+
+## Triển khai luồng phục hồi QLoRA v2 từ adapter - 2026-11-09
+
+- **Mục tiêu:** Cho phép máy mới tái tạo model QLoRA v2 hoàn chỉnh từ bundle PEFT rút gọn thay vì chuyển GGUF 8,1 GB.
+- **Thực hiện:** Tạo bundle 177.420.652 byte có checksum; thêm manifest, CLI `vigov train restore` và luồng tải base, merge BF16, đổi GGUF Q8_0, import Ollama; tài liệu hóa lưu trọng số ngoài Git thường.
+- **Kết quả:** Hoàn thiện source và hướng dẫn; theo yêu cầu chưa chạy test, download model nền, merge, chuyển GGUF hoặc import Ollama trên máy hiện tại. Revision base lịch sử vẫn là `main`, công cụ chặn mặc định đến khi ghim commit SHA hoặc cho phép tường minh.
+
+## Tách model runtime khỏi outputs - 2026-11-09
+
+- **Mục tiêu:** Dùng `model/` làm nơi duy nhất chứa QLoRA v2 và PhoBERT runtime, không trộn trọng số lớn với artifact sinh trong `outputs/`.
+- **Thực hiện:** Di chuyển hai thư mục model, ignore toàn bộ `model/` và cập nhật cấu hình, Docker, script cùng tài liệu sử dụng đường dẫn mới.
+- **Kết quả:** QLoRA v2 và PhoBERT đã nằm trong `model/`; SHA256 PhoBERT và kích thước GGUF đạt, Compose hợp lệ, PhoBERT nạp checkpoint mới và phân loại live thành công. Sáu test đường dẫn/config/tài liệu đạt; một test rộng ngoài phạm vi vẫn kỳ vọng `top_k: 15` thay vì cấu hình hiện có `5`.
+
+## Chuẩn hóa đường dẫn tương đối trong artifact đánh giá - 2026-11-09
+
+- **Mục tiêu:** Loại đường dẫn tuyệt đối theo máy chạy khỏi kết quả training và evaluation để artifact có thể chuyển giữa các checkout.
+- **Thực hiện:** Chuẩn hóa kết quả hiện có dưới `result/`; bổ sung serialization theo gốc repository và khả năng đọc tương thích manifest tuyệt đối cũ.
+- **Kết quả:** Không còn tham chiếu `C:\Users` trong `result/`; 38 JSON và 4 JSONL thay đổi parse hợp lệ, 28 test evaluation, Ruff, compileall và kiểm tra tài liệu đạt.
+
 ## Khóa truy xuất theo thủ tục qua chuỗi menu hai bước - 2026-11-08
 
 - **Mục tiêu:** Ngăn lượt chọn mục sau khi đã chọn thủ tục rồi truy xuất semantic sang mã thủ tục khác.

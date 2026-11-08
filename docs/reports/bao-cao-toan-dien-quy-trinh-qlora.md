@@ -6,7 +6,7 @@
 > **Mô hình nền tảng:** `Qwen/Qwen2.5-7B-Instruct` (Quantized 4-bit NormalFloat NF4)  
 > **Hạ tầng thực nghiệm:** 1x NVIDIA GeForce RTX 5060 Ti (16 GB GDDR6 / 15,90 GiB khả dụng)  
 > **Tập dữ liệu chuẩn hóa:** `Data/dataset_v3/finetuning_v2/` (`train_rag_sft.jsonl`, `validation_rag_sft.jsonl`)  
-> **Artifact định danh:** `outputs/qlora_v2/` (`qlora-rag-sft-2048-001`, `qwen2.5-7b-qlora-rag-sft-q8_0.gguf`)  
+> **Artifact định danh:** `model/qlora_v2/` (`qlora-rag-sft-2048-001`, `qwen2.5-7b-qlora-rag-sft-q8_0.gguf`)
 > **Thời điểm thẩm định artifact:** Tháng 11/2026  
 
 ---
@@ -388,7 +388,7 @@ flowchart LR
 ```
 
 #### a. Trích xuất và Lưu trữ Adapter tối ưu (`best_adapter`)
-Được trích xuất trực tiếp từ `checkpoint-600`, lưu tại `outputs/qlora_v2/training_run/best_adapter/`:
+Được trích xuất trực tiếp từ `checkpoint-600`, lưu tại `model/qlora_v2/training_run/best_adapter/`:
 - `adapter_model.safetensors`: Dung lượng **161.533.192 bytes** (~**154,05 MiB**).
 - `adapter_config.json`: Cấu hình siêu dữ liệu kiến trúc LoRA.
 - Toàn bộ cấu hình Tokenizer đồng bộ (`tokenizer.json`, `vocab.json`, `merges.txt`) và mẫu Jinja chuẩn (`chat_template.jinja`).
@@ -402,12 +402,12 @@ Mô hình sau hợp nhất được lưu tại `outputs/qlora/merged_qwen_rag_sf
 
 #### c. Chuyển đổi định dạng GGUF và Lượng tử hóa Q8_0
 Mô hình hợp nhất tiếp tục được biên dịch sang định dạng nhị phân **GGUF** qua công cụ `llama.cpp` và lượng tử hóa ở mức **Q8_0**:
-- Tệp xuất xưởng: `outputs/qlora_v2/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`.
+- Tệp xuất xưởng: `model/qlora_v2/runtime/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`.
 - Dung lượng nhị phân: **8.098.525.120 bytes** (~**8,10 GB**).
 - Định dạng Q8_0 bảo toàn gần như nguyên vẹn năng lực suy luận và phân giải trích dẫn so với bản gốc 16-bit, đồng thời tối ưu hóa tốc độ nạp trên CPU/GPU phổ thông.
 
 #### d. Cấu hình phục vụ Ollama và Tích hợp Web API
-- **Ollama Runtime:** Cấu hình qua tệp `outputs/qlora_v2/Modelfile.qwen-qlora-rag-sft` với các tham số tất định (`temperature: 0.0`, `stop: ["<|im_start|>", "<|im_end|>"]`) và định danh dịch vụ là `qwen-qlora-rag-sft:latest`.
+- **Ollama Runtime:** Cấu hình qua tệp `model/qlora_v2/runtime/Modelfile.qwen-qlora-rag-sft` với các tham số tất định (`temperature: 0.0`, `stop: ["<|im_start|>", "<|im_end|>"]`) và định danh dịch vụ là `qwen-qlora-rag-sft:latest`.
 - **ViGovBot Web API:** Kết nối với máy chủ backend (`vigovbot.web`) tại endpoint `http://127.0.0.1:8002/api/chat`. Lớp trừu tượng API tự động đưa các đoạn trích từ module truy xuất lai (BM25 + BGE-M3 + BGE-Reranker-v2) vào khối `DỮ LIỆU TRUY XUẤT (JSON)` của prompt người dùng, tiếp nhận chuỗi JSON từ mô hình và phân tích cú pháp để trả về giao diện cho người dân.
 
 ---

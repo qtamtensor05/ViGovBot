@@ -1639,13 +1639,13 @@
       }
     }
   },
-  "output": "outputs\\evaluation\\eval-rag-v3\\case-scores.jsonl",
+  "output": "outputs/evaluation/eval-rag-v3/case-scores.jsonl",
   "provenance": {
-    "golden_dataset": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\Data\\dataset_v3\\test_rag\\test_rag_pa1.jsonl",
+    "golden_dataset": "Data/dataset_v3/test_rag/test_rag_pa1.jsonl",
     "golden_sha256": "f62867a7a0af3cba543c9602392a82e7c4f5912fe1e97b0b22e3c7b4bf1b3583",
-    "predictions": "outputs\\evaluation\\eval-rag-v3\\predictions.jsonl",
+    "predictions": "outputs/evaluation/eval-rag-v3/predictions.jsonl",
     "predictions_sha256": "9f3b5b930de415ec7e324833f0324b9f5c368bb28a4cd60c24eba0eed20bcfa3",
-    "judgments": "outputs\\evaluation\\eval-rag-v3\\judgments.jsonl",
+    "judgments": "outputs/evaluation/eval-rag-v3/judgments.jsonl",
     "judgments_sha256": "4661d81e1e57d58205d942100008f95441dd61c22e454c1f511c543fed8c5e81",
     "model_config": null,
     "model_config_sha256": null,
@@ -1655,7 +1655,7 @@
     },
     "created_at": "2026-11-03T09:21:36+07:00",
     "inference_performed": false,
-    "supplemental": "outputs\\evaluation\\eval-rag-v3\\supplemental.json",
+    "supplemental": "outputs/evaluation/eval-rag-v3/supplemental.json",
     "supplemental_sha256": "3b47ff18cfba4996a9a7c73e8fcad6a5975eb3739f57b9ba61a790d56579f875"
   },
   "note": "Offline export from immutable predictions; supplemental metrics were merged."

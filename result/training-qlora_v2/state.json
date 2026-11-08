@@ -1,0 +1,18 @@
+{
+  "status": "trainer_finished",
+  "updated_at_utc": "2026-11-03T10:50:57.482554+00:00",
+  "global_step": 675,
+  "total_steps": 675,
+  "epoch": 3.0,
+  "elapsed_seconds": 26161.457788467407,
+  "eta_seconds": 0.0,
+  "loss": 0.0086,
+  "learning_rate": 1.0383091903720666e-08,
+  "grad_norm": 0.20973768830299377,
+  "eval_loss": 0.02016591653227806,
+  "best_validation_loss": 0.02016591653227806,
+  "gpu_allocated_bytes": 7954023424,
+  "gpu_reserved_bytes": 22624075776,
+  "gpu_max_allocated_bytes": 13813004800,
+  "gpu_max_reserved_bytes": 22624075776
+}

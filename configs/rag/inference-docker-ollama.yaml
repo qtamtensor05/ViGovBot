@@ -15,7 +15,7 @@ retrieval:
   max_metadata_tokens: 256
 conversation:
   routing_backend: phobert
-  routing_phobert_path: ../../outputs/phobert_v3_finetuned_20261028/checkpoint
+  routing_phobert_path: ../../model/phobert_v3_finetuned_20261028/runtime/checkpoint
   routing_phobert_threads: 2
 web:
   debug_routing: false

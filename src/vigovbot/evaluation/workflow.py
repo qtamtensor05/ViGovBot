@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from vigovbot.artifacts import file_hash, output_lock
 from .records import load_golden, capture_predictions, export_scores, DEFAULT_WEB_MODELS
-from .provenance import fingerprint
+from .provenance import fingerprint, portable_path, project_root, resolve_portable_path
 
 PROFILES = {"base": "base", "rag": "rag", "qlora": "finetuned", "qlora_rag": "finetuned_rag"}
 
@@ -26,9 +26,9 @@ def _write(path, value):
         json.dump(value, stream, ensure_ascii=False, indent=2, allow_nan=False)
 
 
-def validate(dataset, split):
+def validate(dataset, split, root=None):
     path, rows = load_golden(dataset, split)
-    return {"dataset": str(path.resolve()), "sha256": file_hash(path), "split": split,
+    return {"dataset": portable_path(path, root), "sha256": file_hash(path), "split": split,
             "expected": len(rows), "selected_ids_sha256": fingerprint([r["test_id"] for r in rows])}
 
 
@@ -44,16 +44,17 @@ def dispatch(args):
 def _dispatch(args, directory):
     manifest_path = directory / "run-manifest.json"
     predictions = directory / "predictions.jsonl"
+    root = project_root(getattr(args, "dataset", None), getattr(args, "config", None), directory)
     if args.command in {"run", "evaluate"}:
-        identity = validate(args.dataset, args.split)
+        identity = validate(args.dataset, args.split, root)
         if args.scope == "retrieval" and args.profile != "rag":
             raise ValueError("Retrieval scope requires profile rag")
         manifest = {**identity, "profile": args.profile, "scope": args.scope,
-                    "run_id": args.run_id, "dataset_dir": str(args.dataset.resolve()),
+                    "run_id": args.run_id, "dataset_dir": portable_path(args.dataset, root),
                     "endpoint": args.endpoint, "limit": args.limit,
                     "complete_trace": args.complete_trace, "top_k": args.top_k,
-                    "config": str(args.config.resolve()), "config_sha256": file_hash(args.config),
-                    "model_metadata": str(args.model_metadata.resolve()) if args.model_metadata else None,
+                    "config": portable_path(args.config, root), "config_sha256": file_hash(args.config),
+                    "model_metadata": portable_path(args.model_metadata, root) if args.model_metadata else None,
                     "model_metadata_sha256": file_hash(args.model_metadata) if args.model_metadata else None,
                     "model_id": DEFAULT_WEB_MODELS[PROFILES[args.profile]]}
         if manifest_path.exists():
@@ -81,8 +82,8 @@ def _dispatch(args, directory):
     if not manifest_path.exists():
         raise FileNotFoundError("Run manifest missing; capture with vigov eva run first")
     manifest = _read(manifest_path)
-    dataset = Path(manifest["dataset_dir"])
-    if validate(dataset, manifest["split"])["sha256"] != manifest["sha256"]:
+    dataset = resolve_portable_path(manifest["dataset_dir"], root)
+    if validate(dataset, manifest["split"], root)["sha256"] != manifest["sha256"]:
         raise ValueError("Golden data changed since capture")
     if args.profile and args.profile != manifest["profile"]:
         raise ValueError("Profile does not match the run manifest")
@@ -135,7 +136,8 @@ def _dispatch(args, directory):
                         dataset=dataset, split=manifest["split"], predictions=predictions,
                         architecture=PROFILES[manifest["profile"]], model_name=manifest["model_id"],
                         run_id=manifest["run_id"], output=case_scores,
-                        model_config_path=Path(manifest["model_metadata"]) if manifest.get("model_metadata") else None,
+                        model_config_path=(resolve_portable_path(manifest["model_metadata"], root)
+                                           if manifest.get("model_metadata") else None),
                         judgments=judgments if judgments.exists() else None,
                         supplemental=supplemental, supplemental_path=supplemental_path,
                         supplemental_reference=directory / "supplemental.json",

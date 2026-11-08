@@ -1,5 +1,5 @@
 {
-  "dataset": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\Data\\dataset_v3\\test_rag\\test_rag_pa1.jsonl",
+  "dataset": "Data/dataset_v3/test_rag/test_rag_pa1.jsonl",
   "sha256": "f62867a7a0af3cba543c9602392a82e7c4f5912fe1e97b0b22e3c7b4bf1b3583",
   "split": "test",
   "expected": 638,
@@ -7,14 +7,14 @@
   "profile": "qlora_rag",
   "scope": "full",
   "run_id": "eval-qlora-rag-sft-v3",
-  "dataset_dir": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\Data\\dataset_v3",
+  "dataset_dir": "Data/dataset_v3",
   "endpoint": "http://127.0.0.1:8002/api/chat",
   "limit": null,
   "complete_trace": true,
   "top_k": 20,
-  "config": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\configs\\rag\\evaluation-qlora-rag-sft.yaml",
+  "config": "configs/rag/evaluation-qlora-rag-sft.yaml",
   "config_sha256": "7a27baa058b69f689d1ab6743819d63bea7d62adaafb2a3226a03744b1998753",
-  "model_metadata": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\outputs\\qlora_v2\\training_run\\best_adapter\\model_metadata.json",
+  "model_metadata": "model/qlora_v2/training_run/best_adapter/model_metadata.json",
   "model_metadata_sha256": "ba2122b5465af62b2d33c0a5e43e90630205684cf0a73810168fceb76a427442",
   "model_id": "qwen-rag-qlora"
 }

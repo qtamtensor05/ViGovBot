@@ -179,8 +179,8 @@ flowchart LR
    File nhị phân `outputs/qlora/qwen2.5-7b-qlora-rag-sft-q8_0.gguf` với dung lượng **8.098.525.120 bytes** (~8,10 GB) đạt chuẩn lượng tử hóa 8-bit cao cấp nhất, bảo toàn năng lực suy luận và tối ưu hóa tốc độ nạp trên CPU/GPU.
 4. **Cấu hình phục vụ Ollama:**  
    File `outputs/qlora/Modelfile.qwen-qlora-rag-sft` đã được thiết lập tham số suy luận tối ưu (`temperature: 0.0`, `stop: ["<|im_end|>", "<|endoftext|>"]`) và định danh `qwen-qlora-rag-sft:latest`.
-5. **Thư mục tổ chức chuyên biệt v2 (`outputs/qlora_v2`):**  
-   Để phân tách rạch ròi với phiên bản v1 (Plain SFT) mà không phá vỡ đường dẫn tham chiếu của các tiến trình đánh giá đang chạy, toàn bộ tiến trình và artifact v2 được đồng bộ liên kết sang `outputs/qlora_v2/` gồm: `training_run/` (trỏ vào `qlora-rag-sft-2048-001`), `merged_model/`, tệp GGUF `qwen2.5-7b-qlora-rag-sft-q8_0.gguf` và `Modelfile.qwen-qlora-rag-sft`.
+5. **Thư mục tổ chức chuyên biệt v2 (`model/qlora_v2`):**
+   Để phân tách rạch ròi với phiên bản v1 (Plain SFT) mà không phá vỡ đường dẫn tham chiếu của các tiến trình đánh giá đang chạy, toàn bộ tiến trình và artifact v2 được đồng bộ liên kết sang `model/qlora_v2/` gồm: `training_run/` (trỏ vào `qlora-rag-sft-2048-001`), `merged_model/`, tệp GGUF `qwen2.5-7b-qlora-rag-sft-q8_0.gguf` và `Modelfile.qwen-qlora-rag-sft`.
 
 ---
 

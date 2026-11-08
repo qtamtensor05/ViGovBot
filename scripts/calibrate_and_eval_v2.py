@@ -351,7 +351,7 @@ def main():
     print(f"2. Đã nạp {total_samples} mẫu kiểm thử.")
 
     # 3. Nạp PhoBERT Router
-    router = PhoBERTRouter("outputs/phobert_v3_finetuned_20261028/checkpoint")
+    router = PhoBERTRouter("model/phobert_v3_finetuned_20261028/runtime/checkpoint")
     print("3. Đã nạp mô hình PhoBERT checkpoint.")
 
     section_vn_labels = router.meta["labels"]["mục_nội_dung"]

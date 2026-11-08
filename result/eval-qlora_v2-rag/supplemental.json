@@ -8987,9 +8987,9 @@
     }
   ],
   "provenance": {
-    "golden_dataset": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\Data\\dataset_v3\\test_rag\\test_rag_pa1.jsonl",
+    "golden_dataset": "Data/dataset_v3/test_rag/test_rag_pa1.jsonl",
     "golden_sha256": "f62867a7a0af3cba543c9602392a82e7c4f5912fe1e97b0b22e3c7b4bf1b3583",
-    "predictions": "outputs\\evaluation\\eval-qlora-rag-sft-v3\\predictions.jsonl",
+    "predictions": "outputs/evaluation/eval-qlora-rag-sft-v3/predictions.jsonl",
     "predictions_sha256": "bd34617326990354e5db1ab0809d6415c424116dd435f12f2f8d159d8760312a",
     "scorer_version": "offline-v3-supplement-2",
     "created_at": "2026-11-04T04:40:12+07:00",

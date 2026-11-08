@@ -59,6 +59,12 @@ def _module(name: str, *args: str) -> None:
         raise typer.Exit(result.returncode)
 
 
+def _script(path: str, *args: str) -> None:
+    result = subprocess.run([sys.executable, str(_root() / path), *args], cwd=_root())
+    if result.returncode:
+        raise typer.Exit(result.returncode)
+
+
 def _output_root() -> Path:
     return _root() / "outputs" / "qlora"
 
@@ -357,6 +363,68 @@ def train_resume(checkpoint: Path = typer.Argument(..., exists=True),
         typer.echo(f"Không thể resume: {exc}", err=True)
         raise typer.Exit(2) from exc
     typer.echo(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+
+@train_app.command("restore")
+def train_restore(
+    manifest: Path = typer.Option(Path("recovery/qlora_v2/manifest.yaml"), "--manifest"),
+    adapter_dir: Optional[Path] = typer.Option(None, "--adapter-dir"),
+    adapter_repo: Optional[str] = typer.Option(None, "--adapter-repo"),
+    adapter_revision: Optional[str] = typer.Option(None, "--adapter-revision"),
+    base_cache: Optional[Path] = typer.Option(None, "--base-cache"),
+    work_dir: Optional[Path] = typer.Option(None, "--work-dir"),
+    llama_cpp_dir: Optional[Path] = typer.Option(None, "--llama-cpp-dir"),
+    ollama_model: Optional[str] = typer.Option(None, "--ollama-model"),
+    allow_unpinned_revision: bool = typer.Option(False, "--allow-unpinned-revision"),
+    skip_gguf: bool = typer.Option(False, "--skip-gguf"),
+    skip_ollama: bool = typer.Option(False, "--skip-ollama"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Restore merged HF/GGUF/Ollama artifacts from a compact QLoRA adapter bundle."""
+    args = ["--manifest", str(_config(manifest))]
+    optional_paths = {
+        "--adapter-dir": adapter_dir,
+        "--base-cache": base_cache,
+        "--work-dir": work_dir,
+        "--llama-cpp-dir": llama_cpp_dir,
+    }
+    for option, path in optional_paths.items():
+        if path is not None:
+            args += [option, str(_path(path))]
+    for option, value in (
+        ("--adapter-repo", adapter_repo),
+        ("--adapter-revision", adapter_revision),
+        ("--ollama-model", ollama_model),
+    ):
+        if value:
+            args += [option, value]
+    for enabled, option in (
+        (allow_unpinned_revision, "--allow-unpinned-revision"),
+        (skip_gguf, "--skip-gguf"),
+        (skip_ollama, "--skip-ollama"),
+        (dry_run, "--dry-run"),
+    ):
+        if enabled:
+            args.append(option)
+    _script("recovery/qlora_v2/restore.py", *args)
+
+
+@train_app.command("restore-phobert")
+def train_restore_phobert(
+    manifest: Path = typer.Option(Path("recovery/phobert/manifest.json"), "--manifest"),
+    bundle_dir: Optional[Path] = typer.Option(None, "--bundle-dir"),
+    output_dir: Optional[Path] = typer.Option(None, "--output-dir"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Validate a PhoBERT recovery bundle and restore its runtime checkpoint."""
+    args = ["--manifest", str(_config(manifest))]
+    if bundle_dir is not None:
+        args += ["--bundle-dir", str(_path(bundle_dir))]
+    if output_dir is not None:
+        args += ["--output-dir", str(_path(output_dir))]
+    if dry_run:
+        args.append("--dry-run")
+    _script("recovery/phobert/restore.py", *args)
 
 
 @app.command()

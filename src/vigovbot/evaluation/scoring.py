@@ -9,6 +9,7 @@ from pathlib import Path
 from vigovbot.artifacts import file_hash
 from vigovbot.utils.text import NORMALIZATION_VERSION, normalize_vietnamese
 
+from .provenance import portable_path
 from .records import canonical_architecture, load_golden, load_predictions
 
 
@@ -217,8 +218,8 @@ def score_supplemental(*, dataset: Path, split: str, predictions: Path, architec
         "metrics": {"lexical": lexical, "retrieval": retrieval, "metric_details": details},
         "per_case": per_case,
         "provenance": {
-            "golden_dataset": str(golden_path), "golden_sha256": file_hash(golden_path),
-            "predictions": str(prediction_path), "predictions_sha256": file_hash(prediction_path),
+            "golden_dataset": portable_path(golden_path), "golden_sha256": file_hash(golden_path),
+            "predictions": portable_path(prediction_path), "predictions_sha256": file_hash(prediction_path),
             "scorer_version": f"offline-v3-supplement-{SCORER_VERSION}",
             "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "inference_performed": False,

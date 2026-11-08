@@ -1,0 +1,11 @@
+{
+  "status": "failed",
+  "stopping_reason": "exception",
+  "error_type": "PermissionError",
+  "error_message": "[WinError 5] Access is denied: 'outputs\\\\qlora\\\\qlora-rag-sft-2048-001\\\\live_status.json.12112.tmp' -> 'outputs\\\\qlora\\\\qlora-rag-sft-2048-001\\\\live_status.json'",
+  "wall_clock_seconds": 26161.3325213,
+  "global_step": 675,
+  "best_checkpoint": "outputs/qlora/qlora-rag-sft-2048-001/checkpoints/checkpoint-600",
+  "peak_gpu_allocated_bytes_measured": 13813004800,
+  "peak_gpu_reserved_bytes_measured": 22624075776
+}

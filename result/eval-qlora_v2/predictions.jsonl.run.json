@@ -6,7 +6,7 @@
   "execution_status": {
     "success": 638
   },
-  "output": "outputs\\evaluation\\eval-qlora-sft-base-v3\\predictions.jsonl",
+  "output": "outputs/evaluation/eval-qlora-sft-base-v3/predictions.jsonl",
   "endpoint": "http://127.0.0.1:8002/api/chat",
   "started_at": "2026-11-04T03:34:47+07:00",
   "completed_at": "2026-11-04T03:34:53+07:00",

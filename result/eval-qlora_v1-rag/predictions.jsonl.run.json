@@ -7,7 +7,7 @@
     "error": 3,
     "success": 635
   },
-  "output": "outputs\\evaluation\\eval-qlora-rag-v3\\predictions.jsonl",
+  "output": "outputs/evaluation/eval-qlora-rag-v3/predictions.jsonl",
   "endpoint": "http://127.0.0.1:8000/api/chat",
   "started_at": "2026-11-02T14:53:22+07:00",
   "completed_at": "2026-11-02T15:43:05+07:00",

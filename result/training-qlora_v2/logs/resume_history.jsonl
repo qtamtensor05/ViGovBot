@@ -1,0 +1,1 @@
+{"event": "train_begin", "timestamp_utc": "2026-11-03T03:34:56.353413+00:00", "invocation_id": "20261103T033456-1d7cae3a", "global_step": 0, "total_steps": 675, "epoch": 0, "elapsed_seconds": 0.3286466598510742, "resume_checkpoint": null, "resume_start_global_step": 0}

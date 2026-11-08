@@ -1,0 +1,18 @@
+{
+  "status": "validated",
+  "splits": {
+    "train": {
+      "path": "Data/dataset_v3/finetuning_rag_clean/train_rag_sft_2048.jsonl",
+      "source_records": 1799,
+      "selected_records": 1799,
+      "sha256": "d07dc6cf68dadb449a781eaafe7c8d6070a20f7d1025b070a56d958471607341"
+    },
+    "validation": {
+      "path": "Data/dataset_v3/finetuning_rag_clean/validation_rag_sft_2048.jsonl",
+      "source_records": 757,
+      "selected_records": 757,
+      "sha256": "e8e61c7f3cfdf2f22192c2aec61ffb9470bb894125552459b71abc4da622a80c"
+    }
+  },
+  "note": "Hashes cover the immutable source files used for checkpoint compatibility."
+}

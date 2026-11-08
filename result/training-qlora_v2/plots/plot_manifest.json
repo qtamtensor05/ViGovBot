@@ -1,0 +1,72 @@
+{
+  "plots": {
+    "training_loss.png": {
+      "status": "generated",
+      "source": "training_events.jsonl",
+      "fields": [
+        "loss"
+      ]
+    },
+    "validation_loss.png": {
+      "status": "generated",
+      "source": "training_events.jsonl",
+      "fields": [
+        "eval_loss"
+      ]
+    },
+    "combined_loss.png": {
+      "status": "generated",
+      "source": "training_events.jsonl",
+      "fields": [
+        "loss",
+        "eval_loss"
+      ]
+    },
+    "learning_rate.png": {
+      "status": "generated",
+      "source": "training_events.jsonl",
+      "fields": [
+        "learning_rate"
+      ]
+    },
+    "gradient_norm.png": {
+      "status": "generated",
+      "source": "training_events.jsonl",
+      "fields": [
+        "grad_norm"
+      ]
+    },
+    "gpu_memory.png": {
+      "status": "generated",
+      "source": "training_events.jsonl",
+      "fields": [
+        "gpu_allocated_bytes",
+        "gpu_reserved_bytes"
+      ]
+    },
+    "time_per_epoch.png": {
+      "status": "generated",
+      "source": "training_events.jsonl",
+      "fields": [
+        "epoch_duration_seconds"
+      ]
+    },
+    "throughput.png": {
+      "status": "generated",
+      "source": "training_events.jsonl",
+      "fields": [
+        "train_samples_per_second",
+        "train_steps_per_second",
+        "train_tokens_per_second"
+      ]
+    },
+    "parameter_proportions.png": {
+      "status": "generated",
+      "source": "parameter_report.json"
+    },
+    "evaluation_comparison.png": {
+      "status": "unavailable",
+      "reason": "post-training test evaluation not run"
+    }
+  }
+}

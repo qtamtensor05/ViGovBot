@@ -1,5 +1,47 @@
 # Lịch sử thay đổi hệ thống
 
+## Bundle recovery tự chứa - 2026-11-09
+
+- **Mục tiêu:** Đóng gói mỗi model thành một bundle có thể chuyển máy và tự sinh runtime.
+- **Thực hiện:** Đưa logic, manifest và trọng số nguồn vào `recovery/phobert/` và `recovery/qlora_v2/`; runtime tiếp tục được sinh dưới `model/`.
+- **Kết quả:** Phục hồi PhoBERT từ bundle mới đạt với sáu checksum trùng khớp, bản sao tạm đã được dọn. QLoRA v2 chưa chạy merge hoặc tạo GGUF.
+
+## Gom công cụ recovery vào scripts - 2026-11-09
+
+- **Mục tiêu:** Cho phép tìm và chạy toàn bộ logic phục hồi model trực tiếp từ `scripts/recovery/`.
+- **Thực hiện:** Chuyển triển khai PhoBERT và QLoRA v2 khỏi package training; CLI tiếp tục giữ hợp đồng cũ nhưng điều phối tới script.
+- **Kết quả:** Dry-run trực tiếp của cả hai model và ba unit test recovery PhoBERT đạt; không tải hoặc merge QLoRA.
+
+## Phân cấp và phục hồi PhoBERT v3 - 2026-11-09
+
+- **Mục tiêu:** Đóng gói checkpoint PhoBERT thành nguồn phục hồi độc lập và tách khỏi runtime cùng hồ sơ training.
+- **Thực hiện:** Tạo các nhóm `recovery`, `runtime`, `training`; thêm manifest checksum và CLI phục hồi nguyên tử; chuyển toàn bộ cấu hình, Compose, script và tài liệu sang runtime path mới.
+- **Kết quả:** Lệnh phục hồi đã sao chép và xác minh lại đủ sáu tệp, tổng 542.106.330 byte; ba kiểm thử recovery đạt. Live inference chưa chạy lại do môi trường host thiếu PyTorch/Transformers và Docker Desktop không hoạt động.
+
+## Phân nhóm runtime, phục hồi và báo cáo QLoRA v2 - 2026-11-09
+
+- **Mục tiêu:** Làm rõ artifact nào dùng để chạy, phục hồi và báo cáo QLoRA v2.
+- **Thực hiện:** Đặt GGUF/Modelfile trong `runtime/`, bundle PEFT trong `recovery_adapter/`, đầu ra phục hồi trung gian trong `build/` và ảnh thực nghiệm trong `result/training-qlora_v2/plots/`.
+- **Kết quả:** Thư mục model không còn ảnh hoặc GGUF rời ở cấp gốc; Compose và tài liệu đã trỏ sang `runtime/`. QLoRA v1 được giữ nguyên, chưa kiểm thử runtime sau thay đổi.
+
+## Luồng phục hồi QLoRA v2 từ adapter rút gọn - 2026-11-09
+
+- **Mục tiêu:** Tái tạo model QLoRA v2 phục vụ Ollama trên máy mới mà không cần chuyển bản GGUF đầy đủ.
+- **Thực hiện:** Bổ sung manifest checksum và CLI tải Qwen nền, merge PEFT ở BF16, chuyển GGUF Q8_0, sinh Modelfile và import Ollama; bundle loại bỏ toàn bộ training state không cần cho inference.
+- **Kết quả:** Source và tài liệu đã hoàn thiện, bundle local đạt 177.420.652 byte. Chưa chạy test hoặc job phục hồi thực tế theo yêu cầu; chưa có commit SHA model nền của lần training nên `main` chỉ dùng khi cho phép tường minh.
+
+## Tách model runtime khỏi outputs - 2026-11-09
+
+- **Mục tiêu:** Tách trọng số model dùng khi chạy khỏi cache, run và artifact sinh trong `outputs/`.
+- **Thực hiện:** Chuyển QLoRA v2 và PhoBERT sang `model/`, ignore cây model; cập nhật mount Docker, cấu hình RAG, script và tài liệu sang đường dẫn mới.
+- **Kết quả:** SHA256 PhoBERT và GGUF 8.098.525.120 byte đạt; `docker compose config --quiet`, sáu test liên quan và smoke PhoBERT live đạt. Chưa import/chạy lại QLoRA qua Ollama sau khi đổi bind mount.
+
+## Chuẩn hóa đường dẫn artifact evaluation theo repository - 2026-11-09
+
+- **Mục tiêu:** Cho phép sao chép kết quả training/evaluation giữa các máy mà không phụ thuộc đường dẫn tuyệt đối của máy tạo artifact.
+- **Thực hiện:** Chuyển đường dẫn trong `result/` sang dạng tương đối POSIX; workflow mới serialize theo gốc repository và vẫn đọc manifest tuyệt đối lịch sử.
+- **Kết quả:** Toàn bộ `result/` không còn `C:\Users`; 38 JSON, 4 JSONL và 28 test evaluation được kiểm chứng, Ruff, compileall và test tài liệu đạt.
+
 ## Khóa mã thủ tục qua menu chọn section - 2026-11-08
 
 - **Mục tiêu:** Ngăn lượt chọn section làm mất mã thủ tục đã chọn và rơi sang semantic retrieval toàn corpus.

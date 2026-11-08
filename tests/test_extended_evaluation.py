@@ -7,10 +7,22 @@ from unittest.mock import Mock, patch
 
 from tests.test_evaluation_v3 import base_api_result, golden, prediction, write_jsonl
 from vigovbot.evaluation.extended import extend_record
+from vigovbot.evaluation.provenance import portable_path, resolve_portable_path
 from vigovbot.evaluation.records import build_record, capture_predictions
 
 
 class ExtendedEvaluationTests(unittest.TestCase):
+    def test_artifact_paths_are_relative_to_project_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "Data/dataset/test.jsonl"
+            artifact.parent.mkdir(parents=True)
+            artifact.touch()
+            serialized = portable_path(artifact, root)
+            self.assertEqual(serialized, "Data/dataset/test.jsonl")
+            self.assertEqual(resolve_portable_path(serialized, root), artifact.resolve())
+            self.assertEqual(resolve_portable_path(artifact, root), artifact)
+
     def test_resume_does_not_regenerate_cached_answer(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

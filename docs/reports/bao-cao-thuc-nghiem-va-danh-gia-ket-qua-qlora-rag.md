@@ -93,7 +93,7 @@ flowchart TD
 
 Nhằm bảo đảm tính khả thi kinh tế và năng lực triển khai thực tế của hệ thống trợ lý công vụ tại các trung tâm dữ liệu địa phương hoặc cơ quan hành chính nhà nước, toàn bộ quy trình từ huấn luyện mô hình đến đối chuẩn thực nghiệm được thiết kế tối ưu trên hạ tầng GPU thương mại 16 GB VRAM. Bảng dưới đây phân định chi tiết cấu hình phần cứng giữa pha thực nghiệm chính thức và các pha khảo nghiệm sơ bộ:
 
-| Hạng mục phần cứng | Cấu hình thực nghiệm chính thức (`outputs/qlora_v2/`, `result/`) | Cấu hình thử nghiệm sơ bộ (QLoRA v1 & Khảo nghiệm ban đầu) |
+| Hạng mục phần cứng | Cấu hình thực nghiệm chính thức (`model/qlora_v2/`, `result/`) | Cấu hình thử nghiệm sơ bộ (QLoRA v1 & Khảo nghiệm ban đầu) |
 | :--- | :--- | :--- |
 | **Bộ xử lý đồ họa (GPU)** | **1x NVIDIA GeForce RTX 5060 Ti**<br>- Dung lượng VRAM: **16.384 MB (16 GB GDDR6)**<br>- Bộ nhớ khả dụng thực tế: 15,90 GiB<br>- Kiến trúc vi mô: **SM 12.0**<br>- Tập lệnh hỗ trợ native: `bfloat16`, Tensor Cores thế hệ mới | **1x NVIDIA Tesla T4** (16 GB GDDR4, SM 7.5, Google Colab)<br>hoặc **1x NVIDIA Tesla V100-SXM2** (16 GB HBM2, SM 7.0, Remote Server) |
 | **Bộ vi xử lý trung tâm (CPU)** | **AMD Ryzen 7 / Intel Core i7 đa nhân** (16 luồng xử lý)<br>- Khóa cấu hình: `torch.set_num_threads(2)` dành riêng cho PhoBERT Router | Intel Xeon Virtual CPU (2–4 vCPU, môi trường máy chủ đám mây chia sẻ) |
@@ -167,7 +167,7 @@ Trong kiến trúc của ViGovBot, bộ định tuyến chuyên dụng [`vigovbo
    - **Head 3 — Độ phức tạp ý định (`complexity`):** Phân biệt câu hỏi đơn mục tiêu (`single_intent`) và câu hỏi đa thủ tục (`multi_intent`).
    - **Head 4 — Phân loại Đa nhãn 11 Mục nội dung (`section`):** Dự đoán chính xác các thành phần nghiệp vụ cần tra cứu (ví dụ: `Thành phần hồ sơ`, `Trình tự thực hiện`, `Phí, lệ phí`, `Thời hạn giải quyết`, `Cơ quan thực hiện`, `Yêu cầu, điều kiện`...).
 2. **Triệt tiêu gánh nặng VRAM thông qua thực thi CPU:**  
-   Toàn bộ mô hình PhoBERT Router và checkpoint trọng số (`outputs/phobert_v3_finetuned_20261028/checkpoint`) được cấu hình nạp ở chế độ chỉ đọc `weights_only=True` và chạy **100% trên CPU máy chủ** với thiết lập phân luồng cố định `intra-op threads = 2`. Quyết định này giúp giải phóng hoàn toàn **100% dung lượng VRAM của GPU RTX 5060 Ti** để dành trọn vẹn tài nguyên cho mô hình sinh lớn `Qwen2.5-7B` và các phép đo ngữ nghĩa `xlm-roberta-large`.
+   Toàn bộ mô hình PhoBERT Router và checkpoint trọng số (`model/phobert_v3_finetuned_20261028/runtime/checkpoint`) được cấu hình nạp ở chế độ chỉ đọc `weights_only=True` và chạy **100% trên CPU máy chủ** với thiết lập phân luồng cố định `intra-op threads = 2`. Quyết định này giúp giải phóng hoàn toàn **100% dung lượng VRAM của GPU RTX 5060 Ti** để dành trọn vẹn tài nguyên cho mô hình sinh lớn `Qwen2.5-7B` và các phép đo ngữ nghĩa `xlm-roberta-large`.
 3. **Cơ chế Trọng tài Catalog và Hàng rào An toàn Chống Ảo giác:**  
    PhoBERT không sinh văn bản tự do hay viết lại câu hỏi bừa bãi. Kết quả phân loại được đưa qua lớp trọng tài ([`vigovbot.rag.routing`](../../src/vigovbot/rag/routing.py)) đối soát với danh mục 6.191 thủ tục hành chính quốc gia. Nếu xác suất ngoài phạm vi $P(\text{OUT}) \ge 0,85$, hệ thống lập tức kích hoạt hành vi từ chối an toàn với chi phí đúng **0 token LLM**, ngăn chặn triệt để nguy cơ mô hình ngôn ngữ lớn bị khai thác câu hỏi bẫy hoặc sinh thông tin sai lệch.
 
@@ -323,7 +323,7 @@ Toàn bộ khóa huấn luyện trải qua trọn vẹn **3,0 epochs** (tổng c
 
 ### 4.4.2. Kết quả suy luận độc lập (Closed-Book QLoRA v2)
 
-Trọng số tại `checkpoint-600` được trích xuất thành [`outputs/qlora_v2/training_run/best_adapter/`](../../outputs/qlora_v2/training_run/best_adapter/) (154,05 MiB), sau đó được đánh giá độc lập (không nạp RAG) trên tập kiểm thử PA1 tại [`result/eval-qlora_v2/scores.json`](../../result/eval-qlora_v2/scores.json):
+Trọng số tại `checkpoint-600` được trích xuất thành [`model/qlora_v2/training_run/best_adapter/`](../../model/qlora_v2/training_run/best_adapter/) (154,05 MiB), sau đó được đánh giá độc lập (không nạp RAG) trên tập kiểm thử PA1 tại [`result/eval-qlora_v2/scores.json`](../../result/eval-qlora_v2/scores.json):
 
 | Chỉ số đo lường | Mô hình Base | QLoRA v2 (Độc lập không RAG) | So sánh và Nhận định hành vi |
 | :--- | :---: | :---: | :--- |
@@ -345,7 +345,7 @@ Trọng số tại `checkpoint-600` được trích xuất thành [`outputs/qlor
 
 Trước khi chuẩn hóa bộ dữ liệu sạch `finetuning_v2`, dự án đã phát triển phiên bản sơ bộ **QLoRA v1** dựa trên tập dữ liệu hội thoại ChatML thông thường (`finetuning_v1`). Bảng dưới đây đối chiếu sự khác biệt bản chất giữa hai phiên bản:
 
-| Tiêu chí kỹ thuật | Phiên bản sơ bộ: QLoRA v1 (`outputs/qlora_v1/`) | Phiên bản chuẩn hóa: QLoRA v2 (`outputs/qlora_v2/`) |
+| Tiêu chí kỹ thuật | Phiên bản sơ bộ: QLoRA v1 (`outputs/qlora_v1/`) | Phiên bản chuẩn hóa: QLoRA v2 (`model/qlora_v2/`) |
 | :--- | :--- | :--- |
 | **Định dạng dữ liệu huấn luyện** | Hội thoại ChatML thuần túy (`user` $\to$ `assistant`), câu trả lời là văn bản tự do | RAG-SFT định hướng bằng chứng (`user` kèm Top Chunks $\to$ JSON có cấu trúc) |
 | **Kiểm toán rò rỉ đề thi** | **Chưa khử rò rỉ:** Tập train và test vô tình chia sẻ chung mã thủ tục và đoạn văn bản luật | **Kiểm toán Rời nhau Triệt để (Zero-Leakage):** Cách ly toàn bộ 109 ca rò rỉ vào `excluded_cases.jsonl` |
@@ -373,7 +373,7 @@ flowchart LR
 1. **Hợp nhất trọng số ma trận (Weight Merging):**  
    Tại [`outputs/qlora/merged_qwen_rag_sft`](../../outputs/qlora/), trọng số adapter LoRA được hòa tan trực tiếp vào trọng số gốc FP16 của mô hình nền theo công thức $W_{\text{merged}} = W_0 + \frac{\alpha}{r} (B \times A)$, tạo thành mô hình hoàn chỉnh dung lượng 15,2 GB, loại bỏ hoàn toàn độ trễ tính toán adapter trong quá trình suy luận.
 2. **Lượng tử hóa định dạng nhị phân GGUF Q8_0:**  
-   Mô hình sau hợp nhất được biên dịch sang định dạng GGUF chuẩn của thư viện `llama.cpp` ở mức lượng tử hóa **Q8_0** (`outputs/qlora_v2/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`, dung lượng 8,10 GB). Mức lượng tử hóa Q8_0 bảo toàn 99,9% độ chính xác số học so với FP16 nhưng giảm 47% dung lượng bộ nhớ.
+   Mô hình sau hợp nhất được biên dịch sang định dạng GGUF chuẩn của thư viện `llama.cpp` ở mức lượng tử hóa **Q8_0** (`model/qlora_v2/runtime/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`, dung lượng 8,10 GB). Mức lượng tử hóa Q8_0 bảo toàn 99,9% độ chính xác số học so với FP16 nhưng giảm 47% dung lượng bộ nhớ.
 3. **Phục vụ qua Ollama và ViGovBot API Gateway:**  
    Được nạp vào máy chủ Ollama thông qua cấu hình `Modelfile.qwen-qlora-rag-sft`. Máy chủ backend FastAPI kết nối trực tiếp với Ollama qua giao thức HTTP bất đồng bộ, tự động nạp Top-15 đoạn trích vào phong bì JSON của prompt và giải mã chuỗi phản hồi JSON từ mô hình.
 

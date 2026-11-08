@@ -1472,15 +1472,15 @@
       }
     }
   },
-  "output": "outputs\\evaluation\\eval-qlora-rag-sft-v3\\case-scores.jsonl",
+  "output": "outputs/evaluation/eval-qlora-rag-sft-v3/case-scores.jsonl",
   "provenance": {
-    "golden_dataset": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\Data\\dataset_v3\\test_rag\\test_rag_pa1.jsonl",
+    "golden_dataset": "Data/dataset_v3/test_rag/test_rag_pa1.jsonl",
     "golden_sha256": "f62867a7a0af3cba543c9602392a82e7c4f5912fe1e97b0b22e3c7b4bf1b3583",
-    "predictions": "outputs\\evaluation\\eval-qlora-rag-sft-v3\\predictions.jsonl",
+    "predictions": "outputs/evaluation/eval-qlora-rag-sft-v3/predictions.jsonl",
     "predictions_sha256": "bd34617326990354e5db1ab0809d6415c424116dd435f12f2f8d159d8760312a",
     "judgments": null,
     "judgments_sha256": null,
-    "model_config": "C:\\Users\\ezycloudx-admin\\Documents\\ViGovBot\\outputs\\qlora_v2\\training_run\\best_adapter\\model_metadata.json",
+    "model_config": "model/qlora_v2/training_run/best_adapter/model_metadata.json",
     "model_config_sha256": "ba2122b5465af62b2d33c0a5e43e90630205684cf0a73810168fceb76a427442",
     "scorer_versions": {
       "offline_v3": "3.2.0",
@@ -1488,7 +1488,7 @@
     },
     "created_at": "2026-11-04T04:40:12+07:00",
     "inference_performed": false,
-    "supplemental": "outputs\\evaluation\\eval-qlora-rag-sft-v3\\supplemental.json",
+    "supplemental": "outputs/evaluation/eval-qlora-rag-sft-v3/supplemental.json",
     "supplemental_sha256": "e7ac8b5500be435ba71406b82866c21f80844c3177c397d7a5a5444f883f6b84"
   },
   "note": "Offline export from immutable predictions; supplemental metrics were merged."

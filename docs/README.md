@@ -28,6 +28,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 - [Routing PhoBERT bốn head và menu theo trạng thái](guides/four-head-routing.md)
 - [Đánh giá QA/RAG](guides/qa-rag-evaluation.md)
 - [Vận hành huấn luyện](guides/training.md)
+- [Phục hồi QLoRA v2 từ adapter trên máy mới](guides/qlora-model-restore.md)
 - [Đánh giá, biểu đồ và báo cáo QLoRA](guides/evaluation.md)
 
 ## Chuyên đề QLoRA

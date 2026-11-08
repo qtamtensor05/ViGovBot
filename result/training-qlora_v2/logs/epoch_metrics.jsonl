@@ -1,0 +1,3 @@
+{"event": "epoch_end", "timestamp_utc": "2026-11-03T05:58:39.489494+00:00", "invocation_id": "20261103T033456-1d7cae3a", "global_step": 225, "total_steps": 675, "epoch": 1.0, "elapsed_seconds": 8623.464728355408, "epoch_duration_seconds": 8623.126320100004}
+{"event": "epoch_end", "timestamp_utc": "2026-11-03T08:24:48.830157+00:00", "invocation_id": "20261103T033456-1d7cae3a", "global_step": 450, "total_steps": 675, "epoch": 2.0, "elapsed_seconds": 17392.805391311646, "epoch_duration_seconds": 8769.337981899997}
+{"event": "epoch_end", "timestamp_utc": "2026-11-03T10:50:57.334765+00:00", "invocation_id": "20261103T033456-1d7cae3a", "global_step": 675, "total_steps": 675, "epoch": 3.0, "elapsed_seconds": 26161.309998750687, "epoch_duration_seconds": 8768.513062800004}

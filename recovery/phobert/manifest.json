@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "model_name": "phobert-v3-finetuned-20261028",
+  "bundle_dir": "recovery/phobert/checkpoint",
+  "runtime_dir": "model/phobert_v3_finetuned_20261028/runtime/checkpoint",
+  "files": {
+    "bpe.codes": "9dfe53fb8abbddd3387da99641c36e00bee757a3679aad9cf0a7cdc4b30f6ef8",
+    "encoder/config.json": "8ec7cf49d48401485e3aaca06cf3828c2bcda8ce7975775b134042d7501371d2",
+    "encoder/model.safetensors": "f2988e16ac85af0436b0a7e4f8bdb3a27b86dc4c2c010668bbb1446af8b57419",
+    "heads.pt": "dfef1c2a7504aba68dc7e4b22ab0624064f196066ea8b2466fbd57396d9f2e29",
+    "meta.json": "c2998772b15d4ffb2068ef31f48faf684f825512ad5ef026d43eb1852a30c7eb",
+    "vocab.txt": "dffd7543c401fb6567253ae7c3313004532c33d062525250049c616544bad777"
+  }
+}

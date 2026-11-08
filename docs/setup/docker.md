@@ -76,7 +76,7 @@ thực sự muốn xóa model Ollama, cache RAG và cache Hugging Face đã tả
 Các dữ liệu vẫn cần trên host vì đang được bind mount vào container:
 
 - `Data/vector/unified`: corpus vector cho RAG.
-- Bản merge GGUF `outputs/qlora_v2/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`: Compose tự động
+- Bản merge GGUF `model/qlora_v2/runtime/qwen2.5-7b-qlora-rag-sft-q8_0.gguf`: Compose tự động
   nhập thành `qwen-qlora-rag-sft:latest` vào volume Ollama (và tự động gỡ bỏ model v1 `qwen-qlora:latest`).
 - `src` và `configs`: mount read-only cho development; sửa code/cấu hình chỉ
   cần recreate/restart container, không build lại dependency.
