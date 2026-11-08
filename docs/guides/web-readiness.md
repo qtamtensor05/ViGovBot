@@ -38,11 +38,11 @@ Preflight trả exit code `2` khi có `FAIL` bắt buộc. Các kiểm tra bắt
 - index, metadata và manifest của corpus vector;
 - quyền ghi vào vị trí cache RAG;
 - sáu file PhoBERT khi cấu hình bật router PhoBERT;
-- CUDA khi `embedding.device` yêu cầu CUDA;
 - cổng web chưa bị chiếm.
 
 Các mục sau là tùy chọn và chỉ tạo `WARN`:
 
+- `embedding.device = cuda` nhưng CUDA không khả dụng — embedding fallback về CPU, web vẫn chạy được;
 - Ollama chưa chạy;
 - một hoặc nhiều model Ollama chưa được cài;
 - adapter `local_transformers` chưa có;

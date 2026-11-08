@@ -1,9 +1,10 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import patch
+from types import ModuleType, SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import typer
 
@@ -79,6 +80,29 @@ class WebReadinessTests(unittest.TestCase):
             report = self.run_check(probe_services=True)
         self.assertEqual(report["status"], "PASS")
         self.assertEqual(report["warnings"], 1)
+
+    def test_cuda_unavailable_is_warning_not_failure(self):
+        config = self.config()
+        config.embedding = SimpleNamespace(device="cuda")
+
+        # Build a fake torch module with cuda.is_available() == False
+        fake_torch = ModuleType("torch")
+        fake_torch.cuda = MagicMock()
+        fake_torch.cuda.is_available.return_value = False
+
+        with (
+            patch("vigovbot.runtime_readiness.load_config", return_value=config),
+            patch("vigovbot.runtime_readiness.importlib.util.find_spec", return_value=object()),
+            patch("vigovbot.runtime_readiness._check_port", return_value=(True, "available")),
+            patch.dict(sys.modules, {"torch": fake_torch}),
+        ):
+            report = check_web_readiness(self.config_path, probe_services=False)
+
+        self.assertEqual(report["status"], "PASS")
+        cuda_items = [c for c in report["checks"] if c["name"] == "embedding_device"]
+        self.assertTrue(cuda_items)
+        self.assertEqual(cuda_items[0]["status"], "WARN")
+        self.assertFalse(cuda_items[0]["required"])
 
     def test_web_starts_with_optional_warnings_but_blocks_required_failure(self):
         with (

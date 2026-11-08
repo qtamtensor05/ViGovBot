@@ -151,12 +151,19 @@ def check_web_readiness(config_path: str | Path, *, host="127.0.0.1", port=8000,
             import torch
 
             available = torch.cuda.is_available()
-            detail = torch.cuda.get_device_name(0) if available else "CUDA requested but unavailable"
+            if available:
+                detail = torch.cuda.get_device_name(0)
+                checks.append(_result("embedding_device", "PASS", detail, required=False))
+            else:
+                checks.append(_result(
+                    "embedding_device", "WARN",
+                    "CUDA được cấu hình nhưng không khả dụng; embedding sẽ chạy trên CPU (chậm hơn)",
+                    required=False,
+                ))
         except Exception as exc:
-            available, detail = False, str(exc)
-        checks.append(_result("embedding_device", "PASS" if available else "FAIL", detail, required=True))
+            checks.append(_result("embedding_device", "WARN", str(exc), required=False))
     else:
-        checks.append(_result("embedding_device", "PASS", config.embedding.device, required=True))
+        checks.append(_result("embedding_device", "PASS", config.embedding.device, required=False))
 
     port_available, port_detail = _check_port(host, port)
     checks.append(_result("web_port", "PASS" if port_available else "FAIL", port_detail, required=True))
