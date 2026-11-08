@@ -1,0 +1,272 @@
+{
+  "run_name": "router_v2_calibrated",
+  "total_samples": 1246,
+  "evaluation_time_seconds": 259.5,
+  "thresholds": {
+    "OVERVIEW": 0.31,
+    "PROCEDURE": 0.1,
+    "SUBMISSION_METHOD": 0.89,
+    "DOSSIER": 0.5,
+    "PROCESSING_TIME": 0.22,
+    "AUTHORITY": 0.14,
+    "RESULT": 0.9,
+    "FEE": 0.1,
+    "LEGAL_BASIS": 0.74,
+    "ELIGIBILITY": 0.6,
+    "FORM": 0.5
+  },
+  "latency_ms": {
+    "mean": 208.26,
+    "p50": 208.26,
+    "p95": 312.4,
+    "p99": 416.53
+  },
+  "metrics_percentage": {
+    "scope_accuracy": 96.95,
+    "flow_accuracy": 98.8,
+    "mix_accuracy": 100.0,
+    "sections_exact_match": 83.71,
+    "sections_mean_jaccard": 84.14,
+    "phobert_4head_joint_accuracy": 80.34,
+    "catalog_codes_exact_match": 91.81,
+    "catalog_count_accuracy": 91.81,
+    "action_accuracy": 91.33,
+    "decision_reason_accuracy": 91.33,
+    "target_flow_accuracy": 91.33,
+    "strict_e2e_accuracy": 74.08
+  },
+  "cohort_breakdown": {
+    "diff_hard": {
+      "total": 162,
+      "strict_e2e_acc": 85.19,
+      "action_acc": 98.77,
+      "codes_acc": 96.3,
+      "phobert_acc": 88.89
+    },
+    "diff_medium": {
+      "total": 1084,
+      "strict_e2e_acc": 72.42,
+      "action_acc": 90.22,
+      "codes_acc": 91.14,
+      "phobert_acc": 79.06
+    },
+    "turn_follow_up": {
+      "total": 503,
+      "strict_e2e_acc": 82.5,
+      "action_acc": 89.26,
+      "codes_acc": 100.0,
+      "phobert_acc": 82.5
+    },
+    "turn_new_question": {
+      "total": 743,
+      "strict_e2e_acc": 68.37,
+      "action_acc": 92.73,
+      "codes_acc": 86.27,
+      "phobert_acc": 78.87
+    }
+  },
+  "total_failures": 323,
+  "comparison_v1_vs_v2": {
+    "scope_accuracy": {
+      "v1": 96.95,
+      "v2": 96.95,
+      "diff": 0.0
+    },
+    "flow_accuracy": {
+      "v1": 98.8,
+      "v2": 98.8,
+      "diff": 0.0
+    },
+    "mix_accuracy": {
+      "v1": 100.0,
+      "v2": 100.0,
+      "diff": 0.0
+    },
+    "sections_exact_match": {
+      "v1": 75.52,
+      "v2": 83.71,
+      "diff": 8.19
+    },
+    "sections_mean_jaccard": {
+      "v1": 77.55,
+      "v2": 84.14,
+      "diff": 6.59
+    },
+    "phobert_4head_joint_accuracy": {
+      "v1": 73.03,
+      "v2": 80.34,
+      "diff": 7.31
+    },
+    "catalog_codes_exact_match": {
+      "v1": 91.81,
+      "v2": 91.81,
+      "diff": 0.0
+    },
+    "catalog_count_accuracy": {
+      "v1": 91.81,
+      "v2": 91.81,
+      "diff": 0.0
+    },
+    "action_accuracy": {
+      "v1": 84.27,
+      "v2": 91.33,
+      "diff": 7.06
+    },
+    "decision_reason_accuracy": {
+      "v1": 84.27,
+      "v2": 91.33,
+      "diff": 7.06
+    },
+    "target_flow_accuracy": {
+      "v1": 84.27,
+      "v2": 91.33,
+      "diff": 7.06
+    },
+    "strict_e2e_accuracy": {
+      "v1": 67.09,
+      "v2": 74.08,
+      "diff": 6.99
+    }
+  },
+  "per_label_threshold_stats": {
+    "OVERVIEW": {
+      "v1_threshold": 0.5,
+      "v1_precision": 0.0,
+      "v1_recall": 0.0,
+      "v1_f1": 0.0,
+      "v2_threshold": 0.31,
+      "v2_precision": 10.53,
+      "v2_recall": 1.23,
+      "v2_f1": 2.21,
+      "delta_f1": 2.21,
+      "impact": "Hạ ngưỡng: vớt câu hỏi đối tượng"
+    },
+    "PROCEDURE": {
+      "v1_threshold": 0.65,
+      "v1_precision": 100.0,
+      "v1_recall": 87.9,
+      "v1_f1": 93.56,
+      "v2_threshold": 0.1,
+      "v2_precision": 98.04,
+      "v2_recall": 95.54,
+      "v2_f1": 96.77,
+      "delta_f1": 3.21,
+      "impact": "Hạ sâu: gom câu hỏi quy trình ngắn"
+    },
+    "SUBMISSION_METHOD": {
+      "v1_threshold": 0.7,
+      "v1_precision": 0.0,
+      "v1_recall": 0.0,
+      "v1_f1": 0.0,
+      "v2_threshold": 0.89,
+      "v2_precision": 0.0,
+      "v2_recall": 0.0,
+      "v2_f1": 0.0,
+      "delta_f1": 0.0,
+      "impact": "Cân bằng hoặc dữ liệu quá ít"
+    },
+    "DOSSIER": {
+      "v1_threshold": 0.4,
+      "v1_precision": 98.96,
+      "v1_recall": 100.0,
+      "v1_f1": 99.48,
+      "v2_threshold": 0.5,
+      "v2_precision": 100.0,
+      "v2_recall": 100.0,
+      "v2_f1": 100.0,
+      "delta_f1": 0.52,
+      "impact": "Tăng nhẹ: giữ chuẩn 100% Precision/Recall"
+    },
+    "PROCESSING_TIME": {
+      "v1_threshold": 0.75,
+      "v1_precision": 91.25,
+      "v1_recall": 59.84,
+      "v1_f1": 72.28,
+      "v2_threshold": 0.22,
+      "v2_precision": 94.57,
+      "v2_recall": 100.0,
+      "v2_f1": 97.21,
+      "delta_f1": 24.93,
+      "impact": "Hạ sâu: cứu 49 ca sót thời hạn"
+    },
+    "AUTHORITY": {
+      "v1_threshold": 0.7,
+      "v1_precision": 92.59,
+      "v1_recall": 96.53,
+      "v1_f1": 94.52,
+      "v2_threshold": 0.14,
+      "v2_precision": 77.88,
+      "v2_recall": 99.23,
+      "v2_f1": 87.27,
+      "delta_f1": -7.25,
+      "impact": "Hạ ngưỡng: tăng độ bao phủ thẩm quyền"
+    },
+    "RESULT": {
+      "v1_threshold": 0.35,
+      "v1_precision": 89.35,
+      "v1_recall": 100.0,
+      "v1_f1": 94.38,
+      "v2_threshold": 0.9,
+      "v2_precision": 97.42,
+      "v2_recall": 100.0,
+      "v2_f1": 98.69,
+      "delta_f1": 4.32,
+      "impact": "Tăng mạnh: khử False Positive nhầm lẫn"
+    },
+    "FEE": {
+      "v1_threshold": 0.5,
+      "v1_precision": 100.0,
+      "v1_recall": 67.38,
+      "v1_f1": 80.51,
+      "v2_threshold": 0.1,
+      "v2_precision": 100.0,
+      "v2_recall": 100.0,
+      "v2_f1": 100.0,
+      "delta_f1": 19.49,
+      "impact": "Hạ sâu: đạt F1 100%, khử sót lệ phí"
+    },
+    "LEGAL_BASIS": {
+      "v1_threshold": 0.4,
+      "v1_precision": 99.59,
+      "v1_recall": 96.79,
+      "v1_f1": 98.17,
+      "v2_threshold": 0.74,
+      "v2_precision": 100.0,
+      "v2_recall": 96.79,
+      "v2_f1": 98.37,
+      "delta_f1": 0.2,
+      "impact": "Cân bằng hoặc dữ liệu quá ít"
+    },
+    "ELIGIBILITY": {
+      "v1_threshold": 0.5,
+      "v1_precision": 0.0,
+      "v1_recall": 0.0,
+      "v1_f1": 0.0,
+      "v2_threshold": 0.6,
+      "v2_precision": 0.0,
+      "v2_recall": 0.0,
+      "v2_f1": 0.0,
+      "delta_f1": 0.0,
+      "impact": "Cân bằng hoặc dữ liệu quá ít"
+    },
+    "FORM": {
+      "v1_threshold": 0.5,
+      "v1_precision": 0.0,
+      "v1_recall": 0.0,
+      "v1_f1": 0.0,
+      "v2_threshold": 0.5,
+      "v2_precision": 0.0,
+      "v2_recall": 0.0,
+      "v2_f1": 0.0,
+      "delta_f1": 0.0,
+      "impact": "Cân bằng hoặc dữ liệu quá ít"
+    }
+  },
+  "root_cause_analysis": {
+    "total_failures_v2": 323,
+    "model_representation_limits_prob_under_0_15": 179,
+    "catalog_entity_resolution_failures": 102,
+    "other_heads_softmax_failures": 40,
+    "marginal_threshold_overlap_failures": 2
+  }
+}

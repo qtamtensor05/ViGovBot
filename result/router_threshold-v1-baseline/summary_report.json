@@ -1,0 +1,69 @@
+{
+  "run_name": "router_v1_baseline",
+  "total_samples": 1246,
+  "evaluation_time_seconds": 259.5,
+  "thresholds": {
+    "OVERVIEW": 0.5,
+    "PROCEDURE": 0.65,
+    "SUBMISSION_METHOD": 0.7,
+    "DOSSIER": 0.4,
+    "PROCESSING_TIME": 0.75,
+    "AUTHORITY": 0.7,
+    "RESULT": 0.35,
+    "FEE": 0.5,
+    "LEGAL_BASIS": 0.4,
+    "ELIGIBILITY": 0.5,
+    "FORM": 0.5
+  },
+  "latency_ms": {
+    "mean": 208.26,
+    "p50": 208.26,
+    "p95": 312.4,
+    "p99": 416.53
+  },
+  "metrics_percentage": {
+    "scope_accuracy": 96.95,
+    "flow_accuracy": 98.8,
+    "mix_accuracy": 100.0,
+    "sections_exact_match": 75.52,
+    "sections_mean_jaccard": 77.55,
+    "phobert_4head_joint_accuracy": 73.03,
+    "catalog_codes_exact_match": 91.81,
+    "catalog_count_accuracy": 91.81,
+    "action_accuracy": 84.27,
+    "decision_reason_accuracy": 84.27,
+    "target_flow_accuracy": 84.27,
+    "strict_e2e_accuracy": 67.09
+  },
+  "cohort_breakdown": {
+    "diff_hard": {
+      "total": 162,
+      "strict_e2e_acc": 40.74,
+      "action_acc": 70.37,
+      "codes_acc": 96.3,
+      "phobert_acc": 42.59
+    },
+    "diff_medium": {
+      "total": 1084,
+      "strict_e2e_acc": 71.03,
+      "action_acc": 86.35,
+      "codes_acc": 91.14,
+      "phobert_acc": 77.58
+    },
+    "turn_follow_up": {
+      "total": 503,
+      "strict_e2e_acc": 73.16,
+      "action_acc": 77.34,
+      "codes_acc": 100.0,
+      "phobert_acc": 73.16
+    },
+    "turn_new_question": {
+      "total": 743,
+      "strict_e2e_acc": 62.99,
+      "action_acc": 88.96,
+      "codes_acc": 86.27,
+      "phobert_acc": 72.95
+    }
+  },
+  "total_failures": 410
+}
