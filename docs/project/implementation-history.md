@@ -648,3 +648,15 @@ Snapshot tải đủ vào volume. Smoke model thật chấm 10 cặp và trả b
 - **Mục tiêu:** Loại bỏ chi phí đọc lại source không cần thiết, tránh kích hoạt sai chỉ dẫn trình bày và bảo toàn Unicode khi stream structured answer.
 - **Thực hiện:** Cache nội dung fingerprint theo chữ ký đường dẫn/mtime/kích thước; cache source identity thread-safe theo vòng đời `ChatApplication`; matching từ khóa theo biên từ; ghép đúng cặp surrogate JSON; thống nhất fold discovery/routing; bỏ max-abs dư thừa trước L2 và thêm hồi quy.
 - **Kết quả:** Các nhóm 37, 121, 31 và 130 test tập trung đều đạt; Ruff và compileall đạt. Full suite chạy 458 test; 1 failure và 5 error còn lại thuộc các vấn đề độc lập đã nêu trong hồ sơ yêu cầu, không phát sinh từ thay đổi này.
+
+## 2026-11-08 - Khôi phục trình tự thực hiện từ corpus cũ
+
+- **Mục tiêu:** Trả đúng trình tự của thủ tục đã nêu rõ khi chunk bước thực hiện trong corpus cũ bị gắn `section_type=other`.
+- **Thực hiện:** Thêm fallback theo nội dung cho `procedure_step`, chỉ nhận chunk `other` có tiêu đề “Trình tự thực hiện” hoặc “Bước N”; giữ bộ lọc mã thủ tục và không thay đổi taxonomy ingestion mới.
+- **Kết quả:** 104 test routing/retrieval đạt. Cả `/api/chat` và `/api/chat/stream` thật với thủ tục `1.000047` route `NEW/PROCEDURE`, truy xuất đúng ba bước và trả `answer/sufficient` thay vì menu không liên quan.
+
+## 2026-11-08 - Phân biệt cách thực hiện với trình tự thực hiện
+
+- **Mục tiêu:** Truy xuất đúng hình thức nộp khi người dùng hỏi “Cách thực hiện”, không trả lại danh sách các bước.
+- **Thực hiện:** Bổ sung từ khóa xác định “cách thực hiện”/“cách thức thực hiện” cho `SUBMISSION_METHOD`; giữ “trình tự”/“các bước” ở `PROCEDURE`; thêm guard hậu sinh đối chiếu các hàng hình thức và fallback bằng nguyên bảng evidence; thêm alias kiểm duyệt “thủ tục kết hôn”/“kết hôn” cho mã `1.000894`.
+- **Kết quả:** 154 test alias/routing/prompt/generation đạt. Câu tên rút gọn qua `/api/chat/stream` dùng `procedure_direct`, chỉ truy xuất `1.000894`/`submission_deadline_fee` và trả nguyên bảng Markdown ba hình thức cùng thời hạn 1 ngày, miễn phí.

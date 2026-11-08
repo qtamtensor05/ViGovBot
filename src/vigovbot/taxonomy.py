@@ -1,5 +1,7 @@
 """Shared corpus taxonomy and read-only migration compatibility."""
 
+import re
+
 from vigovbot.utils.text import fold_vietnamese
 
 ROUTING_SECTION_TYPES = frozenset({
@@ -19,13 +21,18 @@ LEGACY_SECTION_FALLBACK = {
 
 def legacy_section_matches(section_type, hit):
     """Match one legacy chunk without widening a missing section to the procedure."""
-    if section_type not in LEGACY_SECTION_FALLBACK:
+    if section_type not in LEGACY_SECTION_FALLBACK and section_type != "procedure_step":
         return False
-    fallback = LEGACY_SECTION_FALLBACK[section_type]
+    fallback = LEGACY_SECTION_FALLBACK.get(section_type)
     if fallback is not None:
         return hit.get("section_type") == fallback
-    if section_type != "result":
-        return False
     text = "\n".join(str(hit.get(key) or "") for key in ("context_prefix", "text_content"))[:800]
     folded = fold_vietnamese(text)
-    return "ket qua xu ly" in folded or "ket qua thuc hien" in folded
+    if section_type == "procedure_step":
+        return hit.get("section_type") == "other" and (
+            "trinh tu thuc hien" in folded
+            or bool(re.search(r"(?<!\w)buoc\s+(?:thu\s+)?\d+(?!\w)", folded))
+        )
+    if section_type == "result":
+        return "ket qua xu ly" in folded or "ket qua thuc hien" in folded
+    return False

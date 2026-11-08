@@ -585,8 +585,8 @@ def answer_conversation(question, retriever, tokenizer, settings, history=None, 
                 section_hits = retriever.search(query, settings["top_k"], section_types=[section_type] if section_type else ([] if phobert else None))
                 group = [h for h in section_hits if h.get("source_code") == code
                          and (section_type is None or h.get("section_type") == section_type)]
-                if not group and section_type in LEGACY_SECTION_FALLBACK:
-                    legacy = LEGACY_SECTION_FALLBACK[section_type]
+                if not group and (section_type in LEGACY_SECTION_FALLBACK or section_type == "procedure_step"):
+                    legacy = LEGACY_SECTION_FALLBACK.get(section_type)
                     section_hits = retriever.search(
                         query, settings["top_k"], section_types=[legacy] if legacy else [])
                     group = [h for h in section_hits if h.get("source_code") == code

@@ -33,6 +33,15 @@ không suy ra từ báo cáo benchmark cũ.
   khóa retrieval theo mã thủ tục cùng section intent thay vì định tuyến lại.
 - Mã thủ tục đã chọn được giữ xuyên qua cả menu chọn section; context khác mã bị
   loại trước generation, kể cả khi tiếp tục từ state v3 cũ.
+- Corpus cũ có chunk bước thực hiện bị gắn `other` được đọc tương thích theo nội
+  dung “Trình tự thực hiện”/“Bước N”; fallback vẫn khóa theo mã và không mở rộng
+  sang các chunk `other` không liên quan.
+- Cụm “cách thực hiện”/“cách thức thực hiện” được ưu tiên xác định là
+  `SUBMISSION_METHOD`; “trình tự”/“các bước” vẫn ánh xạ sang `PROCEDURE`.
+- Câu trả lời `SUBMISSION_METHOD` được kiểm tra đủ các hàng hình thức trong bảng
+  evidence; nếu model chỉ lặp tiêu đề, runtime trả lại bảng nguồn có căn cứ.
+- Alias kiểm duyệt “thủ tục kết hôn”/“kết hôn” khóa trực tiếp vào mã `1.000894`,
+  tránh semantic retrieval sang thủ tục khác và giữ nguyên bảng Markdown nguồn.
 - State được ký HMAC để phát hiện sửa đổi. Lưu trữ phiên dùng bộ nhớ tiến trình,
   phù hợp demo một tiến trình và chưa phải session store phân tán.
 - Chuẩn hóa tiếng Việt dùng primitive chung `fold_vietnamese`; các policy bổ sung

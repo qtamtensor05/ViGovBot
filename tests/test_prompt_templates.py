@@ -56,11 +56,13 @@ class PromptPresentationTests(unittest.TestCase):
         self.assertNotIn("phí, lệ phí hoặc thời hạn", prompt)
 
     def test_submission_method_requires_every_non_empty_table_row(self):
-        prompt = self.system_prompt("Cách thức nộp hồ sơ là gì?")
+        for question in ("Cách thức nộp hồ sơ là gì?", "Cách thực hiện của thủ tục như thế nào?"):
+            with self.subTest(question=question):
+                prompt = self.system_prompt(question)
 
-        self.assertIn("phải liệt kê đủ từng hình thức", prompt)
-        self.assertIn("các giá trị không rỗng trên cùng hàng", prompt)
-        self.assertIn("không chỉ lặp lại tiêu đề bảng", prompt)
+                self.assertIn("phải liệt kê đủ từng hình thức", prompt)
+                self.assertIn("các giá trị không rỗng trên cùng hàng", prompt)
+                self.assertIn("không chỉ lặp lại tiêu đề bảng", prompt)
 
 
 if __name__ == "__main__":

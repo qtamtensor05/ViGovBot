@@ -35,6 +35,21 @@ class ClarifierTests(unittest.TestCase):
             self.assertIn("custom_section", text)
             self.assertNotIn("Cách thức nộp", text)
 
+    def test_curated_marriage_alias_resolves_short_name_inside_section_question(self):
+        add_procedure(self.retriever, "1.000894", "Thủ tục đăng ký kết hôn",
+                      sections=("submission_deadline_fee",))
+        add_procedure(self.retriever, "1.115978", "Đổi giấy phép lái xe",
+                      sections=("procedure_step",))
+        del self.retriever._clarification_catalog
+        clarifier = Clarifier(
+            self.retriever,
+            settings={"procedure_aliases_path": "configs/rag/procedure-aliases.yaml"},
+        )
+
+        identity = clarifier.resolve_identity("Cách thực hiện của thủ tục kết hôn là gì")
+
+        self.assertEqual(identity, {"codes": ["1.000894"], "source": "alias_mention"})
+
     def test_explicit_goals_and_overview_do_not_ask(self):
         for question in ("Hồ sơ đăng ký tạm trú", "Phí và thời hạn đăng ký tạm trú",
                          "Tổng quan đăng ký tạm trú", "Hướng dẫn toàn bộ đăng ký tạm trú"):

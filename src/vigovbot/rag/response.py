@@ -93,6 +93,44 @@ def _append_missing_fragment_evidence(answer, missing_fragments, used):
     return answer + ("\n\n" + "\n\n".join(additions) if additions else "")
 
 
+def _submission_table_fallback(answer, used):
+    """Return a grounded table when generation omits submission-method rows."""
+    tables = []
+    required_labels = []
+    for item in used:
+        if item.get("section_type") not in {"submission_method", "submission_deadline_fee"}:
+            continue
+        lines = item.get("included_text", "").splitlines()
+        for index, line in enumerate(lines):
+            if not line.strip().startswith("|") or index + 1 >= len(lines):
+                continue
+            separator = lines[index + 1].strip()
+            if not separator.startswith("|") or not re.fullmatch(r"[|:\-\s]+", separator):
+                continue
+            table = [line.strip(), separator]
+            for row in lines[index + 2:]:
+                if not row.strip().startswith("|"):
+                    break
+                table.append(row.strip())
+            labels = []
+            for row in table[2:]:
+                cells = [cell.strip(" *") for cell in row.strip().strip("|").split("|")]
+                if cells and cells[0] and not re.fullmatch(r"[|:\-\s]+", cells[0]):
+                    labels.append(cells[0])
+            if labels:
+                tables.append("\n".join(table))
+                required_labels.extend(labels)
+            break
+    folded_answer = " ".join(ascii_word_tokens(answer))
+    missing = [label for label in required_labels
+               if " ".join(ascii_word_tokens(label)) not in folded_answer]
+    # A specific-method question may legitimately answer only one matching row.
+    # The fallback targets the observed degeneration where no data row is present.
+    if not missing or len(missing) < len(required_labels) or not tables:
+        return answer, []
+    return "Cách thức thực hiện:\n\n" + "\n\n".join(tables), missing
+
+
 def resolve_route(question, history, tokenizer, settings, answer_fn, routing_enabled):
     route, routing_raw, routing_s, routing_tokens = None, None, 0.0, 0
     routing_attempts = 0
@@ -388,5 +426,8 @@ def generate_answer(messages, used, tokenizer, settings, answer_fn, structured, 
             else:
                 generation_diagnostics["coverage_repair"] = "skipped_context_budget"
                 action, evidence = "partial", "partial"
+    answer, missing_submission_rows = _submission_table_fallback(answer, used)
+    if missing_submission_rows:
+        generation_diagnostics["submission_table_fallback"] = missing_submission_rows
     return (answer, raw, generation_s, action, evidence, generation_diagnostics,
             citations, citation_ids, citations_status)

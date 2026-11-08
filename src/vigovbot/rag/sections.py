@@ -53,7 +53,9 @@ def explicit_section_intents(text):
         ("PROCEDURE", ("trinh tu", "quy trinh", "cac buoc", "buoc thuc hien")),
         ("PROCESSING_TIME", ("thoi han", "bao lau", "may ngay")),
         ("FEE", ("le phi", "chi phi", "muc phi")),
-        ("SUBMISSION_METHOD", ("cach thuc nop", "hinh thuc nop", "nop o dau")),
+        ("SUBMISSION_METHOD", (
+            "cach thuc thuc hien", "cach thuc hien", "cach thuc nop", "hinh thuc nop", "nop o dau",
+        )),
         ("AUTHORITY", ("co quan thuc hien", "co quan giai quyet", "co quan tiep nhan")),
         ("RESULT", ("ket qua thuc hien", "ket qua xu ly", "ket qua nhan duoc")),
         ("LEGAL_BASIS", ("can cu phap ly", "co so phap ly", "can cu phap li", "co so phap li")),

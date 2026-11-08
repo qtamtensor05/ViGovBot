@@ -100,6 +100,26 @@ class FourHeadTests(unittest.TestCase):
 
         self.assertEqual([hit["chunk_id"] for hit in result["retrieved"]], ["legacy-result"])
 
+    def test_legacy_other_step_chunk_answers_explicit_procedure_question(self):
+        name = "Phê duyệt phương án khai thác động vật rừng thông thường từ tự nhiên"
+        add_procedure(self.retriever, "1.000047", name, sections=("other", "required_documents"))
+        row = self.retriever.db.execute(
+            "SELECT row_id, payload FROM chunks WHERE json_extract(payload, '$.source_code')='1.000047' "
+            "AND json_extract(payload, '$.section_type')='other'"
+        ).fetchone()
+        payload = json.loads(row[1])
+        payload["context_prefix"] = "[Mục: a) Bước 1: Nộp hồ sơ]"
+        payload["text_content"] = "## a) Bước 1: Nộp hồ sơ\nNộp 01 bộ hồ sơ đến cơ quan có thẩm quyền."
+        self.retriever.db.execute("UPDATE chunks SET payload=? WHERE row_id=?", (json.dumps(payload), row[0]))
+
+        question = f"thủ tục {name} trình tự thực hiện là gì"
+        result = self.ask(question, route(name, ["PROCEDURE"], query="Trình tự thực hiện"))
+
+        self.assertEqual(result["action"], "answer")
+        self.assertEqual(result["classification"]["conversation"], "NEW")
+        self.assertEqual([hit["section_type"] for hit in result["retrieved"]], ["other"])
+        self.assertIn("Bước 1", result["retrieved"][0]["text_content"])
+
     def test_prefixed_duplicate_names_still_require_procedure_choice(self):
         for code in ("1.000894", "2.000894"):
             add_procedure(self.retriever, code, "Thủ tục đăng ký kết hôn",
@@ -375,8 +395,23 @@ class FourHeadTests(unittest.TestCase):
         self.assertIn("procedure_step", result["retrieval_query"])
         self.assertNotIn("submission_deadline_fee", result["retrieval_query"])
 
+    def test_submission_method_follow_up_overrides_wrong_procedure_prediction(self):
+        self.ask("Cấp hộ chiếu", route())
+        result = self.ask(
+            "Cách thực hiện của thủ tục trên là gì",
+            route(sections=["PROCEDURE"], conversation="FOLLOW_UP"),
+        )
+
+        self.assertEqual(result["classification"]["sections"], ["SUBMISSION_METHOD"])
+        self.assertIn("submission_method", result["retrieval_query"])
+        self.assertEqual({hit["section_type"] for hit in result["retrieved"]},
+                         {"submission_deadline_fee"})
+
     def test_section_keyword_mapping_is_explicit_and_multilabel(self):
         self.assertEqual(explicit_section_intents("Trình tự thực hiện"), ["PROCEDURE"])
+        self.assertEqual(explicit_section_intents("Cách thực hiện của thủ tục trên là gì"),
+                         ["SUBMISSION_METHOD"])
+        self.assertEqual(explicit_section_intents("Cách thức thực hiện"), ["SUBMISSION_METHOD"])
         self.assertEqual(explicit_section_intents("Hồ sơ gồm gì, lệ phí bao nhiêu?"), ["DOSSIER", "FEE"])
         self.assertEqual(explicit_section_intents("trường hợp khác"), [])
 

@@ -113,6 +113,49 @@ class RoutingTests(unittest.TestCase):
         self.assertIn("Các sở ban xét duyệt báo cáo", result[0])
         self.assertEqual(result[5]["coverage_fallback"], "grounded_fragment_append")
 
+    def test_submission_heading_only_is_replaced_by_grounded_table(self):
+        draft = json.dumps(dict(
+            answer="Hình thức nộp", action="answer", evidence_status="sufficient",
+        ))
+        used = [{
+            "chunk_id": "submission-table",
+            "section_type": "submission_deadline_fee",
+            "included_text": (
+                "[Mục: CÁCH THỨC THỰC HIỆN]\n\n"
+                "|Hình thức nộp|Thời hạn giải quyết|Phí, lệ phí|\n"
+                "|---|---|---|\n"
+                "|Trực tuyến|1 ngày|Miễn phí|\n"
+                "|Qua bưu điện|1 ngày|Miễn phí|\n"
+                "|Trực tiếp|1 ngày|Miễn phí|"
+            ),
+        }]
+
+        result = generate_answer(
+            [{"role": "system", "content": "system"},
+             {"role": "user", "content": "Cách thực hiện?"}],
+            used, Tokenizer(), self.settings,
+            lambda *_: (draft, {"done_reason": "stop"}, .1), True, True,
+        )
+
+        self.assertIn("|Trực tuyến|1 ngày|Miễn phí|", result[0])
+        self.assertIn("|Qua bưu điện|1 ngày|Miễn phí|", result[0])
+        self.assertIn("|Trực tiếp|1 ngày|Miễn phí|", result[0])
+        self.assertEqual(result[5]["submission_table_fallback"],
+                         ["Trực tuyến", "Qua bưu điện", "Trực tiếp"])
+
+    def test_specific_submission_method_answer_is_not_expanded_to_every_row(self):
+        answer = "Nộp trực tiếp tại Trung tâm Phục vụ hành chính công."
+        used = [{
+            "section_type": "submission_deadline_fee",
+            "included_text": (
+                "|Hình thức nộp|Thời hạn giải quyết|\n|---|---|\n"
+                "|Trực tuyến|1 ngày|\n|Trực tiếp|1 ngày|"
+            ),
+        }]
+
+        from vigovbot.rag.response import _submission_table_fallback
+        self.assertEqual(_submission_table_fallback(answer, used), (answer, []))
+
     def test_length_finish_retries_with_bounded_summary(self):
         calls = []
         responses = iter([

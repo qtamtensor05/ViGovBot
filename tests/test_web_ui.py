@@ -20,12 +20,12 @@ const vm=require('node:vm'),assert=require('node:assert/strict');
 const code=JSON.parse(require('node:fs').readFileSync(0,'utf8'));
 const conversationStates={a:null,b:{menu:{id:'b'}}};
 const histories={a:[],b:[]},retrievalContexts={a:null,b:{source_code:'b'}},clarificationContexts={a:null,b:{kind:'procedure'}};
-const element=()=>({append(){},textContent:''});
+const element=()=>({append(){},textContent:'',innerHTML:'',classList:{add(){}}});
 const card={body:element(),el:element()};
 const chat={replaceChildren(){this.cleared=true},scrollHeight:0},input={focus(){}},button={disabled:false};
 vm.runInNewContext(code.helpers+code.reset+`
 applyStreamEvent({type:'model_result',result:{model_id:'a',answer:'1. Ho so',menu:{id:'current',options:[{id:'DOSSIER',label:'Ho so'}]},conversation_state:{menu:{id:'current'}},retrieval_context:{source_code:'a'},clarification_context:{kind:'section'}}},{a:card},'Q');
-assert.equal(card.body.textContent,'1. Ho so');assert.equal(conversationStates.a.menu.id,'current');
+assert.ok(card.body.innerHTML.includes('<li>Ho so</li>'));assert.equal(conversationStates.a.menu.id,'current');
 assert.equal(retrievalContexts.a.source_code,'a');
 assert.equal(retrievalContexts.b.source_code,'b');
 assert.equal(clarificationContexts.a.kind,'section');assert.equal(clarificationContexts.b.kind,'procedure');assert.equal(histories.a.length,2);assert.equal(histories.b.length,0);
@@ -71,6 +71,10 @@ assert.ok(answerStatus({action:'abstain'}).includes('Bằng chứng: Không có 
 assert.equal(routingStatus(undefined),'');
 assert.equal(historyAnswer({answer:'Trả lời base'}),'Trả lời base');
 assert.equal(contextMeta({faiss_rank:1,source_code:'1.116222',section_type:'metadata_identity',faiss_score:0.25},0),'Hạng 1 · Mã 1.116222 · Mục metadata_identity · FAISS 0.2500');
+const table=renderMarkdown(['| **Tên** | Mã |','|---|---|','| A | 01 |'].join(String.fromCharCode(10)));
+assert.ok(table.includes('<table>'));assert.ok(table.includes('<strong>Tên</strong>'));assert.ok(table.includes('<td>A</td>'));
+assert.match(renderMarkdown('<script>alert(1)</script>'),/&lt;script&gt;/);
+assert.doesNotMatch(renderMarkdown('[x](javascript:alert(1))'),/<a /);
 `,{assert});
 """
         import json

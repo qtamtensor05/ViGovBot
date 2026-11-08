@@ -485,3 +485,15 @@ Hoàn tất mã nguồn, kiểm tra hồi quy và phép đo cục bộ; chưa re
 - **Mục tiêu:** Xác minh báo cáo chưa commit và sửa các lỗi runtime có bằng chứng, không tự thay đổi các policy kiến trúc hoặc huấn luyện.
 - **Thực hiện:** Tối ưu fingerprint mã nguồn nhưng vẫn phát hiện thay đổi nóng ở CLI; cache source identity theo vòng đời server; siết matching từ khóa trình bày theo biên từ; sửa parser token JSON cho cặp surrogate Unicode; thống nhất fold discovery/routing; bỏ chuẩn hóa max-abs dư thừa trước L2; bổ sung hồi quy tập trung.
 - **Kết quả:** Các nhóm 37 test sửa lỗi ban đầu, 121 test fold/routing, 31 test fingerprint/server và 130 test retrieval/routing đều đạt; Ruff và compileall đạt. Full suite chạy 458 test, còn 1 failure và 5 error độc lập với thay đổi (catalog skill, fixture cấu hình/Torch, socket sandbox và SQLite cleanup trên Python 3.14).
+
+# Tương thích chunk trình tự bị gắn nhãn `other` - 2026-11-08
+
+- **Mục tiêu:** Truy xuất đúng trình tự thực hiện khi corpus cũ chứa nội dung “Bước N” nhưng metadata gắn `section_type=other`.
+- **Thực hiện:** Bổ sung fallback theo nội dung chỉ cho truy vấn `procedure_step`; không mở rộng toàn bộ chunk `other` và giữ khóa mã thủ tục.
+- **Kết quả:** Hoàn tất. 104 test routing/retrieval đạt; cả `/api/chat` và `/api/chat/stream` thật nhận diện `1.000047`, route `NEW/PROCEDURE`, lấy duy nhất chunk bước thực hiện và trả `answer/sufficient`.
+
+# Phân biệt cách thực hiện và trình tự thực hiện - 2026-11-08
+
+- **Mục tiêu:** Không để câu hỏi “Cách thực hiện” ở lượt nối tiếp truy xuất nhầm các bước của “Trình tự thực hiện”.
+- **Thực hiện:** Thêm nhận diện xác định cho “cách thực hiện” và “cách thức thực hiện”, ưu tiên `SUBMISSION_METHOD`; kiểm tra hậu sinh đủ các hàng hình thức và dùng nguyên bảng evidence khi model chỉ lặp tiêu đề; thêm alias kiểm duyệt “thủ tục kết hôn”/“kết hôn” cho mã `1.000894`.
+- **Kết quả:** Hoàn tất. 154 test alias/routing/prompt/generation đạt; câu “Cách thực hiện của thủ tục kết hôn là gì” qua `/api/chat/stream` dùng `procedure_direct`, chỉ lấy mã `1.000894`/`submission_deadline_fee` và trả bảng Markdown đủ Trực tuyến/Qua bưu điện/Trực tiếp, thời hạn 1 ngày và miễn phí.
