@@ -1,5 +1,11 @@
 # Thay đổi hệ thống
 
+## Preflight bắt buộc trước khi chạy web - 2026-11-09
+
+- **Mục tiêu:** Phát hiện dependency và artifact bắt buộc bị thiếu trước khi mở web, nhưng không bắt buộc mọi model tùy chọn phải sẵn sàng.
+- **Thực hiện:** Thêm `vigov web-check`; tích hợp kiểm tra nhanh vào `vigov web`, phân loại vector/PhoBERT/cache/device/port là bắt buộc và Ollama/QLoRA/backend riêng là cảnh báo.
+- **Kết quả:** Preflight profile CPU đạt với một cảnh báo service tùy chọn; profile CUDA native dừng đúng khi CUDA không khả dụng. Bốn unit test đạt; Docker không còn chờ model-init và QLoRA import chuyển sang profile tùy chọn.
+
 ## Bundle recovery tự chứa cho PhoBERT và QLoRA v2 - 2026-11-09
 
 - **Mục tiêu:** Chỉ cần chuyển thư mục `recovery/` sang máy mới và chạy script của từng model để tạo runtime.

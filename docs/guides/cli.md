@@ -16,16 +16,23 @@ Lần đầu hoặc sau khi đổi `pyproject.toml`/Dockerfile dùng
 chỉ sửa code hoặc cấu hình dùng `docker compose restart web`, không build lại.
 Container `web` đã chạy web server ở <http://localhost:8001>; không gọi thêm
 `vigov web` trong container. Có thể đổi cổng host bằng `VIGOVBOT_WEB_PORT`.
+Web không chờ mọi model được cài: Qwen nền có thể đang tải song song và QLoRA
+chỉ được import khi chủ động chạy profile `qlora`.
 
 ## Kiểm tra và hỏi đáp
 
 ```powershell
 docker compose exec -T web vigov doctor
+docker compose exec -T web vigov web-check --config configs/rag/inference-docker-ollama.yaml --no-service-probe
 docker compose exec -T web vigov --help
 docker compose exec -T ollama ollama list
 docker compose exec -T web vigov ask "Hồ sơ gồm những gì?" --config configs/rag/inference-docker-ollama.yaml
 docker compose exec -T web vigov rag prepare --config configs/rag/inference-docker-ollama.yaml
 ```
+
+`vigov web` tự chạy preflight trước khi mở server. `FAIL` ở dependency, corpus,
+PhoBERT, cache, device hoặc port sẽ chặn startup; model Ollama/QLoRA tùy chọn bị
+thiếu chỉ tạo `WARN`. Xem [hướng dẫn web readiness](web-readiness.md).
 
 Cấu hình mặc định là `configs/rag/inference-docker-ollama.yaml`; file này
 gọi Ollama qua `http://ollama:11434`. Profile GPU dùng

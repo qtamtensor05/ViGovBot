@@ -232,8 +232,33 @@ def data_embed(source: Path = typer.Argument(Path("outputs/metadata")),
 def web(config: Path = typer.Option(Path("configs/rag/inference.yaml"), "--config"),
         host: str = typer.Option("127.0.0.1", "--host"),
         port: int = typer.Option(8000, "--port", min=1, max=65535)) -> None:
-    """Start the local chatbot web UI and API."""
-    _run_legacy(["rag", "--config", str(_config(config)), "web", "--host", host, "--port", str(port)])
+    """Check required runtime assets, then start the local chatbot web UI and API."""
+    config_path = _config(config)
+    report = _web_readiness(config_path, host, port, probe_services=True)
+    if report["status"] != "PASS":
+        raise typer.Exit(2)
+    _run_legacy(["rag", "--config", str(config_path), "web", "--host", host, "--port", str(port)])
+
+
+def _web_readiness(config: Path, host: str, port: int, *, probe_services: bool) -> dict:
+    from vigovbot.runtime_readiness import check_web_readiness
+
+    report = check_web_readiness(config, host=host, port=port, probe_services=probe_services)
+    typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
+    return report
+
+
+@app.command("web-check")
+def web_check(
+    config: Path = typer.Option(Path("configs/rag/inference.yaml"), "--config"),
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8000, "--port", min=1, max=65535),
+    no_service_probe: bool = typer.Option(False, "--no-service-probe"),
+) -> None:
+    """Report required failures and optional model warnings before starting web."""
+    report = _web_readiness(_config(config), host, port, probe_services=not no_service_probe)
+    if report["status"] != "PASS":
+        raise typer.Exit(2)
 
 
 @app.command()

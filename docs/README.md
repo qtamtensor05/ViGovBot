@@ -24,11 +24,13 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 - [Tham chiếu CLI `vigov`](guides/cli.md)
 - [Vận hành pipeline RAG](guides/trien-khai-rag-co-ban.md)
+- [Kiểm tra sẵn sàng trước khi chạy web](guides/web-readiness.md)
 - [RAG nhiều lượt](guides/rag-multi-turn.md)
 - [Routing PhoBERT bốn head và menu theo trạng thái](guides/four-head-routing.md)
 - [Đánh giá QA/RAG](guides/qa-rag-evaluation.md)
 - [Vận hành huấn luyện](guides/training.md)
 - [Phục hồi QLoRA v2 từ adapter trên máy mới](guides/qlora-model-restore.md)
+- [Phục hồi PhoBERT router trên máy mới](guides/phobert-model-recovery.md)
 - [Đánh giá, biểu đồ và báo cáo QLoRA](guides/evaluation.md)
 
 ## Chuyên đề QLoRA

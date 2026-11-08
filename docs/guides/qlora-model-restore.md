@@ -62,19 +62,27 @@ manifest để máy mới không cần truyền hai option này.
 
 ## Chạy phục hồi đầy đủ
 
+Luồng đầy đủ trên máy mới, thực hiện từ thư mục gốc repository sau khi đã chép
+toàn bộ `recovery/`:
+
 ```powershell
 python -m pip install -e ".[training,gpu]"
 
 python recovery/qlora_v2/restore.py `
-  --llama-cpp-dir C:\tools\llama.cpp
-```
+  --dry-run `
+  --allow-unpinned-revision
 
-Nếu manifest vẫn dùng `main`:
-
-```powershell
 python recovery/qlora_v2/restore.py `
   --llama-cpp-dir C:\tools\llama.cpp `
   --allow-unpinned-revision
+```
+
+Nếu đã thay `revision` trong manifest bằng commit SHA chính xác của model nền,
+có thể bỏ `--allow-unpinned-revision`:
+
+```powershell
+python recovery/qlora_v2/restore.py `
+  --llama-cpp-dir C:\tools\llama.cpp
 ```
 
 Luồng thực hiện tuần tự:
@@ -107,7 +115,8 @@ python recovery/qlora_v2/restore.py --dry-run --allow-unpinned-revision
 
 Không commit `adapter_model.safetensors` bằng Git thường. File khoảng 154 MiB,
 vượt giới hạn 100 MiB thường gặp của Git hosting và làm repository phình lâu dài.
-Repository này giữ `model/` trong `.gitignore`.
+Repository này giữ runtime trong `model/` và hai thư mục trọng số
+`recovery/phobert/checkpoint/`, `recovery/qlora_v2/adapter/` trong `.gitignore`.
 
 Nên commit bình thường:
 

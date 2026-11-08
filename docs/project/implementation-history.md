@@ -1,5 +1,11 @@
 # Lịch sử thay đổi hệ thống
 
+## Preflight web và model tùy chọn - 2026-11-09
+
+- **Mục tiêu:** Chặn web sớm khi thiếu runtime bắt buộc nhưng vẫn cho mở giao diện khi model sinh tùy chọn chưa sẵn sàng.
+- **Thực hiện:** Thêm `vigov web-check`, tự chạy preflight trong `vigov web`; tách PASS/WARN/FAIL và bỏ dependency Compose từ web sang model-init, đưa QLoRA import vào profile `qlora`.
+- **Kết quả:** Cấu hình CPU đạt preflight với cảnh báo Ollama; cấu hình CUDA native dừng đúng khi CUDA không khả dụng. Bốn unit test, Ruff và kiểm tra tài liệu đạt; chưa khởi động stack Docker thật.
+
 ## Bundle recovery tự chứa - 2026-11-09
 
 - **Mục tiêu:** Đóng gói mỗi model thành một bundle có thể chuyển máy và tự sinh runtime.

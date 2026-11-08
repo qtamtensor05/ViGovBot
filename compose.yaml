@@ -42,6 +42,7 @@ services:
     command: ["pull", "qwen2.5:7b"]
 
   ollama-qlora-model-init:
+    profiles: ["qlora"]
     image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
     restart: "no"
     environment:
@@ -70,10 +71,6 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-      ollama-model-init:
-        condition: service_completed_successfully
-      ollama-qlora-model-init:
-        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${VIGOVBOT_WEB_PORT:-8001}:8000"
     environment:
@@ -101,10 +98,6 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-      ollama-model-init:
-        condition: service_completed_successfully
-      ollama-qlora-model-init:
-        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${VIGOVBOT_GPU_WEB_PORT:-8002}:8000"
     environment:

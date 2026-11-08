@@ -23,6 +23,19 @@ Không cần cài hoặc chạy Ollama Desktop trên Windows.
 
 Từ PowerShell tại gốc repository:
 
+Web tự chạy preflight khi container bắt đầu. Thiếu dependency, vector corpus,
+PhoBERT, cache ghi được hoặc device bắt buộc sẽ làm container dừng; thiếu model
+Ollama/QLoRA tùy chọn chỉ ghi cảnh báo và không chặn web. Có thể kiểm tra image
+đã build trước khi khởi động stack:
+
+```powershell
+docker compose run --rm --no-deps web `
+  vigov web-check `
+  --config configs/rag/inference-docker-ollama.yaml `
+  --host 0.0.0.0 `
+  --port 8000
+```
+
 ```powershell
 docker compose up --build -d
 docker compose ps
@@ -33,11 +46,19 @@ Chỉ build lại khi đổi `pyproject.toml`, Dockerfile hoặc dependency. `sr
 `configs` được bind mount; sau khi chỉ sửa code/cấu hình, chạy
 `docker compose restart web`.
 
-Lần đầu, service `ollama-model-init` tải `qwen2.5:7b` vào volume trước
-khi web khởi động. Web còn tạo RAG cache từ corpus trong lần đầu,
+Lần đầu, service `ollama-model-init` tải `qwen2.5:7b` song song với web. Giao diện
+có thể mở trước khi model tải xong; model tương ứng chỉ trả lời sau khi tải hoàn tất.
+Web còn tạo RAG cache từ corpus trong lần đầu,
 nên healthcheck cho phép tối đa 10 phút khởi tạo. Sau khi `web` healthy,
 mở <http://localhost:8001>. Cổng trong container vẫn là 8000; có thể đổi cổng
 host bằng biến `VIGOVBOT_WEB_PORT` nếu 8001 cũng đang được sử dụng.
+
+QLoRA là tùy chọn và không được import trong stack mặc định. Khi đã có
+`model/qlora_v2/runtime/`, chạy profile riêng:
+
+```powershell
+docker compose --profile qlora up -d ollama-qlora-model-init
+```
 
 ## Chạy hằng ngày và lệnh cơ bản
 

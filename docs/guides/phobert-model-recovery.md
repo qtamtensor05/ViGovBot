@@ -16,6 +16,21 @@ không merge và không tạo GGUF.
 
 ## Khôi phục
 
+Luồng đầy đủ trên máy mới, thực hiện từ thư mục gốc repository:
+
+```powershell
+# Sau khi clone source và chép toàn bộ recovery/ từ máy lưu model
+python recovery/phobert/restore.py --dry-run
+python recovery/phobert/restore.py
+
+# Cài ViGovBot nếu máy chưa có môi trường chạy ứng dụng
+python -m pip install -e ".[rag,phobert]"
+```
+
+Hai lệnh recovery chỉ dùng thư viện chuẩn Python; không cần cài PyTorch để sao
+chép và kiểm tra checkpoint. PyTorch/Transformers vẫn cần khi ViGovBot thực sự
+nạp PhoBERT để suy luận.
+
 ```bash
 vigov train restore-phobert
 ```

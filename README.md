@@ -26,6 +26,9 @@ docker compose ps
 
 Những lần chạy hằng ngày chỉ cần `docker compose up -d`; sau khi sửa `src` hoặc
 `configs`, dùng `docker compose restart web` mà không build lại.
+Lệnh web tự kiểm tra dependency, vector corpus, PhoBERT, cache, CUDA và cổng
+trước khi mở server; model Ollama/QLoRA còn thiếu chỉ được cảnh báo, không chặn web.
+Trong Docker, Qwen nền tải song song; QLoRA chỉ import qua profile `qlora` khi cần.
 Ảnh mặc định dùng Torch CPU và không chứa CUDA; QLoRA cục bộ chạy
 bằng profile `gpu` riêng theo hướng dẫn Docker.
 
