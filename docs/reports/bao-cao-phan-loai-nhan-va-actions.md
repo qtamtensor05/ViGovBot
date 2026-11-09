@@ -27,9 +27,6 @@ HỆ THỐNG ĐIỀU PHỐI HAI TẦNG VIGOVBOT (TWO-TIER HYBRID ARCHITECTURE)
 
 Biểu đồ này mô tả toàn cảnh luồng dữ liệu cấp cao giữa người dùng, tầng phân loại nơ-ron, tầng trọng tài danh mục, tầng quản lý phiên hội thoại và tầng sinh ngữ RAG:
 
-![Biểu đồ Cấp cao Tổng thể](images/flowchart_macro_architecture.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_macro_architecture.png](images/flowchart_macro_architecture.png))*
-
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
 
@@ -58,9 +55,6 @@ flowchart TD
 ### 1.2. Biểu đồ Module 1: Phân loại Ngữ nghĩa PhoBERT 4-Head & Trọng tài Phạm vi (Scope Arbitration)
 
 Mô tả chi tiết luồng xử lý tại [`src/vigovbot/rag/phobert_router.py`](../../src/vigovbot/rag/phobert_router.py), nơi câu hỏi được phân loại qua 4 classification heads song song và kích hoạt cơ chế trọng tài cứu vớt câu hỏi ở ngưỡng phân vân:
-
-![Module 1: Phân loại Ngữ nghĩa PhoBERT & Trọng tài Phạm vi](images/flowchart_module1_phobert_scope.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module1_phobert_scope.png](images/flowchart_module1_phobert_scope.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -96,9 +90,6 @@ flowchart TD
 ### 1.3. Biểu đồ Module 2: Trọng tài Trộn thủ tục (Mix) & Phân rã Câu hỏi Hỗn hợp (Mixed Scope)
 
 Mô tả chi tiết logic tại [`src/vigovbot/rag/phobert_router.py#L228`](../../src/vigovbot/rag/phobert_router.py#L228) và [`src/vigovbot/rag/classification.py#L62`](../../src/vigovbot/rag/classification.py#L62):
-
-![Module 2: Trọng tài Trộn thủ tục & Phân rã Câu hỏi Hỗn hợp](images/flowchart_module2_mix_rewrite.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module2_mix_rewrite.png](images/flowchart_module2_mix_rewrite.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -143,9 +134,6 @@ flowchart TD
 ### 1.4. Biểu đồ Module 3: Đối soát Thực thể Catalog & Phân giải Danh tính Thủ tục
 
 Mô tả chi tiết quy trình tại [`src/vigovbot/rag/conversation.py#L330-L440`](../../src/vigovbot/rag/conversation.py#L330-L440) và [`clarification.py`](../../src/vigovbot/rag/clarification.py):
-
-![Module 3: Đối soát Thực thể Catalog & Phân giải Danh tính Thủ tục](images/flowchart_module3_catalog_disambiguation.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module3_catalog_disambiguation.png](images/flowchart_module3_catalog_disambiguation.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -209,9 +197,6 @@ flowchart TD
 
 Mô tả chi tiết cơ chế bảo mật và xử lý phản hồi người dùng tại [`src/vigovbot/rag/conversation.py#L34-L217`](../../src/vigovbot/rag/conversation.py#L34-L217):
 
-![Module 4: Vòng đời Trạng thái Phiên, Chữ ký HMAC & Tương tác Menu](images/flowchart_module4_state_security.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module4_state_security.png](images/flowchart_module4_state_security.png))*
-
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
 
@@ -255,17 +240,14 @@ flowchart TD
      ```
    - **Nguyên lý bảo đảm an toàn luồng & giới hạn tài nguyên:**
      - Khóa đa luồng `_STATE_LOCK` bảo vệ cấu trúc `OrderedDict` khỏi xung đột ghi đồng thời (Race Condition) khi có nhiều worker xử lý song song.
-     - Khóa truy cập kết hợp 3 chiều: `(clarification_scope, corpus, history_fingerprint)` đảm bảo tính cô lập tuyệt đối giữa các phiên khác nhau.
-     - Ngưỡng giới hạn cứng tối đa 256 state gần nhất: Mỗi khi có phiên mới truy cập, trạng thái được đưa lên đầu danh sách qua `move_to_end(key)`; khi vượt quá 256, phương thức `popitem(last=False)` tự động giải phóng phiên cũ nhất. Cơ chế này giữ cho bộ nhớ RAM của bot luôn ổn định ở mức cực thấp (~1.31 MB), bảo đảm hệ thống vận hành bền bỉ 24/7.
+     - Khóa truy cập kết hợp 3 chiều: `(clarification_scope, corpus, history_fingerprint)` giúp phân tách state trong cùng tiến trình. Cơ chế này không chứng minh cô lập tuyệt đối giữa người dùng và không đồng bộ state giữa nhiều worker.
+     - Ngưỡng giới hạn cứng tối đa 256 state gần nhất: Mỗi khi có phiên mới truy cập, trạng thái được đưa về cuối `OrderedDict` qua `move_to_end(key)`; khi vượt quá 256, `popitem(last=False)` loại state cũ nhất. Cơ chế này giới hạn số state trong bộ nhớ tiến trình; nó không thay thế kiểm thử tải, đo bộ nhớ thực tế hoặc session store phân tán.
 
 ---
 
 ### 1.6. Biểu đồ Module 5: Kiểm soát Bằng chứng, Chống Đoán mò & Sinh ngữ Có cấu trúc
 
 Mô tả chi tiết hàng rào kiểm soát an toàn dữ liệu và sinh câu trả lời tại [`src/vigovbot/rag/conversation.py#L483-L522`](../../src/vigovbot/rag/conversation.py#L483-L522) và [`routing.py#L140-L209`](../../src/vigovbot/rag/routing.py#L140-L209):
-
-![Module 5: Kiểm soát Bằng chứng, Chống Đoán mò & Sinh ngữ RAG](images/flowchart_module5_evidence_constrained_generation.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [flowchart_module5_evidence_constrained_generation.png](images/flowchart_module5_evidence_constrained_generation.png))*
 
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
@@ -294,7 +276,7 @@ flowchart TD
 </details>
 
 #### Mô tả chi tiết mã nguồn triển khai (Module 5):
-1. **Chống Đoán Mò Mã Biên nhận Cá nhân (`identifier_not_in_evidence`):** Biểu thức chính quy `_OPAQUE_IDENTIFIER` quét các chuỗi mã biên nhận (như `000.00.12.H29-...`). Nếu mã này xuất hiện trong câu hỏi nhưng không có trong chunk tài liệu pháp luật quy định chung, hệ thống lập tức từ chối trả lời (`action = abstain`, `evidence_status = missing`), hướng dẫn công dân tra cứu cổng dịch vụ công, loại trừ 100% rủi ro LLM bịa đặt tiến độ giải quyết hồ sơ.
+1. **Chống Đoán Mò Mã Biên nhận Cá nhân (`identifier_not_in_evidence`):** Biểu thức chính quy `_OPAQUE_IDENTIFIER` quét các chuỗi mã biên nhận (như `000.00.12.H29-...`). Nếu mã này xuất hiện trong câu hỏi nhưng không có trong các chunk truy xuất, hệ thống chuyển sang `action = abstain`, `evidence_status = missing` và hướng dẫn tra cứu cổng dịch vụ công. Guard này giảm một nhóm rủi ro bịa đặt tiến độ hồ sơ, nhưng không chứng minh loại trừ mọi dạng hallucination.
 2. **Ràng buộc Kép Giải mã (Constrained Decoding via `EVIDENCE_ACTIONS`):** Schema JSON ép mô hình sinh cặp `(evidence_status, action)` đồng nhất (`sufficient` $\leftrightarrow$ `answer`, `missing` $\leftrightarrow$ `abstain`, `partial` $\leftrightarrow$ `partial`). Hàm `parse_answer` kiểm tra nếu nội dung câu trả lời là "không có thông tin" thì bắt buộc `action` phải là `abstain`, chống hiện tượng từ chối trá hình.
 
 ---
@@ -303,7 +285,7 @@ flowchart TD
 
 Mô hình PhoBERT nhận đầu vào là chuỗi tokenized định dạng:
 `<s> question </s></s> previous_utterance </s></s> procedure_context </s>`  
-(giới hạn tối đa 128 token) và sử dụng 4 linear heads độc lập được cấu hình trong [`meta.json`](../../model/phobert_v3_finetuned_20261028/runtime/checkpoint/meta.json):
+(giới hạn tối đa 128 token) và sử dụng 4 linear heads độc lập. Hợp đồng output được triển khai tại [`phobert_router.py`](../../src/vigovbot/rag/phobert_router.py); metadata checkpoint là artifact runtime cục bộ và không được coi là tài liệu canonical trong repository:
 
 ### 2.1. Head 1: Phạm vi (`scope` / `phạm_vi`)
 Đánh giá mức độ liên quan tới lĩnh vực Thủ tục hành chính (TTHC) Việt Nam (Hàm Softmax, 3 lớp):
@@ -669,9 +651,6 @@ Bộ dữ liệu trải rộng trên 150 lĩnh vực công vụ khác nhau:
 
 ### 7.3. Phân tích Bản chất 323 Ca Lỗi Còn lại trong Router V2
 
-![Bản chất 323 ca lỗi còn lại trong Router V2](images/chart_router_v2_failures_pie.png)
-*(Xem tệp hình ảnh gốc độ phân giải cao tại: [chart_router_v2_failures_pie.png](images/chart_router_v2_failures_pie.png))*
-
 <details>
 <summary><b>Chi tiết mã nguồn Mermaid (nhấn để mở rộng)</b></summary>
 
@@ -685,7 +664,7 @@ pie title Bản chất 323 ca lỗi còn lại trong Router V2
 
 </details>
 
-1. **Hiệu quả của việc điều chỉnh ngưỡng:** Đã khai thác tới **99% tiềm năng** của checkpoint mô hình hiện tại (chỉ còn đúng 2 ca nằm ở vùng biên ngưỡng). Mang lại mức tăng **+6.99% E2E Accuracy**, đưa tỷ lệ chính xác từ 67.09% lên 74.08%, đồng thời đưa Action Accuracy đạt **91.33%**.
+1. **Hiệu quả của việc điều chỉnh ngưỡng:** Trên tập `test_router` 1.246 mẫu, hiệu chỉnh ngưỡng tăng Strict E2E Accuracy thêm **6,99 điểm phần trăm**, từ 67,09% lên 74,08%, và tăng Action Accuracy từ 84,27% lên **91,33%**. Trong phân rã 323 ca lỗi còn lại, 2 ca được xếp vào nhóm chồng lấn biên ngưỡng; kết quả này không đồng nghĩa checkpoint đã đạt một tỷ lệ “tiềm năng” tổng quát nào.
 2. **179 ca (55.4%) - Giới hạn biểu diễn ngữ nghĩa của PhoBERT (Model Representation Gap):** Tiêu biểu là nhãn `OVERVIEW` (Tổng quan) khi người dùng hỏi về *"đối tượng thực hiện"*, mô hình sinh xác suất $p < 0.05$.
 3. **102 ca (31.6%) - Giới hạn của Tầng Đối soát Thực thể Catalog:** Do người dùng dùng tên tắt địa phương hoặc cấu trúc câu dài không khớp chuỗi từ khóa.
 4. **40 ca (12.4%) - Sai lệch Softmax ở các đầu phân loại khác của PhoBERT:** Rơi vào phân loại `scope` (38 ca) hoặc `flow` (15 ca). Riêng `mix` đã đạt 100% không còn lỗi.

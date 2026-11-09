@@ -41,24 +41,11 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 ## Báo cáo kết quả
 
-- [Báo cáo toàn diện quy trình QLoRA (Mục 3.5)](reports/bao-cao-toan-dien-quy-trinh-qlora.md)
-- [Báo cáo thiết kế dữ liệu thực nghiệm và phương pháp đánh giá (Mục 3.6 & 3.7)](reports/bao-cao-thiet-ke-du-lieu-va-phuong-phap-danh-gia.md)
-- [Báo cáo thực nghiệm và đánh giá kết quả Base, RAG, QLoRA và QLoRA + RAG](reports/bao-cao-thuc-nghiem-va-danh-gia-ket-qua-qlora-rag.md)
-- [Báo cáo chi tiết các module xử lý chính ViGovBot](reports/bao-cao-cac-module-xu-ly-chinh-vigovbot.md)
-- [Báo cáo chi tiết toàn bộ luồng hoạt động RAG ViGovBot](reports/bao-cao-chi-tiet-luong-rag-vigovbot.md)
-- [Phân tích chuyên sâu cơ chế Prompting, Routing và Quyết định](reports/chuyen-sau-prompting-routing-quyet-dinh-rag.md)
 - [Báo cáo hệ thống nhãn phân loại và actions](reports/bao-cao-phan-loai-nhan-va-actions.md)
+- [Báo cáo khoa học quá trình huấn luyện QLoRA v2](reports/bao-cao-khoa-hoc-qua-trinh-train-qlora-v2.md)
 - [Benchmark độ trễ reranker (10 câu)](reports/reranker-latency-20261029.md)
 - [Báo cáo Dataset v3 và đánh giá model](reports/model-evaluation/dataset-v3-and-model-evaluation-report.md)
 - [Benchmark và EDA router](reports/model-evaluation/router-benchmark-and-eda-report.md)
-
-### Đánh giá mã nguồn
-
-Các tài liệu dưới đây là snapshot tại thời điểm kiểm tra; dùng source và tài liệu
-kiến trúc hiện hành để xác nhận trạng thái của từng phát hiện.
-
-- [Đánh giá toàn diện ViGovBot](reports/code-audit/danh-gia-toan-dien-vigovbot.md)
-- [Xác minh hậu đánh giá ViGovBot](reports/code-audit/xac-minh-hau-danh-gia-vigovbot.md)
 
 ### Đánh giá model trên dataset PA1
 
