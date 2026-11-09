@@ -1,59 +1,43 @@
-# Công việc hiện tại và trạng thái dự án
+# Roadmap mốc nghiên cứu/demo ViGovBot
 
-Tài liệu này ghi nhận phạm vi đang được duy trì trong mã nguồn và trạng thái có
-thể kiểm chứng của repository tại thời điểm hiện tại.
+> Chốt ngày 2026-11-09. Roadmap này phân biệt nội dung đã hoàn thành,
+> chưa hoàn thành và ngoài phạm vi; nó không phải cam kết phát triển tiếp.
 
-## Công việc hiện tại
+## Đã hoàn thành trong mốc
 
-- Duy trì pipeline RAG cho dữ liệu thủ tục hành chính tiếng Việt trên CLI,
-  notebook Colab và web UI/API cục bộ.
-- Xử lý PDF/OCR, chia đoạn theo cấu trúc, tạo embedding BGE-M3 và lưu chỉ mục
-  FAISS cùng metadata SQLite.
-- Phân loại phạm vi/quan hệ hội thoại bằng PhoBERT 4-head mặc định, xác thực
-  state/catalog, truy hồi ngữ cảnh và sinh câu trả lời có xét bằng chứng bằng
-  Qwen qua Ollama hoặc QLoRA local theo profile.
-- Chạy benchmark từ bộ câu hỏi độc lập, lưu và tiếp tục prediction, tính metric
-  và tạo báo cáo đánh giá.
-- Duy trì tính toàn vẹn của pack/corpus bằng manifest, checksum, revision và
-  khóa ghi.
+| Hạng mục | Kết quả chốt | Bằng chứng canonical |
+|---|---|---|
+| Kiến trúc repository | Hợp nhất package `vigovbot`, CLI `vigov`, cấu hình theo domain và cây docs canonical | `src/vigovbot/`, `configs/`, `docs/` |
+| Ingestion và corpus | PDF/OCR, làm sạch, chunk theo section, embedding BGE-M3, FAISS/SQLite và manifest | `src/vigovbot/ingestion/`, `src/vigovbot/retrieval/`, `configs/ingestion/` |
+| Routing | PhoBERT bốn head, adapter/catalog arbitration, section intent và threshold v2 | `docs/reports/model-evaluation/router-benchmark-and-eda-report.md` |
+| Hội thoại RAG | Signed state v3, menu làm rõ, giữ mã thủ tục và lọc evidence khác mã | `docs/guides/rag-multi-turn.md` |
+| Training | Pipeline QLoRA 4-bit, masking nhiều lượt, checkpoint/resume và RAG-SFT | `src/vigovbot/training/`, `docs/training/` |
+| Evaluation | Dataset v3, prediction có thể resume, retrieval/generation/routing metrics và RAG Judge | `result/`, `docs/reports/model-evaluation/` |
+| Giao diện demo | CLI, web UI/API cục bộ và Docker profiles | `src/vigovbot/cli/`, `src/vigovbot/server/`, `compose.yaml` |
+| Tái lập | Lock dependency, hướng dẫn setup, Docker, phục hồi PhoBERT/QLoRA | `locks/`, `docs/setup/`, `docs/guides/` |
 
-## Trạng thái thành phần
+## Chưa hoàn thành — backlog nếu mở giai đoạn mới
 
-| Thành phần | Trạng thái hiện tại |
-|---|---|
-| Mã nguồn | Package duy nhất là `vigovbot`; notebook và điểm chạy dùng namespace `vigovbot.*` |
-| Giao diện | CLI, notebook Colab và web UI/API cục bộ; so sánh Base, RAG và QLoRA |
-| Training | `src/vigovbot/training/`: QLoRA 4-bit, masking multi-turn, checkpoint/resume, CLI `vigov train`; chưa xác nhận production |
-| Ingestion | Đọc PDF, hỗ trợ OCR và xuất dữ liệu đã chia đoạn |
-| Embedding và corpus | BGE-M3, FAISS, SQLite, manifest và kiểm tra checksum/revision |
-| Hỏi đáp | RAG v2 nhiều lượt; PhoBERT 4-head là router mặc định, LLM v2 là backend cấu hình tường minh; state/menu có chữ ký và chẩn đoán web |
-| Đánh giá | Golden v3, prediction có thể tiếp tục, metric retrieval/generation/routing và báo cáo |
-| Kiểm thử | Bộ kiểm thử tự động không phụ thuộc model thật; lock dependency được xuất cho môi trường Windows x64 |
+| Ưu tiên | Hạng mục | Tiêu chí hoàn thành đề xuất |
+|---|---|---|
+| P0 | Chạy lại benchmark hồi quy sau các thay đổi state/section intent | Chốt dataset, config, model revision; hoàn thành toàn bộ case và lưu artifact so sánh |
+| P0 | Giảm invalid citation và unsupported answer | Định nghĩa gate trên tập cố định; chạy benchmark và phân tích ca lỗi |
+| P0 | Cải thiện abstention | Tách answerable/unanswerable, báo precision/recall và không che khuất false refusal |
+| P1 | Sửa các khiếm khuyết ingestion còn ghi nhận | Sửa nguồn/metadata, tái tạo corpus và xác minh retrieval theo mã thủ tục |
+| P1 | Ablation `top_k` | Giữ cố định router, prompt, model và corpus; so sánh Top-5/10/15 theo recall, precision, generation và latency |
+| P2 | Rà soát quyền dữ liệu và gói artifact | Công bố manifest, checksum, nguồn và điều kiện phân phối cho từng nhóm artifact |
 
-## Dữ liệu và vận hành hiện tại
+## Ngoài phạm vi mốc đã đóng
 
-- Cấu hình `configs/rag/inference.yaml` yêu cầu corpus có đủ
-  `tthc_unified.index`, `tthc_unified_metadata.json` và `corpus_manifest.json`.
-- Thư mục `Data/vector/unified/` hiện có đủ index, metadata và
-  `corpus_manifest.json`; cấu hình inference mặc định yêu cầu và xác minh manifest.
-- Chế độ tương thích corpus cũ được điều khiển bằng
-  `data.allow_legacy_corpus`; cấu hình mặc định đặt giá trị này là `false`.
-- Luồng trả lời online dùng direct FAISS top-k, không có reranker. Host và Docker
-  mặc định hiện dùng `top_k: 15`; profile Docker GPU dùng `top_k: 5`. BM25 +
-  cosine chỉ phục vụ khám phá/xác nhận tên thủ tục trong catalog, không rerank
-  các chunk trả lời.
-- Web giữ history riêng theo model/chế độ ở trình duyệt và mất khi reload; chưa
-  có persistence phía server, quản lý người dùng, xác thực/TLS. Fine-tuning QLoRA đã có trong module `training`.
+- Production deployment, SLA, high availability và kiểm thử tải lớn.
+- Xác thực người dùng, phân quyền, TLS, audit log và session store phân tán.
+- Tự động bảo đảm hiệu lực pháp lý của nguồn thủ tục.
+- Tối ưu cho thiết bị cấu hình yếu hoặc cam kết vận hành không GPU.
+- Cross-encoder reranker online khi chưa có ablation chứng minh lợi ích so với độ trễ.
 
-## Giới hạn đã ghi nhận
+## Quy tắc mở lại roadmap
 
-- Chất lượng câu trả lời phụ thuộc dữ liệu nguồn, kết quả OCR, cách chia đoạn,
-  chất lượng truy hồi và model Ollama.
-- PhoBERT 4-head thực hiện routing mặc định; Qwen sinh câu trả lời và chỉ tham gia
-  routing khi chọn backend `llm` hoặc fallback extractive `MIXED_SCOPE` có bước
-  PhoBERT kiểm chứng lại. Chất lượng nhãn, retrieval và kết luận vẫn cần benchmark
-  độc lập; JSON hợp lệ không tự chứng minh nội dung đúng.
-- FAISS được nạp vào RAM; bước tạo corpus giữ metadata và ma trận vector trong
-  bộ nhớ.
-- Kết quả kiểm thử mô phỏng chỉ xác nhận luồng kỹ thuật, không chứng minh độ
-  đúng ngữ nghĩa của câu trả lời hoặc hiệu lực của thông tin thủ tục.
+Khi bắt đầu giai đoạn mới, tạo branch từ tag
+`vigovbot-research-v1`, chọn một outcome trong backlog và định nghĩa dataset,
+metric, gate cùng artifact trước khi triển khai. Không đổi nội dung mốc đã
+chốt để hợp thức hóa kết quả mới.

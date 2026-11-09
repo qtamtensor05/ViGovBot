@@ -1,83 +1,60 @@
 # Trạng thái hiện tại của ViGovBot
 
-> Cập nhật: 2026-11-08. Đây là ảnh chụp trạng thái hiện hành; các mốc thay đổi
-> chi tiết nằm trong [lịch sử triển khai](implementation-history.md).
+> Cập nhật: 2026-11-09. Mốc nghiên cứu/demo hiện tại đã được đóng.
+> Báo cáo tổng kết và ranh giới bằng chứng nằm tại
+> [báo cáo kết thúc nghiên cứu/demo](../reports/bao-cao-ket-thuc-nghien-cuu-demo.md).
 
-## Phạm vi dự án
+## Trạng thái mốc
 
-ViGovBot là dự án nghiên cứu và demo mẫu thử cho hỏi đáp thủ tục hành chính
-tiếng Việt. Phạm vi hiện tại ưu tiên tính đúng của dữ liệu, routing, retrieval,
-prompt và đánh giá model. Dự án chưa đặt mục tiêu triển khai production, chịu tải
-lớn, HA hoặc tối ưu cho máy cấu hình yếu.
+ViGovBot đã hoàn thành mục tiêu xây dựng prototype nghiên cứu cho hỏi đáp
+thủ tục hành chính tiếng Việt. Repository giữ mã nguồn, cấu hình, kiểm
+thử, Dataset v3, artifact đánh giá và tài liệu cần thiết để kiểm tra lại
+kết quả. Mốc này không đại diện cho một hệ thống production.
 
-## Luồng hệ thống hiện hành
+Trên máy đóng mốc, các container, image, volume và network Docker của
+ViGovBot đã được gỡ. `compose.yaml` và các hướng dẫn vẫn được giữ là
+công thức tái lập; chúng không chứng minh runtime hiện đang hoạt động.
 
-1. Tài liệu thủ tục được trích xuất, chuẩn hóa và chia chunk theo cấu trúc.
-2. BGE-M3 tạo embedding; FAISS và SQLite lưu vector cùng metadata.
-3. PhoBERT bốn head phân loại scope, flow, mã thủ tục và section intent.
-4. Runtime truy xuất trực tiếp từ FAISS theo `top_k`; không chạy cross-encoder
-   reranker online.
-5. Evidence được đóng gói có cấu trúc trước khi gửi tới Qwen/Ollama hoặc model
-   QLoRA; output được kiểm tra schema và quan hệ action/evidence.
+## Kết quả đã chốt
 
-Các profile hiện hành dùng `top_k=15` cho host, evaluation và Docker Ollama;
-profile Docker GPU dùng `top_k=5`. Giá trị thực tế phải đọc từ profile được chọn,
-không suy ra từ báo cáo benchmark cũ.
+- Pipeline canonical bao phủ ingestion PDF/OCR, chunking theo cấu trúc, embedding
+  BGE-M3, chỉ mục FAISS/SQLite, routing, hội thoại nhiều lượt, generation có
+  ràng buộc bằng chứng, QLoRA và evaluation.
+- PhoBERT bốn head cùng lớp adapter/catalog/state triển khai phân loại phạm vi,
+  flow, mã thủ tục và section intent. Benchmark router v2 trên 1.246 mẫu ghi
+  nhận Scope Accuracy 96,95%, Action Accuracy 91,33% và Strict E2E Accuracy 74,08%.
+- Benchmark PA1 lưu kết quả cho sáu cấu hình Base, RAG, QLoRA v1, QLoRA v1 +
+  RAG, QLoRA v2 và QLoRA v2 + RAG. QLoRA v2 + RAG dẫn đầu EM, key facts và
+  citation recall trong snapshot, nhưng không dẫn đầu mọi metric Judge.
+- Signed state v3 giữ câu hỏi, menu, mã thủ tục và section intent qua nhiều
+  lượt; retrieval loại context khác mã trước generation.
+- CLI `vigov`, web UI/API cục bộ, Docker profiles, cấu hình training/evaluation
+  và các hướng dẫn phục hồi được giữ trong repository.
 
-## Hội thoại và state
+## Phần chưa hoàn thành
 
-- Routing contract hiện hành là v2 với PhoBERT bốn head.
-- Signed state v3 bảo toàn menu lựa chọn, câu hỏi đang chờ, mã thủ tục và section
-  intent qua nhiều lượt.
-- Khi người dùng chọn một thủ tục trong menu, hệ thống khôi phục câu hỏi gốc và
-  khóa retrieval theo mã thủ tục cùng section intent thay vì định tuyến lại.
-- Mã thủ tục đã chọn được giữ xuyên qua cả menu chọn section; context khác mã bị
-  loại trước generation, kể cả khi tiếp tục từ state v3 cũ.
-- Corpus cũ có chunk bước thực hiện bị gắn `other` được đọc tương thích theo nội
-  dung “Trình tự thực hiện”/“Bước N”; fallback vẫn khóa theo mã và không mở rộng
-  sang các chunk `other` không liên quan.
-- Cụm “cách thực hiện”/“cách thức thực hiện” được ưu tiên xác định là
-  `SUBMISSION_METHOD`; “trình tự”/“các bước” vẫn ánh xạ sang `PROCEDURE`.
-- Câu trả lời `SUBMISSION_METHOD` được kiểm tra đủ các hàng hình thức trong bảng
-  evidence; nếu model chỉ lặp tiêu đề, runtime trả lại bảng nguồn có căn cứ.
-- Alias kiểm duyệt “thủ tục kết hôn”/“kết hôn” khóa trực tiếp vào mã `1.000894`,
-  tránh semantic retrieval sang thủ tục khác và giữ nguyên bảng Markdown nguồn.
-- State được ký HMAC để phát hiện sửa đổi. Lưu trữ phiên dùng bộ nhớ tiến trình,
-  phù hợp demo một tiến trình và chưa phải session store phân tán.
-- Chuẩn hóa tiếng Việt dùng primitive chung `fold_vietnamese`; các policy bổ sung
-  phải được đặt tên rõ và có kiểm thử riêng.
+- Chưa chạy lại toàn bộ benchmark model sau các thay đổi state và section intent.
+- QLoRA v2 + RAG còn invalid citation 30,35% trong snapshot PA1; abstention và
+  unsupported answer chưa đạt mức phù hợp cho triển khai thực tế.
+- Lần prediction QLoRA v2 + RAG hoàn thành 637/638 case do một lỗi HTTP 502.
+- Chưa có bằng chứng về tải lớn, high availability, xác thực người dùng,
+  TLS, session store phân tán hoặc giám sát production.
 
-## Dữ liệu huấn luyện và đánh giá
+## Ngoài phạm vi mốc
 
-- `Data/dataset_v3/finetuning_v1/`: dữ liệu SFT hội thoại cho QLoRA v1.
-- `Data/dataset_v3/finetuning_v2/`: dữ liệu RAG-SFT đã lọc leakage cho QLoRA v2.
-- `Data/dataset_v3/test_rag_pa1/`: tập PA1 dùng so sánh model.
-- `Data/dataset_v3/test_router/`: tập đánh giá router.
-- Artifact đánh giá chuẩn hóa nằm trong `result/`; báo cáo kết quả nằm tại
-  `docs/reports/model-evaluation/`.
+- Chứng nhận hệ thống production hoặc cam kết SLA.
+- Khẳng định thông tin thủ tục luôn còn hiệu lực mà không cập nhật nguồn.
+- Tối ưu cho máy cấu hình yếu hoặc vận hành không có GPU.
+- Reranker cross-encoder online; runtime hiện dùng direct FAISS top-k.
 
-Sáu cấu hình so sánh hiện có gồm Base, RAG, QLoRA v1, QLoRA v1 + RAG,
-QLoRA v2 và QLoRA v2 + RAG. Các con số trong báo cáo là snapshot của lần chạy đã
-ghi nhận, không tự động chứng minh chất lượng của code hiện tại nếu chưa chạy lại.
+## Điểm bắt đầu nếu phát triển lại
 
-## Giới hạn và việc còn lại
-
-- Chưa chạy lại toàn bộ benchmark model sau các thay đổi state/section-intent.
-- QLoRA v2 + RAG vẫn cần cải thiện citation, abstention và các ca hồi quy đã ghi
-  trong báo cáo; model đã được judge, lần chạy lại chỉ nhằm thu hồi artifact bị
-  mất và xác minh runtime mới.
-- Không có reranker online. Chỉ xem xét lại khi benchmark retrieval chứng minh lợi
-  ích đủ lớn so với độ trễ và độ phức tạp.
-- Chưa có session store phân tán, xác thực người dùng hoặc kiểm chứng tải lớn vì
-  các hạng mục này nằm ngoài phạm vi nghiên cứu/demo hiện tại.
-- Các kết luận GPU, model live hoặc Docker chỉ hợp lệ khi báo cáo nêu rõ bằng chứng
-  runtime; source test và kiểm tra tĩnh không thay thế kiểm chứng đó.
-
-## Tài liệu chuẩn để tra cứu
-
-- [Kiến trúc hệ thống](../architecture/architecture.md)
-- [Routing PhoBERT bốn head](../guides/four-head-routing.md)
-- [RAG nhiều lượt](../guides/rag-multi-turn.md)
-- [Vận hành RAG cơ bản](../guides/trien-khai-rag-co-ban.md)
-- [Đánh giá QA/RAG](../guides/qa-rag-evaluation.md)
-- [Tổng hợp đánh giá model](../reports/model-evaluation/all-models.md)
+1. Checkout tag `vigovbot-research-v1` để phục hồi mốc này.
+2. Tạo branch mới từ tag hoặc `main`; không viết lại lịch sử mốc.
+3. Phục hồi dependency, corpus và model theo
+   [tài liệu setup](../setup/development.md),
+   [hướng dẫn Docker](../setup/docker.md),
+   [phục hồi PhoBERT](../guides/phobert-model-recovery.md) và
+   [phục hồi QLoRA](../guides/qlora-model-restore.md).
+4. Chạy preflight và test phù hợp trước khi chạy model hoặc benchmark thật.
+5. Dùng các mục chưa hoàn thành trong [roadmap](roadmap.md) làm backlog.

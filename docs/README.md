@@ -41,6 +41,7 @@ tránh trộn hướng dẫn vận hành, quyết định kiến trúc và báo 
 
 ## Báo cáo kết quả
 
+- [Báo cáo kết thúc mốc nghiên cứu/demo](reports/bao-cao-ket-thuc-nghien-cuu-demo.md)
 - [Báo cáo hệ thống nhãn phân loại và actions](reports/bao-cao-phan-loai-nhan-va-actions.md)
 - [Báo cáo khoa học quá trình huấn luyện QLoRA v2](reports/bao-cao-khoa-hoc-qua-trinh-train-qlora-v2.md)
 - [Benchmark độ trễ reranker (10 câu)](reports/reranker-latency-20261029.md)

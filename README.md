@@ -4,6 +4,19 @@ ViGovBot là hệ thống nghiên cứu hỏi đáp thủ tục hành chính ti�
 Qwen2.5, RAG và pipeline QLoRA. Dự án cung cấp CLI thống nhất `vigov`, web UI/API
 cục bộ, xử lý tài liệu, huấn luyện nền, đánh giá và báo cáo thực nghiệm.
 
+> **Trạng thái:** Mốc nghiên cứu/demo đã được chốt ngày 2026-11-09
+> tại tag `vigovbot-research-v1`. Dự án không tuyên bố sẵn sàng production.
+> Xem [báo cáo kết thúc](docs/reports/bao-cao-ket-thuc-nghien-cuu-demo.md).
+
+## Kết quả sơ bộ
+
+- Router v2 trên 1.246 mẫu đạt Scope Accuracy 96,95%, Action Accuracy 91,33%
+  và Strict E2E Accuracy 74,08%.
+- Benchmark PA1 bao gồm 638 case và sáu cấu hình. QLoRA v2 + RAG dẫn đầu
+  EM 20,41%, key-fact coverage 38,78% và citation recall 53,43% trong snapshot.
+- Kết quả còn giới hạn về invalid citation, abstention, unsupported answer và
+  chưa được xác minh cho tải lớn hay production.
+
 ## Khả năng chính
 
 - Nhập PDF, chuẩn hóa/chia đoạn và tạo corpus BGE-M3 với FAISS/SQLite.
@@ -14,8 +27,10 @@ cục bộ, xử lý tài liệu, huấn luyện nền, đánh giá và báo cá
 
 ## Bắt đầu nhanh
 
-Runtime web Base/RAG và Ollama hiện chạy bằng Docker Desktop; không cần cài Python,
-virtual environment hoặc Ollama trên Windows.
+Phần này là công thức tái lập. Runtime Docker không được duy trì sẵn trên
+máy đóng mốc; lần chạy mới sẽ tải/build lại image, model và cache cần thiết.
+Web Base/RAG và Ollama có thể chạy bằng Docker Desktop mà không cần cài
+Python, virtual environment hoặc Ollama trực tiếp trên Windows.
 
 Lần đầu hoặc sau khi đổi `pyproject.toml`/Dockerfile:
 
