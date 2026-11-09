@@ -35,7 +35,6 @@ def print_readiness_report(report: dict) -> None:
     """Render *report* as a human-readable Rich panel to stdout."""
     from rich.console import Console
     from rich.padding import Padding
-    from rich.rule import Rule
     from rich.table import Table
     from rich.text import Text
 

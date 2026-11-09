@@ -1,4 +1,4 @@
-from tests.dependencies import requires_dependencies, skip_missing_dependency
+from tests.dependencies import integration_test, requires_dependencies, skip_missing_dependency
 
 import copy
 import json
@@ -64,6 +64,7 @@ class RuntimeSafetyTests(unittest.TestCase):
             with ThreadPoolExecutor(1) as pool:
                 self.assertEqual(pool.submit(app.chat, {"question": "test"}).result(timeout=3)["status"], "success")
 
+    @integration_test
     def test_http_failure_validation_partial_and_health(self):
         app = application([model("good"), model("bad")])
         def answer(messages, settings):

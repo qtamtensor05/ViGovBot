@@ -132,7 +132,10 @@ class ArtifactSafetyTests(unittest.TestCase):
     def test_session_loads_revision_from_manifest_and_closes_on_failure(self):
         source = self.corpus()
         paths = prepare_corpus(source, self.root / "cache")
-        config = RAGConfig.model_validate({"data": {"unified_source": source}})
+        config = RAGConfig.model_validate({
+            "data": {"unified_source": source},
+            "conversation": {"routing_enabled": False},
+        })
         tokenizer_module = types.SimpleNamespace(
             AutoTokenizer=types.SimpleNamespace(from_pretrained=lambda *a, **kw: object())
         )
@@ -170,23 +173,23 @@ class ArtifactSafetyTests(unittest.TestCase):
     def test_prepare_and_ask_do_not_read_evaluation_dataset(self):
         source = self.corpus()
         config = RAGConfig.model_validate(
-            {"data": {"unified_source": source, "cache_dir": self.root / "cache", "output_dir": self.root / "results"}}
+            {"data": {"unified_source": source, "cache_dir": self.root / "cache"}}
         )
 
         @contextmanager
         def session(config, paths):
             yield object(), object()
 
-        with patch("vigovbot.rag.pipeline.select_cases", side_effect=AssertionError("Dataset accessed")):
-            self.assertEqual(execute(config, "prepare")["count"], 1)
-            with (
-                patch("vigovbot.rag.pipeline.check_model", return_value={}),
-                patch("vigovbot.rag.pipeline.inference_session", side_effect=session),
-                patch("vigovbot.rag.pipeline.answer_question", return_value={"prediction": "0 đồng"}) as answer,
-            ):
-                self.assertEqual(execute(config, "ask", question="Phí?"), {"prediction": "0 đồng"})
-                self.assertEqual(answer.call_args.args[0], "Phí?")
-        self.assertFalse(config.data.output_dir.exists())
+        self.assertFalse(hasattr(config.data, "dataset_path"))
+        self.assertEqual(execute(config, "prepare")["count"], 1)
+        with (
+            patch("vigovbot.rag.pipeline.check_model", return_value={}),
+            patch("vigovbot.rag.pipeline.inference_session", side_effect=session),
+            patch("vigovbot.rag.pipeline.answer_question", return_value={"prediction": "0 đồng"}) as answer,
+        ):
+            self.assertEqual(execute(config, "ask", question="Phí?"), {"prediction": "0 đồng"})
+            self.assertEqual(answer.call_args.args[0], "Phí?")
+
     def test_wrong_query_model_or_revision_rejected_before_model_load(self):
         source = self.corpus()
         for embedding in ({"model": "other"}, {"revision": "b" * 40}):

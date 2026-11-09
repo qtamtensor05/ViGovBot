@@ -26,6 +26,20 @@ package đã cài, nên có thể gọi ngoài thư mục repository. Có thể 
 git diff --check
 ```
 
+Suite mặc định không mở socket localhost và không nạp bộ dependency PEFT thật.
+Chạy riêng các lane opt-in khi môi trường cho phép:
+
+```powershell
+$env:VIGOVBOT_RUN_INTEGRATION_TESTS = "1"
+.venv\Scripts\python -m unittest tests.test_clarification tests.test_runtime_safety -v
+
+$env:VIGOVBOT_RUN_OPTIONAL_TESTS = "1"
+.venv\Scripts\python -m unittest tests.test_real_peft_cpu -v
+```
+
+Lane `integration` dùng HTTP localhost với model mock. Lane `optional` dùng
+Transformers, PEFT, tokenizers và torch thật trên CPU; không tải checkpoint.
+
 Repository không còn workflow CI tự động. Trước khi bàn giao thay đổi, chạy thủ
 công các gate ở trên; test GPU phải được ghi riêng như artifact thực nghiệm.
 

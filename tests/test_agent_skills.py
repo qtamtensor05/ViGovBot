@@ -24,6 +24,9 @@ SKILLS = {
     "rag-security-review",
     "context-navigation",
     "minimal-diff-development",
+    "nature-paper2word",
+    "nature-shared",
+    "nature-writing",
     "task-planning",
     "code-change-verification",
     "context-handoff",
@@ -61,12 +64,10 @@ class AgentSkillTests(unittest.TestCase):
             parts = text.split("---", 2)
             self.assertEqual(len(parts), 3)
             frontmatter = yaml.safe_load(parts[1])
-            self.assertEqual(frontmatter, {
-                "name": name,
-                "description": frontmatter["description"],
-            })
+            self.assertEqual(frontmatter["name"], name)
+            self.assertEqual(set(frontmatter) - {"license"}, {"name", "description"})
             self.assertRegex(name, r"^[a-z0-9-]{1,64}$")
-            self.assertLessEqual(len(frontmatter["description"]), 300)
+            self.assertLessEqual(len(frontmatter["description"]), 1024)
             self.assertTrue(frontmatter["description"].strip())
             self.assertNotIn("\\n", parts[2])
             ui_path = folder / "agents" / "openai.yaml"

@@ -3,9 +3,20 @@ import unittest
 
 from vigovbot.chunking.headings import extract_metadata, classify_section, TTHCChunkingError
 from vigovbot.chunking.splitter import BlockSplitter
+from vigovbot.chunking.tables import flatten_tables, first_table_header, repeat_table_header, repair_table_continuations
 
 
 class ChunkingPrimitiveTests(unittest.TestCase):
+    def test_table_helpers_do_not_depend_on_chunker_configuration(self):
+        table = "| Tên | Phí |\n| --- | --- |\n| Hồ sơ | 0 đồng |"
+        self.assertIn("Phí: 0 đồng", flatten_tables(table))
+        header = first_table_header(table)
+        self.assertEqual(
+            repeat_table_header([table, "| Khác | 1 đồng |"], header)[1],
+            header + "\n| Khác | 1 đồng |",
+        )
+        self.assertEqual(repair_table_continuations(table), table)
+
     def test_metadata_and_heading_are_independent_of_pydantic(self):
         metadata = extract_metadata("# Cấp giấy phép\nMã: 1.000001")
         self.assertEqual(metadata, {"source_code": "1.000001", "procedure_name": "Cấp giấy phép"})

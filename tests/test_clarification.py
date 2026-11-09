@@ -3,6 +3,7 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
+from tests.dependencies import integration_test, skip_missing_dependency
 from tests.test_follow_up_retrieval import fixture_retriever
 from vigovbot.rag.clarification import Clarifier
 
@@ -213,7 +214,6 @@ class ClarifierTests(unittest.TestCase):
 
 class ClarificationPipelineTests(unittest.TestCase):
     def setUp(self):
-        from tests.dependencies import skip_missing_dependency
         try:
             from vigovbot.rag.pipeline import answer_question
         except ModuleNotFoundError as exc:
@@ -369,6 +369,7 @@ class ClarificationPipelineTests(unittest.TestCase):
         self.assertEqual(section["clarification_context"]["codes"], ["1.000004"])
         answer.assert_not_called()
 
+    @integration_test
     def test_http_normal_menu_then_stream_selection(self):
         import sqlite3
         import threading

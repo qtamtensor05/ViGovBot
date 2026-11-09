@@ -8,11 +8,28 @@ from unittest.mock import Mock, patch
 
 try:
     from vigovbot.training import lifecycle
+    from vigovbot.training.config import load_config
+    from vigovbot.training.train import _prepare_training_data
 except ModuleNotFoundError as exc:
     skip_missing_dependency(exc)
 
 
 class TrainingLifecycleTests(unittest.TestCase):
+    def test_resume_rejects_new_run_id_before_creating_run(self):
+        with (
+            patch("vigovbot.training.train.dataset_paths", return_value={
+                "train": Path("train"),
+                "validation": Path("validation"),
+                "test": Path("test"),
+            }),
+            patch("vigovbot.training.train.read_jsonl", return_value=[]),
+            patch("vigovbot.training.train.sha256_file", return_value="digest"),
+            patch("vigovbot.training.train.create_run_dir") as create,
+        ):
+            with self.assertRaisesRegex(ValueError, "cannot be combined"):
+                _prepare_training_data(load_config("configs/training/base.yaml"), "checkpoint", "new-run")
+            create.assert_not_called()
+
     def _validation(self, root: Path) -> dict:
         config = root / "configs" / "gpu.yaml"
         config.parent.mkdir(parents=True)

@@ -1,6 +1,7 @@
 """Explicit missing-dependency skips; never hide internal import failures."""
-import unittest
 import importlib
+import os
+import unittest
 from functools import wraps
 
 DEPENDENCIES = frozenset({
@@ -10,6 +11,12 @@ DEPENDENCIES = frozenset({
     "nltk", "rouge_score", "sacrebleu", "torch", "transformers", "peft",
     "datasets", "accelerate", "safetensors", "sentence_transformers",
 })
+
+
+integration_test = unittest.skipUnless(
+    os.environ.get("VIGOVBOT_RUN_INTEGRATION_TESTS") == "1",
+    "Set VIGOVBOT_RUN_INTEGRATION_TESTS=1 to run localhost integration tests",
+)
 
 
 def skip_missing_dependency(error):

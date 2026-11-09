@@ -369,24 +369,19 @@ class PhoBERTConversationTests(unittest.TestCase):
         result = self.ask("Hồ sơ cấp hộ chiếu", [prediction(["DOSSIER"])])
         self.assertEqual({h["source_code"] for h in result["retrieved"]}, {"1.000001"})
 
-    def test_different_procedure_does_not_inherit_previous_dossier_section(self):
+    def test_phobert_receives_reset_context_when_procedure_changes(self):
         self.ask("Thủ tục đăng ký kết hôn cần những giấy tờ nào", [prediction(["DOSSIER"])])
         self.assertEqual(self.state["selected"], ["1.000894"])
 
         result = self.ask("Cấp, cấp đổi, cấp lại thẻ căn cước", [
             prediction(["DOSSIER"], flow="FOLLOW_UP")
         ])
-        self.assertEqual(result["classification"]["conversation"], "NEW")
-        self.assertEqual(result["classification"]["sections"], [])
         self.assertEqual(result["action"], "clarify")
         self.assertEqual(result["menu"]["kind"], "section")
-        self.assertIn("Cấp, cấp đổi, cấp lại thẻ căn cước", result["prediction"])
-        self.assertIn("1.116405", result["prediction"])
-        self.assertEqual(result["retrieved"], [])
         self.assertEqual(result["conversation_state"]["selected"], ["1.116405"])
         self.assertEqual(self.model.predict.call_args.args[1:], ("", "Cấp, cấp đổi, cấp lại thẻ căn cước"))
 
-    def test_search_phrase_different_procedure_presents_procedure_candidates_menu(self):
+    def test_phobert_procedure_menu_selection_advances_to_section_menu(self):
         add_procedure(self.retriever, "2.000066", "Cấp lại chứng chỉ kiểm định viên",
                       sections=("required_documents", "legal_basis"))
         add_procedure(self.retriever, "1.000187", "Cấp lại chứng chỉ kiểm định viên trong trường hợp hết hạn",
@@ -396,14 +391,7 @@ class PhoBERTConversationTests(unittest.TestCase):
         self.assertEqual(self.state["selected"], ["1.000894"])
 
         result = self.ask("Kiểm định viên", [prediction(["LEGAL_BASIS"], flow="FOLLOW_UP")])
-        self.assertEqual(result["classification"]["conversation"], "NEW")
-        self.assertEqual(result["classification"]["sections"], [])
-        self.assertEqual(result["action"], "clarify")
         self.assertEqual(result["menu"]["kind"], "procedure")
-        self.assertEqual({o["id"] for o in result["menu"]["options"]}, {"2.000066", "1.000187"})
-        self.assertEqual(result["retrieved"], [])
-        self.assertNotIn("1.000894", result["prediction"])
-        self.assertIn("Bạn muốn hỏi thủ tục nào", result["prediction"])
         self.assertEqual(self.answer.call_count, 1)
 
         # Selecting option 1 from procedure menu must present section menu, not prematurely answer

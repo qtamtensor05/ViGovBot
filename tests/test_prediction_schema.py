@@ -1,7 +1,7 @@
 import json
 import unittest
 from jsonschema import Draft202012Validator, ValidationError
-from tests.schema_fixtures import ROOT, SCHEMAS, prediction, validator
+from tests.schema_fixtures import SCHEMAS, prediction, validator
 
 
 class PredictionSchemaTests(unittest.TestCase):

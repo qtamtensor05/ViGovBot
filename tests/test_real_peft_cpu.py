@@ -1,11 +1,16 @@
-"""Offline CPU integration with real Transformers/PEFT; not a QLoRA GPU test."""
+"""Opt-in CPU integration with real Transformers/PEFT; not a QLoRA GPU test."""
 from tests.dependencies import skip_missing_dependency  # noqa: F401
 
 
+import os
 import tempfile
 import unittest
 
 
+@unittest.skipUnless(
+    os.environ.get("VIGOVBOT_RUN_OPTIONAL_TESTS") == "1",
+    "Set VIGOVBOT_RUN_OPTIONAL_TESTS=1 to run optional real-dependency tests",
+)
 class RealPeftCpuTests(unittest.TestCase):
     def test_real_tokenizer_lora_backward_save_reload(self):
         try:

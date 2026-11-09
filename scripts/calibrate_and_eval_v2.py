@@ -9,11 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import json
 import time
 import re
-from collections import defaultdict, Counter
+from collections import defaultdict
 import numpy as np
 import torch
 
-from vigovbot.rag.phobert_router import PhoBERTRouter, encode_segments, HEAD_KEYS, LABEL_MAP
+from vigovbot.rag.phobert_router import PhoBERTRouter, encode_segments, LABEL_MAP
 from vigovbot.rag.clarification import Clarifier
 from vigovbot.retrieval.retriever import _fold, extract_source_codes
 
@@ -513,7 +513,7 @@ def main():
         out_dir="outputs/evaluation/router_threshold-v1-baseline",
         total_elapsed_seconds=infer_time + (time.time() - t_v1_start),
     )
-    print(f"   -> Lần 1 hoàn tất:")
+    print("   -> Lần 1 hoàn tất:")
     print(f"      + Sections Exact Match:    {v1_summary['metrics_percentage']['sections_exact_match']:.2f}%")
     print(f"      + Action Accuracy:         {v1_summary['metrics_percentage']['action_accuracy']:.2f}%")
     print(f"      + Decision Reason Acc:     {v1_summary['metrics_percentage']['decision_reason_accuracy']:.2f}%")
@@ -522,7 +522,7 @@ def main():
     print(f"      + PhoBERT Joint Match:     {v1_summary['metrics_percentage']['phobert_4head_joint_accuracy']:.2f}%")
     print(f"      ★ STRICT E2E ACCURACY:     {v1_summary['metrics_percentage']['strict_e2e_accuracy']:.2f}%")
     print(f"      + Tổng số ca lỗi:          {len(v1_fails)}/{total_samples}")
-    print(f"      + Đã lưu tại:              outputs/evaluation/router_threshold-v1-baseline/")
+    print("      + Đã lưu tại:              outputs/evaluation/router_threshold-v1-baseline/")
 
     # =========================================================================
     # 7. PHÂN TÍCH HIỆU SUẤT TỪNG CHUYÊN MỤC VÀ TỐI ƯU HÓA NGƯỠNG
@@ -621,7 +621,7 @@ def main():
         out_dir="outputs/evaluation/router_threshold-v2-calibrated",
         total_elapsed_seconds=infer_time + (time.time() - t_v2_start),
     )
-    print(f"   -> Lần 2 hoàn tất:")
+    print("   -> Lần 2 hoàn tất:")
     print(f"      + Sections Exact Match:    {v2_summary['metrics_percentage']['sections_exact_match']:.2f}%")
     print(f"      + Action Accuracy:         {v2_summary['metrics_percentage']['action_accuracy']:.2f}%")
     print(f"      + Decision Reason Acc:     {v2_summary['metrics_percentage']['decision_reason_accuracy']:.2f}%")
@@ -630,7 +630,7 @@ def main():
     print(f"      + PhoBERT Joint Match:     {v2_summary['metrics_percentage']['phobert_4head_joint_accuracy']:.2f}%")
     print(f"      ★ STRICT E2E ACCURACY:     {v2_summary['metrics_percentage']['strict_e2e_accuracy']:.2f}%")
     print(f"      + Tổng số ca lỗi:          {len(v2_fails)}/{total_samples}")
-    print(f"      + Đã lưu tại:              outputs/evaluation/router_threshold-v2-calibrated/")
+    print("      + Đã lưu tại:              outputs/evaluation/router_threshold-v2-calibrated/")
 
     # =========================================================================
     # 9. SO SÁNH ĐỐI ĐẦU TOÀN DIỆN LẦN 1 VS LẦN 2
@@ -714,9 +714,9 @@ def main():
 
     total_time = time.time() - start_time
     print(f"\n-> HOÀN THÀNH TOÀN BỘ 2 LẦN CHẤM ROUTING TRONG {total_time:.2f}s (~{total_time/60:.1f} phút)!")
-    print(f"-> Đã ghi nhận đầy đủ artifacts vào:")
-    print(f"   1. Lần 1: outputs/evaluation/router_threshold-v1-baseline/")
-    print(f"   2. Lần 2: outputs/evaluation/router_threshold-v2-calibrated/")
+    print("-> Đã ghi nhận đầy đủ artifacts vào:")
+    print("   1. Lần 1: outputs/evaluation/router_threshold-v1-baseline/")
+    print("   2. Lần 2: outputs/evaluation/router_threshold-v2-calibrated/")
     print("=" * 70)
 
 

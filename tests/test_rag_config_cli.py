@@ -64,8 +64,8 @@ class ConfigTests(unittest.TestCase):
                     self.assertEqual(model["base_url"], config["llm"]["ollama_url"])
 
     def test_inference_profiles_send_configured_top_k_directly_to_llm(self):
-        expected = {"inference.yaml": 15, "inference-docker.yaml": 5,
-                    "inference-docker-ollama.yaml": 15}
+        expected = {"inference.yaml": 5, "inference-docker.yaml": 5,
+                    "inference-docker-ollama.yaml": 5}
         for name, top_k in expected.items():
             config = load_config(Path("configs/rag") / name)
             settings = config.inference_settings()

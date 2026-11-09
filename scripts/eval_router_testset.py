@@ -6,7 +6,7 @@ import sys
 import json
 import time
 from pathlib import Path
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 sys.stdout.reconfigure(encoding="utf-8")
 
